@@ -276,7 +276,7 @@ if __name__ == "__main__":
     """
     try:
         # Initialize client
-        client = AlmaAPIClient('SANDBOX')
+        client = AlmaAPIClient('PRODUCTION')  # or 'SANDBOX'
         
         # Test connection
         if client.test_connection():

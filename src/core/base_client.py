@@ -4,8 +4,8 @@ import time
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
-from config_manager import ConfigManager
-from logger_manager import LoggerManager
+from archived.config_manager import ConfigManager
+from archived.logger_manager import LoggerManager
 
 
 class AlmaAPIError(Exception):

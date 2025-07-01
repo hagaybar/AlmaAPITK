@@ -1,5 +1,5 @@
 [project]
-name = "almaapitk"
+name = "src"
 version = "0.1.0"
 description = "API client for Alma ILS"
 authors = [

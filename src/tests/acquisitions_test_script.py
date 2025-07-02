@@ -1,334 +1,527 @@
 #!/usr/bin/env python3
 """
-Test script for the Acquisitions domain class
-Tests the complete workflow: get_invoice -> mark_as_paid -> verify_change
+Automated Bulk Invoice Processor
+Processes invoices from a daily report without user interaction.
+Uses config file for settings.
 """
 
 import sys
 import os
+import json
+import pandas as pd
+from datetime import datetime
+from typing import List, Dict, Any
+import logging
 
-# Add the path where your classes are located
+# Import our Alma classes
 try:
     from src.client.AlmaAPIClient import AlmaAPIClient
     from src.domains.acquisition import Acquisitions
 except ImportError as e:
     print(f"Could not import required classes: {e}")
-    print("Make sure AlmaAPIClient.py and acquisitions.py are in the same directory or in your Python path.")
+    print("Make sure AlmaAPIClient.py and acquisitions.py are in the same directory.")
     sys.exit(1)
 
 
-def test_environment_setup():
-    """Test environment variable setup"""
-    print("=== Testing Environment Setup ===")
+class AutomatedInvoiceProcessor:
+    """
+    Automated invoice processor that runs without user interaction.
+    """
     
-    sb_key = os.getenv('ALMA_SB_API_KEY')
-    prod_key = os.getenv('ALMA_PROD_API_KEY')
+    def __init__(self, config_file: str = 'invoice_processor_config.json'):
+        """
+        Initialize the processor with config file.
+        
+        Args:
+            config_file: Path to configuration file
+        """
+        self.config = self.load_config(config_file)
+        self.setup_logging()
+        self.results = []
+        self.setup_alma_client()
     
-    print(f"ALMA_SB_API_KEY: {'Set' if sb_key else 'NOT SET'}")
-    if sb_key:
-        print(f"  Partial key: {sb_key[:10]}...")
-    
-    print(f"ALMA_PROD_API_KEY: {'Set' if prod_key else 'NOT SET'}")
-    if prod_key:
-        print(f"  Partial key: {prod_key[:10]}...")
-    
-    return sb_key, prod_key
-
-
-def test_client_initialization(environment='SANDBOX'):
-    """Test creating AlmaAPIClient and Acquisitions instances"""
-    print(f"\n=== Testing Client Initialization ({environment}) ===")
-    
-    try:
-        print(f"Creating {environment} client...")
-        client = AlmaAPIClient(environment)
-        print(f"✓ {environment} client created successfully")
+    def load_config(self, config_file: str) -> Dict[str, Any]:
+        """
+        Load configuration from JSON file.
         
-        print("Creating Acquisitions domain...")
-        acq = Acquisitions(client)
-        print("✓ Acquisitions domain created successfully")
+        Args:
+            config_file: Path to config file
         
-        return client, acq
-        
-    except Exception as e:
-        print(f"✗ Client initialization failed: {e}")
-        return None, None
-
-
-def test_connection(client, acq):
-    """Test API connections"""
-    print("\n=== Testing API Connections ===")
-    
-    # Test base connection
-    print("Testing base API connection...")
-    if client.test_connection():
-        print("✓ Base API connection successful")
-    else:
-        print("✗ Base API connection failed")
-        return False
-    
-    # Test acquisitions connection
-    print("Testing Acquisitions API connection...")
-    if acq.test_connection():
-        print("✓ Acquisitions API connection successful")
-        return True
-    else:
-        print("✗ Acquisitions API connection failed")
-        return False
-
-
-def get_test_invoice_id(acq):
-    """Get a test invoice ID from the user or find one automatically"""
-    print("\n=== Getting Test Invoice ID ===")
-    
-    # First, ask user for invoice ID
-    invoice_id = input("Enter an invoice ID to test (or press Enter to auto-find): ").strip()
-    
-    if invoice_id:
-        print(f"Using user-provided invoice ID: {invoice_id}")
-        return invoice_id
-    
-    # Try to find an invoice automatically
-    try:
-        print("Attempting to auto-find a test invoice...")
-        
-        # Look for invoices with specific statuses that can be marked as paid
-        test_statuses = ["WAITING_TO_BE_SENT", "SENT", "APPROVED"]
-        
-        for status in test_statuses:
-            try:
-                print(f"  Looking for invoices with status: {status}...")
-                invoices = acq.list_invoices(limit=5, status=status)
-                
-                invoice_list = invoices.get('invoice', [])
-                if isinstance(invoice_list, dict):
-                    invoice_list = [invoice_list]
-                
-                if invoice_list:
-                    test_invoice = invoice_list[0]
-                    invoice_id = test_invoice.get('id')
-                    invoice_number = test_invoice.get('number', 'Unknown')
-                    print(f"  ✓ Found invoice: {invoice_number} (ID: {invoice_id})")
-                    return invoice_id
-                    
-            except Exception as e:
-                print(f"  Error searching for {status} invoices: {e}")
-                continue
-        
-        # If no specific status found, try to get any invoice
-        print("  Looking for any available invoice...")
-        invoices = acq.list_invoices(limit=5)
-        invoice_list = invoices.get('invoice', [])
-        
-        if isinstance(invoice_list, dict):
-            invoice_list = [invoice_list]
-        
-        if invoice_list:
-            test_invoice = invoice_list[0]
-            invoice_id = test_invoice.get('id')
-            invoice_number = test_invoice.get('number', 'Unknown')
-            print(f"  ✓ Found invoice: {invoice_number} (ID: {invoice_id})")
-            return invoice_id
-        
-        print("  ✗ No invoices found in the system")
-        return None
-        
-    except Exception as e:
-        print(f"  ✗ Error finding test invoice: {e}")
-        return None
-
-
-def test_invoice_workflow(acq, invoice_id):
-    """Test the complete invoice workflow: get -> pay -> verify"""
-    print(f"\n=== Testing Invoice Workflow for ID: {invoice_id} ===")
-    
-    # Step 1: Get initial invoice state
-    print("\n--- Step 1: Getting Initial Invoice State ---")
-    try:
-        initial_invoice = acq.get_invoice(invoice_id)
-        initial_summary = acq.get_invoice_summary(invoice_id)
-        
-        print("✓ Successfully retrieved initial invoice")
-        print(f"  Invoice Number: {initial_summary['invoice_number']}")
-        print(f"  Vendor: {initial_summary['vendor_name']} ({initial_summary['vendor_code']})")
-        print(f"  Amount: {initial_summary['total_amount']} {initial_summary['currency']}")
-        print(f"  Initial Status: {initial_summary['status']}")
-        print(f"  Initial Payment Status: {initial_summary['payment_status']}")
-        
-        # Check if invoice can be paid
-        current_status = initial_summary['status']
-        payment_status = initial_summary['payment_status']
-        
-        print(f"\n  Current invoice status: {current_status}")
-        print(f"  Current payment status: {payment_status}")
-        
-        if payment_status == "PAID":
-            print("  ⚠️  Invoice is already paid - test may not show status change")
-        
-    except Exception as e:
-        print(f"✗ Failed to get initial invoice state: {e}")
-        return False
-    
-    # Step 2: Mark invoice as paid
-    print("\n--- Step 2: Marking Invoice as Paid ---")
-    try:
-        print(f"Attempting to mark invoice {invoice_id} as paid...")
-        print("Using Invoice Service API with 'paid' operation and empty payload")
-        
-        payment_result = acq.mark_invoice_paid(invoice_id)
-        
-        print("✓ Successfully processed payment operation")
-        
-        # Display result if available
-        if isinstance(payment_result, dict):
-            result_status = payment_result.get('invoice_status', {}).get('value', 'Unknown')
-            result_payment_status = payment_result.get('payment_status', {}).get('value', 'Unknown')
-            print(f"  Result Status: {result_status}")
-            print(f"  Result Payment Status: {result_payment_status}")
-        
-    except Exception as e:
-        print(f"✗ Failed to mark invoice as paid: {e}")
-        print(f"  This might be normal if the invoice is already paid or in a non-payable state")
-        # Continue with verification step anyway
-    
-    # Step 3: Verify the change
-    print("\n--- Step 3: Verifying Status Change ---")
-    try:
-        print("Retrieving updated invoice state...")
-        updated_invoice = acq.get_invoice(invoice_id)
-        updated_summary = acq.get_invoice_summary(invoice_id)
-        
-        print("✓ Successfully retrieved updated invoice")
-        print(f"  Invoice Number: {updated_summary['invoice_number']}")
-        print(f"  Updated Status: {updated_summary['status']}")
-        print(f"  Updated Payment Status: {updated_summary['payment_status']}")
-        
-        # Compare initial vs updated state
-        print("\n--- Status Comparison ---")
-        print(f"  Status:         {initial_summary['status']} → {updated_summary['status']}")
-        print(f"  Payment Status: {initial_summary['payment_status']} → {updated_summary['payment_status']}")
-        
-        # Determine if change occurred
-        status_changed = initial_summary['status'] != updated_summary['status']
-        payment_status_changed = initial_summary['payment_status'] != updated_summary['payment_status']
-        
-        if status_changed or payment_status_changed:
-            print("✓ Status changes detected!")
-            if status_changed:
-                print(f"  ✓ Invoice status changed: {initial_summary['status']} → {updated_summary['status']}")
-            if payment_status_changed:
-                print(f"  ✓ Payment status changed: {initial_summary['payment_status']} → {updated_summary['payment_status']}")
-        else:
-            print("ℹ️  No status changes detected")
-            print("  This might be normal depending on the invoice's initial state and business rules")
-        
-        return True
-        
-    except Exception as e:
-        print(f"✗ Failed to verify status change: {e}")
-        return False
-
-
-def test_additional_operations(acq, invoice_id):
-    """Test additional invoice operations"""
-    print(f"\n=== Testing Additional Operations for Invoice: {invoice_id} ===")
-    
-    # Test getting invoice lines
-    try:
-        print("\nTesting invoice lines retrieval...")
-        lines = acq.get_invoice_lines(invoice_id)
-        print(f"✓ Retrieved {len(lines)} invoice lines")
-        
-        if lines:
-            first_line = lines[0]
-            line_number = first_line.get('line_number', 'Unknown')
-            line_type = first_line.get('type', {}).get('value', 'Unknown')
-            print(f"  First line: #{line_number} - Type: {line_type}")
-        
-    except Exception as e:
-        print(f"✗ Failed to get invoice lines: {e}")
-    
-    # Test search functionality
-    try:
-        print("\nTesting invoice search...")
-        # Search for invoices from the same vendor
-        initial_summary = acq.get_invoice_summary(invoice_id)
-        vendor_code = initial_summary['vendor_code']
-        
-        if vendor_code != 'Unknown':
-            search_results = acq.search_invoices(f"vendor~{vendor_code}", limit=3)
-            total_found = search_results.get('total_record_count', 0)
-            print(f"✓ Found {total_found} invoices for vendor {vendor_code}")
-        else:
-            print("ℹ️  Skipping vendor search - vendor code not available")
+        Returns:
+            Configuration dictionary
+        """
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
             
-    except Exception as e:
-        print(f"✗ Failed to test search functionality: {e}")
+            # Validate required fields
+            required_fields = ['environment', 'excel_file_path', 'output_directory']
+            missing_fields = [field for field in required_fields if field not in config]
+            
+            if missing_fields:
+                raise ValueError(f"Missing required config fields: {missing_fields}")
+            
+            # Set defaults for optional fields
+            config.setdefault('log_level', 'INFO')
+            config.setdefault('backup_reports', True)
+            config.setdefault('max_errors_before_stop', None)
+            
+            return config
+            
+        except FileNotFoundError:
+            print(f"Config file not found: {config_file}")
+            print("Creating sample config file...")
+            self.create_sample_config(config_file)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            sys.exit(1)
+    
+    def create_sample_config(self, config_file: str):
+        """Create a sample configuration file."""
+        sample_config = {
+            "environment": "SANDBOX",
+            "excel_file_path": "/path/to/daily_invoice_report.xlsx",
+            "output_directory": "",
+            "log_level": "INFO",
+            "backup_reports": True,
+            "max_errors_before_stop": None,
+            "comments": {
+                "environment": "SANDBOX or PRODUCTION",
+                "excel_file_path": "Full path to the Excel file with invoice IDs in first column",
+                "output_directory": "Directory for output files (empty = current directory)",
+                "log_level": "DEBUG, INFO, WARNING, ERROR",
+                "backup_reports": "Whether to keep backup copies of processed reports",
+                "max_errors_before_stop": "Stop processing after N errors (null = no limit)"
+            }
+        }
+        
+        with open(config_file, 'w') as f:
+            json.dump(sample_config, f, indent=2)
+        
+        print(f"Sample config created: {config_file}")
+        print("Please edit the config file with your settings and run again.")
+    
+    def setup_logging(self):
+        """Setup logging based on config."""
+        # Handle empty output_directory - use current directory
+        output_dir = self.config['output_directory'].strip() if self.config['output_directory'] else '.'
+        self.config['output_directory'] = output_dir
+        
+        # Create output directory if it doesn't exist (but not for current dir)
+        if output_dir != '.':
+            os.makedirs(output_dir, exist_ok=True)
+        
+        # Setup log file with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_file = os.path.join(self.config['output_directory'], f'invoice_processor_{timestamp}.log')
+        
+        # Configure logging
+        log_level = getattr(logging, self.config['log_level'].upper(), logging.INFO)
+        
+        logging.basicConfig(
+            level=log_level,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+        
+        self.logger = logging.getLogger(__name__)
+        self.logger.info(f"Starting automated invoice processor")
+        self.logger.info(f"Config: {self.config}")
+        self.logger.info(f"Log file: {log_file}")
+    
+    def setup_alma_client(self):
+        """Setup Alma API client and acquisitions domain."""
+        try:
+            environment = self.config['environment']
+            self.logger.info(f"Setting up Alma client for {environment}...")
+            
+            self.client = AlmaAPIClient(environment)
+            self.acq = Acquisitions(self.client)
+            
+            # Test connection
+            if not self.client.test_connection():
+                raise Exception("Failed to connect to Alma API")
+            
+            if not self.acq.test_connection():
+                raise Exception("Failed to connect to Acquisitions API")
+            
+            self.logger.info(f"Successfully connected to Alma {environment}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to setup Alma client: {e}")
+            raise
+    
+    def validate_excel_file(self) -> bool:
+        """
+        Validate that the Excel file exists and is readable.
+        
+        Returns:
+            True if file is valid, False otherwise
+        """
+        excel_file = self.config['excel_file_path']
+        
+        if not os.path.exists(excel_file):
+            self.logger.error(f"Excel file not found: {excel_file}")
+            return False
+        
+        try:
+            # Try to read the file to ensure it's valid
+            df = pd.read_excel(excel_file, nrows=1)
+            self.logger.info(f"Excel file validated: {excel_file}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Invalid Excel file {excel_file}: {e}")
+            return False
+    
+    def read_invoice_ids_from_excel(self) -> List[str]:
+        """
+        Read invoice IDs from the first column of the configured Excel file.
+        
+        Returns:
+            List of invoice IDs (as strings)
+        """
+        excel_file = self.config['excel_file_path']
+        
+        try:
+            self.logger.info(f"Reading invoice IDs from: {excel_file}")
+            
+            # Read Excel file - first column only
+            df = pd.read_excel(excel_file, usecols=[0])
+            
+            # Get the first column (regardless of header name)
+            first_column = df.iloc[:, 0]
+            
+            # Convert to string and remove any NaN values
+            invoice_ids = []
+            for value in first_column:
+                if pd.notna(value):  # Skip NaN/empty cells
+                    invoice_id = str(value).strip()
+                    if invoice_id:  # Skip empty strings
+                        invoice_ids.append(invoice_id)
+            
+            self.logger.info(f"Found {len(invoice_ids)} invoice IDs in Excel file")
+            self.logger.debug(f"First 5 invoice IDs: {invoice_ids[:5]}")
+            
+            return invoice_ids
+            
+        except Exception as e:
+            self.logger.error(f"Failed to read Excel file: {e}")
+            raise
+    
+    def process_single_invoice(self, invoice_id: str) -> Dict[str, Any]:
+        """
+        Process a single invoice: get initial state, check if already closed, mark as paid if needed, verify.
+        
+        Args:
+            invoice_id: The invoice ID to process
+        
+        Returns:
+            Dict with processing results
+        """
+        result = {
+            'invoice_id': invoice_id,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'initial_status': 'Unknown',
+            'initial_payment_status': 'Unknown',
+            'final_status': 'Unknown',
+            'final_payment_status': 'Unknown',
+            'operation_success': False,
+            'status_changed': False,
+            'payment_status_changed': False,
+            'skipped': False,
+            'skip_reason': None,
+            'error_message': None
+        }
+        
+        try:
+            self.logger.debug(f"Processing invoice: {invoice_id}")
+            
+            # Step 1: Get initial state
+            initial_invoice = self.acq.get_invoice(invoice_id)
+            
+            result['initial_status'] = initial_invoice.get('invoice_status', {}).get('value', 'Unknown')
+            result['initial_payment_status'] = initial_invoice.get('payment_status', {}).get('value', 'Unknown')
+            
+            self.logger.debug(f"Invoice {invoice_id} - Initial: {result['initial_status']}/{result['initial_payment_status']}")
+            
+            # Step 2: Check if invoice is already closed/paid - skip if so
+            closed_statuses = ['CLOSED', 'PAID', 'CANCELLED']  # Add other "final" statuses as needed
+            closed_payment_statuses = ['PAID', 'FULLY_PAID']   # Add other "paid" statuses as needed
+            
+            if (result['initial_status'] in closed_statuses or 
+                result['initial_payment_status'] in closed_payment_statuses):
+                
+                result['skipped'] = True
+                result['skip_reason'] = f"Already closed - Status: {result['initial_status']}, Payment: {result['initial_payment_status']}"
+                result['final_status'] = result['initial_status']
+                result['final_payment_status'] = result['initial_payment_status']
+                result['operation_success'] = True  # Mark as success since no action was needed
+                
+                self.logger.info(f"Invoice {invoice_id} - Skipped: {result['skip_reason']}")
+                return result
+            
+            # Step 3: Mark as paid (only if not already closed)
+            self.logger.debug(f"Invoice {invoice_id} - Attempting to mark as paid...")
+            payment_result = self.acq.mark_invoice_paid(invoice_id)
+            result['operation_success'] = True
+            
+            # Step 4: Verify change
+            updated_invoice = self.acq.get_invoice(invoice_id)
+            
+            result['final_status'] = updated_invoice.get('invoice_status', {}).get('value', 'Unknown')
+            result['final_payment_status'] = updated_invoice.get('payment_status', {}).get('value', 'Unknown')
+            
+            # Check for changes
+            result['status_changed'] = result['initial_status'] != result['final_status']
+            result['payment_status_changed'] = result['initial_payment_status'] != result['final_payment_status']
+            
+            if result['status_changed'] or result['payment_status_changed']:
+                self.logger.info(f"Invoice {invoice_id} - Status changed: {result['initial_status']}/{result['initial_payment_status']} -> {result['final_status']}/{result['final_payment_status']}")
+            else:
+                self.logger.info(f"Invoice {invoice_id} - No status change: {result['final_status']}/{result['final_payment_status']}")
+            
+            return result
+            
+        except Exception as e:
+            # Enhanced error handling to capture Alma API error details
+            error_message = str(e)
+            
+            # Check if this is an HTTP error with response content
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                try:
+                    # Try to parse JSON error response from Alma
+                    error_response = e.response.json()
+                    
+                    # Extract detailed error information
+                    if 'errorList' in error_response:
+                        error_list = error_response['errorList']
+                        if 'error' in error_list and error_list['error']:
+                            errors = error_list['error']
+                            if isinstance(errors, list) and errors:
+                                first_error = errors[0]
+                                error_code = first_error.get('errorCode', 'Unknown')
+                                error_msg = first_error.get('errorMessage', 'No message')
+                                tracking_id = first_error.get('trackingId', 'No tracking ID')
+                                error_message = f"Alma Error {error_code}: {error_msg} (Tracking: {tracking_id})"
+                            elif isinstance(errors, dict):
+                                error_code = errors.get('errorCode', 'Unknown')
+                                error_msg = errors.get('errorMessage', 'No message')
+                                tracking_id = errors.get('trackingId', 'No tracking ID')
+                                error_message = f"Alma Error {error_code}: {error_msg} (Tracking: {tracking_id})"
+                    
+                    # If we couldn't parse the structured error, include raw response
+                    elif e.response.text:
+                        error_message = f"{str(e)} - Response: {e.response.text[:200]}"
+                        
+                except:
+                    # If JSON parsing fails, include raw response text
+                    if e.response.text:
+                        error_message = f"{str(e)} - Response: {e.response.text[:200]}"
+            
+            self.logger.error(f"Error processing invoice {invoice_id}: {error_message}")
+            result['error_message'] = error_message
+            return result
+    
+    def process_all_invoices(self, invoice_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Process all invoices from the list.
+        
+        Args:
+            invoice_ids: List of invoice IDs to process
+        
+        Returns:
+            List of processing results
+        """
+        self.logger.info(f"Starting processing of {len(invoice_ids)} invoices")
+        
+        results = []
+        successful_count = 0
+        skipped_count = 0
+        error_count = 0
+        max_errors = self.config.get('max_errors_before_stop')
+        
+        for i, invoice_id in enumerate(invoice_ids, 1):
+            result = self.process_single_invoice(invoice_id)
+            results.append(result)
+            
+            if result['operation_success']:
+                if result.get('skipped', False):
+                    skipped_count += 1
+                else:
+                    successful_count += 1
+            else:
+                error_count += 1
+                
+                # Check if we should stop due to too many errors
+                if max_errors and error_count >= max_errors:
+                    self.logger.error(f"Stopping processing - reached maximum errors ({max_errors})")
+                    break
+            
+            # Log progress every 10 invoices
+            if i % 10 == 0:
+                self.logger.info(f"Progress: {i}/{len(invoice_ids)} processed ({successful_count} processed, {skipped_count} skipped, {error_count} errors)")
+        
+        self.logger.info(f"Processing complete - Total: {len(results)}, Processed: {successful_count}, Skipped: {skipped_count}, Errors: {error_count}")
+        
+        return results
+    
+    def create_tsv_report(self, results: List[Dict[str, Any]]) -> str:
+        """
+        Create a TSV report of all processed invoices.
+        
+        Args:
+            results: List of processing results
+        
+        Returns:
+            Path to the created TSV file
+        """
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_file = os.path.join(self.config['output_directory'], f'invoice_processing_results_{timestamp}.tsv')
+        
+        try:
+            self.logger.info(f"Creating TSV report: {output_file}")
+            
+            # Create DataFrame from results
+            df = pd.DataFrame(results)
+            
+            # Reorder columns for better readability
+            column_order = [
+                'invoice_id',
+                'timestamp',
+                'operation_success',
+                'skipped',
+                'skip_reason',
+                'initial_status',
+                'final_status',
+                'status_changed',
+                'initial_payment_status',
+                'final_payment_status',
+                'payment_status_changed',
+                'error_message'
+            ]
+            
+            # Ensure all columns exist
+            for col in column_order:
+                if col not in df.columns:
+                    df[col] = None
+            
+            df = df[column_order]
+            
+            # Save as TSV
+            df.to_csv(output_file, sep='\t', index=False)
+            
+            # Log summary statistics
+            if results:
+                successful = sum(1 for r in results if r['operation_success'] and not r.get('skipped', False))
+                skipped = sum(1 for r in results if r.get('skipped', False))
+                with_changes = sum(1 for r in results if r['status_changed'] or r['payment_status_changed'])
+                
+                self.logger.info(f"TSV report created: {output_file}")
+                self.logger.info(f"Total records: {len(results)}, Processed: {successful}, Skipped: {skipped}, With changes: {with_changes}")
+            
+            return output_file
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create TSV report: {e}")
+            raise
+    
+    def backup_source_file(self):
+        """Create a backup of the source Excel file if configured."""
+        if not self.config.get('backup_reports', False):
+            return
+        
+        try:
+            excel_file = self.config['excel_file_path']
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            # Handle empty output directory
+            output_dir = self.config['output_directory'] if self.config['output_directory'] else '.'
+            backup_dir = os.path.join(output_dir, 'backups')
+            os.makedirs(backup_dir, exist_ok=True)
+            
+            filename = os.path.basename(excel_file)
+            name, ext = os.path.splitext(filename)
+            backup_file = os.path.join(backup_dir, f'{name}_{timestamp}{ext}')
+            
+            import shutil
+            shutil.copy2(excel_file, backup_file)
+            
+            self.logger.info(f"Source file backed up to: {backup_file}")
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to backup source file: {e}")
+    
+    def run(self):
+        """Main execution method."""
+        try:
+            self.logger.info("=" * 50)
+            self.logger.info("AUTOMATED INVOICE PROCESSOR STARTED")
+            self.logger.info("=" * 50)
+            
+            # Validate Excel file
+            if not self.validate_excel_file():
+                self.logger.error("Excel file validation failed")
+                return False
+            
+            # Backup source file if configured
+            self.backup_source_file()
+            
+            # Read invoice IDs
+            invoice_ids = self.read_invoice_ids_from_excel()
+            
+            if not invoice_ids:
+                self.logger.warning("No invoice IDs found in Excel file")
+                return False
+            
+            # Process all invoices
+            results = self.process_all_invoices(invoice_ids)
+            
+            # Create TSV report
+            report_file = self.create_tsv_report(results)
+            
+            # Log final summary
+            successful = sum(1 for r in results if r['operation_success'] and not r.get('skipped', False))
+            skipped = sum(1 for r in results if r.get('skipped', False))
+            error_count = len(results) - successful - skipped
+            
+            self.logger.info("=" * 50)
+            self.logger.info("PROCESSING COMPLETED SUCCESSFULLY")
+            self.logger.info(f"Total invoices: {len(results)}")
+            self.logger.info(f"Processed: {successful}")
+            self.logger.info(f"Skipped (already closed): {skipped}")
+            self.logger.info(f"Errors: {error_count}")
+            self.logger.info(f"Report: {report_file}")
+            self.logger.info("=" * 50)
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Fatal error during processing: {e}")
+            return False
 
 
 def main():
-    """Run the complete test suite"""
-    print("Acquisitions Domain Test Suite")
-    print("=" * 50)
+    """Main function."""
+    config_file = 'invoice_processor_config.json'
     
-    # Test environment setup
-    sb_key, prod_key = test_environment_setup()
+    # Allow config file to be specified as command line argument
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
     
-    if not sb_key and not prod_key:
-        print("\n✗ No API keys found. Please set environment variables:")
-        print("export ALMA_SB_API_KEY='your_sandbox_key'")
-        print("export ALMA_PROD_API_KEY='your_production_key'")
-        return
-    
-    # Choose environment (prefer SANDBOX for testing)
-    environment = 'SANDBOX' if sb_key else 'PRODUCTION'
-    if sb_key and prod_key:
-        choice = input(f"\nBoth API keys found. Use SANDBOX for testing? (y/n): ").strip().lower()
-        if choice == 'n':
-            environment = 'PRODUCTION'
-    
-    print(f"\n🎯 Running tests in {environment} environment")
-    
-    # Initialize clients
-    client, acq = test_client_initialization(environment)
-    
-    if not client or not acq:
-        print("\n✗ Cannot proceed - client initialization failed")
-        return
-    
-    # Test connections
-    if not test_connection(client, acq):
-        print("\n✗ Cannot proceed - API connection failed")
-        return
-    
-    # Get test invoice ID
-    invoice_id = get_test_invoice_id(acq)
-    
-    if not invoice_id:
-        print("\n✗ Cannot proceed - no test invoice ID available")
-        print("Please provide an invoice ID manually or ensure invoices exist in the system")
-        return
-    
-    # Run the main workflow test
-    print(f"\n🧪 Testing workflow with invoice ID: {invoice_id}")
-    
-    workflow_success = test_invoice_workflow(acq, invoice_id)
-    
-    if workflow_success:
-        print("\n🎉 Main workflow test completed successfully!")
+    try:
+        processor = AutomatedInvoiceProcessor(config_file)
+        success = processor.run()
         
-        # Run additional tests
-        test_additional_operations(acq, invoice_id)
-    else:
-        print("\n❌ Main workflow test failed")
-    
-    print("\n" + "=" * 50)
-    print("Acquisitions test suite completed!")
-    
-    if workflow_success:
-        print("✅ All core tests passed")
-    else:
-        print("⚠️  Some tests failed - check output above")
+        sys.exit(0 if success else 1)
+        
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

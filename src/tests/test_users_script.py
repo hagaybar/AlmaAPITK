@@ -144,50 +144,27 @@ class AlmaUsersManager:
             contact_info = user_data.get('contact_info', {})
             email_list = contact_info.get('email', [])
             
-            print(f"DEBUG extract_user_emails: Initial email_list type: {type(email_list)}")
-            print(f"DEBUG extract_user_emails: Initial email_list value: {email_list}")
-            
-            # Handle all three possible cases for email_list
+            # Handle both single email and list of emails
             if isinstance(email_list, dict):
-                print(f"DEBUG extract_user_emails: Email list is a single dictionary, converting to list")
                 email_list = [email_list]
             elif not isinstance(email_list, list):
-                print(f"DEBUG extract_user_emails: Email list is not a list (type: {type(email_list)}), initializing empty list")
-                email_list = []
-            else:
-                print(f"DEBUG extract_user_emails: Email list is already a list with {len(email_list)} items")
+                return emails
             
-            print(f"DEBUG extract_user_emails: Processing {len(email_list)} email entries")
-            
-            for i, email_entry in enumerate(email_list):
-                print(f"DEBUG extract_user_emails: Processing email entry {i}: {email_entry}")
-                
+            for email_entry in email_list:
                 if isinstance(email_entry, dict):
                     email_address = email_entry.get('email_address', '')
                     email_type = email_entry.get('email_type', {})
                     
-                    print(f"DEBUG extract_user_emails: Found email_address: '{email_address}'")
-                    print(f"DEBUG extract_user_emails: Found email_type: {email_type} (type: {type(email_type)})")
-                    
                     if email_address:
-                        email_info = {
+                        emails.append({
                             'address': email_address,
                             'type': email_type.get('value', 'unknown') if isinstance(email_type, dict) else str(email_type),
                             'preferred': email_entry.get('preferred', False)
-                        }
-                        emails.append(email_info)
-                        print(f"DEBUG extract_user_emails: Added email: {email_info}")
-                    else:
-                        print(f"DEBUG extract_user_emails: Skipping empty email address")
-                else:
-                    print(f"DEBUG extract_user_emails: Skipping non-dict email entry: {type(email_entry)}")
+                        })
         
         except Exception as e:
-            print(f"ERROR extract_user_emails: Exception occurred: {e}")
-            import traceback
-            print(f"ERROR extract_user_emails: Traceback: {traceback.format_exc()}")
+            print(f"Error extracting emails: {e}")
         
-        print(f"DEBUG extract_user_emails: Final result: {len(emails)} emails extracted")
         return emails
     
     def get_user_expiry_date(self, user_data: Dict[str, Any]) -> Optional[str]:
@@ -234,134 +211,107 @@ class AlmaUsersManager:
         Returns:
             Dict with success status and details
         """
-        print(f"DEBUG update_user_email: Starting update for user_id='{user_id}', new_email='{new_email}'")
-        
         if not self.validate_email(new_email):
-            error_result = {
+            return {
                 'success': False,
                 'error': 'Invalid email format',
                 'user_id': user_id,
                 'new_email': new_email
             }
-            print(f"DEBUG update_user_email: Email validation failed: {error_result}")
-            return error_result
         
         try:
             # First, get the current user data
-            print(f"DEBUG update_user_email: Retrieving user data...")
             user_result = self.get_user_by_id(user_id)
-            
+            print("-----------------------------------------------\n")
+            print(f"This is user_result:\n{user_result}")
+            print("-----------------------------------------------\n")
             if not user_result['success']:
-                error_result = {
+                return {
                     'success': False,
                     'error': f"Could not retrieve user: {user_result['error']}",
                     'user_id': user_id,
                     'new_email': new_email
                 }
-                print(f"DEBUG update_user_email: Failed to retrieve user: {error_result}")
-                return error_result
             
             user_data = user_result['user_data']
-            print(f"DEBUG update_user_email: Retrieved user data successfully")
-            print(f"DEBUG update_user_email: User data keys: {list(user_data.keys())}")
+            print("-----------------------------------------------\n")
+            print(f"Updating email for user:\n{user_data}")
+            print("-----------------------------------------------\n")            
+
+
             
-            # Get current contact info
+            # Update the email in the user data
             contact_info = user_data.get('contact_info', {})
-            print(f"DEBUG update_user_email: Contact info keys: {list(contact_info.keys())}")
-            
+            print("-----------------------------------------------\n")
+            print(f"This is contact_info:\n{contact_info}")
+            print("-----------------------------------------------\n")            
+
             email_list = contact_info.get('email', [])
-            print(f"DEBUG update_user_email: Initial email_list type: {type(email_list)}")
-            print(f"DEBUG update_user_email: Initial email_list value: {email_list}")
+            print("-----------------------------------------------\n")
+            print(f"This is the email_list:\n{email_list}")
+            print("-----------------------------------------------\n")            
             
-            # Handle all three possible cases for email_list
+            
+            # Handle both single email and list of emails
             if isinstance(email_list, dict):
-                print(f"DEBUG update_user_email: Email list is a single dictionary, converting to list")
+                print(f"Email list is a single dictionary, converting to list{type(email_list)}")
                 email_list = [email_list]
             elif not isinstance(email_list, list):
-                print(f"DEBUG update_user_email: Email list is not a list (type: {type(email_list)}), initializing empty list")
+                print(f"Email list is not a list, initializing empty list{type(email_list)}")
                 email_list = []
             else:
-                print(f"DEBUG update_user_email: Email list is already a list with {len(email_list)} items")
+                # this is crucial for the next steps. The AI did not realized that the email_list could be a list or a dict, so it was not handling the case where it is a list properly.
+                print(f"Email list is already a list{type(email_list)}") 
             
-            print(f"DEBUG update_user_email: Processing {len(email_list)} existing emails")
+        #     # Update existing email or add new one
+        #     email_updated = False
+        #     for email_entry in email_list:
+        #         if email_entry.get('preferred', False) or len(email_list) == 1:
+        #             email_entry['email_address'] = new_email
+        #             email_updated = True
+        #             break
             
-            # Update existing email or add new one
-            email_updated = False
-            for i, email_entry in enumerate(email_list):
-                print(f"DEBUG update_user_email: Checking email entry {i}: {email_entry}")
-                
-                if isinstance(email_entry, dict):
-                    is_preferred = email_entry.get('preferred', False)
-                    current_address = email_entry.get('email_address', '')
-                    
-                    print(f"DEBUG update_user_email: Email {i} - preferred: {is_preferred}, address: '{current_address}'")
-                    
-                    # Update if this is the preferred email or if there's only one email
-                    if is_preferred or len(email_list) == 1:
-                        print(f"DEBUG update_user_email: Updating email {i} from '{current_address}' to '{new_email}'")
-                        email_entry['email_address'] = new_email
-                        email_updated = True
-                        break
-                else:
-                    print(f"DEBUG update_user_email: Skipping non-dict email entry {i}: {type(email_entry)}")
+        #     # If no email found, add a new one
+        #     if not email_updated:
+        #         new_email_entry = {
+        #             'email_address': new_email,
+        #             'email_type': {'value': email_type},
+        #             'preferred': True
+        #         }
+        #         email_list.append(new_email_entry)
             
-            # If no email was updated, add a new one
-            if not email_updated:
-                print(f"DEBUG update_user_email: No existing email updated, adding new email")
-                new_email_entry = {
-                    'email_address': new_email,
-                    'email_type': {'value': email_type},
-                    'preferred': True
-                }
-                email_list.append(new_email_entry)
-                print(f"DEBUG update_user_email: Added new email entry: {new_email_entry}")
+        #     # Update the contact info
+        #     contact_info['email'] = email_list
+        #     user_data['contact_info'] = contact_info
             
-            # Update the contact info and user data
-            contact_info['email'] = email_list
-            user_data['contact_info'] = contact_info
+        #     # Send the update to Alma
+        #     endpoint = f'almaws/v1/users/{user_id}'
+        #     response = self.client.put(endpoint, data=user_data)
             
-            print(f"DEBUG update_user_email: Final email_list: {email_list}")
-            print(f"DEBUG update_user_email: Sending PUT request to Alma...")
-            
-            # Send the update to Alma
-            endpoint = f'almaws/v1/users/{user_id}'
-            response = self.client.put(endpoint, data=user_data)
-            
-            print(f"DEBUG update_user_email: PUT response status: {response.status_code}")
-            print(f"DEBUG update_user_email: PUT response headers: {dict(response.headers)}")
-            
-            if response.status_code == 200:
-                success_result = {
-                    'success': True,
-                    'user_id': user_id,
-                    'new_email': new_email,
-                    'message': 'Email updated successfully'
-                }
-                print(f"DEBUG update_user_email: Update successful: {success_result}")
-                return success_result
-            else:
-                error_result = {
-                    'success': False,
-                    'error': f'Update failed: {response.status_code}',
-                    'user_id': user_id,
-                    'new_email': new_email,
-                    'status_code': response.status_code,
-                    'response_text': response.text[:500]  # More response text for debugging
-                }
-                print(f"DEBUG update_user_email: Update failed: {error_result}")
-                return error_result
+        #     if response.status_code == 200:
+        #         return {
+        #             'success': True,
+        #             'user_id': user_id,
+        #             'new_email': new_email,
+        #             'message': 'Email updated successfully'
+        #         }
+        #     else:
+        #         return {
+        #             'success': False,
+        #             'error': f'Update failed: {response.status_code}',
+        #             'user_id': user_id,
+        #             'new_email': new_email,
+        #             'status_code': response.status_code,
+        #             'response_text': response.text[:200]
+        #         }
                 
         except Exception as e:
-            error_result = {
+            return {
                 'success': False,
                 'error': f'Update failed: {str(e)}',
                 'user_id': user_id,
                 'new_email': new_email
             }
-            print(f"ERROR update_user_email: Exception occurred: {error_result}")
-            import traceback
-            print(f"ERROR update_user_email: Traceback: {traceback.format_exc()}")
-            return error_result
     
     def bulk_update_user_emails(self, updates_list: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """
@@ -509,36 +459,36 @@ if __name__ == "__main__":
         users_mgr = AlmaUsersManager('SANDBOX')
         
         # Example: Get a single user
-        print("=== Getting Single User ===")
-        user_result = users_mgr.get_user_by_id('027393602')
-        if user_result['success']:
-            print(f"✓ Found user: {user_result['full_name']}")
+        # print("=== Getting Single User ===")
+        # user_result = users_mgr.get_user_by_id('027393602')
+        # if user_result['success']:
+        #     print(f"✓ Found user: {user_result['full_name']}")
             
-            # Extract emails
-            emails = users_mgr.extract_user_emails(user_result['user_data'])
-            print(f"  Emails: {[e['address'] for e in emails]}")
+        #     # Extract emails
+        #     emails = users_mgr.extract_user_emails(user_result['user_data'])
+        #     print(f"  Emails: {[e['address'] for e in emails]}")
             
-            # Get expiry date
-            expiry = users_mgr.get_user_expiry_date(user_result['user_data'])
-            print(f"  Expiry: {expiry}")
-        else:
-            print(f"✗ Error: {user_result['error']}")
+        #     # Get expiry date
+        #     expiry = users_mgr.get_user_expiry_date(user_result['user_data'])
+        #     print(f"  Expiry: {expiry}")
+        # else:
+        #     print(f"✗ Error: {user_result['error']}")
         
-        # Example: Bulk user analysis
-        print("\n=== Bulk User Analysis ===")
-        user_ids = ['user1', 'user2', 'user3']  # Your user list
-        analysis = users_mgr.analyze_user_expiry_dates(user_ids)
+        # # Example: Bulk user analysis
+        # print("\n=== Bulk User Analysis ===")
+        # user_ids = ['000191908', '000213751', '027393602']  # Your user list
+        # analysis = users_mgr.analyze_user_expiry_dates(user_ids)
         
-        print(f"Expired users: {analysis['summary']['expired_count']}")
-        print(f"Expiring soon: {analysis['summary']['expiring_soon_count']}")
+        # print(f"Expired users: {analysis['summary']['expired_count']}")
+        # print(f"Expiring soon: {analysis['summary']['expiring_soon_count']}")
         
-        # Example: Update email
+        # # Example: Update email
         print("\n=== Update User Email ===")
-        update_result = users_mgr.update_user_email('test_user_id', 'new@email.com')
-        if update_result['success']:
-            print("✓ Email updated successfully")
-        else:
-            print(f"✗ Update failed: {update_result['error']}")
+        update_result = users_mgr.update_user_email('027393602', 'new@email.com')
+        # if update_result['success']:
+        #     print("✓ Email updated successfully")
+        # else:
+        #     print(f"✗ Update failed: {update_result['error']}")
     
     # Uncomment to run examples
-    # example_usage()
+    example_usage()

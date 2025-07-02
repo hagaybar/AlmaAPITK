@@ -1,0 +1,8 @@
+{
+  "environment": "SANDBOX",
+  "excel_file_path": "report.xlsx",
+  "output_directory": "",
+  "log_level": "INFO",
+  "backup_reports": true,
+  "max_errors_before_stop": null
+}

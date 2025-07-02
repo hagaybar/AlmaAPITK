@@ -1,0 +1,16 @@
+{
+  "environment": "SANDBOX",
+  "excel_file_path": "/path/to/daily_invoice_report.xlsx",
+  "output_directory": "",
+  "log_level": "INFO",
+  "backup_reports": true,
+  "max_errors_before_stop": null,
+  "comments": {
+    "environment": "SANDBOX or PRODUCTION",
+    "excel_file_path": "Full path to the Excel file with invoice IDs in first column",
+    "output_directory": "Directory for output files (empty = current directory)",
+    "log_level": "DEBUG, INFO, WARNING, ERROR",
+    "backup_reports": "Whether to keep backup copies of processed reports",
+    "max_errors_before_stop": "Stop processing after N errors (null = no limit)"
+  }
+}

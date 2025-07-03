@@ -14,7 +14,7 @@ import os
 
 # Import your working AlmaAPIClient
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'client'))
-from AlmaAPIClient import AlmaAPIClient
+from src.client.AlmaAPIClient import AlmaAPIClient
 
 
 class AlmaUsersManager:

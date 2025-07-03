@@ -269,6 +269,7 @@ class Admin:
 
 
 # Usage examples and integration
+# Usage examples and integration
 if __name__ == "__main__":
     """
     Example usage of the Admin domain with AlmaAPIClient.
@@ -326,9 +327,27 @@ if __name__ == "__main__":
                 # Get set members (MMS IDs)
                 if set_info['content_type'] == 'BIB_MMS':
                     mms_ids = admin.get_set_members(test_set_id)
-                    print(f"Retrieved {len(mms_ids)} MMS IDs")
+                    print(f"\n✓ Successfully retrieved {len(mms_ids)} MMS IDs")
+                    
                     if mms_ids:
-                        print(f"First few MMS IDs: {mms_ids[:5]}")
+                        # Show all MMS IDs for verification
+                        print(f"\n=== All {len(mms_ids)} MMS IDs ===")
+                        for i, mms_id in enumerate(mms_ids, 1):
+                            print(f"{i:3d}. {mms_id}")
+                        
+                        print(f"\n=== Summary ===")
+                        print(f"Total MMS IDs retrieved: {len(mms_ids)}")
+                        print(f"First MMS ID: {mms_ids[0]}")
+                        print(f"Last MMS ID: {mms_ids[-1]}")
+                        
+                        # Check for duplicates
+                        unique_ids = set(mms_ids)
+                        if len(unique_ids) != len(mms_ids):
+                            print(f"⚠️  Warning: Found {len(mms_ids) - len(unique_ids)} duplicate MMS IDs")
+                        else:
+                            print("✓ All MMS IDs are unique")
+                    else:
+                        print("No MMS IDs found in the set")
                 else:
                     print(f"Skipping member retrieval - set is not BIB_MMS type")
                 

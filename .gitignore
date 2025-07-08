@@ -99,7 +99,7 @@ $RECYCLE.BIN/
 ###############################################################################
 # Local data and generated artefacts; not part of the source code
 data/
-src/tests/outputs/
+src/tests/output/
 outputs/
 archived/
 # FAISS / index binaries that may appear elsewhere

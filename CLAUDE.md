@@ -73,13 +73,60 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
 - **Commit before and after major refactoring** to create clean checkpoints
 
 #### Commit Message Standards
+
+**Detailed Messages for Future Understanding**: Commit messages must provide sufficient detail for future Claude Code sessions to understand what was changed and why. These messages serve as documentation for code evolution and help Claude understand the context of changes when examining commit history.
+
+**Format and Content Guidelines**:
 - Use present tense and imperative mood: "Add feature" not "Added feature"
-- Be specific about what changed: "Add domain filtering to email validation" not "Update script"
-- For bug fixes: "Fix email pattern validation for special characters"
-- For features: "Add TSV revert mode support for email updates"
-- For refactoring: "Extract email validation logic to separate method"
-- For cleanup: "Remove obsolete update_expired_user_emails.py (superseded by _2 version)"
-- For documentation: "Update claude.md with git workflow and organization guidance"
+- Include comprehensive summary with specific implementation details
+- List major changes using bullet points or numbered lists
+- Explain the reasoning behind changes when not obvious
+- Reference specific files, functions, or classes that were modified
+- Include before/after context for refactoring changes
+- Document any breaking changes or compatibility impacts
+
+**Examples of Detailed Commit Messages**:
+
+```
+Add domain filtering functionality to email validation system
+
+- Implement is_domain_allowed() method in EmailUpdateScript class
+- Add allowed_domains configuration parameter with @ prefix validation
+- Filter users by email domain before processing in validate_user_email_structure()
+- Add domain_filtered flag to user results for tracking exclusions
+- Update CLI validation to check allowed_domains format (must start with @)
+- Maintain backward compatibility - no domain filter means allow all domains
+
+Files modified: update_expired_user_emails_2.py (lines 442-472, 341-349)
+Configuration: email_update_config.json now supports "allowed_domains": ["@university.edu"]
+```
+
+```
+Refactor inline imports to module level across all domain classes
+
+## Import Organization Changes
+- Move all inline imports to top-level following PEP 8 standards
+- Organize imports alphabetically within standard library, third-party, and local groups
+- Remove duplicate import statements and redundant inline imports
+
+## Files Modified
+- src/domains/users.py: Move logging, time, datetime imports from functions to module level
+- src/domains/admin.py: Consolidate json, time, datetime imports, add Users import for line 652
+- src/domains/acquisition.py: Remove duplicate AlmaAPIClient import, organize alphabetically  
+- src/domains/bibs.py: Remove obsolete commented base_client import, organize imports
+
+## Code Quality Impact
+- Improves import visibility and follows Python conventions
+- Eliminates import-time overhead in frequently called functions
+- Makes dependencies explicit at module level for better maintainability
+```
+
+**Key Requirements**:
+1. **Specificity**: Mention exact files, line numbers, function names when relevant
+2. **Context**: Explain why changes were made, not just what was changed
+3. **Impact**: Describe how changes affect functionality or architecture  
+4. **Traceability**: Enable future Claude sessions to understand the evolution
+5. **Completeness**: Cover all significant modifications in the commit
 
 #### When to Commit and Push
 1. **Before starting any significant work** - commit current state as checkpoint

@@ -280,6 +280,104 @@ When working on this codebase, Claude should actively:
 - **Remove `update_expired_user_emails.py`** - the `_2` version has additional domain filtering functionality and is the current version
 - Consider renaming `update_expired_user_emails_2.py` to `update_expired_user_emails.py` once the old version is removed
 
+## Archived Advanced Features Documentation
+
+### BaseAPIClient Advanced Patterns (Removed 2025-09-10)
+
+The `src/core/base_client.py` file contained enterprise-grade API client patterns that were removed due to missing dependencies but contained valuable architectural improvements over the current `AlmaAPIClient.py`. These patterns should be considered for future enhancement cycles:
+
+#### Advanced Rate Limiting Implementation
+```python
+# Sophisticated request tracking with rolling window
+_request_times: List[float] = []
+DEFAULT_RATE_LIMIT = 100  # requests per minute
+
+def _enforce_rate_limit(self) -> None:
+    now = time.time()
+    # Remove requests older than 1 minute
+    self._request_times = [t for t in self._request_times if now - t < 60]
+    
+    if len(self._request_times) >= self._rate_limit:
+        sleep_time = 60 - (now - self._request_times[0])
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+    
+    self._request_times.append(now)
+```
+
+#### Retry Logic with Exponential Backoff
+```python
+RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
+MAX_RETRIES = 3
+RETRY_DELAY = 1  # seconds
+
+# In request method:
+if (response.status_code in self.RETRY_STATUS_CODES and retry_count < self.MAX_RETRIES):
+    delay = self.RETRY_DELAY * (2 ** retry_count)  # Exponential backoff
+    time.sleep(delay)
+    return self._make_request(method, url, headers, data, params, retry_count + 1)
+```
+
+#### Enhanced Error Handling with Alma-Specific Mapping
+```python
+class AlmaRateLimitError(AlmaAPIError):
+    """Exception raised when API rate limit is exceeded."""
+    pass
+
+class AlmaAuthenticationError(AlmaAPIError): 
+    """Exception raised when API authentication fails."""
+    pass
+
+def _handle_error_response(self, response, request_method, url):
+    # Extract Alma-specific error information from errorList structure
+    if isinstance(error_data, dict) and 'errorList' in error_data:
+        errors = error_data['errorList'].get('error', [])
+        if errors:
+            error_details = errors[0] if isinstance(errors, list) else errors
+            error_message += f": {error_details.get('errorMessage', 'Unknown error')}"
+    
+    # Map to specific exception types
+    if status_code == 401:
+        raise AlmaAuthenticationError(error_message, status_code, error_data)
+    elif status_code == 429:
+        raise AlmaRateLimitError(error_message, status_code, error_data)
+```
+
+#### Request Timeout Protection
+```python
+# 30-second timeout on all requests
+response = requests.get(url, headers=headers, params=params, timeout=30)
+```
+
+#### Configuration Abstraction Pattern
+The file attempted to use external configuration and logger managers:
+```python
+# Pattern for future configuration management:
+from archived.config_manager import ConfigManager
+from archived.logger_manager import LoggerManager
+
+def __init__(self, config_manager: ConfigManager, logger_manager: LoggerManager):
+    self.config_manager = config_manager
+    self.logger = logger_manager.get_logger()
+    self.base_url = self.config_manager.get_base_url()
+    self.headers = self.config_manager.get_headers()
+```
+
+#### Removal Reasons
+1. **Missing Dependencies**: Required `archived.config_manager` and `archived.logger_manager` modules that no longer exist
+2. **Zero Active Usage**: Only commented reference in `bibs.py`, no active imports
+3. **Cannot Function**: Import failures prevent instantiation
+4. **Functionality Duplicated**: Current `AlmaAPIClient.py` provides working equivalent
+5. **Incomplete Migration**: Represents partial architectural upgrade that was never completed
+
+#### Future Enhancement Recommendations
+These patterns should be integrated into `AlmaAPIClient.py` during planned architectural improvements:
+1. **Implement rolling window rate limiting** instead of current basic protection
+2. **Add retry logic with exponential backoff** for resilient API calls
+3. **Enhance error classes** with Alma-specific error types
+4. **Add configurable timeouts** with sensible defaults
+5. **Consider configuration manager** for complex deployment scenarios
+
 ## Library System Domain Knowledge
 
 When working with Alma API concepts, remember:

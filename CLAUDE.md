@@ -81,13 +81,15 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
 - For cleanup: "Remove obsolete update_expired_user_emails.py (superseded by _2 version)"
 - For documentation: "Update claude.md with git workflow and organization guidance"
 
-#### When to Commit
+#### When to Commit and Push
 1. **Before starting any significant work** - commit current state as checkpoint
 2. **After completing a logical unit of work** - new feature, bug fix, refactor, cleanup
 3. **Before and after file removals or renames** - preserve history
 4. **After updating documentation** - especially claude.md changes
 5. **After test additions or modifications**
 6. **When user says "commit" or "save progress"** - interpret as instruction to commit current changes
+
+**Standard Workflow**: Every commit should be immediately followed by `git push origin main` to keep GitHub repository synchronized with local changes. This ensures work is backed up and visible to collaborators immediately.
 
 #### Manual Commit Commands
 Claude should recognize these phrases as instructions to commit immediately:
@@ -100,7 +102,8 @@ When any of these commands are used, Claude should:
 1. Review what changes have been made since last commit
 2. Create an appropriate commit message based on the changes
 3. Execute the git commit
-4. Confirm the commit was successful
+4. Push the commit to GitHub with `git push origin main`
+5. Confirm both commit and push were successful
 
 #### What NOT to commit
 - Temporary debug print statements

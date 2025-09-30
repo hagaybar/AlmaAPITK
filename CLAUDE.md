@@ -651,6 +651,77 @@ Based on Alma API XSD Schema (`rest_invoice.xsd`):
 - **Invoice Processing**: `process_invoice` operation is mandatory after creating invoice and lines
 - **Error Tracking**: Alma errors include `errorCode`, `errorMessage`, and `trackingId` for support
 
+### Verified Working Methods for Rialto Flow (Tested 2025-09-30)
+
+**POL Operations**:
+- ✓ `acq.get_pol(pol_id)` - Retrieves complete POL data
+- ✓ `acq.extract_items_from_pol_data(pol_data)` - Extracts items from location→copy structure
+- ✓ Extract invoice ID from POL: `pol_data.get('invoice_reference')`
+
+**Invoice Operations**:
+- ✓ `acq.get_invoice(invoice_id)` - Retrieves invoice data
+- ✓ `acq.get_invoice_summary(invoice_id)` - Returns formatted summary with correct payment_status
+- ✓ `acq.get_invoice_lines(invoice_id)` - Gets lines from dedicated endpoint
+- ✓ `acq.mark_invoice_paid(invoice_id)` - Marks invoice as paid (modifies data)
+
+**Item Receiving Operations**:
+- ✓ `acq.receive_item(pol_id, item_id, receive_date, department, department_library)` - Receives item (modifies data)
+- Method implemented and tested with XML endpoint
+- ⚠️ Pending: Test with actual unreceived item
+
+**Complete Rialto Workflow Pattern**:
+```python
+# 1. Get POL and extract data
+pol_data = acq.get_pol(pol_id)
+items = acq.extract_items_from_pol_data(pol_data)
+invoice_id = pol_data.get('invoice_reference')
+
+# 2. Find unreceived item
+unreceived = [item for item in items if not item.get('receive_date')]
+if unreceived:
+    item_id = unreceived[0]['pid']
+
+    # 3. Receive item
+    acq.receive_item(pol_id, item_id)
+
+# 4. Mark invoice as paid
+acq.mark_invoice_paid(invoice_id)
+
+# 5. Verify POL closure
+updated_pol = acq.get_pol(pol_id)
+status = updated_pol.get('status', {}).get('value')  # Should be 'CLOSED'
+```
+
+### Critical Data Structure Findings (Tested 2025-09-30)
+
+**POL Items Structure**:
+- Items are NOT at POL root level
+- Path: `POL → location (list) → copy (list of item objects)`
+- Each `copy` object is an item
+- Item ID field: `pid` (not `item_id`)
+- Receive status: Check for `receive_date` field (null = unreceived)
+
+**Invoice Reference in POL**:
+- Field: `invoice_reference` (top-level string field in POL)
+- Type: Simple string containing invoice ID (e.g., "2266653")
+- Direct usage: Can pass directly to invoice API methods
+
+**Invoice Payment Status**:
+- Path: `invoice → payment → payment_status → value`
+- NOT at root level of invoice
+- Values: "PAID", "NOT_PAID", "FULLY_PAID", etc.
+- Always check inside `payment` object
+
+**Invoice Total Amount**:
+- Field: `total_amount` at root level
+- Type: Simple decimal/float (not nested object)
+- Currency is separate field: `currency.value`
+
+**Invoice Lines Endpoint**:
+- Must use dedicated endpoint: `GET /almaws/v1/acq/invoices/{invoice_id}/lines`
+- Do NOT extract from embedded invoice_line in full invoice response
+- Supports pagination: `limit` and `offset` parameters
+
 ## File Structure Context
 
 - `src/client/` - Core API client implementation

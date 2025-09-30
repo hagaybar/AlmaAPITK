@@ -576,9 +576,14 @@ Based on Alma API XSD Schema (`rest_invoice.xsd`):
 - `invoice_status`: object - Invoice processing status
   - `value`: Status code (WAITING_TO_BE_SENT, APPROVED, CLOSED, etc.)
   - `desc`: Status description
-- `payment_status`: object - Payment status (nested in payment object)
-  - `value`: Status code (NOT_PAID, PAID, FULLY_PAID, etc.)
-  - `desc`: Status description
+- `payment`: object - Payment information (contains payment_status)
+  - `prepaid`: boolean
+  - `internal_copy`: boolean
+  - `payment_status`: object - **Payment status is nested here**
+    - `value`: Status code (NOT_PAID, PAID, FULLY_PAID, etc.)
+    - `desc`: Status description
+  - `voucher_number`: string
+  - `voucher_amount`: string
 - `invoice_line`: array - Array of invoice line items (complex objects)
 - `creation_date`: date - When invoice was created in Alma
 - `owner`: object - Owner of the invoice

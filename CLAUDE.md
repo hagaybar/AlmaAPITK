@@ -436,6 +436,174 @@ When working with Alma API concepts, remember:
 - **Sets**: Collections of records (BIB_MMS or USER types)
 - **Holdings**: Physical/electronic item information
 - **Portfolios**: Electronic resource access points
+- **POL (Purchase Order Line)**: Individual line items in purchase orders containing item and pricing information
+- **Item**: Physical or electronic items associated with POLs, tracked through acquisition to receiving
+
+## Alma Acquisitions API Reference
+
+### Official Documentation
+- **Base URL**: `https://developers.exlibrisgroup.com/alma/apis/acq/`
+- **API Docs**: `https://developers.exlibrisgroup.com/alma/apis/`
+- **OpenAPI/Swagger**: Available for download at developers.exlibrisgroup.com
+
+### Key Acquisitions Endpoints
+
+#### Purchase Order Lines (POL)
+
+**Get POL**
+```
+GET /almaws/v1/acq/po-lines/{po_line_id}
+```
+- Retrieves complete POL information including items, pricing, and status
+- Returns POL object with embedded item details
+
+**Get POL Items**
+```
+GET /almaws/v1/acq/po-lines/{po_line_id}/items
+```
+- Returns list of all items associated with a POL
+- Each item includes: item_id, status, receiving information, barcode, location
+
+**Update POL**
+```
+PUT /almaws/v1/acq/po-lines/{po_line_id}
+```
+- Updates POL data including pricing, vendor information, notes
+- Requires complete POL object in request body
+
+#### Items and Receiving
+
+**Receive Existing Item**
+```
+POST /almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}?op=receive
+```
+- **Required Query Parameter**: `op=receive`
+- **Optional Parameters**:
+  - `receive_date`: Date of receipt (format: YYYY-MM-DDZ)
+  - `department`: Department code for receiving
+  - `department_library`: Library code of receiving department
+- **Content-Type**: `application/xml`
+- **Request Body**: Empty `<item/>` or item object with updates
+- **Response**: Updated Item object
+- **Effect**:
+  - Changes item status to "received"
+  - Updates process type from "acquisition" to "in transit"
+  - Automatically creates request if configured
+
+**Error Codes**:
+- `40166411`: Invalid parameter value
+- `401875`: Department not found
+- `401871`: PO Line not found
+- `401877`: Failed to receive PO Line
+
+**Add and Receive New Item**
+```
+POST /almaws/v1/acq/po-lines/{po_line_id}/items
+```
+- Adds a new item to POL and marks it as received
+- Request body contains complete item object
+- Returns created Item object
+
+#### Invoices
+
+**Get Invoice**
+```
+GET /almaws/v1/acq/invoices/{invoice_id}
+```
+- Retrieves complete invoice data including lines, amounts, status
+- Optional parameter: `view=brief|full` (default: full)
+
+**List Invoices**
+```
+GET /almaws/v1/acq/invoices
+```
+- Query parameters: `limit`, `offset`, `q` (query string)
+- Supports filtering by status, vendor, date ranges
+- Query format: `invoice_status~WAITING_TO_BE_SENT AND vendor~VENDOR_CODE`
+
+**Invoice Service Operations**
+```
+POST /almaws/v1/acq/invoices/{invoice_id}?op={operation}
+```
+- **Operations**:
+  - `paid`: Mark invoice as paid
+  - `process_invoice`: Approve/process invoice (mandatory after creation)
+  - `mark_in_erp`: Mark as sent to ERP system
+  - `rejected`: Reject invoice
+- **Request Body**: Empty object `{}`
+- **Effect**: Updates invoice status and payment_status fields
+
+**Create Invoice**
+```
+POST /almaws/v1/acq/invoices
+```
+- Creates new invoice with vendor and date information
+- Returns invoice object with generated invoice_id
+
+**Create Invoice Line**
+```
+POST /almaws/v1/acq/invoices/{invoice_id}/lines
+```
+- Adds line item to existing invoice
+- Links to POL via reference in line data
+- Must be done before processing invoice
+
+### Data Object Structures
+
+**Item Object Key Fields**:
+- `item_id`: Unique identifier for item
+- `barcode`: Item barcode
+- `receiving_date`: Date item was received
+- `receiving_operator`: User who received item
+- `process_type`: Current status (acquisition, in_transit, etc.)
+- `po_line`: Reference to parent POL
+
+**Invoice Object Key Fields**:
+- `id`: Invoice identifier
+- `number`: Invoice number (display)
+- `vendor`: Vendor code and description
+- `invoice_date`: Date of invoice
+- `total_amount`: Total with currency
+- `invoice_status`: Status (WAITING_TO_BE_SENT, APPROVED, CLOSED, etc.)
+- `payment_status`: Payment status (NOT_PAID, PAID, FULLY_PAID, etc.)
+- `invoice_line`: Array of invoice line items
+
+**POL Object Key Fields**:
+- `number`: POL reference number
+- `type`: POL type (ONE_TIME, STANDING_ORDER, APPROVAL, etc.)
+- `status`: POL status (ACTIVE, CLOSED, CANCELLED, etc.)
+- `vendor`: Vendor information
+- `price`: Pricing information including list price, discount
+- `location`: Holding location details
+- `item`: Array of associated items
+
+### Workflow Patterns
+
+**Receiving Workflow (One-Time POL)**:
+1. Get POL data to extract item_id and verify status
+2. Receive item via POST with `op=receive` parameter
+3. Item status changes to "received", POL may auto-close depending on configuration
+
+**Invoice Creation Workflow**:
+1. Create invoice with vendor and date information
+2. Add invoice lines linking to POLs
+3. Process invoice (mandatory) using `op=process_invoice`
+4. Optionally mark as paid using `op=paid`
+5. Invoice status progresses: WAITING_TO_BE_SENT → APPROVED → CLOSED
+
+**EDI Vendor Integration (Rialto Pattern)**:
+- One-time POL with EDI vendor
+- Receiving item and paying invoice results in POL closure
+- Workflow: receive item → mark invoice paid → POL auto-closes
+
+### Important Notes
+
+- **XML vs JSON**: Most endpoints support both, but item receiving requires XML format
+- **Empty Payloads**: Some operations require explicit empty objects `{}` or `<item/>`
+- **Date Formats**: Use ISO 8601 format with timezone: `YYYY-MM-DDZ` (e.g., `2025-01-15Z`)
+- **POL Closure**: POLs typically close automatically when all items received and invoices paid
+- **Invoice Processing**: `process_invoice` operation is mandatory after creating invoice and lines
+- **Error Tracking**: Alma errors include `errorCode`, `errorMessage`, and `trackingId` for support
 
 ## File Structure Context
 

@@ -559,14 +559,55 @@ POST /almaws/v1/acq/invoices/{invoice_id}/lines
 - `po_line`: Reference to parent POL
 
 **Invoice Object Key Fields**:
-- `id`: Invoice identifier
-- `number`: Invoice number (display)
-- `vendor`: Vendor code and description
-- `invoice_date`: Date of invoice
-- `total_amount`: Total with currency
-- `invoice_status`: Status (WAITING_TO_BE_SENT, APPROVED, CLOSED, etc.)
-- `payment_status`: Payment status (NOT_PAID, PAID, FULLY_PAID, etc.)
-- `invoice_line`: Array of invoice line items
+
+Based on Alma API XSD Schema (`rest_invoice.xsd`):
+
+**Top-Level Fields**:
+- `id`: string - Invoice identifier (output only, unique)
+- `number`: string - Vendor invoice number (mandatory)
+- `invoice_date`: date - Date of invoice (mandatory)
+- `vendor`: object - Vendor code with attributes (mandatory)
+  - `value`: Vendor code
+  - `desc`: Vendor description
+- `total_amount`: **decimal** - Total invoice amount (mandatory, simple numeric type)
+- `currency`: object - Currency information (optional, defaults to institution currency)
+  - `value`: Currency code
+  - `desc`: Currency description
+- `invoice_status`: object - Invoice processing status
+  - `value`: Status code (WAITING_TO_BE_SENT, APPROVED, CLOSED, etc.)
+  - `desc`: Status description
+- `payment_status`: object - Payment status (nested in payment object)
+  - `value`: Status code (NOT_PAID, PAID, FULLY_PAID, etc.)
+  - `desc`: Status description
+- `invoice_line`: array - Array of invoice line items (complex objects)
+- `creation_date`: date - When invoice was created in Alma
+- `owner`: object - Owner of the invoice
+
+**Nested Complex Objects**:
+
+1. **invoice_vat** (VAT/Tax information):
+   - `report_tax`: boolean
+   - `vat_code`: string with attributes
+   - `percentage`: decimal
+   - `type`: string with attributes
+
+2. **payment** (Payment details):
+   - `prepaid`: boolean
+   - `payment_status`: string with attributes (NOT_PAID, PAID, etc.)
+   - `voucher_number`: string
+   - `voucher_amount`: string
+
+3. **additional_charges**:
+   - `shipment`: decimal
+   - `overhead`: decimal
+   - `insurance`: decimal
+   - `discount`: decimal
+
+**Important Notes**:
+- `total_amount` is a **simple decimal field**, not a complex object with nested 'sum' and 'currency'
+- Some API responses may wrap numeric fields differently depending on view parameter
+- Currency information is separate in the `currency` field
+- Full XSD available at: `/wp-content/uploads/alma/xsd/rest_invoice.xsd`
 
 **POL Object Key Fields**:
 - `number`: POL reference number

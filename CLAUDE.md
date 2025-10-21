@@ -763,10 +763,53 @@ status = updated_pol.get('status', {}).get('value')  # Should be 'CLOSED'
 - Item ID field: `pid` (not `item_id`)
 - Receive status: Check for `receive_date` field (null = unreceived)
 
-**Invoice Reference in POL**:
-- Field: `invoice_reference` (top-level string field in POL)
-- Type: Simple string containing invoice ID (e.g., "2266653")
-- Direct usage: Can pass directly to invoice API methods
+**Invoice-POL Linkage** (Updated 2025-10-21):
+
+The relationship between invoices and POLs works through **invoice lines**, not direct POL fields:
+
+**Alma Acquisitions Hierarchy**:
+```
+Purchase Order (PO)
+  └── Purchase Order Lines (POLs)
+        └── Invoice Lines (link POLs to Invoices)
+              └── Invoice
+```
+
+**How Linkage Works**:
+1. Invoice has invoice lines (retrieved via `/almaws/v1/acq/invoices/{invoice_id}/lines`)
+2. Each invoice line has a `po_line` field containing the POL ID (e.g., "POL-12347")
+3. Multiple invoice lines can reference the same invoice
+4. One invoice can have lines for multiple POLs
+
+**Finding POL-Invoice Links**:
+```python
+# Get invoice lines
+invoice_lines = acq.get_invoice_lines(invoice_id)
+
+# Check which POL each line references
+for line in invoice_lines:
+    pol_id = line.get('po_line')  # e.g., "POL-12347"
+    quantity = line.get('quantity')
+    price = line.get('price')
+    total = line.get('total_price')
+```
+
+**Important Notes**:
+- POL's `invoice_reference` field is often NOT populated (even when linked correctly)
+- The authoritative link is in the **invoice line's `po_line` field**
+- To verify linkage: Get invoice lines and check `po_line` field
+- When invoice is paid, all linked POLs update automatically
+- POL auto-closure depends on: all items received + all linked invoice lines paid
+
+**Example Linkage Verification**:
+```python
+# Verify if invoice is linked to POL
+invoice_lines = acq.get_invoice_lines(invoice_id)
+linked_pols = [line.get('po_line') for line in invoice_lines]
+
+if 'POL-12347' in linked_pols:
+    print("Invoice is linked to POL-12347")
+```
 
 **Invoice Payment Status**:
 - Path: `invoice → payment → payment_status → value`

@@ -666,10 +666,72 @@ Based on Alma API XSD Schema (`rest_invoice.xsd`):
 
 **Item Receiving Operations**:
 - ✓ `acq.receive_item(pol_id, item_id, receive_date, department, department_library)` - Receives item (modifies data)
+- ✓ `acq.receive_and_keep_in_department(pol_id, item_id, mms_id, holding_id, library, department, ...)` - Receives item and keeps it in department
+- ✓ `bibs.scan_in_item(mms_id, holding_id, item_pid, library, department, work_order_type, status, done)` - Scans item into department with work order
 - Method implemented and tested with XML endpoint
 - ⚠️ Pending: Test with actual unreceived item
 
-**Complete Rialto Workflow Pattern**:
+**Item Work Order Management (NEW - 2025-10-21)**:
+
+Problem: When receiving items via `acq.receive_item()`, items automatically move to "in transit" process_type instead of staying in the acquisitions department.
+
+Solution: Use the new `receive_and_keep_in_department()` workflow that combines receiving with scan-in operation to keep items in department.
+
+**Available Methods**:
+1. **`bibs.scan_in_item()`** - Low-level scan-in operation
+   - Simulates UI "Scan In Items" function
+   - Places item in work order within department
+   - Prevents Transit status when used after receiving
+   - Parameters: mms_id, holding_id, item_pid, library, department, work_order_type, status, done
+
+2. **`acq.receive_and_keep_in_department()`** - High-level combined workflow
+   - Receives item via acquisitions API
+   - Immediately scans item into department with work order
+   - Single method call for complete workflow
+   - Parameters: pol_id, item_id, mms_id, holding_id, library, department, work_order_type, work_order_status
+
+**Workflow Pattern (Receive and Keep in Department)**:
+```python
+# Get POL data first to extract MMS and holding IDs
+pol_data = acq.get_pol(pol_id)
+items = acq.extract_items_from_pol_data(pol_data)
+unreceived = [item for item in items if not item.get('receive_date')]
+
+if unreceived:
+    item = unreceived[0]
+    item_id = item['pid']
+
+    # Extract MMS and holding IDs from POL data
+    mms_id = pol_data.get('resource_metadata', {}).get('mms_id', {}).get('value')
+    holding_id = pol_data.get('location', [{}])[0].get('holding_id')
+
+    # Receive and keep in department (prevents Transit)
+    result = acq.receive_and_keep_in_department(
+        pol_id=pol_id,
+        item_id=item_id,
+        mms_id=mms_id,
+        holding_id=holding_id,
+        library="MAIN",
+        department="ACQ",
+        work_order_type="AcqWorkOrder",
+        work_order_status="CopyCataloging"
+    )
+
+    # Item is now received and in work order, NOT in Transit
+```
+
+**Configuration Requirements**:
+- Work order types and statuses must be configured in Alma:
+  - Path: Configuration > Fulfillment > Physical Fulfillment > Work Order Types
+- Common work order types: `AcqWorkOrder`, `CatalogingWorkOrder`, `ConservationWorkOrder`
+- Common statuses for AcqWorkOrder: `CopyCataloging`, `Labeling`, `Processing`, `Review`
+- Example configuration: `/config/rialto_workflow_config.example.json`
+
+**Test Script**:
+- `test_receive_keep_in_dept.py` - Tests complete receive and keep in department workflow
+- Usage: `python test_receive_keep_in_dept.py <POL_ID> <ITEM_ID> <MMS_ID> <HOLDING_ID>`
+
+**Complete Rialto Workflow Pattern (Original)**:
 ```python
 # 1. Get POL and extract data
 pol_data = acq.get_pol(pol_id)

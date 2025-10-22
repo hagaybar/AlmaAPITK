@@ -827,6 +827,404 @@ if 'POL-12347' in linked_pols:
 - Do NOT extract from embedded invoice_line in full invoice response
 - Supports pagination: `limit` and `offset` parameters
 
+### Invoice Creation Helper Methods (Added 2025-10-22)
+
+The `Acquisitions` domain now includes comprehensive invoice creation helper methods providing three levels of abstraction for creating and managing invoices programmatically.
+
+#### Three Levels of Abstraction
+
+**Level 1: Core Utility Methods** (Private, for internal use)
+- `_format_invoice_date()`: Handles date formatting to Alma's YYYY-MM-DDZ format
+- `_build_invoice_structure()`: Constructs complete invoice data dictionary
+- `_build_invoice_line_structure()`: Constructs complete invoice line data dictionary with fund distribution
+
+**Level 2: Simple Helper Methods** (Public, simplified parameters)
+- `create_invoice_simple()`: Create invoice with simplified parameters
+- `create_invoice_line_simple()`: Create invoice line with auto-fund extraction
+
+**Level 3: Complete Workflow** (Public, full automation)
+- `create_invoice_with_lines()`: Complete end-to-end invoice workflow in single call
+
+#### Quick Start Examples
+
+**Example 1: Simple Invoice Creation**
+```python
+from src.domains.acquisition import Acquisitions
+
+acq = Acquisitions(client)
+
+# Create invoice with minimal parameters
+invoice = acq.create_invoice_simple(
+    invoice_number="INV-2025-001",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    total_amount=100.00
+)
+
+print(f"Invoice created: {invoice['id']}")
+```
+
+**Example 2: Invoice with Lines (Manual)**
+```python
+# Step 1: Create invoice
+invoice = acq.create_invoice_simple(
+    invoice_number="INV-2025-002",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    total_amount=125.00
+)
+
+# Step 2: Add lines (fund auto-extracted from POL)
+line1 = acq.create_invoice_line_simple(
+    invoice_id=invoice['id'],
+    pol_id="POL-12347",
+    amount=50.00,
+    quantity=1
+)
+
+line2 = acq.create_invoice_line_simple(
+    invoice_id=invoice['id'],
+    pol_id="POL-12348",
+    amount=75.00,
+    quantity=1
+)
+
+# Step 3: Process invoice
+acq.approve_invoice(invoice['id'])
+
+# Step 4: Mark as paid
+acq.mark_invoice_paid(invoice['id'])
+```
+
+**Example 3: Complete Automated Workflow**
+```python
+# Single method call for entire workflow
+lines = [
+    {"pol_id": "POL-12347", "amount": 50.00, "quantity": 1},
+    {"pol_id": "POL-12348", "amount": 75.00, "quantity": 1}
+]
+
+result = acq.create_invoice_with_lines(
+    invoice_number="INV-2025-003",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    lines=lines,
+    auto_process=True,  # Automatically approve invoice
+    auto_pay=True       # Automatically mark as paid
+)
+
+# Check results
+print(f"Invoice ID: {result['invoice_id']}")
+print(f"Lines created: {len(result['line_ids'])}")
+print(f"Processed: {result['processed']}")
+print(f"Paid: {result['paid']}")
+print(f"Errors: {result['errors']}")
+```
+
+#### Method Details
+
+**create_invoice_simple()**
+```python
+def create_invoice_simple(
+    invoice_number: str,
+    invoice_date: str,           # "YYYY-MM-DD" or datetime object
+    vendor_code: str,
+    total_amount: float,
+    currency: str = "ILS",
+    **optional_fields              # payment, invoice_vat, etc.
+) -> Dict[str, Any]
+```
+
+**create_invoice_line_simple()**
+```python
+def create_invoice_line_simple(
+    invoice_id: str,
+    pol_id: str,
+    amount: float,
+    quantity: int = 1,
+    fund_code: Optional[str] = None,  # Auto-extracted from POL if None
+    currency: str = "ILS",
+    **optional_fields                  # note, subscription dates, vat
+) -> Dict[str, Any]
+```
+
+**create_invoice_with_lines()**
+```python
+def create_invoice_with_lines(
+    invoice_number: str,
+    invoice_date: str,
+    vendor_code: str,
+    lines: List[Dict[str, Any]],  # [{"pol_id": str, "amount": float, ...}]
+    currency: str = "ILS",
+    auto_process: bool = True,     # Approve invoice automatically
+    auto_pay: bool = False,        # Mark as paid automatically
+    **invoice_kwargs               # Additional invoice fields
+) -> Dict[str, Any]
+```
+
+Returns comprehensive result:
+```python
+{
+    'invoice_id': str,           # Created invoice ID
+    'invoice_number': str,       # Invoice number
+    'line_ids': List[str],       # Created line IDs
+    'total_amount': float,       # Calculated total
+    'status': str,               # Final invoice status
+    'processed': bool,           # Whether processed
+    'paid': bool,                # Whether paid
+    'errors': List[str]          # Any errors encountered
+}
+```
+
+#### POL Utility Methods
+
+**get_vendor_from_pol()**
+```python
+vendor_code = acq.get_vendor_from_pol("POL-12347")
+# Returns vendor code or None
+```
+
+**get_fund_from_pol()**
+```python
+fund_code = acq.get_fund_from_pol("POL-12347")
+# Returns primary fund code or None
+# If multiple funds, returns first and logs note
+```
+
+#### Best Practices
+
+**1. Use Auto-Fund Extraction**
+```python
+# Recommended - fund auto-extracted from POL
+line = acq.create_invoice_line_simple(
+    invoice_id=invoice_id,
+    pol_id="POL-12347",
+    amount=100.00
+)
+
+# Only specify fund_code if overriding POL fund
+line = acq.create_invoice_line_simple(
+    invoice_id=invoice_id,
+    pol_id="POL-12347",
+    amount=100.00,
+    fund_code="SPECIAL_FUND"
+)
+```
+
+**2. Use Workflow Method for Bulk Operations**
+```python
+# For creating multiple invoices with lines
+# Use create_invoice_with_lines() for cleaner code
+lines = [
+    {"pol_id": "POL-12347", "amount": 50.00},
+    {"pol_id": "POL-12348", "amount": 75.00},
+    {"pol_id": "POL-12349", "amount": 100.00}
+]
+
+result = acq.create_invoice_with_lines(
+    invoice_number="INV-2025-004",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    lines=lines,
+    auto_process=True,
+    auto_pay=False  # Leave for manual payment approval
+)
+```
+
+**3. Handle Errors Gracefully**
+```python
+try:
+    result = acq.create_invoice_with_lines(...)
+
+    if result['errors']:
+        print(f"Warnings: {len(result['errors'])} issues")
+        for error in result['errors']:
+            print(f"  - {error}")
+
+    if len(result['line_ids']) < len(lines):
+        print(f"Only {len(result['line_ids'])}/{len(lines)} lines created")
+
+except ValueError as e:
+    print(f"Invalid parameters: {e}")
+except AlmaAPIError as e:
+    print(f"API error: {e}")
+```
+
+**4. Workflow Stages**
+```python
+# Stage 1: Create but don't process (for review)
+result = acq.create_invoice_with_lines(
+    ...,
+    auto_process=False,
+    auto_pay=False
+)
+
+# Stage 2: Create and process (ready for payment)
+result = acq.create_invoice_with_lines(
+    ...,
+    auto_process=True,
+    auto_pay=False
+)
+
+# Stage 3: Full automation (complete workflow)
+result = acq.create_invoice_with_lines(
+    ...,
+    auto_process=True,
+    auto_pay=True
+)
+```
+
+#### Common Patterns
+
+**Pattern 1: Invoice from POL Data**
+```python
+# Extract vendor and fund from POL
+pol_data = acq.get_pol("POL-12347")
+vendor = acq.get_vendor_from_pol("POL-12347")
+fund = acq.get_fund_from_pol("POL-12347")
+
+# Create invoice with extracted data
+invoice = acq.create_invoice_simple(
+    invoice_number="INV-2025-005",
+    invoice_date="2025-10-22",
+    vendor_code=vendor,
+    total_amount=100.00
+)
+
+# Add line with explicit fund
+line = acq.create_invoice_line_simple(
+    invoice_id=invoice['id'],
+    pol_id="POL-12347",
+    amount=100.00,
+    fund_code=fund
+)
+```
+
+**Pattern 2: Batch Invoice Creation**
+```python
+# Process multiple POLs
+pol_ids = ["POL-12347", "POL-12348", "POL-12349"]
+invoice_num = f"INV-{datetime.now().strftime('%Y%m%d')}"
+
+lines = []
+for pol_id in pol_ids:
+    pol_data = acq.get_pol(pol_id)
+    price = pol_data['price']['sum']
+    lines.append({
+        "pol_id": pol_id,
+        "amount": float(price),
+        "quantity": 1
+    })
+
+result = acq.create_invoice_with_lines(
+    invoice_number=invoice_num,
+    invoice_date=datetime.now().strftime("%Y-%m-%d"),
+    vendor_code="RIALTO",
+    lines=lines,
+    auto_process=True
+)
+```
+
+**Pattern 3: Error Recovery**
+```python
+result = acq.create_invoice_with_lines(...)
+
+# Invoice created even if some lines failed
+if result['invoice_id']:
+    print(f"Invoice {result['invoice_id']} created")
+
+    # Retry failed lines
+    if result['errors']:
+        print("Retrying failed lines...")
+        for error in result['errors']:
+            # Parse error and retry logic
+            pass
+
+    # Continue with processing if lines succeeded
+    if len(result['line_ids']) > 0:
+        if not result['processed']:
+            acq.approve_invoice(result['invoice_id'])
+```
+
+#### Date Handling
+
+The system accepts multiple date formats:
+
+```python
+# String format
+invoice = acq.create_invoice_simple(
+    invoice_date="2025-10-22",  # Automatically converts to "2025-10-22Z"
+    ...
+)
+
+# Already formatted
+invoice = acq.create_invoice_simple(
+    invoice_date="2025-10-22Z",  # Used as-is
+    ...
+)
+
+# Datetime object
+from datetime import datetime
+invoice = acq.create_invoice_simple(
+    invoice_date=datetime(2025, 10, 22),  # Converts to "2025-10-22Z"
+    ...
+)
+
+# Current date
+invoice = acq.create_invoice_simple(
+    invoice_date=datetime.now(),
+    ...
+)
+```
+
+#### Testing
+
+Comprehensive test suite available: `src/tests/test_invoice_creation.py`
+
+```bash
+# Dry-run validation (no API calls)
+python3 src/tests/test_invoice_creation.py --environment SANDBOX
+
+# Live tests (creates real invoices)
+python3 src/tests/test_invoice_creation.py --environment SANDBOX --live
+
+# Run specific test
+python3 src/tests/test_invoice_creation.py --test 5
+
+# All tests
+python3 src/tests/test_invoice_creation.py --test all --live
+```
+
+Test coverage:
+- Test 1-3: Core utility methods
+- Test 4-5: POL utility methods
+- Test 6-7: Simple helper methods
+- Test 8-10: Complete workflow variations
+
+#### Implementation Details
+
+**Location**: `src/domains/acquisition.py`
+- Lines 34-272: Core utility methods
+- Lines 282-492: Simple helper methods
+- Lines 502-789: Complete workflow method
+- Lines 1237-1358: POL utility methods
+
+**Dependencies**:
+- `datetime` module for date handling
+- Existing `create_invoice()` and `create_invoice_line()` methods
+- Existing `approve_invoice()` and `mark_invoice_paid()` methods
+
+**Error Handling**:
+- `ValueError`: Invalid parameters or missing required fields
+- `AlmaAPIError`: API operation failures
+
+**Progress Logging**:
+All methods include progress logging for debugging:
+- Invoice creation confirmation
+- Line creation progress (e.g., "Line 2/5: POL POL-12348, Amount: 75.0")
+- Processing and payment status
+- Final workflow summary
+
 ## File Structure Context
 
 - `src/client/` - Core API client implementation

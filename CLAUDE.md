@@ -219,6 +219,135 @@ python alma_client_test.py
 - Always handle rate limiting and provide meaningful error messages
 - Include request/response logging for debugging
 
+### Logging Requirements
+
+**IMPORTANT**: All test scripts and production code MUST include comprehensive logging.
+
+#### Logging Infrastructure
+The project includes a comprehensive logging system located in `src/logging/`:
+- **Automatic API key redaction** - Sensitive data never appears in logs
+- **Request/response logging** - Full HTTP details with timing
+- **Error tracking** - Stack traces and context for debugging
+- **Domain-specific logs** - Separate logs for acquisitions, users, bibs, admin
+- **JSON format** - Machine-parseable structured logs
+- **Git-safe** - All logs are gitignored and never committed
+
+#### Using the Logger
+
+**Import and Initialize**:
+```python
+from src.logging import get_logger
+
+# In domain classes
+class Acquisitions:
+    def __init__(self, client):
+        self.client = client
+        self.logger = get_logger('acquisitions', client.environment)
+
+# In test scripts
+logger = get_logger('test_invoice_creation', environment='SANDBOX')
+```
+
+**Log Operational Events**:
+```python
+# Log method entry with parameters
+self.logger.info(
+    "Creating invoice",
+    invoice_number=invoice_number,
+    vendor_code=vendor_code,
+    total_amount=total_amount
+)
+
+# Log success with results
+self.logger.info(
+    "Invoice created successfully",
+    invoice_id=result['id'],
+    invoice_number=invoice_number
+)
+```
+
+**Log Errors with Full Context**:
+```python
+try:
+    result = self.create_invoice(...)
+except AlmaAPIError as e:
+    self.logger.error(
+        "Failed to create invoice",
+        invoice_number=invoice_number,
+        error_code=e.status_code,
+        error_message=str(e),
+        tracking_id=getattr(e, 'tracking_id', None)
+    )
+    raise
+```
+
+**Log API Requests/Responses** (in AlmaAPIClient):
+```python
+# Before request
+self.logger.log_request('POST', endpoint, params=params, body=data)
+
+# After response
+self.logger.log_response(response, duration_ms=elapsed_time * 1000)
+```
+
+#### What to Log
+
+**✅ ALWAYS LOG**:
+- Method entry with key parameters (invoice number, POL ID, user ID)
+- Successful operations with result identifiers
+- API errors with full context (error code, message, tracking ID)
+- Validation failures with specific reasons
+- Important state changes (invoice approved, item received)
+- Test execution start/end with parameters
+- Test results (pass/fail) with details
+
+**❌ NEVER LOG**:
+- API keys (automatically redacted by logger)
+- Passwords or tokens (automatically redacted)
+- Full API responses containing personal data (use summary instead)
+
+#### Log Levels Guide
+
+| Level    | When to Use                                | Example                              |
+|----------|--------------------------------------------|--------------------------------------|
+| DEBUG    | Detailed diagnostic info, API responses    | `logger.debug("POL data", pol=data)` |
+| INFO     | Normal operations, success messages        | `logger.info("Invoice created")`     |
+| WARNING  | Recoverable issues, retries                | `logger.warning("Retrying request")` |
+| ERROR    | Operation failures, API errors             | `logger.error("Create failed")`      |
+| CRITICAL | System failures, cannot continue           | `logger.critical("Auth failed")`     |
+
+#### Log Files Location
+
+All logs are stored in `logs/` directory (gitignored):
+```
+logs/
+├── api_requests/YYYY-MM-DD/
+│   ├── acquisitions.log    # Acquisitions API operations
+│   ├── users.log            # User operations
+│   └── bibs.log             # Bibliographic operations
+├── errors/YYYY-MM-DD.log    # All errors across domains
+├── performance/             # Performance metrics
+└── tests/YYYY-MM-DD/        # Test execution logs
+```
+
+#### Configuration
+
+Default configuration works out-of-the-box. For custom settings:
+```bash
+# Copy example configuration
+cp config/logging_config.example.json config/logging_config.json
+
+# Customize log levels, rotation, redaction patterns
+```
+
+See `src/logging/README.md` and `src/logging/docs/LOGGING_IMPLEMENTATION_PLAN.md` for complete documentation.
+
+#### Security Notes
+- **Never commit logs to GitHub** - they may contain API responses with sensitive data
+- Logs are automatically excluded via `.gitignore`
+- API keys and tokens are automatically redacted from all logs
+- Review logs before sharing to ensure no sensitive data exposure
+
 ### Configuration Management
 - Never hardcode API keys or sensitive data
 - Use environment variables for all configuration

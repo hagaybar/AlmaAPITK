@@ -1,0 +1,66 @@
+{
+  "log_level": "INFO",
+  "domains": {
+    "acquisitions": {
+      "enabled": true,
+      "level": "DEBUG",
+      "log_requests": true,
+      "log_responses": true,
+      "comment": "Detailed logging for acquisitions domain (invoices, POLs, receiving)"
+    },
+    "users": {
+      "enabled": true,
+      "level": "INFO",
+      "log_requests": true,
+      "log_responses": true,
+      "comment": "Standard logging for user operations"
+    },
+    "bibs": {
+      "enabled": true,
+      "level": "INFO",
+      "log_requests": true,
+      "log_responses": true,
+      "comment": "Standard logging for bibliographic operations"
+    },
+    "admin": {
+      "enabled": true,
+      "level": "INFO",
+      "log_requests": true,
+      "log_responses": true,
+      "comment": "Standard logging for administrative operations (sets, etc.)"
+    },
+    "api_client": {
+      "enabled": true,
+      "level": "DEBUG",
+      "log_requests": true,
+      "log_responses": true,
+      "comment": "Detailed logging for all HTTP requests/responses"
+    }
+  },
+  "rotation": {
+    "max_bytes": 10485760,
+    "backup_count": 10,
+    "comment": "Rotate logs when they reach 10MB, keep 10 backups"
+  },
+  "redact_patterns": [
+    "apikey",
+    "api_key",
+    "password",
+    "token",
+    "secret",
+    "authorization",
+    "auth"
+  ],
+  "output": {
+    "console": true,
+    "file": true,
+    "format": "json",
+    "comment": "Output to both console and file, use JSON format for files"
+  },
+  "_usage_instructions": {
+    "description": "Copy this file to logging_config.json and customize as needed",
+    "location": "Place in config/ directory or project root",
+    "security": "Never commit actual API keys or sensitive data to version control",
+    "environments": "You can create separate configs for SANDBOX and PRODUCTION"
+  }
+}

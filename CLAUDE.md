@@ -780,6 +780,43 @@ Based on Alma API XSD Schema (`rest_invoice.xsd`):
 - **Invoice Processing**: `process_invoice` operation is mandatory after creating invoice and lines
 - **Error Tracking**: Alma errors include `errorCode`, `errorMessage`, and `trackingId` for support
 
+### CRITICAL: Invoice Workflow Requirements (Documented 2025-10-23)
+
+**⚠️ MANDATORY INVOICE PROCESSING SEQUENCE**:
+
+Invoices MUST be processed/approved BEFORE they can be paid. This is enforced by Alma API and will fail if not followed:
+
+```python
+# ✅ CORRECT WORKFLOW:
+# Step 1: Create invoice
+invoice = acq.create_invoice_simple(...)
+
+# Step 2: Add invoice lines
+line = acq.create_invoice_line_simple(invoice_id, pol_id, ...)
+
+# Step 3: MUST PROCESS FIRST (mandatory!)
+processed = acq.approve_invoice(invoice_id)
+# API: POST /almaws/v1/acq/invoices/{id}?op=process_invoice
+
+# Step 4: Then can mark as paid
+paid = acq.mark_invoice_paid(invoice_id)
+# API: POST /almaws/v1/acq/invoices/{id}?op=paid
+
+# ❌ WRONG - Will fail with error 402459:
+invoice = acq.create_invoice_simple(...)
+line = acq.create_invoice_line_simple(...)
+paid = acq.mark_invoice_paid(invoice_id)  # FAILS - not processed yet!
+```
+
+**Invoice State Transitions**:
+1. **Created**: `invoice_status=ACTIVE`, `workflow_status=InReview`, `approval_status=PENDING`, `payment_status=NOT_PAID`
+2. **After Processing**: `approval_status=APPROVED`, `workflow_status=Approved`
+3. **After Payment**: `payment_status=PAID` or `FULLY_PAID`
+
+**Common Errors**:
+- **Error 402459**: "Error while trying to retrieve invoice" - Usually means invoice not processed yet or deleted
+- **Solution**: Always call `approve_invoice()` before `mark_invoice_paid()`
+
 ### Verified Working Methods for Rialto Flow (Tested 2025-09-30)
 
 **POL Operations**:
@@ -791,7 +828,8 @@ Based on Alma API XSD Schema (`rest_invoice.xsd`):
 - ✓ `acq.get_invoice(invoice_id)` - Retrieves invoice data
 - ✓ `acq.get_invoice_summary(invoice_id)` - Returns formatted summary with correct payment_status
 - ✓ `acq.get_invoice_lines(invoice_id)` - Gets lines from dedicated endpoint
-- ✓ `acq.mark_invoice_paid(invoice_id)` - Marks invoice as paid (modifies data)
+- ✓ `acq.approve_invoice(invoice_id)` - Processes/approves invoice (MANDATORY before payment)
+- ✓ `acq.mark_invoice_paid(invoice_id)` - Marks invoice as paid (requires processing first)
 
 **Item Receiving Operations**:
 - ✓ `acq.receive_item(pol_id, item_id, receive_date, department, department_library)` - Receives item (modifies data)

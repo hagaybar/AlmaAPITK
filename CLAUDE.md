@@ -568,6 +568,68 @@ When working with Alma API concepts, remember:
 - **POL (Purchase Order Line)**: Individual line items in purchase orders containing item and pricing information
 - **Item**: Physical or electronic items associated with POLs, tracked through acquisition to receiving
 
+## ⚠️ CRITICAL: Prevent Duplicate Invoices/Payments (MUST READ)
+
+**INCIDENT**: On 2025-10-23, duplicate payment occurred for POL-12352. Two invoices were created and BOTH paid for the same POL, resulting in 50.00 ILS paid for a single 25.00 ILS order. See `INCIDENT_REPORT_DUPLICATE_PAYMENT_POL12352.md` for full details.
+
+### MANDATORY Pre-Flight Checks
+
+**Before ANY invoice creation or payment, you MUST:**
+
+```python
+# ✅ RULE 1: ALWAYS check for existing invoices BEFORE creating new one
+check = acq.check_pol_invoiced(pol_id)
+if check['is_invoiced']:
+    print(f"⚠️ STOP! POL {pol_id} already has {check['invoice_count']} invoice(s)")
+    for inv in check['invoices']:
+        print(f"  - Invoice {inv['invoice_number']}")
+        print(f"    Status: {inv['invoice_status']} / Payment: {inv['payment_status']}")
+    # REVIEW existing invoices - DO NOT create new one
+    # USE existing invoice instead
+else:
+    # Only NOW is it safe to create new invoice
+    invoice = acq.create_invoice_simple(...)
+
+# ✅ RULE 2: NEVER skip approval step
+invoice = acq.create_invoice_simple(...)
+line = acq.create_invoice_line_simple(...)
+processed = acq.approve_invoice(invoice_id)  # MANDATORY - do not skip!
+paid = acq.mark_invoice_paid(invoice_id)     # Includes automatic protection
+
+# ❌ RULE 3: When error occurs, FIX existing invoice - DON'T create new one
+if payment_fails_with_error_402459:
+    # CORRECT: Fix the existing invoice
+    acq.approve_invoice(existing_invoice_id)  # Process it first
+    acq.mark_invoice_paid(existing_invoice_id)  # Then pay
+
+    # WRONG: Create new invoice (causes duplicate!)
+    # new_invoice = acq.create_invoice_simple(...)  # ✗ DON'T DO THIS
+
+# ✅ RULE 4: Trust the protection - do NOT bypass
+try:
+    result = acq.mark_invoice_paid(invoice_id)  # Has automatic protection
+except AlmaAPIError as e:
+    # Protection blocked payment for good reason
+    print(f"Payment prevented: {e}")
+    # Review the error - do NOT use force=True
+```
+
+### Why This Matters
+
+Duplicate invoices cause:
+- **Financial errors**: Overpayment from wrong fund
+- **System corruption**: Multiple invoice records for single order
+- **Manual cleanup**: Library staff must reconcile accounts
+- **Data integrity**: Incorrect fund balances and expenditures
+
+### Protection Layers Implemented
+
+1. **`check_pol_invoiced()`** - Detects existing invoices for POL
+2. **`check_invoice_payment_status()`** - Checks if invoice already paid
+3. **`mark_invoice_paid()`** - Automatic duplicate payment protection (default)
+
+All protection is AUTOMATIC by default. You must explicitly use `force=True` to bypass (never recommended).
+
 ## Alma Acquisitions API Reference
 
 ### Official Documentation

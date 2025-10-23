@@ -827,6 +827,50 @@ if 'POL-12347' in linked_pols:
 - Do NOT extract from embedded invoice_line in full invoice response
 - Supports pagination: `limit` and `offset` parameters
 
+**Searching Invoices by POL** (Critical Finding - 2025-10-22):
+
+The Alma API supports **direct search of invoices by POL number**, making duplicate invoice detection efficient:
+
+**Correct Query Format**:
+```python
+# Direct POL search - EFFICIENT
+query = f"pol_number~{pol_id}"  # Use tilde format
+endpoint = "almaws/v1/acq/invoices"
+params = {"q": query, "limit": 100}
+
+# Example: Search for invoices containing POL-12347
+response = client.get("almaws/v1/acq/invoices", params={"q": "pol_number~POL-12347"})
+# Returns all invoices that have lines referencing POL-12347
+```
+
+**Query Format Testing Results**:
+- ✅ `pol_number~POL-12347` (tilde format) - **WORKS** (recommended)
+- ✅ `pol_number=POL-12347` (equals format) - Works
+- ❌ `pol_number:POL-12347` (colon format) - Server error
+
+**Important Notes**:
+- This query searches **across all invoice lines** automatically
+- Much more efficient than iterating through invoices manually
+- Returns complete invoice objects that contain the POL
+- Use `check_pol_invoiced()` method which implements this correctly
+- Prevents double-invoicing by detecting existing invoice lines
+
+**Implementation in check_pol_invoiced()**:
+```python
+# Correct implementation (as of 2025-10-22)
+def check_pol_invoiced(self, pol_id: str) -> Dict[str, Any]:
+    query = f"pol_number~{pol_id}"  # Direct POL search
+    params = {"q": query, "limit": 100}
+    response = self.client.get("almaws/v1/acq/invoices", params=params)
+
+    # Returns: {'is_invoiced': bool, 'invoice_count': int, 'invoices': [...]}
+```
+
+**Bug History**:
+- **Initial Implementation (2025-10-22)**: Inefficiently iterated through 100 active invoices
+- **Fixed Implementation (2025-10-22)**: Uses direct `pol_number~{pol_id}` query
+- **Impact**: Correctly detects all existing invoices for a POL, prevents double-invoicing
+
 ### Invoice Creation Helper Methods (Added 2025-10-22)
 
 The `Acquisitions` domain now includes comprehensive invoice creation helper methods providing three levels of abstraction for creating and managing invoices programmatically.
@@ -991,6 +1035,27 @@ fund_code = acq.get_fund_from_pol("POL-12347")
 # If multiple funds, returns first and logs note
 ```
 
+**get_price_from_pol()** (Added 2025-10-22)
+```python
+price = acq.get_price_from_pol("POL-12347")
+# Returns POL list price as float
+# Returns: 180.0 (for POL-12347)
+```
+
+**check_pol_invoiced()** (Added 2025-10-22)
+```python
+check = acq.check_pol_invoiced("POL-12347")
+# Returns dict with:
+#   - is_invoiced: bool
+#   - invoice_count: int
+#   - invoices: List[Dict] with existing invoice details
+
+if check['is_invoiced']:
+    print(f"⚠️  POL already has {check['invoice_count']} invoice(s)")
+    for inv in check['invoices']:
+        print(f"  - {inv['invoice_number']}: {inv['amount']}")
+```
+
 #### Best Practices
 
 **1. Use Auto-Fund Extraction**
@@ -1050,7 +1115,45 @@ except AlmaAPIError as e:
     print(f"API error: {e}")
 ```
 
-**4. Workflow Stages**
+**4. Use POL's Actual Price** (Added 2025-10-22)
+```python
+# RECOMMENDED: Extract price from POL to avoid errors
+pol_ids = ["POL-12347", "POL-12348"]
+lines = []
+for pol_id in pol_ids:
+    price = acq.get_price_from_pol(pol_id)
+    if price:
+        lines.append({"pol_id": pol_id, "amount": price})
+
+result = acq.create_invoice_with_lines(
+    invoice_number="INV-2025-001",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    lines=lines
+)
+
+# AVOID: Hardcoding amounts (may not match POL price)
+# lines = [{"pol_id": "POL-12347", "amount": 50.00}]  # Wrong if POL is 180.00!
+```
+
+**5. Prevent Double Invoicing** (Added 2025-10-22)
+```python
+# Option 1: Manual check before creating
+check = acq.check_pol_invoiced("POL-12347")
+if check['is_invoiced']:
+    raise ValueError(f"POL already invoiced!")
+
+# Option 2: Use check_duplicates parameter (slower but automatic)
+result = acq.create_invoice_with_lines(
+    invoice_number="INV-2025-001",
+    invoice_date="2025-10-22",
+    vendor_code="RIALTO",
+    lines=lines,
+    check_duplicates=True  # Will validate all POLs before creating
+)
+```
+
+**6. Workflow Stages**
 ```python
 # Stage 1: Create but don't process (for review)
 result = acq.create_invoice_with_lines(
@@ -1224,6 +1327,107 @@ All methods include progress logging for debugging:
 - Line creation progress (e.g., "Line 2/5: POL POL-12348, Amount: 75.0")
 - Processing and payment status
 - Final workflow summary
+
+#### Known Issues and Bug Fixes (2025-10-22)
+
+**Bug Fix 1: fund_distribution Structure**
+
+**Issue**: Invoice line creation was failing with error:
+```
+Invoice line fund percentage or amount must be declared, not both and not neither.
+```
+
+**Root Cause**: The `fund_distribution` array was incorrectly including both `amount` and `percent` fields. Alma API requires EITHER `amount` OR `percent`, not both.
+
+**Incorrect Structure**:
+```python
+"fund_distribution": [{
+    "fund_code": {"value": "GENERIC_FUND"},
+    "amount": 50.0,        # ← Can't have both amount and percent
+    "percent": 100
+}]
+```
+
+**Correct Structure**:
+```python
+"fund_distribution": [{
+    "fund_code": {"value": "GENERIC_FUND"},
+    "percent": 100  # 100% of line amount allocated to this fund
+}]
+```
+
+**When to Use Each**:
+- **Use `percent`**: For percentage-based allocation (e.g., 100% to one fund, or 50/50 split)
+  ```python
+  "fund_distribution": [
+      {"fund_code": {"value": "FUND_A"}, "percent": 50},
+      {"fund_code": {"value": "FUND_B"}, "percent": 50}
+  ]
+  ```
+- **Use `amount`**: For explicit dollar amounts (e.g., $50 to Fund A, $30 to Fund B)
+  ```python
+  "fund_distribution": [
+      {"fund_code": {"value": "FUND_A"}, "amount": 50.00},
+      {"fund_code": {"value": "FUND_B"}, "amount": 30.00}
+  ]
+  ```
+
+**Resolution**: Fixed in `_build_invoice_line_structure()` to use only `percent: 100` for single-fund allocations (commit 8cda081).
+
+**Tested**: Live test in SANDBOX confirmed working (Invoice ID: 35925532970004146).
+
+**Bug Fix 2: check_pol_invoiced() Query Efficiency**
+
+**Issue**: The `check_pol_invoiced()` method was not detecting existing invoices for POLs that were already invoiced, leading to potential double-invoicing.
+
+**Original Implementation** (Inefficient):
+```python
+# Iterated through 100 active invoices manually
+query = "invoice_status~ACTIVE OR invoice_status~WAITING_TO_BE_SENT..."
+# Then checked each invoice's lines one by one
+for invoice in invoices:
+    lines = self.get_invoice_lines(invoice_id)
+    for line in lines:
+        if line.get('po_line') == pol_id:
+            # Found match
+```
+
+**Problems**:
+- Only checked first 100 active invoices
+- Multiple API calls (1 list call + N get_invoice_lines calls)
+- Did not detect invoices with statuses outside the hardcoded list
+- Could miss invoices in large datasets
+
+**Fixed Implementation** (Efficient):
+```python
+# Direct POL search using Alma's built-in query capability
+query = f"pol_number~{pol_id}"
+response = self.client.get("almaws/v1/acq/invoices", params={"q": query})
+# Returns ALL invoices containing the POL, regardless of status
+```
+
+**Benefits**:
+- ✅ Single API call instead of multiple
+- ✅ Searches across ALL invoice lines automatically
+- ✅ No status filtering needed - finds all invoices
+- ✅ Correctly detected 2 existing invoices for POL-12347 (one manual 180 ILS, one test 50 ILS)
+
+**Discovery Process**:
+1. Initial implementation failed to detect existing invoices
+2. Consulted Alma REST API documentation online
+3. Discovered `pol_number~{value}` query parameter support
+4. Tested three formats: tilde (✅), colon (❌), equals (✅)
+5. Implemented direct POL search query
+
+**Resolution**: Fixed in `check_pol_invoiced()` method (lines 1753-1888) - now uses direct POL query.
+
+**Tested**: Live test confirmed correct detection:
+- POL-12347: Correctly found 2 invoices (PO-1769001 CLOSED 180 ILS, TEST-INV-20251022_153408-8 ACTIVE 50 ILS)
+
+**Related Enhancements**:
+- Added `get_price_from_pol()` to extract actual POL prices (prevents hardcoding errors)
+- Added `check_duplicates` parameter to `create_invoice_with_lines()` workflow
+- See "Searching Invoices by POL" section above for detailed query format documentation
 
 ## File Structure Context
 

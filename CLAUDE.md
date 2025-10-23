@@ -798,7 +798,7 @@ line = acq.create_invoice_line_simple(invoice_id, pol_id, ...)
 processed = acq.approve_invoice(invoice_id)
 # API: POST /almaws/v1/acq/invoices/{id}?op=process_invoice
 
-# Step 4: Then can mark as paid
+# Step 4: Then can mark as paid (NOW WITH AUTOMATIC DUPLICATE PROTECTION!)
 paid = acq.mark_invoice_paid(invoice_id)
 # API: POST /almaws/v1/acq/invoices/{id}?op=paid
 
@@ -817,6 +817,75 @@ paid = acq.mark_invoice_paid(invoice_id)  # FAILS - not processed yet!
 - **Error 402459**: "Error while trying to retrieve invoice" - Usually means invoice not processed yet or deleted
 - **Solution**: Always call `approve_invoice()` before `mark_invoice_paid()`
 
+### CRITICAL: Duplicate Payment Protection (Added 2025-10-23)
+
+**⚠️ AUTOMATIC DUPLICATE PAYMENT PROTECTION**:
+
+The `mark_invoice_paid()` method now includes automatic duplicate payment protection to prevent accidentally paying the same invoice twice.
+
+```python
+# ✅ SAFE - Automatic protection (default behavior):
+try:
+    result = acq.mark_invoice_paid(invoice_id)
+    # Protection automatically checks:
+    # - Is invoice already paid? (PAID, FULLY_PAID, PARTIALLY_PAID)
+    # - Is invoice already closed?
+    # - Is invoice approved?
+except AlmaAPIError as e:
+    # Will raise error if invoice already paid or not ready
+    print(f"Payment prevented: {e}")
+
+# ⚠️ BYPASS PROTECTION (dangerous, not recommended):
+result = acq.mark_invoice_paid(invoice_id, force=True)
+
+# ✅ MANUAL CHECK before payment:
+check = acq.check_invoice_payment_status(invoice_id)
+if check['is_paid']:
+    print(f"⚠️ Invoice already paid: {check['payment_status']}")
+elif check['can_pay']:
+    acq.mark_invoice_paid(invoice_id)
+else:
+    print(f"Cannot pay: {check['warnings']}")
+```
+
+**Protection Features**:
+- Automatically checks invoice payment status before paying
+- Prevents duplicate payments (PAID, FULLY_PAID, PARTIALLY_PAID states)
+- Prevents paying closed invoices
+- Prevents paying unapproved invoices
+- Provides clear error messages with current state
+- Includes `force=True` option to bypass (not recommended)
+
+**New Methods**:
+- `check_invoice_payment_status(invoice_id)` - Returns detailed payment status
+- `mark_invoice_paid(invoice_id, force=False)` - Now includes protection
+
+**check_invoice_payment_status() Returns**:
+```python
+{
+    'is_paid': bool,          # Is invoice already paid?
+    'payment_status': str,    # PAID, NOT_PAID, etc.
+    'invoice_status': str,    # ACTIVE, CLOSED, etc.
+    'approval_status': str,   # APPROVED, PENDING, etc.
+    'can_pay': bool,          # Safe to pay?
+    'warnings': List[str]     # Any warnings
+}
+```
+
+**When Protection Triggers**:
+1. Invoice already paid (status: PAID, FULLY_PAID, PARTIALLY_PAID)
+2. Invoice already closed (status: CLOSED)
+3. Invoice not yet approved (must call approve_invoice first)
+
+**Error Message Example**:
+```
+AlmaAPIError: ⚠️ DUPLICATE PAYMENT PREVENTED!
+Invoice 123456 is already paid.
+Payment Status: PAID
+Invoice Status: CLOSED
+Use force=True to bypass this protection (not recommended).
+```
+
 ### Verified Working Methods for Rialto Flow (Tested 2025-09-30)
 
 **POL Operations**:
@@ -829,7 +898,9 @@ paid = acq.mark_invoice_paid(invoice_id)  # FAILS - not processed yet!
 - ✓ `acq.get_invoice_summary(invoice_id)` - Returns formatted summary with correct payment_status
 - ✓ `acq.get_invoice_lines(invoice_id)` - Gets lines from dedicated endpoint
 - ✓ `acq.approve_invoice(invoice_id)` - Processes/approves invoice (MANDATORY before payment)
-- ✓ `acq.mark_invoice_paid(invoice_id)` - Marks invoice as paid (requires processing first)
+- ✓ `acq.check_invoice_payment_status(invoice_id)` - Checks payment status (duplicate protection helper)
+- ✓ `acq.mark_invoice_paid(invoice_id, force=False)` - Marks as paid with automatic duplicate protection
+- ✓ `acq.check_pol_invoiced(pol_id)` - Returns payment_status, approval_status for duplicate detection
 
 **Item Receiving Operations**:
 - ✓ `acq.receive_item(pol_id, item_id, receive_date, department, department_library)` - Receives item (modifies data)

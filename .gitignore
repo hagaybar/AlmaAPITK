@@ -62,6 +62,10 @@ __pydantic_schema_cache__/
 *.orig
 *.patch
 
+# Logging directory (contains API requests/responses with sensitive data)
+logs/
+logs/**/*
+
 ###############################################################################
 #  IDE / editor settings                                                      #
 ###############################################################################

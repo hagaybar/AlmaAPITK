@@ -36,7 +36,7 @@ ENV/
 *.spec
 
 ###############################################################################
-#  Testing & coverage artefacts (tests folder itself is ignored below)        #
+#  Testing & coverage artefacts                                               #
 ###############################################################################
 .pytest_cache/
 .hypothesis/
@@ -101,17 +101,47 @@ $RECYCLE.BIN/
 ###############################################################################
 #  Project-specific ignores                                                   #
 ###############################################################################
-# Local data and generated artefacts; not part of the source code
+
+# Local data directories
 data/
-src/tests/output/
-outputs/
-archived/
+
+# Runtime outputs in output/ directory (but preserve output/archive/)
+output/*.log
+output/*.csv
+output/*.json
+output/*.tsv
+output/*.xlsx
+output/*.pdf
+output/*.html
+
+# Temporary spreadsheet backups
+backups/
+
+# Test run results (timestamped outputs from test execution)
+tests/**/test_results_*.json
+tests/**/test_output_*.json
+tests/**/*_results_*.csv
+tests/**/*.log
+
+# Script-generated temporary outputs
+scripts/**/output/
+scripts/**/*.tmp.json
+scripts/**/*.tmp.tsv
+scripts/**/*.tmp.csv
+
 # FAISS / index binaries that may appear elsewhere
 *.faiss
 *.index
 
-# Entire test suite (excluded by request)
-# tests/
+###############################################################################
+#  Archive Strategy (What IS Tracked)                                        #
+###############################################################################
+# The following are intentionally TRACKED for documentation/reference:
+# - output/archive/ - Historical execution artifacts and findings
+# - tests/case_studies/*/POL-*_data.json - Reference POL data for workflows
+# - tests/case_studies/*/archive/ - Preserved test results for comparison
+# - tests/ directory itself - Organized test suite (unit/integration/case studies)
+# - scripts/ directory - Investigation and cleanup utilities
 
 ###############################################################################
 #  End                                                                        #

@@ -838,31 +838,42 @@ Testing with actual lending request (ID: 35889547910004146, External ID: "test p
 
 #### API Input/Output Asymmetry ⚠️
 
-**The `owner` field has asymmetric behavior:**
+**The `owner` field format - Schema Documentation Error** ⚠️
+
+**CRITICAL DISCOVERY (2025-12-24)**: The official Alma API schema documentation is **WRONG** about owner field format!
 
 ```python
-# CREATE REQUEST - Send wrapped format:
+# SCHEMA DOCUMENTATION SAYS (INCORRECT):
 request_data = {
-    "owner": {"value": "AS1"},  # Wrapped in object
-    "partner": {"value": "ANC"},
-    "format": {"value": "PHYSICAL"}
+    "owner": {"value": "AS1"},  # ❌ Schema shows wrapped - causes 400 error!
 }
 
-# RETRIEVE REQUEST - Returns plain string:
+# API REALITY (CORRECT):
+request_data = {
+    "owner": "AS1",  # ✅ Plain string required for CREATE
+}
+
+# RETRIEVE ALSO RETURNS:
 response = {
-    "owner": "AS1",  # Plain string!
-    "partner": {"value": "ANC", "desc": "ANCA-TEST"},  # Still wrapped
-    "format": {"value": "PHYSICAL", "desc": "Physical"}  # Still wrapped
+    "owner": "AS1",  # ✅ Plain string in responses
 }
 ```
 
-**Why this matters:**
-- Our `create_lending_request()` correctly wraps owner as `{"value": "..."}` for creation
-- Our `_validate_lending_request_data()` expects wrapped format
-- **But retrieved data cannot be re-validated** with current validation logic
-- This is **intentional API design**, not a bug - input/output formats differ
+**Testing confirmed:**
+- Sending wrapped format `{"value": "AS1"}` causes **400 BAD_REQUEST** error:
+  ```
+  Cannot deserialize value of type `java.lang.String` from Object value
+  ```
+- Sending plain string `"AS1"` **succeeds** (tested, verified, working)
+- Other fields (partner, format, citation_type) ARE wrapped correctly as documented
 
-**Recommendation**: When implementing UPDATE operations, check if Alma accepts plain string or wrapped format.
+**Why this matters:**
+- Schema documentation at https://developers.exlibrisgroup.com/alma/apis/xsd/ is incorrect for this field
+- Our `create_lending_request()` now correctly sends plain string
+- Our `_validate_lending_request_data()` now expects plain string
+- **No asymmetry** - owner is ALWAYS plain string (both CREATE and RETRIEVE)
+
+**Recommendation**: When implementing UPDATE operations, use plain string for owner field.
 
 #### Additional Fields Not in Schema Documentation
 
@@ -917,8 +928,8 @@ Real API responses include many undocumented fields:
 - `status`: Always wrapped
 - `supplied_format`: Always wrapped
 
-**Inconsistent Wrapping:**
-- `owner`: **Plain string** in responses (but send wrapped)
+**Always Plain String** (despite schema docs showing wrapped):
+- `owner`: **ALWAYS plain string** (schema docs wrong - wrapped format causes 400 error!)
 - `requested_media`: **Plain string** code (e.g., "7")
 
 **Always Plain Values:**

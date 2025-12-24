@@ -830,6 +830,154 @@ python src/tests/test_resource_sharing_lending.py --live --test-validation
 - Validation error handling
 - Summary helper functionality
 
+### Critical API Behavior Insights (Discovered 2025-12-24)
+
+**Real-World Testing with SANDBOX Data**
+
+Testing with actual lending request (ID: 35889547910004146, External ID: "test primo 200825") revealed important API behaviors not documented in schema:
+
+#### API Input/Output Asymmetry ⚠️
+
+**The `owner` field has asymmetric behavior:**
+
+```python
+# CREATE REQUEST - Send wrapped format:
+request_data = {
+    "owner": {"value": "AS1"},  # Wrapped in object
+    "partner": {"value": "ANC"},
+    "format": {"value": "PHYSICAL"}
+}
+
+# RETRIEVE REQUEST - Returns plain string:
+response = {
+    "owner": "AS1",  # Plain string!
+    "partner": {"value": "ANC", "desc": "ANCA-TEST"},  # Still wrapped
+    "format": {"value": "PHYSICAL", "desc": "Physical"}  # Still wrapped
+}
+```
+
+**Why this matters:**
+- Our `create_lending_request()` correctly wraps owner as `{"value": "..."}` for creation
+- Our `_validate_lending_request_data()` expects wrapped format
+- **But retrieved data cannot be re-validated** with current validation logic
+- This is **intentional API design**, not a bug - input/output formats differ
+
+**Recommendation**: When implementing UPDATE operations, check if Alma accepts plain string or wrapped format.
+
+#### Additional Fields Not in Schema Documentation
+
+Real API responses include many undocumented fields:
+
+**Operational Metadata:**
+- `printed`: boolean - Whether request has been printed
+- `reported`: boolean - Whether request has been reported
+- `has_active_notes`: boolean - Quick check for notes without parsing array
+- `created_time`: string - Precise ISO timestamp (vs `created_date`)
+- `last_modified_time`: string - Precise ISO timestamp
+
+**Item Integration:**
+- `barcode`: string - Physical item barcode (e.g., "2239409-10")
+  - **Very useful** - links request to actual physical item
+  - Not mentioned in schema but appears in SHIPPED requests
+- `mms_id`: string - Alma catalog record ID
+  - Shows request is linked to catalog item
+  - Example: "990022394090204146"
+
+**Communication:**
+- `text_email`: string - Contact email for request
+  - Example: "requester@example.com"
+  - Useful for automated notifications
+
+**Fulfillment Details:**
+- `supplied_format`: object - What was actually supplied vs requested
+  - Can differ from `format` (what was requested)
+  - Structure: `{"value": "PHYSICAL", "desc": "Physical"}`
+- `shipping_cost`: object - Actual cost tracking
+  - Structure: `{"sum": 0, "currency": {"value": "ILS", "desc": "New Israeli Sheqel"}}`
+  - Always present even if zero
+
+**Workflow Fields:**
+- `user_request`: object - Empty dict in lending requests (used for borrowing)
+- `level_of_service`: object - May have empty desc: `{"desc": ""}`
+- `copyright_status`: object - May be empty dict `{}`
+- `rs_note`: array - Notes array (may be empty)
+
+#### Real Status Values Observed
+
+**Documented status** "REQUEST_CREATED_LEN" vs **actual statuses** in production:
+- `SHIPPED_PHYSICALLY` - Item physically shipped to partner
+- Other statuses exist based on workflow configuration
+
+#### Field Format Patterns
+
+**Consistent Wrapping (value/desc):**
+- `partner`: Always wrapped with link
+- `format`: Always wrapped
+- `citation_type`: Always wrapped
+- `status`: Always wrapped
+- `supplied_format`: Always wrapped
+
+**Inconsistent Wrapping:**
+- `owner`: **Plain string** in responses (but send wrapped)
+- `requested_media`: **Plain string** code (e.g., "7")
+
+**Always Plain Values:**
+- `title`, `author`, `year`: Plain strings
+- `external_id`, `request_id`: Plain strings
+- `barcode`: Plain string
+- `text_email`: Plain string
+- Boolean flags: `printed`, `reported`, `allow_other_formats`
+
+#### Date Format Precision
+
+```json
+{
+  "created_date": "2025-08-20Z",           // Day precision - what we send
+  "created_time": "2025-08-20T05:42:24.143Z",  // Millisecond precision - Alma internal
+  "last_modified_date": "2025-09-18Z",
+  "last_modified_time": "2025-09-18T11:10:20.491Z"
+}
+```
+
+Both `*_date` and `*_time` fields are returned for creation and modification tracking.
+
+#### Partner Code Display Names
+
+Partner codes have internal codes vs display names:
+```json
+"partner": {
+  "value": "ANC",           // Internal code (use in API calls)
+  "desc": "ANCA-TEST",      // Display name (for UI)
+  "link": "https://api-eu.hosted.exlibrisgroup.com/almaws/v1/partners/ANC"
+}
+```
+
+**Always use the internal code** (`value`) in API calls, not the display name.
+
+#### Practical Implications
+
+**For Development:**
+1. **Don't assume symmetry** - input format may differ from output format
+2. **Use barcode field** - valuable for item tracking and fulfillment
+3. **Check supplied_format** - may differ from requested format
+4. **Parse both date formats** - `*_date` for day precision, `*_time` for exact timestamp
+5. **Use partner value, not desc** - "ANC" not "ANCA-TEST"
+
+**For Data Integration:**
+- `mms_id` + `barcode` enable full item tracking
+- `text_email` enables automated partner communication
+- `shipping_cost` supports financial reconciliation
+- `supplied_format` tracks format substitutions
+
+**For Testing:**
+- Real SANDBOX data shows SHIPPED_PHYSICALLY status
+- Empty dicts (`{}`) are valid for optional complex objects
+- Some code table fields may have empty descriptions
+
+#### Example: Complete Real Response
+
+See `docs/examples/lending_request_example.json` for complete real-world example showing all fields.
+
 ### Important Notes
 
 - **Partner Codes**: Must exist in Alma configuration (Configuration > Resource Sharing > Partners)

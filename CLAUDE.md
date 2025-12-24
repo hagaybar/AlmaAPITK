@@ -42,6 +42,8 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
    - **Users**: User management operations, email updates, expiry date processing
    - **Bibs**: Bibliographic records operations
    - **Acquisition**: Acquisition-related operations
+   - **Analytics**: Analytics report fetching (PRODUCTION only, read-only)
+   - **ResourceSharing**: Resource sharing lending and borrowing requests via Partners API
 
 3. **Projects** (`src/projects/`)
    - **update_expired_user_emails_2.py**: Script for updating email addresses of expired users (latest version)
@@ -629,6 +631,305 @@ Duplicate invoices cause:
 3. **`mark_invoice_paid()`** - Automatic duplicate payment protection (default)
 
 All protection is AUTOMATIC by default. You must explicitly use `force=True` to bypass (never recommended).
+
+## Alma Resource Sharing API Reference
+
+### Official Documentation
+- **Partners API Base URL**: `https://developers.exlibrisgroup.com/alma/apis/partners/`
+- **API Docs**: `https://developers.exlibrisgroup.com/alma/apis/`
+- **Schema Reference**: `https://developers.exlibrisgroup.com/alma/apis/xsd/rest_user_resource_sharing_request.xsd`
+- **OpenAPI/Swagger**: Available for download at developers.exlibrisgroup.com
+
+### Key Resource Sharing Endpoints
+
+#### Lending Requests (Partners API)
+
+**Create Lending Request**
+```
+POST /almaws/v1/partners/{partner_code}/lending-requests
+```
+- Creates a new lending request from a partner institution
+- Represents a partner's request to borrow material from your library
+- Returns created request with generated request_id
+
+**Retrieve Lending Request**
+```
+GET /almaws/v1/partners/{partner_code}/lending-requests/{request_id}
+```
+- Retrieves complete details of an existing lending request
+- Returns full request object with current status
+
+### Data Object Structure
+
+**Lending Request Object Key Fields**:
+
+**Mandatory Fields (for creation)**:
+- `external_id`: string - External identifier for the request (mandatory for creation)
+- `owner`: object - Resource sharing library code (mandatory)
+  - `value`: Library code (e.g., "MAIN")
+- `partner`: object - Partner institution code (mandatory)
+  - `value`: Partner code (e.g., "RELAIS", "ILL_PARTNER")
+- `format`: object - Request format (mandatory)
+  - `value`: "PHYSICAL" or "DIGITAL"
+- `citation_type`: object - Resource type (mandatory unless mms_id supplied)
+  - `value`: "BOOK", "JOURNAL", etc.
+- `title`: string - Resource title (mandatory unless mms_id supplied)
+
+**Optional Fields**:
+- `mms_id`: object - Alma catalog record ID if item exists
+  - `value`: MMS ID (e.g., "991234567890123456")
+- `request_id`: string - System-generated identifier (output only)
+- `status`: object - Current workflow status
+  - `value`: Status code (e.g., "REQUEST_CREATED_LEN")
+- `author`: string - Resource author
+- `isbn`: string - ISBN for books
+- `issn`: string - ISSN for journals
+- `publisher`: string - Publisher name
+- `publication_date`: string - Publication year
+- `edition`: string - Edition information
+- `volume`: string - Volume number (journals)
+- `issue`: string - Issue number (journals)
+- `pages`: string - Page range
+- `doi`: string - Digital Object Identifier
+- `pmid`: string - PubMed ID
+- `call_number`: string - Library call number
+- `oclc_number`: string - OCLC number
+- `requested_media`: object - Media description
+- `preferred_send_method`: object - Preferred delivery method
+- `pickup_location`: object - Delivery location
+- `last_interest_date`: string - Need-by date (ISO format)
+- `level_of_service`: object - Service level (e.g., Rush)
+- `copyright_status`: object - Copyright status
+- `rs_notes`: array - Notes array with note objects
+- `allow_other_formats`: boolean - Accept alternative formats (default: false)
+
+### Validation Rules
+
+**Critical Validation Requirements**:
+
+1. **external_id** is mandatory when creating a lending request
+2. **owner** is mandatory for lending requests (must be resource sharing library code)
+3. **partner** is mandatory when creating a lending request (must be partner code)
+4. **format** is mandatory (controlled by RequestFormats code table)
+5. **citation_type** is mandatory when creating a lending request UNLESS mms_id is supplied
+6. **title** is mandatory UNLESS mms_id is supplied
+
+**Field Value Wrapping**:
+- Code table fields must be wrapped in dict with 'value' key:
+  - `owner`, `partner`, `format`, `citation_type`, `status`
+  - `requested_media`, `preferred_send_method`, `pickup_location`
+  - `level_of_service`, `copyright_status`, `requested_language`
+
+**Examples**:
+```python
+# Correct format:
+{"format": {"value": "PHYSICAL"}}
+
+# Incorrect format (will cause validation error):
+{"format": "PHYSICAL"}
+```
+
+### Implementation in ResourceSharing Domain
+
+**Location**: `src/domains/resource_sharing.py`
+
+**Available Methods**:
+1. **`create_lending_request()`** - Create new lending request with validation
+2. **`get_lending_request()`** - Retrieve lending request by ID
+3. **`get_request_summary()`** - Extract key information for display
+
+**Basic Usage Example**:
+```python
+from src.client.AlmaAPIClient import AlmaAPIClient
+from src.domains.resource_sharing import ResourceSharing
+
+# Initialize
+client = AlmaAPIClient('SANDBOX')
+rs = ResourceSharing(client)
+
+# Create lending request
+request = rs.create_lending_request(
+    partner_code="RELAIS",
+    external_id="EXT-2025-001",
+    owner="MAIN",
+    format_type="PHYSICAL",
+    title="Introduction to Library Science",
+    citation_type="BOOK",
+    author="Smith, John A.",
+    isbn="978-0-123456-78-9",
+    publisher="Academic Press"
+)
+
+print(f"Created request: {request['request_id']}")
+
+# Retrieve lending request
+retrieved = rs.get_lending_request(
+    partner_code="RELAIS",
+    request_id=request['request_id']
+)
+
+# Get summary
+summary = rs.get_request_summary(retrieved)
+print(f"Title: {summary['title']}")
+print(f"Status: {summary['status']}")
+```
+
+**Advanced Usage with MMS ID**:
+```python
+# Create request for known catalog item
+request = rs.create_lending_request(
+    partner_code="PARTNER_01",
+    external_id="EXT-2025-002",
+    owner="MAIN",
+    format_type="DIGITAL",
+    title="Advanced Cataloging",
+    mms_id="991234567890123456",  # Item in catalog
+    level_of_service={"value": "Rush"}
+)
+# When mms_id is provided, citation_type is optional
+```
+
+**Validation Error Handling**:
+```python
+try:
+    request = rs.create_lending_request(
+        partner_code="PARTNER_01",
+        external_id="",  # Missing - will fail
+        owner="MAIN",
+        format_type="PHYSICAL",
+        title="Test Book"
+    )
+except ValueError as e:
+    print(f"Validation error: {e}")
+    # Output includes helpful message about missing fields
+```
+
+### Testing
+
+**Test Script**: `src/tests/test_resource_sharing_lending.py`
+
+**Run Tests**:
+```bash
+# Dry-run test (no actual API calls)
+python src/tests/test_resource_sharing_lending.py --dry-run
+
+# Live test (creates requests in SANDBOX)
+python src/tests/test_resource_sharing_lending.py --live
+
+# Test with custom partner and owner
+python src/tests/test_resource_sharing_lending.py --live --partner CUSTOM_PARTNER --owner BRANCH_LIB
+
+# Test validation errors
+python src/tests/test_resource_sharing_lending.py --live --test-validation
+```
+
+**Test Coverage**:
+- Basic physical lending request creation
+- Journal article request creation
+- Request retrieval by ID
+- Validation error handling
+- Summary helper functionality
+
+### Important Notes
+
+- **Partner Codes**: Must exist in Alma configuration (Configuration > Resource Sharing > Partners)
+- **Owner Codes**: Must be valid resource sharing library codes
+- **Format Values**: Controlled by RequestFormats code table
+- **Citation Types**: BOOK, JOURNAL, and other values from code table
+- **Status Workflow**: Managed by Alma based on request lifecycle
+- **External ID**: Should be unique identifier from external system (ILL, Rapido, etc.)
+
+### Common Patterns
+
+**Pattern 1: Create Request from ILL System**
+```python
+# Receive ILL request from external system
+ill_request = {
+    "external_id": "ILL-12345",
+    "patron_name": "John Doe",
+    "title": "Example Book",
+    "author": "Smith, Jane",
+    "isbn": "978-0-123456-78-9"
+}
+
+# Create lending request in Alma
+request = rs.create_lending_request(
+    partner_code="RELAIS",
+    external_id=ill_request['external_id'],
+    owner="MAIN",
+    format_type="PHYSICAL",
+    title=ill_request['title'],
+    citation_type="BOOK",
+    author=ill_request['author'],
+    isbn=ill_request['isbn']
+)
+
+# Store request_id for tracking
+ill_request['alma_request_id'] = request['request_id']
+```
+
+**Pattern 2: Batch Request Creation**
+```python
+# Process multiple requests
+external_requests = load_ill_requests()
+
+created_requests = []
+for ext_req in external_requests:
+    try:
+        request = rs.create_lending_request(
+            partner_code=ext_req['partner'],
+            external_id=ext_req['id'],
+            owner="MAIN",
+            format_type=ext_req['format'],
+            title=ext_req['title'],
+            citation_type=ext_req['type'],
+            author=ext_req.get('author'),
+            isbn=ext_req.get('isbn')
+        )
+        created_requests.append({
+            'external_id': ext_req['id'],
+            'alma_id': request['request_id'],
+            'status': 'SUCCESS'
+        })
+    except (ValueError, AlmaAPIError) as e:
+        created_requests.append({
+            'external_id': ext_req['id'],
+            'status': 'FAILED',
+            'error': str(e)
+        })
+
+# Generate report
+save_report(created_requests)
+```
+
+**Pattern 3: Monitor Request Status**
+```python
+# Retrieve and check status
+request = rs.get_lending_request(
+    partner_code="RELAIS",
+    request_id="12345678"
+)
+
+status = request.get('status', {}).get('value')
+
+if status == "REQUEST_CREATED_LEN":
+    print("Request created, awaiting processing")
+elif status == "IN_PROCESS":
+    print("Request being processed")
+elif status == "SHIPPED":
+    print("Item shipped to partner")
+# Handle other statuses
+```
+
+### Future Enhancements (Not Yet Implemented)
+
+The following endpoints are available in the Partners API but not yet implemented:
+- Update lending request
+- List lending requests with filters
+- Add notes to lending request
+- Update request status
+- Borrowing requests (requests TO partner)
+- Request cancellation
 
 ## Alma Acquisitions API Reference
 

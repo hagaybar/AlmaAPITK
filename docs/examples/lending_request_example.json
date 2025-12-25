@@ -1,0 +1,54 @@
+{
+  "status": {
+    "value": "SHIPPED_PHYSICALLY",
+    "desc": "Shipped Physically"
+  },
+  "owner": "AS1",
+  "partner": {
+    "value": "ANC",
+    "desc": "ANCA-TEST",
+    "link": "https://api-eu.hosted.exlibrisgroup.com/almaws/v1/partners/ANC"
+  },
+  "format": {
+    "value": "PHYSICAL",
+    "desc": "Physical"
+  },
+  "printed": false,
+  "reported": false,
+  "barcode": "2239409-10",
+  "title": "test 200825",
+  "author": "testing",
+  "year": "1/1/2000",
+  "request_id": "35889547910004146",
+  "external_id": "test primo 200825",
+  "created_date": "2025-08-20Z",
+  "last_modified_date": "2025-09-18Z",
+  "created_time": "2025-08-20T05:42:24.143Z",
+  "last_modified_time": "2025-09-18T11:10:20.491Z",
+  "user_request": {},
+  "requested_media": "7",
+  "allow_other_formats": false,
+  "supplied_format": {
+    "value": "PHYSICAL",
+    "desc": "Physical"
+  },
+  "text_email": "requester@example.com",
+  "shipping_cost": {
+    "sum": 0,
+    "currency": {
+      "value": "ILS",
+      "desc": "New Israeli Sheqel"
+    }
+  },
+  "copyright_status": {},
+  "citation_type": {
+    "value": "BOOK",
+    "desc": "Book"
+  },
+  "has_active_notes": false,
+  "rs_note": [],
+  "level_of_service": {
+    "desc": ""
+  },
+  "mms_id": "990022394090204146"
+}

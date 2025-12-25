@@ -42,6 +42,8 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
    - **Users**: User management operations, email updates, expiry date processing
    - **Bibs**: Bibliographic records operations
    - **Acquisition**: Acquisition-related operations
+   - **Analytics**: Analytics report fetching (PRODUCTION only, read-only)
+   - **ResourceSharing**: Resource sharing lending and borrowing requests via Partners API
 
 3. **Projects** (`src/projects/`)
    - **update_expired_user_emails_2.py**: Script for updating email addresses of expired users (latest version)
@@ -629,6 +631,464 @@ Duplicate invoices cause:
 3. **`mark_invoice_paid()`** - Automatic duplicate payment protection (default)
 
 All protection is AUTOMATIC by default. You must explicitly use `force=True` to bypass (never recommended).
+
+## Alma Resource Sharing API Reference
+
+### Official Documentation
+- **Partners API Base URL**: `https://developers.exlibrisgroup.com/alma/apis/partners/`
+- **API Docs**: `https://developers.exlibrisgroup.com/alma/apis/`
+- **Schema Reference**: `https://developers.exlibrisgroup.com/alma/apis/xsd/rest_user_resource_sharing_request.xsd`
+- **OpenAPI/Swagger**: Available for download at developers.exlibrisgroup.com
+
+### Key Resource Sharing Endpoints
+
+#### Lending Requests (Partners API)
+
+**Create Lending Request**
+```
+POST /almaws/v1/partners/{partner_code}/lending-requests
+```
+- Creates a new lending request from a partner institution
+- Represents a partner's request to borrow material from your library
+- Returns created request with generated request_id
+
+**Retrieve Lending Request**
+```
+GET /almaws/v1/partners/{partner_code}/lending-requests/{request_id}
+```
+- Retrieves complete details of an existing lending request
+- Returns full request object with current status
+
+### Data Object Structure
+
+**Lending Request Object Key Fields**:
+
+**Mandatory Fields (for creation)**:
+- `external_id`: string - External identifier for the request (mandatory for creation)
+- `owner`: object - Resource sharing library code (mandatory)
+  - `value`: Library code (e.g., "MAIN")
+- `partner`: object - Partner institution code (mandatory)
+  - `value`: Partner code (e.g., "RELAIS", "ILL_PARTNER")
+- `format`: object - Request format (mandatory)
+  - `value`: "PHYSICAL" or "DIGITAL"
+- `citation_type`: object - Resource type (mandatory unless mms_id supplied)
+  - `value`: "BOOK", "JOURNAL", etc.
+- `title`: string - Resource title (mandatory unless mms_id supplied)
+
+**Optional Fields**:
+- `mms_id`: object - Alma catalog record ID if item exists
+  - `value`: MMS ID (e.g., "991234567890123456")
+- `request_id`: string - System-generated identifier (output only)
+- `status`: object - Current workflow status
+  - `value`: Status code (e.g., "REQUEST_CREATED_LEN")
+- `author`: string - Resource author
+- `isbn`: string - ISBN for books
+- `issn`: string - ISSN for journals
+- `publisher`: string - Publisher name
+- `publication_date`: string - Publication year
+- `edition`: string - Edition information
+- `volume`: string - Volume number (journals)
+- `issue`: string - Issue number (journals)
+- `pages`: string - Page range
+- `doi`: string - Digital Object Identifier
+- `pmid`: string - PubMed ID
+- `call_number`: string - Library call number
+- `oclc_number`: string - OCLC number
+- `requested_media`: object - Media description
+- `preferred_send_method`: object - Preferred delivery method
+- `pickup_location`: object - Delivery location
+- `last_interest_date`: string - Need-by date (ISO format)
+- `level_of_service`: object - Service level (e.g., Rush)
+- `copyright_status`: object - Copyright status
+- `rs_notes`: array - Notes array with note objects
+- `allow_other_formats`: boolean - Accept alternative formats (default: false)
+
+### Validation Rules
+
+**Critical Validation Requirements**:
+
+1. **external_id** is mandatory when creating a lending request
+2. **owner** is mandatory for lending requests (must be resource sharing library code)
+3. **partner** is mandatory when creating a lending request (must be partner code)
+4. **format** is mandatory (controlled by RequestFormats code table)
+5. **citation_type** is mandatory when creating a lending request UNLESS mms_id is supplied
+6. **title** is mandatory UNLESS mms_id is supplied
+
+**Field Value Wrapping**:
+- Code table fields must be wrapped in dict with 'value' key:
+  - `owner`, `partner`, `format`, `citation_type`, `status`
+  - `requested_media`, `preferred_send_method`, `pickup_location`
+  - `level_of_service`, `copyright_status`, `requested_language`
+
+**Examples**:
+```python
+# Correct format:
+{"format": {"value": "PHYSICAL"}}
+
+# Incorrect format (will cause validation error):
+{"format": "PHYSICAL"}
+```
+
+### Implementation in ResourceSharing Domain
+
+**Location**: `src/domains/resource_sharing.py`
+
+**Available Methods**:
+1. **`create_lending_request()`** - Create new lending request with validation
+2. **`get_lending_request()`** - Retrieve lending request by ID
+3. **`get_request_summary()`** - Extract key information for display
+
+**Basic Usage Example**:
+```python
+from src.client.AlmaAPIClient import AlmaAPIClient
+from src.domains.resource_sharing import ResourceSharing
+
+# Initialize
+client = AlmaAPIClient('SANDBOX')
+rs = ResourceSharing(client)
+
+# Create lending request
+request = rs.create_lending_request(
+    partner_code="RELAIS",
+    external_id="EXT-2025-001",
+    owner="MAIN",
+    format_type="PHYSICAL",
+    title="Introduction to Library Science",
+    citation_type="BOOK",
+    author="Smith, John A.",
+    isbn="978-0-123456-78-9",
+    publisher="Academic Press"
+)
+
+print(f"Created request: {request['request_id']}")
+
+# Retrieve lending request
+retrieved = rs.get_lending_request(
+    partner_code="RELAIS",
+    request_id=request['request_id']
+)
+
+# Get summary
+summary = rs.get_request_summary(retrieved)
+print(f"Title: {summary['title']}")
+print(f"Status: {summary['status']}")
+```
+
+**Advanced Usage with MMS ID**:
+```python
+# Create request for known catalog item
+request = rs.create_lending_request(
+    partner_code="PARTNER_01",
+    external_id="EXT-2025-002",
+    owner="MAIN",
+    format_type="DIGITAL",
+    title="Advanced Cataloging",
+    mms_id="991234567890123456",  # Item in catalog
+    level_of_service={"value": "Rush"}
+)
+# When mms_id is provided, citation_type is optional
+```
+
+**Validation Error Handling**:
+```python
+try:
+    request = rs.create_lending_request(
+        partner_code="PARTNER_01",
+        external_id="",  # Missing - will fail
+        owner="MAIN",
+        format_type="PHYSICAL",
+        title="Test Book"
+    )
+except ValueError as e:
+    print(f"Validation error: {e}")
+    # Output includes helpful message about missing fields
+```
+
+### Testing
+
+**Test Script**: `src/tests/test_resource_sharing_lending.py`
+
+**Run Tests**:
+```bash
+# Dry-run test (no actual API calls)
+python src/tests/test_resource_sharing_lending.py --dry-run
+
+# Live test (creates requests in SANDBOX)
+python src/tests/test_resource_sharing_lending.py --live
+
+# Test with custom partner and owner
+python src/tests/test_resource_sharing_lending.py --live --partner CUSTOM_PARTNER --owner BRANCH_LIB
+
+# Test validation errors
+python src/tests/test_resource_sharing_lending.py --live --test-validation
+```
+
+**Test Coverage**:
+- Basic physical lending request creation
+- Journal article request creation
+- Request retrieval by ID
+- Validation error handling
+- Summary helper functionality
+
+### Critical API Behavior Insights (Discovered 2025-12-24)
+
+**Real-World Testing with SANDBOX Data**
+
+Testing with actual lending request (ID: 35889547910004146, External ID: "test primo 200825") revealed important API behaviors not documented in schema:
+
+#### API Input/Output Asymmetry ⚠️
+
+**The `owner` field format - Schema Documentation Error** ⚠️
+
+**CRITICAL DISCOVERY (2025-12-24)**: The official Alma API schema documentation is **WRONG** about owner field format!
+
+```python
+# SCHEMA DOCUMENTATION SAYS (INCORRECT):
+request_data = {
+    "owner": {"value": "AS1"},  # ❌ Schema shows wrapped - causes 400 error!
+}
+
+# API REALITY (CORRECT):
+request_data = {
+    "owner": "AS1",  # ✅ Plain string required for CREATE
+}
+
+# RETRIEVE ALSO RETURNS:
+response = {
+    "owner": "AS1",  # ✅ Plain string in responses
+}
+```
+
+**Testing confirmed:**
+- Sending wrapped format `{"value": "AS1"}` causes **400 BAD_REQUEST** error:
+  ```
+  Cannot deserialize value of type `java.lang.String` from Object value
+  ```
+- Sending plain string `"AS1"` **succeeds** (tested, verified, working)
+- Other fields (partner, format, citation_type) ARE wrapped correctly as documented
+
+**Why this matters:**
+- Schema documentation at https://developers.exlibrisgroup.com/alma/apis/xsd/ is incorrect for this field
+- Our `create_lending_request()` now correctly sends plain string
+- Our `_validate_lending_request_data()` now expects plain string
+- **No asymmetry** - owner is ALWAYS plain string (both CREATE and RETRIEVE)
+
+**Recommendation**: When implementing UPDATE operations, use plain string for owner field.
+
+#### Additional Fields Not in Schema Documentation
+
+Real API responses include many undocumented fields:
+
+**Operational Metadata:**
+- `printed`: boolean - Whether request has been printed
+- `reported`: boolean - Whether request has been reported
+- `has_active_notes`: boolean - Quick check for notes without parsing array
+- `created_time`: string - Precise ISO timestamp (vs `created_date`)
+- `last_modified_time`: string - Precise ISO timestamp
+
+**Item Integration:**
+- `barcode`: string - Physical item barcode (e.g., "2239409-10")
+  - **Very useful** - links request to actual physical item
+  - Not mentioned in schema but appears in SHIPPED requests
+- `mms_id`: string - Alma catalog record ID
+  - Shows request is linked to catalog item
+  - Example: "990022394090204146"
+
+**Communication:**
+- `text_email`: string - Contact email for request
+  - Example: "requester@example.com"
+  - Useful for automated notifications
+
+**Fulfillment Details:**
+- `supplied_format`: object - What was actually supplied vs requested
+  - Can differ from `format` (what was requested)
+  - Structure: `{"value": "PHYSICAL", "desc": "Physical"}`
+- `shipping_cost`: object - Actual cost tracking
+  - Structure: `{"sum": 0, "currency": {"value": "ILS", "desc": "New Israeli Sheqel"}}`
+  - Always present even if zero
+
+**Workflow Fields:**
+- `user_request`: object - Empty dict in lending requests (used for borrowing)
+- `level_of_service`: object - May have empty desc: `{"desc": ""}`
+- `copyright_status`: object - May be empty dict `{}`
+- `rs_note`: array - Notes array (may be empty)
+
+#### Real Status Values Observed
+
+**Documented status** "REQUEST_CREATED_LEN" vs **actual statuses** in production:
+- `SHIPPED_PHYSICALLY` - Item physically shipped to partner
+- Other statuses exist based on workflow configuration
+
+#### Field Format Patterns
+
+**Consistent Wrapping (value/desc):**
+- `partner`: Always wrapped with link
+- `format`: Always wrapped
+- `citation_type`: Always wrapped
+- `status`: Always wrapped
+- `supplied_format`: Always wrapped
+
+**Always Plain String** (despite schema docs showing wrapped):
+- `owner`: **ALWAYS plain string** (schema docs wrong - wrapped format causes 400 error!)
+- `requested_media`: **Plain string** code (e.g., "7")
+
+**Always Plain Values:**
+- `title`, `author`, `year`: Plain strings
+- `external_id`, `request_id`: Plain strings
+- `barcode`: Plain string
+- `text_email`: Plain string
+- Boolean flags: `printed`, `reported`, `allow_other_formats`
+
+#### Date Format Precision
+
+```json
+{
+  "created_date": "2025-08-20Z",           // Day precision - what we send
+  "created_time": "2025-08-20T05:42:24.143Z",  // Millisecond precision - Alma internal
+  "last_modified_date": "2025-09-18Z",
+  "last_modified_time": "2025-09-18T11:10:20.491Z"
+}
+```
+
+Both `*_date` and `*_time` fields are returned for creation and modification tracking.
+
+#### Partner Code Display Names
+
+Partner codes have internal codes vs display names:
+```json
+"partner": {
+  "value": "ANC",           // Internal code (use in API calls)
+  "desc": "ANCA-TEST",      // Display name (for UI)
+  "link": "https://api-eu.hosted.exlibrisgroup.com/almaws/v1/partners/ANC"
+}
+```
+
+**Always use the internal code** (`value`) in API calls, not the display name.
+
+#### Practical Implications
+
+**For Development:**
+1. **Don't assume symmetry** - input format may differ from output format
+2. **Use barcode field** - valuable for item tracking and fulfillment
+3. **Check supplied_format** - may differ from requested format
+4. **Parse both date formats** - `*_date` for day precision, `*_time` for exact timestamp
+5. **Use partner value, not desc** - "ANC" not "ANCA-TEST"
+
+**For Data Integration:**
+- `mms_id` + `barcode` enable full item tracking
+- `text_email` enables automated partner communication
+- `shipping_cost` supports financial reconciliation
+- `supplied_format` tracks format substitutions
+
+**For Testing:**
+- Real SANDBOX data shows SHIPPED_PHYSICALLY status
+- Empty dicts (`{}`) are valid for optional complex objects
+- Some code table fields may have empty descriptions
+
+#### Example: Complete Real Response
+
+See `docs/examples/lending_request_example.json` for complete real-world example showing all fields.
+
+### Important Notes
+
+- **Partner Codes**: Must exist in Alma configuration (Configuration > Resource Sharing > Partners)
+- **Owner Codes**: Must be valid resource sharing library codes
+- **Format Values**: Controlled by RequestFormats code table
+- **Citation Types**: BOOK, JOURNAL, and other values from code table
+- **Status Workflow**: Managed by Alma based on request lifecycle
+- **External ID**: Should be unique identifier from external system (ILL, Rapido, etc.)
+
+### Common Patterns
+
+**Pattern 1: Create Request from ILL System**
+```python
+# Receive ILL request from external system
+ill_request = {
+    "external_id": "ILL-12345",
+    "patron_name": "John Doe",
+    "title": "Example Book",
+    "author": "Smith, Jane",
+    "isbn": "978-0-123456-78-9"
+}
+
+# Create lending request in Alma
+request = rs.create_lending_request(
+    partner_code="RELAIS",
+    external_id=ill_request['external_id'],
+    owner="MAIN",
+    format_type="PHYSICAL",
+    title=ill_request['title'],
+    citation_type="BOOK",
+    author=ill_request['author'],
+    isbn=ill_request['isbn']
+)
+
+# Store request_id for tracking
+ill_request['alma_request_id'] = request['request_id']
+```
+
+**Pattern 2: Batch Request Creation**
+```python
+# Process multiple requests
+external_requests = load_ill_requests()
+
+created_requests = []
+for ext_req in external_requests:
+    try:
+        request = rs.create_lending_request(
+            partner_code=ext_req['partner'],
+            external_id=ext_req['id'],
+            owner="MAIN",
+            format_type=ext_req['format'],
+            title=ext_req['title'],
+            citation_type=ext_req['type'],
+            author=ext_req.get('author'),
+            isbn=ext_req.get('isbn')
+        )
+        created_requests.append({
+            'external_id': ext_req['id'],
+            'alma_id': request['request_id'],
+            'status': 'SUCCESS'
+        })
+    except (ValueError, AlmaAPIError) as e:
+        created_requests.append({
+            'external_id': ext_req['id'],
+            'status': 'FAILED',
+            'error': str(e)
+        })
+
+# Generate report
+save_report(created_requests)
+```
+
+**Pattern 3: Monitor Request Status**
+```python
+# Retrieve and check status
+request = rs.get_lending_request(
+    partner_code="RELAIS",
+    request_id="12345678"
+)
+
+status = request.get('status', {}).get('value')
+
+if status == "REQUEST_CREATED_LEN":
+    print("Request created, awaiting processing")
+elif status == "IN_PROCESS":
+    print("Request being processed")
+elif status == "SHIPPED":
+    print("Item shipped to partner")
+# Handle other statuses
+```
+
+### Future Enhancements (Not Yet Implemented)
+
+The following endpoints are available in the Partners API but not yet implemented:
+- Update lending request
+- List lending requests with filters
+- Add notes to lending request
+- Update request status
+- Borrowing requests (requests TO partner)
+- Request cancellation
 
 ## Alma Acquisitions API Reference
 

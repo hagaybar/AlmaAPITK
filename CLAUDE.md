@@ -565,6 +565,25 @@ request = rs.create_lending_request(
 )
 ```
 
+**Digital File Upload:**
+```python
+# 1. Create representation
+rep = bibs.create_representation(
+    mms_id=mms_id,
+    access_rights_value="",  # Empty = system default
+    access_rights_desc="",
+    lib_code="MAIN_LIB",
+    usage_type="PRESERVATION_MASTER"
+)
+
+# 2. Upload to S3 (using boto3)
+s3_key = f"{institution_code}/upload/{mms_id}/{filename}"
+bucket.upload_file(local_path, s3_key)
+
+# 3. Link file to representation
+bibs.link_file_to_representation(mms_id, rep['id'], s3_key)
+```
+
 **→ See alma-api-expert skill for:**
 - Complete endpoint reference
 - Error codes and solutions
@@ -573,6 +592,7 @@ request = rs.create_lending_request(
 - Validation rules
 - Query syntax
 - Example requests/responses
+- Digital file upload workflows and AWS integration
 
 ### When to Use alma-api-expert Skill
 
@@ -582,7 +602,8 @@ request = rs.create_lending_request(
 - Field format validation (owner field, payment_status location)
 - Understanding data structures (POL items path, invoice structure)
 - Query syntax (searching invoices by POL)
-- Workflow sequences (invoice approval, item receiving)
+- Workflow sequences (invoice approval, item receiving, digital file upload)
+- AWS S3 integration for digital file uploads
 - API quirks (owner field format, undocumented fields)
 
 **Access:** `/skill alma-api-expert` or `.claude/skills/alma-api-expert/`

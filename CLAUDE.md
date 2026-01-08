@@ -74,20 +74,24 @@ This project uses two complementary Claude Code skills:
 **The skill auto-triggers** when working on Python code.
 
 ### **🔍 alma-api-expert** - Alma API Knowledge
-**Use for:** Alma API endpoints, errors, validation, quirks
+**Use for:** Alma API endpoints, errors, validation, quirks, digital file uploads
 - API endpoint reference with parameters
 - Error codes and troubleshooting
-- Data structures and field formats
+- Data structures and field formats (including Representation objects)
 - API quirks and undocumented behavior
 - Validation rules and required fields
 - Query syntax and pagination
+- Digital representations and AWS S3 file uploads
+- Usage types (PRIMARY, DERIVATIVE, AUXILIARY) and entity types
 - Example requests and responses
 
 **When to use alma-api-expert:**
 - Looking up API endpoints and parameters
 - Debugging API errors (402459, 400, etc.)
 - Understanding field formats and validation
-- Learning workflow sequences (invoice creation, receiving)
+- Learning workflow sequences (invoice creation, receiving, digital uploads)
+- Uploading files to Alma (representations, S3 integration)
+- Working with usage types and entity types for digital assets
 - Finding query syntax examples
 - Discovering API quirks (owner field format, payment status location)
 
@@ -483,6 +487,9 @@ Key Alma terminology:
 - **Portfolios**: Electronic resource access points
 - **POL (Purchase Order Line)**: Line items in purchase orders with pricing
 - **Item**: Physical/electronic items associated with POLs
+- **Representation**: Digital file container with metadata (usage type, access rights)
+- **Usage Type**: Purpose of representation (PRIMARY, DERIVATIVE, AUXILIARY)
+- **Entity Type**: Content type (REPRESENTATION, CHAPTER, ARTICLE, AUDIOVISUAL)
 
 **→ See alma-api-expert skill for complete glossary and domain documentation**
 

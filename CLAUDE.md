@@ -451,11 +451,11 @@ These patterns should be integrated into `AlmaAPIClient.py` during planned archi
 
 ## Alma API Quick Reference
 
-**📖 For complete Alma API documentation → use `alma-api-expert` skill**
+**📖 For complete Alma API documentation, workflows, and troubleshooting → use `alma-api-expert` skill**
 
 ### Domain Knowledge Glossary
 
-Key Alma terminology:
+Key Alma terminology (quick reference):
 - **MMS ID**: Bibliographic record identifier
 - **User Primary ID**: Unique user identifier in Alma
 - **Sets**: Collections of records (BIB_MMS or USER types)
@@ -467,129 +467,7 @@ Key Alma terminology:
 - **Usage Type**: Purpose of representation (PRIMARY, DERIVATIVE, AUXILIARY)
 - **Entity Type**: Content type (REPRESENTATION, CHAPTER, ARTICLE, AUDIOVISUAL)
 
-**→ See alma-api-expert skill for complete glossary and domain documentation**
-
-### Critical Workflows
-
-**⚠️ MUST READ: Duplicate Invoice Prevention**
-
-**INCIDENT**: Duplicate payment occurred for POL-12352 (2025-10-23). See `INCIDENT_REPORT_DUPLICATE_PAYMENT_POL12352.md`.
-
-**MANDATORY Pre-Flight Checks before any invoice operation:**
-
-```python
-# ✅ RULE 1: ALWAYS check for existing invoices BEFORE creating
-check = acq.check_pol_invoiced(pol_id)
-if check['is_invoiced']:
-    print(f"⚠️ STOP! POL {pol_id} already has {check['invoice_count']} invoice(s)")
-    # REVIEW existing - DO NOT create new
-
-# ✅ RULE 2: NEVER skip approval step
-invoice = acq.create_invoice_simple(...)
-line = acq.create_invoice_line_simple(...)
-acq.approve_invoice(invoice_id)  # MANDATORY
-acq.mark_invoice_paid(invoice_id)  # Has automatic duplicate protection
-
-# ✅ RULE 3: When error occurs, FIX existing - DON'T create new
-if payment_fails_with_error_402459:
-    acq.approve_invoice(existing_invoice_id)  # Fix it
-    acq.mark_invoice_paid(existing_invoice_id)
-    # ✗ DON'T create new invoice - causes duplicate!
-```
-
-**Protection Layers** (automatic by default):
-1. `check_pol_invoiced()` - Detects existing invoices for POL
-2. `check_invoice_payment_status()` - Checks if invoice already paid
-3. `mark_invoice_paid()` - Automatic duplicate payment protection
-
-**→ See alma-api-expert skill for complete invoice workflow documentation**
-
-### Common API Patterns
-
-**Invoice Creation Workflow:**
-```python
-# 1. Check duplicates
-check = acq.check_pol_invoiced(pol_id)
-
-# 2. Create invoice
-invoice = acq.create_invoice_simple(invoice_number, date, vendor, amount)
-
-# 3. Add lines
-line = acq.create_invoice_line_simple(invoice_id, pol_id, amount)
-
-# 4. Approve (MANDATORY)
-acq.approve_invoice(invoice_id)
-
-# 5. Mark paid
-acq.mark_invoice_paid(invoice_id)
-```
-
-**Item Receiving Workflow:**
-```python
-# Standard (item goes to "in transit"):
-acq.receive_item(pol_id, item_id)
-
-# Keep in department (prevents transit):
-acq.receive_and_keep_in_department(
-    pol_id, item_id, mms_id, holding_id,
-    library, department, work_order_type, status
-)
-```
-
-**Resource Sharing Lending Request:**
-```python
-request = rs.create_lending_request(
-    partner_code="RELAIS",
-    external_id="ILL-12345",
-    owner="MAIN",  # ⚠️ Plain string (not wrapped) - API quirk!
-    format_type="PHYSICAL",
-    title="Book Title",
-    citation_type="BOOK"
-)
-```
-
-**Digital File Upload:**
-```python
-# 1. Create representation
-rep = bibs.create_representation(
-    mms_id=mms_id,
-    access_rights_value="",  # Empty = system default
-    access_rights_desc="",
-    lib_code="MAIN_LIB",
-    usage_type="PRESERVATION_MASTER"
-)
-
-# 2. Upload to S3 (using boto3)
-s3_key = f"{institution_code}/upload/{mms_id}/{filename}"
-bucket.upload_file(local_path, s3_key)
-
-# 3. Link file to representation
-bibs.link_file_to_representation(mms_id, rep['id'], s3_key)
-```
-
-**→ See alma-api-expert skill for:**
-- Complete endpoint reference
-- Error codes and solutions
-- Data structure details
-- API quirks and gotchas
-- Validation rules
-- Query syntax
-- Example requests/responses
-- Digital file upload workflows and AWS integration
-
-### When to Use alma-api-expert Skill
-
-**Use alma-api-expert when you need:**
-- API endpoint URLs and parameters
-- Error troubleshooting (402459, 400, 40166411, etc.)
-- Field format validation (owner field, payment_status location)
-- Understanding data structures (POL items path, invoice structure)
-- Query syntax (searching invoices by POL)
-- Workflow sequences (invoice approval, item receiving, digital file upload)
-- AWS S3 integration for digital file uploads
-- API quirks (owner field format, undocumented fields)
-
-**Access:** `/skill alma-api-expert` or `.claude/skills/alma-api-expert/`
+**→ For complete workflows, error codes, endpoints, and API quirks, use the `alma-api-expert` skill**
 
 ## AlmaAPITK Domain Implementation
 

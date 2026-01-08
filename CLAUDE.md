@@ -61,7 +61,7 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
 
 ## Skills Integration
 
-This project uses two complementary Claude Code skills:
+This project uses three complementary Claude Code skills:
 
 ### **📘 python-dev-expert** - Python Code Quality
 **Use for:** Python coding, refactoring, architecture, code organization
@@ -97,71 +97,47 @@ This project uses two complementary Claude Code skills:
 
 **Quick access:** `/skill alma-api-expert` or check `.claude/skills/alma-api-expert/`
 
+### **🔧 git-expert** - Git and GitHub Workflow Management
+**Use for:** Git operations, commits, pull requests, branch management
+- Commit message standards and formatting
+- Git safety protocols (avoiding dangerous operations)
+- Automated commit and push workflows
+- Pull request creation with comprehensive descriptions
+- Branch management and GitHub CLI usage
+- Security and sensitive information protection
+
+**The skill auto-triggers** when performing git operations, creating commits, or working with GitHub.
+
+**When to use git-expert:**
+- Creating commits with proper messages
+- Making pull requests
+- Understanding when to commit and push
+- Following git best practices
+- Avoiding destructive git operations
+
+**Quick access:** `/skill git-expert` or check `.claude/skills/git-expert/`
+
 ## Claude's Role and Organization Focus
 
 ### Primary Role
 - Act as a senior Python developer familiar with API clients and library systems
 - **Use `python-dev-expert` skill** for all Python coding decisions
 - **Use `alma-api-expert` skill** for Alma API knowledge and troubleshooting
+- **Use `git-expert` skill** for all git operations and GitHub workflows
 - **Proactively suggest code organization improvements** when working with any file
 - Help identify and eliminate code duplication
 - Focus on project-specific patterns and implementations
 
 ### Git Integration and Commit Management
-- **Always commit significant changes** - Claude has full permission to make commits without asking
-- **Write clear, descriptive commit messages** following conventional commit format when possible
-- **Commit granularly** - separate logical changes into individual commits rather than bundling everything together
-- **Commit before and after major refactoring** to create clean checkpoints
 
-#### Commit Message Standards
+**See `git-expert` skill for complete git workflow documentation.**
 
-**Detailed Messages for Future Understanding**: Commit messages must provide sufficient detail for future Claude Code sessions to understand what was changed and why. These messages serve as documentation for code evolution and help Claude understand the context of changes when examining commit history.
-
-**Format and Content Guidelines**:
-- Use present tense and imperative mood: "Add feature" not "Added feature"
-- Include comprehensive summary with specific implementation details
-- List major changes using bullet points or numbered lists
-- Explain the reasoning behind changes when not obvious
-- Reference specific files, functions, or classes that were modified
-- Include before/after context for refactoring changes
-- Document any breaking changes or compatibility impacts
-
-**Key Requirements**:
-1. **Specificity**: Mention exact files, line numbers, function names when relevant
-2. **Context**: Explain why changes were made, not just what was changed
-3. **Impact**: Describe how changes affect functionality or architecture
-4. **Traceability**: Enable future Claude sessions to understand the evolution
-5. **Completeness**: Cover all significant modifications in the commit
-
-#### When to Commit and Push
-1. **Before starting any significant work** - commit current state as checkpoint
-2. **After completing a logical unit of work** - new feature, bug fix, refactor, cleanup
-3. **Before and after file removals or renames** - preserve history
-4. **After updating documentation** - especially claude.md changes
-5. **After test additions or modifications**
-6. **When user says "commit" or "save progress"** - interpret as instruction to commit current changes
-
-**Standard Workflow**: Every commit should be immediately followed by `git push origin main` to keep GitHub repository synchronized with local changes. This ensures work is backed up and visible to collaborators immediately.
-
-#### Manual Commit Commands
-Claude should recognize these phrases as instructions to commit immediately:
-- "commit" or "commit this" or "commit changes"
-- "save progress" or "save this"
-- "checkpoint" or "create checkpoint"
-- "git commit" (explicit git instruction)
-
-When any of these commands are used, Claude should:
-1. Review what changes have been made since last commit
-2. Create an appropriate commit message based on the changes
-3. Execute the git commit
-4. Push the commit to GitHub with `git push origin main`
-5. Confirm both commit and push were successful
-
-#### What NOT to commit
-- Temporary debug print statements
-- API keys or sensitive configuration
-- Large binary files without good reason
-- Half-finished features that break existing functionality
+**Quick reference:**
+- Claude has full permission to commit without asking
+- Commit granularly with detailed messages
+- Always push immediately after committing
+- Follow commit message standards (see git-expert skill)
+- Recognize manual commit commands: "commit", "save progress", "checkpoint"
 
 ### Code Organization Standards
 

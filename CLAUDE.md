@@ -59,14 +59,27 @@ python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIC
 - **Response Wrapping**: AlmaResponse class provides consistent response handling
 - **Error Hierarchy**: AlmaAPIError, AlmaValidationError, AlmaRateLimitError for specific error types
 
+## Python Development Standards
+
+**📘 For all Python coding, refactoring, and architectural decisions → use the `python-dev-expert` skill**
+
+The `python-dev-expert` skill provides:
+- ✅ Code quality standards (PEP 8, type hints, docstrings, logic density)
+- ✅ Refactoring workflows (code smells, extraction patterns, 50-line max per function)
+- ✅ Architecture patterns (Client-Domain, error hierarchy, composition over inheritance)
+- ✅ Code templates (domain classes, project scripts, tests, utilities)
+- ✅ API client patterns (pagination, rate limiting, error handling, logging)
+
+**The skill auto-triggers** when working on Python code. You can also explicitly invoke it for code reviews.
+
 ## Claude's Role and Organization Focus
 
 ### Primary Role
 - Act as a senior Python developer familiar with API clients and library systems
+- **Use `python-dev-expert` skill** for all Python coding decisions
 - **Proactively suggest code organization improvements** when working with any file
 - Help identify and eliminate code duplication
-- Suggest better file organization and naming conventions
-- Recommend refactoring opportunities for cleaner architecture
+- Focus on Alma API domain knowledge and project-specific patterns
 
 ### Git Integration and Commit Management
 - **Always commit significant changes** - Claude has full permission to make commits without asking
@@ -162,24 +175,12 @@ When any of these commands are used, Claude should:
 
 ### Code Organization Standards
 
-#### File Naming and Structure
-- Use clear, descriptive names that indicate purpose and version
-- Suggest removing or archiving obsolete versions (e.g., files without version numbers when "_2" versions exist)
-- Recommend consistent naming patterns across similar files
-- Always suggest organizing imports alphabetically within their groups
+**See `python-dev-expert` skill for code organization, refactoring, and cleanliness standards.**
 
-#### Code Cleanliness Priorities
-1. **Eliminate Dead Code**: Always suggest removing commented-out code, unused imports, or obsolete functions
-2. **Consolidate Duplicated Logic**: Identify repeated patterns and suggest utility functions
-3. **Improve Variable Names**: Suggest more descriptive names when encountering unclear variables
-4. **Extract Magic Numbers**: Recommend moving hardcoded values to configuration or constants
-5. **Simplify Complex Functions**: Suggest breaking down functions longer than 50 lines
-
-#### Project-Specific Organization
-- Keep configuration files in a dedicated `config/` directory
-- Suggest moving test data and sample files to `test_data/` or `samples/`
-- Recommend creating utility modules for commonly repeated code patterns
-- Always suggest adding docstrings to undocumented functions
+#### Project-Specific File Organization
+- Configuration files → `config/` directory
+- Test data and samples → `test_data/` or `samples/`
+- Remove obsolete file versions (e.g., when `_2` version exists, remove original)
 
 ## Development Commands
 
@@ -396,70 +397,29 @@ parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
 
 ## Development Context
 
-### When Adding New Features
-1. **New API Endpoints**: Create or extend domain classes rather than adding to client directly
-2. **New Scripts**: Follow the `update_expired_user_emails_2.py` pattern exactly
-3. **Utilities**: Add to `src/utils/` if reusable across multiple domains
-4. **Tests**: Create corresponding test scripts in `src/tests/`
+**For code templates and development workflows → see `python-dev-expert` skill**
 
-### When Refactoring or Organizing
-- **Always suggest cleaning up file versions**: Remove obsolete files when newer versions exist
-- **Identify repeated code patterns**: Extract to utility functions
-- **Suggest consistent error handling**: Use the established AlmaAPIError hierarchy
-- **Recommend configuration consolidation**: Move hardcoded values to config files
-- **Point out naming inconsistencies**: Suggest standard naming patterns
+### Project-Specific Development Principles
+- **Test in SANDBOX first** before PRODUCTION
+- **Use AlmaResponse wrapper** for all API responses
+- **Follow AlmaAPIError hierarchy**: AlmaAPIError, AlmaValidationError, AlmaRateLimitError
+- **Use src/logging/ framework** (never print statements)
+- **Include dry-run mode** in operational scripts
+- **Method naming**: `get_*`, `update_*`, `create_*`, `delete_*`
 
-### When Debugging
-- Focus on API response structure and error codes first
-- Check rate limiting and authentication before investigating logic issues
-- Use the existing logging framework rather than print statements
-- Test in SANDBOX environment whenever possible
+### Alma API Response Handling
+- Use `AlmaResponse` wrapper for consistent handling
+- Handle pagination using `_fetch_all_pages()` pattern (see python-dev-expert templates)
+- Include progress indicators for operations >100 items
 
-## Testing Expectations
+## Project-Specific Organization Notes
 
-- **Unit Tests**: For new utility functions and data processing logic
-- **Integration Tests**: For API interactions (using SANDBOX environment)
-- **Script Tests**: Ensure CLI scripts handle edge cases and invalid inputs
-- **Connection Tests**: Always test API connectivity before running operations
+**For general code organization and refactoring guidance, see `python-dev-expert` skill.**
 
-## Common Tasks and Approaches
-
-### Adding New Domain Operations
-1. Extend the appropriate domain class (Admin, Users, Bibs, Acquisition)
-2. Follow the existing method naming pattern (`get_`, `update_`, `create_`, `delete_`)
-3. Include proper error handling and logging
-4. Add usage examples in docstrings
-
-### Creating New Project Scripts
-1. Use `update_expired_user_emails_2.py` as exact template
-2. Include proper CLI argument parsing with safety confirmations
-3. Support both configuration file and direct parameter input
-4. Always include dry-run/test modes with comprehensive logging
-
-### Working with Alma API Responses
-- Use the AlmaResponse wrapper for consistent handling
-- Extract and validate required fields before processing
-- Handle pagination for large result sets
-- Include meaningful progress indicators for long operations
-
-## Organization Improvement Suggestions
-
-When working on this codebase, Claude should actively:
-
-1. **Identify and suggest removing duplicate or obsolete files**
-   - Look for versioned files (e.g., `file.py` vs `file_2.py`) and compare functionality
-   - Recommend removing older versions when newer ones are supersets
-   - Example: `update_expired_user_emails.py` can be safely removed as `update_expired_user_emails_2.py` contains all its functionality plus domain filtering
-2. **Point out opportunities to extract common patterns into utilities**
-3. **Suggest better directory organization when files seem misplaced**
-4. **Recommend consolidating similar configuration files**
-5. **Help establish consistent naming patterns across the project**
-6. **Suggest breaking up overly complex functions**
-7. **Recommend adding missing documentation**
-
-### Immediate Cleanup Tasks
-- **Remove `update_expired_user_emails.py`** - the `_2` version has additional domain filtering functionality and is the current version
-- Consider renaming `update_expired_user_emails_2.py` to `update_expired_user_emails.py` once the old version is removed
+### Known File Cleanup Tasks
+- **Remove obsolete script versions** when newer versions exist with additional functionality
+- **Consolidate configuration files** in `config/` directory
+- **Archive old test data** to `test_data/archive/` when no longer needed
 
 ## Archived Advanced Features Documentation
 

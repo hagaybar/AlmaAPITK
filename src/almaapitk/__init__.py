@@ -2,25 +2,59 @@
 # almaapitk - Public API Surface
 # =============================================================================
 #
-# TEMPORARY IMPLEMENTATION:
-# This module provides a stable public import path: `import almaapitk`
+# This module provides a stable public import path for downstream projects:
 #
-# Current state: Minimal stub that imports client and utils packages.
-# The client and utils __init__.py files are currently empty, so no symbols
-# are actually exported yet. This will be tightened later to expose only
-# the intended public API with explicit exports.
-#
-# Do NOT add logging exports here unless explicitly needed.
-#
-# Future usage (when exports are defined):
 #     import almaapitk
 #     client = almaapitk.AlmaAPIClient('SANDBOX')
 #
+# EXPORTED (Public API):
+#   - AlmaAPIClient: Main API client for Alma interactions
+#   - AlmaResponse: Response wrapper with .data, .json(), .success properties
+#   - AlmaAPIError: Base exception for API errors
+#   - AlmaValidationError: Exception for validation failures
+#
+# NOT EXPORTED (intentionally kept internal):
+#   - Domain classes (Admin, Users, Bibs, etc.) - import from src.domains directly
+#   - Utility modules (TSVGenerator, etc.) - import from src.utils directly
+#   - Logging infrastructure - import from src.alma_logging directly
+#
+# KNOWN ISSUE:
+#   When PYTHONPATH=./src, the local `logging` folder shadows Python's stdlib
+#   `logging` module, causing circular import errors when importing AlmaAPIClient
+#   directly. This module uses lazy imports to allow `import almaapitk` to succeed
+#   while deferring the actual class loading until first access.
+#
 # =============================================================================
 
-# Import packages to ensure they're loadable (no symbols exported yet)
-import client
-import utils
-
 __version__ = "0.1.0"
-__all__ = []  # Will be populated as public API is formalized
+
+__all__ = [
+    "__version__",
+    "AlmaAPIClient",
+    "AlmaResponse",
+    "AlmaAPIError",
+    "AlmaValidationError",
+]
+
+# Lazy import implementation to avoid circular import at module load time
+# The actual imports happen on first attribute access
+_lazy_imports = {
+    "AlmaAPIClient": ("client.AlmaAPIClient", "AlmaAPIClient"),
+    "AlmaResponse": ("client.AlmaAPIClient", "AlmaResponse"),
+    "AlmaAPIError": ("client.AlmaAPIClient", "AlmaAPIError"),
+    "AlmaValidationError": ("client.AlmaAPIClient", "AlmaValidationError"),
+}
+
+_loaded = {}
+
+
+def __getattr__(name):
+    """Lazy import handler for public API symbols."""
+    if name in _lazy_imports:
+        if name not in _loaded:
+            module_path, attr_name = _lazy_imports[name]
+            import importlib
+            module = importlib.import_module(module_path)
+            _loaded[name] = getattr(module, attr_name)
+        return _loaded[name]
+    raise AttributeError(f"module 'almaapitk' has no attribute '{name}'")

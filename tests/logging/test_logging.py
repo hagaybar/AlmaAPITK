@@ -10,7 +10,7 @@ Tests:
 - JSON and text formatters
 """
 
-from src.logging import get_logger
+from src.alma_logging import get_logger
 
 def test_basic_logging():
     """Test basic logging functionality."""

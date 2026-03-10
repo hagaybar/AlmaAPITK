@@ -193,7 +193,7 @@ python alma_client_test.py
 **IMPORTANT**: All test scripts and production code MUST include comprehensive logging.
 
 #### Logging Infrastructure
-The project includes a comprehensive logging system located in `src/logging/`:
+The project includes a comprehensive logging system located in `src/alma_logging/`:
 - **Automatic API key redaction** - Sensitive data never appears in logs
 - **Request/response logging** - Full HTTP details with timing
 - **Error tracking** - Stack traces and context for debugging
@@ -205,7 +205,7 @@ The project includes a comprehensive logging system located in `src/logging/`:
 
 **Import and Initialize**:
 ```python
-from src.logging import get_logger
+from src.alma_logging import get_logger
 
 # In domain classes
 class Acquisitions:
@@ -300,7 +300,7 @@ cp config/logging_config.example.json config/logging_config.json
 # Customize log levels, rotation, redaction patterns
 ```
 
-See `src/logging/README.md` and `src/logging/docs/LOGGING_IMPLEMENTATION_PLAN.md` for complete documentation.
+See `src/alma_logging/README.md` and `src/alma_logging/docs/LOGGING_IMPLEMENTATION_PLAN.md` for complete documentation.
 
 #### Security Notes
 - **Never commit logs to GitHub** - they may contain API responses with sensitive data
@@ -360,7 +360,7 @@ parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
 - **Test in SANDBOX first** before PRODUCTION
 - **Use AlmaResponse wrapper** for all API responses
 - **Follow AlmaAPIError hierarchy**: AlmaAPIError, AlmaValidationError, AlmaRateLimitError
-- **Use src/logging/ framework** (never print statements)
+- **Use src/alma_logging/ framework** (never print statements)
 - **Include dry-run mode** in operational scripts
 - **Method naming**: `get_*`, `update_*`, `create_*`, `delete_*`
 
@@ -502,6 +502,6 @@ Use `alma-api-expert` skill to look up:
 - `src/projects/` - Standalone scripts and utilities
 - `src/tests/` - Test scripts and configuration files
 - `src/utils/` - Shared utilities and helpers
-- `src/logging/` - Logging infrastructure
+- `src/alma_logging/` - Logging infrastructure
 - `config/` - Configuration files
 - `logs/` - Log files (gitignored)

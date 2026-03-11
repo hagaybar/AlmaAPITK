@@ -71,6 +71,9 @@ __all__ = [
     "BibliographicRecords",
     "Acquisitions",
     "ResourceSharing",
+    # Utilities
+    "TSVGenerator",
+    "CitationMetadataError",
 ]
 
 # Lazy import implementation to avoid circular import at module load time
@@ -87,6 +90,9 @@ _lazy_imports = {
     "BibliographicRecords": ("almaapitk._internal", "BibliographicRecords"),
     "Acquisitions": ("almaapitk._internal", "Acquisitions"),
     "ResourceSharing": ("almaapitk._internal", "ResourceSharing"),
+    # Utilities
+    "TSVGenerator": ("almaapitk.utils.tsv_generator", "TSVGenerator"),
+    "CitationMetadataError": ("almaapitk.utils.citation_metadata", "CitationMetadataError"),
 }
 
 _loaded = {}

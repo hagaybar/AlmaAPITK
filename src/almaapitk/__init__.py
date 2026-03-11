@@ -31,8 +31,10 @@
 #     NEW: from almaapitk import AlmaAPIClient
 #
 # IMPLEMENTATION NOTE:
-#   This module uses lazy imports to avoid circular import issues with stdlib
-#   logging. The actual class loading happens on first attribute access.
+#   This module uses lazy imports via the _internal namespace to decouple the
+#   public API from the internal implementation layout. The actual class loading
+#   happens on first attribute access, avoiding circular import issues with
+#   stdlib logging.
 #
 # =============================================================================
 
@@ -49,10 +51,10 @@ __all__ = [
 # Lazy import implementation to avoid circular import at module load time
 # The actual imports happen on first attribute access
 _lazy_imports = {
-    "AlmaAPIClient": ("client.AlmaAPIClient", "AlmaAPIClient"),
-    "AlmaResponse": ("client.AlmaAPIClient", "AlmaResponse"),
-    "AlmaAPIError": ("client.AlmaAPIClient", "AlmaAPIError"),
-    "AlmaValidationError": ("client.AlmaAPIClient", "AlmaValidationError"),
+    "AlmaAPIClient": ("almaapitk._internal", "AlmaAPIClient"),
+    "AlmaResponse": ("almaapitk._internal", "AlmaResponse"),
+    "AlmaAPIError": ("almaapitk._internal", "AlmaAPIError"),
+    "AlmaValidationError": ("almaapitk._internal", "AlmaValidationError"),
 }
 
 _loaded = {}

@@ -6,6 +6,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Library System) API. It provides a structured approach to API operations with domain-specific classes and utilities.
 
+## ⚠️ Transitional Phase: Compatibility & Safety Constraints (MANDATORY)
+
+**We are currently disentangling core infrastructure from project-specific code.**
+
+We have production consumers that may still import legacy modules directly (e.g., `client.*`, `domains.*`, `utils.*`).
+**Until explicitly told otherwise, you MUST preserve legacy compatibility.**
+
+### Rules You MUST Follow:
+
+1. **DO NOT delete, rename, or move any of these legacy top-level packages or modules:**
+   - `client/`
+   - `domains/`
+   - `utils/`
+   - Any other existing legacy import roots used today
+
+2. **DO NOT change the import paths used by legacy code** (no "package layout" refactors).
+
+3. **DO NOT introduce import-time side effects into any legacy modules:**
+   - No config loading at import time
+   - No environment variable validation at import time
+   - No network calls at import time
+
+4. **Changes inside legacy modules are allowed ONLY if:**
+   - They are strictly bug fixes AND
+   - They are backwards-compatible
+   - **If you think a change is needed inside legacy code, STOP and propose it first** (do not implement without explicit approval)
+
+5. **All new structure MUST be additive:**
+   - Create new modules/packages under `src/almaapitk/` only
+   - Route new public API through these new modules
+
+6. **DO NOT change anything related to:**
+   - Deployment scripts
+   - Scheduled tasks
+   - Production-specific paths
+
+### Validation Requirements:
+
+- After your changes, `scripts/smoke_import.py` must still pass
+- `scripts/smoke_import.py` must not import legacy modules directly
+- If there is a test suite, it must pass
+
 ## Environment Setup
 
 ### Prerequisites

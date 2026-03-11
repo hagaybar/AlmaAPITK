@@ -11,11 +11,11 @@ Domain classes provide high-level API wrappers for specific Alma functional area
 - Acquisitions: Invoice management and POL operations
 - ResourceSharing: Lending/borrowing requests via Partners API
 """
-from src.domains.admin import Admin
-from src.domains.users import Users
-from src.domains.bibs import BibliographicRecords
-from src.domains.acquisition import Acquisitions
-from src.domains.resource_sharing import ResourceSharing
+from almaapitk.domains.admin import Admin
+from almaapitk.domains.users import Users
+from almaapitk.domains.bibs import BibliographicRecords
+from almaapitk.domains.acquisition import Acquisitions
+from almaapitk.domains.resource_sharing import ResourceSharing
 
 __all__ = [
     "Admin",

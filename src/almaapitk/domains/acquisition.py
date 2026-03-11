@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse
 from almaapitk.domains.bibs import BibliographicRecords
-from src.alma_logging import get_logger
+from almaapitk.alma_logging import get_logger
 
 
 class Acquisitions:

@@ -17,7 +17,7 @@ https://developers.exlibrisgroup.com/alma/apis/xsd/rest_user_resource_sharing_re
 from typing import Any, Dict, Optional
 
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse
-from src.alma_logging import get_logger
+from almaapitk.alma_logging import get_logger
 
 
 class ResourceSharing:
@@ -559,7 +559,7 @@ class ResourceSharing:
             ...     title="Custom Title Override"  # Override auto-fetched title
             ... )
         """
-        from src.utils.citation_metadata import enrich_citation_metadata
+        from almaapitk.utils.citation_metadata import enrich_citation_metadata
 
         self.logger.info(
             "Creating lending request with metadata enrichment",

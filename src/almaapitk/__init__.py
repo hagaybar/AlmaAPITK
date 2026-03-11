@@ -1,5 +1,5 @@
 # =============================================================================
-# almaapitk - Public API Surface (API Contract v0.1.0)
+# almaapitk - Public API Surface (API Contract v0.2.0)
 # =============================================================================
 #
 # This is the ONLY supported public API surface for the AlmaAPITK package.
@@ -12,23 +12,40 @@
 #     # Or import specific symbols:
 #     from almaapitk import AlmaAPIClient, AlmaAPIError
 #
+#     # Domain classes (new in v0.2.0):
+#     from almaapitk import Admin, Users, Acquisitions
+#
 # PUBLIC API (__all__):
+#   Core:
 #   - __version__: Package version string
 #   - AlmaAPIClient: Main API client for Alma interactions
 #   - AlmaResponse: Response wrapper with .data, .json(), .success properties
 #   - AlmaAPIError: Base exception for API errors
 #   - AlmaValidationError: Exception for validation failures
 #
+#   Domains (new in v0.2.0):
+#   - Admin: Set management (BIB_MMS and USER sets)
+#   - Users: User management and email operations
+#   - BibliographicRecords: Bibliographic record operations
+#   - Acquisitions: Invoice management and POL operations
+#   - ResourceSharing: Lending/borrowing requests via Partners API
+#
 # INTERNAL (not part of public API - may change without notice):
 #   - src.client.* - Use almaapitk.AlmaAPIClient instead
-#   - src.domains.* - Domain classes (Admin, Users, Bibs, etc.)
-#   - src.utils.* - Utility modules
-#   - src.alma_logging.* - Logging infrastructure
+#   - src.domains.* - Use almaapitk domain classes instead
+#   - src.utils.* - Utility modules (project-level, not part of public API)
+#   - src.alma_logging.* - Logging infrastructure (internal)
 #
 # MIGRATION:
 #   If you currently import from internal modules, please migrate:
 #     OLD: from src.client.AlmaAPIClient import AlmaAPIClient
 #     NEW: from almaapitk import AlmaAPIClient
+#
+#     OLD: from src.domains.admin import Admin
+#     NEW: from almaapitk import Admin
+#
+#     OLD: from src.domains.acquisition import Acquisitions
+#     NEW: from almaapitk import Acquisitions
 #
 # IMPLEMENTATION NOTE:
 #   This module uses lazy imports via the _internal namespace to decouple the
@@ -38,23 +55,38 @@
 #
 # =============================================================================
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
+    # Package metadata
     "__version__",
+    # Core client and response
     "AlmaAPIClient",
     "AlmaResponse",
     "AlmaAPIError",
     "AlmaValidationError",
+    # Domain classes
+    "Admin",
+    "Users",
+    "BibliographicRecords",
+    "Acquisitions",
+    "ResourceSharing",
 ]
 
 # Lazy import implementation to avoid circular import at module load time
 # The actual imports happen on first attribute access
 _lazy_imports = {
+    # Core
     "AlmaAPIClient": ("almaapitk._internal", "AlmaAPIClient"),
     "AlmaResponse": ("almaapitk._internal", "AlmaResponse"),
     "AlmaAPIError": ("almaapitk._internal", "AlmaAPIError"),
     "AlmaValidationError": ("almaapitk._internal", "AlmaValidationError"),
+    # Domains
+    "Admin": ("almaapitk._internal", "Admin"),
+    "Users": ("almaapitk._internal", "Users"),
+    "BibliographicRecords": ("almaapitk._internal", "BibliographicRecords"),
+    "Acquisitions": ("almaapitk._internal", "Acquisitions"),
+    "ResourceSharing": ("almaapitk._internal", "ResourceSharing"),
 }
 
 _loaded = {}

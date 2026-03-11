@@ -3,6 +3,9 @@ Unit tests for almaapitk public API contract.
 
 These tests verify that the public API surface is stable and correctly exposes
 all documented symbols. This is part of Phase B2 TDD approach.
+
+v0.2.0: Extended to include domain classes (Admin, Users, BibliographicRecords,
+        Acquisitions, ResourceSharing)
 """
 import unittest
 import sys
@@ -23,10 +26,10 @@ class TestPublicAPIContract(unittest.TestCase):
         self.assertIsInstance(almaapitk.__version__, str)
         self.assertGreater(len(almaapitk.__version__), 0)
 
-    def test_all_contains_expected_symbols(self):
-        """Test that __all__ contains all expected public symbols."""
+    def test_all_contains_expected_core_symbols(self):
+        """Test that __all__ contains all expected core public symbols."""
         import almaapitk
-        expected_symbols = [
+        expected_core_symbols = [
             '__version__',
             'AlmaAPIClient',
             'AlmaResponse',
@@ -34,11 +37,29 @@ class TestPublicAPIContract(unittest.TestCase):
             'AlmaValidationError',
         ]
         self.assertTrue(hasattr(almaapitk, '__all__'))
-        for symbol in expected_symbols:
+        for symbol in expected_core_symbols:
             self.assertIn(
                 symbol,
                 almaapitk.__all__,
-                f"Expected '{symbol}' to be in __all__"
+                f"Expected core symbol '{symbol}' to be in __all__"
+            )
+
+    def test_all_contains_expected_domain_symbols(self):
+        """Test that __all__ contains all expected domain class symbols (v0.2.0)."""
+        import almaapitk
+        expected_domain_symbols = [
+            'Admin',
+            'Users',
+            'BibliographicRecords',
+            'Acquisitions',
+            'ResourceSharing',
+        ]
+        self.assertTrue(hasattr(almaapitk, '__all__'))
+        for symbol in expected_domain_symbols:
+            self.assertIn(
+                symbol,
+                almaapitk.__all__,
+                f"Expected domain symbol '{symbol}' to be in __all__"
             )
 
     def test_all_symbols_are_accessible(self):
@@ -77,6 +98,36 @@ class TestPublicAPIContract(unittest.TestCase):
         # It should be a ValueError subclass
         self.assertTrue(issubclass(AlmaValidationError, ValueError))
 
+    def test_admin_importable(self):
+        """Test that Admin domain class is importable from almaapitk."""
+        from almaapitk import Admin
+        self.assertIsNotNone(Admin)
+        self.assertTrue(callable(Admin))
+
+    def test_users_importable(self):
+        """Test that Users domain class is importable from almaapitk."""
+        from almaapitk import Users
+        self.assertIsNotNone(Users)
+        self.assertTrue(callable(Users))
+
+    def test_bibliographic_records_importable(self):
+        """Test that BibliographicRecords domain class is importable from almaapitk."""
+        from almaapitk import BibliographicRecords
+        self.assertIsNotNone(BibliographicRecords)
+        self.assertTrue(callable(BibliographicRecords))
+
+    def test_acquisitions_importable(self):
+        """Test that Acquisitions domain class is importable from almaapitk."""
+        from almaapitk import Acquisitions
+        self.assertIsNotNone(Acquisitions)
+        self.assertTrue(callable(Acquisitions))
+
+    def test_resource_sharing_importable(self):
+        """Test that ResourceSharing domain class is importable from almaapitk."""
+        from almaapitk import ResourceSharing
+        self.assertIsNotNone(ResourceSharing)
+        self.assertTrue(callable(ResourceSharing))
+
     def test_stdlib_logging_not_shadowed(self):
         """Test that stdlib logging is not shadowed by internal modules."""
         import logging
@@ -105,8 +156,9 @@ class TestPublicAPIContract(unittest.TestCase):
             import almaapitk._internal
             # If we get here, _internal exists (post-B2)
             self.assertTrue(hasattr(almaapitk._internal, '__all__'))
-            expected = ['AlmaAPIClient', 'AlmaResponse', 'AlmaAPIError', 'AlmaValidationError']
-            for symbol in expected:
+            expected_core = ['AlmaAPIClient', 'AlmaResponse', 'AlmaAPIError', 'AlmaValidationError']
+            expected_domains = ['Admin', 'Users', 'BibliographicRecords', 'Acquisitions', 'ResourceSharing']
+            for symbol in expected_core + expected_domains:
                 self.assertIn(
                     symbol,
                     almaapitk._internal.__all__,
@@ -145,6 +197,23 @@ class TestPublicAPIUsage(unittest.TestCase):
         self.assertIsNotNone(AlmaAPIError)
         self.assertIsNotNone(AlmaValidationError)
 
+    def test_direct_import_style_domains(self):
+        """Test that direct import style works for domain classes."""
+        # This should work without errors
+        from almaapitk import (
+            Admin,
+            Users,
+            BibliographicRecords,
+            Acquisitions,
+            ResourceSharing,
+        )
+        # All should be non-None
+        self.assertIsNotNone(Admin)
+        self.assertIsNotNone(Users)
+        self.assertIsNotNone(BibliographicRecords)
+        self.assertIsNotNone(Acquisitions)
+        self.assertIsNotNone(ResourceSharing)
+
     def test_module_attribute_style(self):
         """Test that module attribute style works."""
         import almaapitk
@@ -158,6 +227,99 @@ class TestPublicAPIUsage(unittest.TestCase):
         self.assertIsNotNone(response_cls)
         self.assertIsNotNone(error_cls)
         self.assertIsNotNone(validation_cls)
+
+    def test_module_attribute_style_domains(self):
+        """Test that module attribute style works for domain classes."""
+        import almaapitk
+        # Access via module attributes
+        admin_cls = almaapitk.Admin
+        users_cls = almaapitk.Users
+        bibs_cls = almaapitk.BibliographicRecords
+        acq_cls = almaapitk.Acquisitions
+        rs_cls = almaapitk.ResourceSharing
+
+        self.assertIsNotNone(admin_cls)
+        self.assertIsNotNone(users_cls)
+        self.assertIsNotNone(bibs_cls)
+        self.assertIsNotNone(acq_cls)
+        self.assertIsNotNone(rs_cls)
+
+
+class TestMigrationReadiness(unittest.TestCase):
+    """
+    Tests verifying the API surface is ready for project migration.
+
+    These tests ensure that projects can be migrated from legacy imports
+    (src.client.*, src.domains.*) to the public API (almaapitk).
+    """
+
+    def test_update_expired_users_emails_imports_available(self):
+        """
+        Test that all imports needed by update_expired_users_emails are available.
+
+        The project needs: AlmaAPIClient, AlmaAPIError, AlmaValidationError, Admin, Users
+        """
+        from almaapitk import (
+            AlmaAPIClient,
+            AlmaAPIError,
+            AlmaValidationError,
+            Admin,
+            Users,
+        )
+        self.assertIsNotNone(AlmaAPIClient)
+        self.assertIsNotNone(AlmaAPIError)
+        self.assertIsNotNone(AlmaValidationError)
+        self.assertIsNotNone(Admin)
+        self.assertIsNotNone(Users)
+
+    def test_acquisitions_project_imports_available(self):
+        """
+        Test that all imports needed by Acquisitions projects are available.
+
+        The projects need: AlmaAPIClient, AlmaAPIError, Acquisitions
+        """
+        from almaapitk import (
+            AlmaAPIClient,
+            AlmaAPIError,
+            Acquisitions,
+        )
+        self.assertIsNotNone(AlmaAPIClient)
+        self.assertIsNotNone(AlmaAPIError)
+        self.assertIsNotNone(Acquisitions)
+
+    def test_rialto_project_imports_available(self):
+        """
+        Test that all imports needed by RialtoProduction projects are available.
+
+        The projects need: AlmaAPIClient, AlmaAPIError, Acquisitions, BibliographicRecords
+        """
+        from almaapitk import (
+            AlmaAPIClient,
+            AlmaAPIError,
+            Acquisitions,
+            BibliographicRecords,
+        )
+        self.assertIsNotNone(AlmaAPIClient)
+        self.assertIsNotNone(AlmaAPIError)
+        self.assertIsNotNone(Acquisitions)
+        self.assertIsNotNone(BibliographicRecords)
+
+    def test_resource_sharing_project_imports_available(self):
+        """
+        Test that all imports needed by ResourceSharing projects are available.
+
+        The projects need: AlmaAPIClient, AlmaAPIError, Users, ResourceSharing
+        """
+        from almaapitk import (
+            AlmaAPIClient,
+            AlmaAPIError,
+            Users,
+            ResourceSharing,
+        )
+        self.assertIsNotNone(AlmaAPIClient)
+        self.assertIsNotNone(AlmaAPIError)
+        self.assertIsNotNone(Users)
+        self.assertIsNotNone(ResourceSharing)
 
 
 if __name__ == '__main__':

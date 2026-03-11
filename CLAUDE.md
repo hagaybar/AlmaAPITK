@@ -66,7 +66,7 @@ poetry install
 poetry shell
 
 # Test connection
-python -c "from src.client.AlmaAPIClient import AlmaAPIClient; client = AlmaAPIClient('SANDBOX'); client.test_connection()"
+python -c "from almaapitk import AlmaAPIClient; client = AlmaAPIClient('SANDBOX'); client.test_connection()"
 ```
 
 ## Architecture Overview
@@ -247,7 +247,7 @@ The project includes a comprehensive logging system located in `src/alma_logging
 
 **Import and Initialize**:
 ```python
-from src.alma_logging import get_logger
+from almaapitk.alma_logging import get_logger
 
 # In domain classes
 class Acquisitions:

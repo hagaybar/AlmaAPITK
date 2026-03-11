@@ -11,9 +11,8 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-# Import your existing classes
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.admin import Admin
+from almaapitk.client.AlmaAPIClient import AlmaAPIClient
+from almaapitk.domains.admin import Admin
 
 
 class TSVGenerator:

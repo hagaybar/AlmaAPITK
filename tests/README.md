@@ -154,8 +154,8 @@ When adding new tests:
 
 4. **Use absolute imports**:
    ```python
-   from src.domains.acquisition import Acquisition
-   from src.client.AlmaAPIClient import AlmaAPIClient
+   from almaapitk import Acquisitions
+   from almaapitk import AlmaAPIClient
    ```
 
 ## Maintenance

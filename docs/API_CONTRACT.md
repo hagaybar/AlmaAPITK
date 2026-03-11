@@ -67,7 +67,7 @@ If you currently import from internal modules, please migrate to the public API:
 
 ```python
 # These imports may break in future versions
-from src.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError
+from almaapitk import AlmaAPIClient, AlmaAPIError
 from client.AlmaAPIClient import AlmaResponse
 ```
 

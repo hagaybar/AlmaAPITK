@@ -1,5 +1,5 @@
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.admin import Admin
+from almaapitk import AlmaAPIClient
+from almaapitk import Admin
 
 # Initialize
 client = AlmaAPIClient('SANDBOX')  # or 'PRODUCTION'

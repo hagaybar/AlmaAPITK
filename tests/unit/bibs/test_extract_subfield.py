@@ -4,8 +4,8 @@ Test script for updated bibs.py and AlmaAPIClient compatibility
 Save as test_bibs_marc.py
 """
 
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.bibs import BibliographicRecords
+from almaapitk import AlmaAPIClient
+from almaapitk import BibliographicRecords
 
 def test_bibs_compatibility():
     """Test AlmaAPIClient compatibility with bibs.py"""

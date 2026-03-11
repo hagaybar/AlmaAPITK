@@ -1,4 +1,4 @@
-from src.utils.tsv_generator import create_tsv_from_config
+from almaapitk import TSVGenerator
 
 # Use default config
 tsv_path = create_tsv_from_config("alma_lgtbq_files_config.json")

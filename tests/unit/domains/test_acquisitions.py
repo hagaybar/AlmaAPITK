@@ -15,8 +15,8 @@ Run with: python src/tests/test_acquisitions.py
 import sys
 from typing import Dict, Any, Optional
 
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.acquisition import Acquisitions
+from almaapitk import AlmaAPIClient
+from almaapitk import Acquisitions
 
 
 class AcquisitionsTestSuite:

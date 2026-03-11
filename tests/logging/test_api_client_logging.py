@@ -5,7 +5,7 @@ Test script for AlmaAPIClient logging integration.
 Tests automatic logging of all API requests/responses.
 """
 
-from src.client.AlmaAPIClient import AlmaAPIClient
+from almaapitk import AlmaAPIClient
 
 def main():
     """Test AlmaAPIClient logging."""

@@ -10,7 +10,7 @@ import json
 from typing import Dict, List, Optional, Union, Any, Tuple
 from datetime import datetime, date
 
-from src.client.AlmaAPIClient import AlmaAPIClient
+from almaapitk import AlmaAPIClient
 
 
 class AlmaUsersManager:

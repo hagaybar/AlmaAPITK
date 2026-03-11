@@ -4,8 +4,8 @@ Test script for extracting items from POL data using the new helper method.
 This uses the extract_items_from_pol_data() method with debugging.
 """
 import sys
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.acquisition import Acquisitions
+from almaapitk import AlmaAPIClient
+from almaapitk import Acquisitions
 
 # Get POL ID from command line
 if len(sys.argv) < 2:

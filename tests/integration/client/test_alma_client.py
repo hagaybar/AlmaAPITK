@@ -9,7 +9,7 @@ import os
 
 # Add the path where your AlmaAPIClient is located
 try:
-    from src.client.AlmaAPIClient import AlmaAPIClient
+    from almaapitk import AlmaAPIClient
 except ImportError:
     print("Could not import AlmaAPIClient. Please check the file path.")
     print("Current working directory:", os.getcwd())

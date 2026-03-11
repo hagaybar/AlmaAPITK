@@ -5,8 +5,8 @@ Test verbose logging with full request/response bodies.
 Demonstrates detailed logging for POST/PUT operations with complete data objects.
 """
 
-from src.client.AlmaAPIClient import AlmaAPIClient
-from src.domains.acquisition import Acquisitions
+from almaapitk import AlmaAPIClient
+from almaapitk import Acquisitions
 
 def test_get_pol_verbose():
     """Test GET with full response body logging."""

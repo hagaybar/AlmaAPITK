@@ -1,28 +1,38 @@
 # =============================================================================
-# almaapitk - Public API Surface
+# almaapitk - Public API Surface (API Contract v0.1.0)
 # =============================================================================
 #
-# This module provides a stable public import path for downstream projects:
+# This is the ONLY supported public API surface for the AlmaAPITK package.
+# All consumer code should import from this module only.
 #
+# USAGE:
 #     import almaapitk
 #     client = almaapitk.AlmaAPIClient('SANDBOX')
 #
-# EXPORTED (Public API):
+#     # Or import specific symbols:
+#     from almaapitk import AlmaAPIClient, AlmaAPIError
+#
+# PUBLIC API (__all__):
+#   - __version__: Package version string
 #   - AlmaAPIClient: Main API client for Alma interactions
 #   - AlmaResponse: Response wrapper with .data, .json(), .success properties
 #   - AlmaAPIError: Base exception for API errors
 #   - AlmaValidationError: Exception for validation failures
 #
-# NOT EXPORTED (intentionally kept internal):
-#   - Domain classes (Admin, Users, Bibs, etc.) - import from src.domains directly
-#   - Utility modules (TSVGenerator, etc.) - import from src.utils directly
-#   - Logging infrastructure - import from src.alma_logging directly
+# INTERNAL (not part of public API - may change without notice):
+#   - src.client.* - Use almaapitk.AlmaAPIClient instead
+#   - src.domains.* - Domain classes (Admin, Users, Bibs, etc.)
+#   - src.utils.* - Utility modules
+#   - src.alma_logging.* - Logging infrastructure
 #
-# KNOWN ISSUE:
-#   When PYTHONPATH=./src, the local `logging` folder shadows Python's stdlib
-#   `logging` module, causing circular import errors when importing AlmaAPIClient
-#   directly. This module uses lazy imports to allow `import almaapitk` to succeed
-#   while deferring the actual class loading until first access.
+# MIGRATION:
+#   If you currently import from internal modules, please migrate:
+#     OLD: from src.client.AlmaAPIClient import AlmaAPIClient
+#     NEW: from almaapitk import AlmaAPIClient
+#
+# IMPLEMENTATION NOTE:
+#   This module uses lazy imports to avoid circular import issues with stdlib
+#   logging. The actual class loading happens on first attribute access.
 #
 # =============================================================================
 

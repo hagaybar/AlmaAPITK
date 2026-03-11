@@ -1,0 +1,14 @@
+{
+  "currentInit": "See src/almaapitk/__init__.py - already has lazy imports for AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError",
+  "constraints": [
+    "All code changes on main branch, push to GitHub",
+    "Keep src/alma_logging rename intact (stdlib shadowing fix)",
+    "One change at a time, no risky refactors",
+    "Do NOT move large modules or rename many files",
+    "Keep exports minimal: 5-15 symbols max",
+    "Must include: AlmaAPIClient, base exceptions",
+    "Do NOT export domain/workflow logic",
+    "No network calls in smoke test",
+    "No new dependencies"
+  ]
+}

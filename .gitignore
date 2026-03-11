@@ -144,6 +144,15 @@ scripts/**/*.tmp.csv
 # - scripts/ directory - Investigation and cleanup utilities
 
 ###############################################################################
+#  Babysitter orchestration (.a5c)                                            #
+###############################################################################
+# Node modules (dependencies)
+.a5c/node_modules/
+
+# Run-specific logs (but keep runs structure for process tracking)
+.a5c/logs/
+
+###############################################################################
 #  End                                                                        #
 ###############################################################################
 

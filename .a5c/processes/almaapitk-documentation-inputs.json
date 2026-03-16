@@ -1,0 +1,5 @@
+{
+  "outputDir": "docs",
+  "includeAlmaApiReference": true,
+  "targetAudience": "library-developers"
+}

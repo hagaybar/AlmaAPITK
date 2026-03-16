@@ -1,22 +1,55 @@
 [project]
 name = "almaapitk"
 version = "0.2.0"
-description = "API client for Alma ILS"
+description = "Python toolkit for the Ex Libris Alma ILS API"
 authors = [
-    {name = "hagaybar",email = "hagaybar@gmail.com"}
+    {name = "Hagay Bar", email = "hagaybar@gmail.com"}
 ]
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.12"
-dependencies = [
-    "requests (>=2.32.4,<3.0.0)",
-    "pandas (>=2.3.0,<3.0.0)",
-    "openpyxl (>=3.1.5,<4.0.0)",
-    "boto3 (>=1.39.3,<2.0.0)",
-    "pypdf2 (>=3.0.1,<4.0.0)"
+keywords = [
+    "alma",
+    "ils",
+    "library",
+    "api",
+    "ex-libris",
+    "acquisitions",
+    "cataloging",
+    "resource-sharing"
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Typing :: Typed"
+]
+dependencies = [
+    "requests>=2.32.0,<3.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "openpyxl>=3.1.0,<4.0.0",
+    "boto3>=1.35.0,<2.0.0",
+    "pypdf2>=3.0.0,<4.0.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/hagaybar/AlmaAPITK"
+Repository = "https://github.com/hagaybar/AlmaAPITK"
+Documentation = "https://github.com/hagaybar/AlmaAPITK#readme"
+Issues = "https://github.com/hagaybar/AlmaAPITK/issues"
 
 [tool.poetry]
 packages = [{ include = "almaapitk", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

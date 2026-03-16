@@ -6,46 +6,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Library System) API. It provides a structured approach to API operations with domain-specific classes and utilities.
 
-## ⚠️ Transitional Phase: Compatibility & Safety Constraints (MANDATORY)
+**This is a core library package.** Project-specific workflows have been extracted to standalone repositories:
 
-**We are currently disentangling core infrastructure from project-specific code.**
+| Extracted Repository | Purpose | Status |
+|---------------------|---------|--------|
+| `Alma-update-expired-users-emails` | User email expiry processing | Production |
+| `Alma-RS-lending-request-automation` | Resource sharing lending automation | Production |
+| `Alma-Digital-Upload` | Digital file uploads to Alma | Development |
+| `Alma-Acquisitions-Automation` | Rialto POL processing, invoicing | Testing |
 
-We have production consumers that may still import legacy modules directly (e.g., `client.*`, `domains.*`, `utils.*`).
-**Until explicitly told otherwise, you MUST preserve legacy compatibility.**
+**Backup references** (full monolith before cleanup):
+- Branch: `deprecated`
+- Tag: `pre-cleanup-monolith`
 
-### Rules You MUST Follow:
+## Legacy Compatibility Shims
 
-1. **DO NOT delete, rename, or move any of these legacy top-level packages or modules:**
-   - `client/`
-   - `domains/`
-   - `utils/`
-   - Any other existing legacy import roots used today
+The following modules are **re-export wrappers** that preserve backward compatibility for external consumers. They issue deprecation warnings and re-export from `almaapitk.*`:
 
-2. **DO NOT change the import paths used by legacy code** (no "package layout" refactors).
+- `src/client/` → re-exports from `almaapitk.client`
+- `src/domains/` → re-exports from `almaapitk.domains`
+- `src/utils/` → re-exports from `almaapitk.utils`
+- `src/alma_logging/` → re-exports from `almaapitk.alma_logging`
 
-3. **DO NOT introduce import-time side effects into any legacy modules:**
-   - No config loading at import time
-   - No environment variable validation at import time
-   - No network calls at import time
+**Rules for legacy modules:**
+1. DO NOT delete these modules - external consumers may still use them
+2. DO NOT modify except for backward-compatible bug fixes
+3. All new development goes in `src/almaapitk/` only
 
-4. **Changes inside legacy modules are allowed ONLY if:**
-   - They are strictly bug fixes AND
-   - They are backwards-compatible
-   - **If you think a change is needed inside legacy code, STOP and propose it first** (do not implement without explicit approval)
+**Recommended import pattern:**
+```python
+# NEW (recommended)
+from almaapitk import AlmaAPIClient, Acquisitions, ResourceSharing
 
-5. **All new structure MUST be additive:**
-   - Create new modules/packages under `src/almaapitk/` only
-   - Route new public API through these new modules
-
-6. **DO NOT change anything related to:**
-   - Deployment scripts
-   - Scheduled tasks
-   - Production-specific paths
+# OLD (still works, issues deprecation warning)
+from src.client.AlmaAPIClient import AlmaAPIClient
+```
 
 ### Validation Requirements:
 
 - After your changes, `scripts/smoke_import.py` must still pass
-- `scripts/smoke_import.py` must not import legacy modules directly
 - If there is a test suite, it must pass
 
 ## Environment Setup
@@ -71,28 +70,27 @@ python -c "from almaapitk import AlmaAPIClient; client = AlmaAPIClient('SANDBOX'
 
 ## Architecture Overview
 
-### Core Components
+### Core Package: `src/almaapitk/`
 
-1. **AlmaAPIClient** (`src/client/AlmaAPIClient.py`)
-   - Main API client providing HTTP methods (GET, POST, PUT, DELETE)
-   - Environment management (SANDBOX/PRODUCTION)
-   - Authentication handling and connection testing
-   - Base class for all API interactions
+The primary deliverable - a clean, importable Python package.
 
-2. **Domain Classes** (`src/domains/`)
-   - **Admin**: Handles sets and administrative operations (BIB_MMS and USER sets)
-   - **Users**: User management operations, email updates, expiry date processing
-   - **Bibs**: Bibliographic records operations
-   - **Acquisition**: Acquisition-related operations
-   - **Analytics**: Analytics report fetching (PRODUCTION only, read-only)
-   - **ResourceSharing**: Resource sharing lending and borrowing requests via Partners API
+**Public API** (from `almaapitk`):
+- `AlmaAPIClient` - Main HTTP client for Alma API
+- `AlmaResponse` - Response wrapper with `.data`, `.json()`, `.success`
+- `AlmaAPIError`, `AlmaValidationError` - Exception classes
+- `Admin`, `Users`, `BibliographicRecords`, `Acquisitions`, `ResourceSharing` - Domain classes
+- `TSVGenerator` - TSV file utilities
+- `CitationMetadataError` - Metadata enrichment errors
 
-3. **Projects** (`src/projects/`)
-   - **update_expired_user_emails_2.py**: Script for updating email addresses of expired users (latest version)
-   - **Alma_File_Loader_from_Set.py**: Utility for loading files from Alma sets
+### Domain Classes (`src/almaapitk/domains/`)
 
-4. **Utilities** (`src/utils/`)
-   - **tsv_generator.py**: TSV file generation utilities
+| Domain | File | Key Operations |
+|--------|------|----------------|
+| **Acquisitions** | `acquisition.py` | POL operations, invoicing, item receiving |
+| **Admin** | `admin.py` | Sets management (BIB_MMS, USER) |
+| **BibliographicRecords** | `bibs.py` | Bib records, holdings, items, scan-in |
+| **ResourceSharing** | `resource_sharing.py` | Lending/borrowing via Partners API |
+| **Users** | `users.py` | User management, email updates |
 
 ### Key Design Patterns
 
@@ -192,27 +190,23 @@ This project uses three complementary Claude Code skills:
 
 ## Development Commands
 
-### Running Scripts
+### Smoke Test
 ```bash
-# Run email update script (latest version)
-python src/projects/update_expired_user_emails_2.py --set-id 12345678900004146 --environment SANDBOX
-
-# Run with configuration file
-python src/projects/update_expired_user_emails_2.py --config config.json --live
-
-# Run with TSV input
-python src/projects/update_expired_user_emails_2.py --tsv users.tsv --pattern "expired-{user_id}@university.edu"
+# Validate package imports work correctly
+poetry run python scripts/smoke_import.py
 ```
 
 ### Testing
 ```bash
-# Run individual test scripts
-python src/tests/test_users_script.py
-python src/tests/test_sets_ret.py
-python src/tests/acquisitions_test_script.py
+# Test core package imports
+python -c "from almaapitk import AlmaAPIClient, Acquisitions; print('OK')"
 
-# Test API connection
-python alma_client_test.py
+# Test legacy imports still work (with deprecation warning)
+python -c "from src.client.AlmaAPIClient import AlmaAPIClient; print('OK')"
+
+# Run test scripts
+python src/tests/test_resource_sharing_lending.py
+python src/tests/test_citation_metadata.py
 ```
 
 ## Coding Standards and Preferences
@@ -356,43 +350,24 @@ See `src/alma_logging/README.md` and `src/alma_logging/docs/LOGGING_IMPLEMENTATI
 - Provide clear examples in comments without actual values
 - Support both sandbox and production environments
 
-## Script Template Standards
+## Script Standards for Consumers
 
-### Use update_expired_user_emails_2.py as Template
-This script demonstrates the ideal structure for new project scripts:
+Projects using `almaapitk` should follow these patterns:
 
-#### Required Components
-1. **Comprehensive CLI with argparse**
-   - Multiple input methods (set ID, config file, data file)
-   - Environment selection with safety confirmations
-   - Help text with usage examples
-
-2. **Safety-First Design**
-   - Dry-run as default mode
-   - Explicit confirmation for production operations
-   - Input validation at multiple levels
-   - Comprehensive error tracking
-
-3. **Logging and Results**
-   - File and console logging with timestamps
-   - Structured result tracking and CSV export
-   - Progress indicators for long operations
-   - Backup logging of original data before changes
-
-4. **Class-Based Organization**
-   - Main script logic in a dedicated class
-   - Clear separation of concerns (configuration, processing, reporting)
-   - Type hints throughout
-   - Comprehensive docstrings
-
-#### CLI Pattern to Follow
+### Recommended CLI Pattern
 ```python
-# Always include these argument patterns:
 parser.add_argument("--config", help="JSON configuration file")
 parser.add_argument("--environment", choices=["SANDBOX", "PRODUCTION"], default="SANDBOX")
 parser.add_argument("--dry-run", action="store_true", default=True)
 parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
 ```
+
+### Safety-First Design
+- Dry-run as default mode
+- Explicit confirmation for production operations
+- Comprehensive logging with `almaapitk.alma_logging`
+
+**See extracted repos for complete examples** (e.g., `Alma-Acquisitions-Automation/docs/DEVELOPER_GUIDE.md`).
 
 ## Development Context
 
@@ -511,17 +486,7 @@ Key Alma terminology (quick reference):
 
 **→ For complete workflows, error codes, endpoints, and API quirks, use the `alma-api-expert` skill**
 
-## AlmaAPITK Domain Implementation
-
-**Domain Classes** (`src/domains/`):
-- **Acquisitions** (`acquisition.py`) - POL operations, invoicing, item receiving
-- **ResourceSharing** (`resource_sharing.py`) - Lending/borrowing requests
-- **Users** (`users.py`) - User management, email updates, expiry dates
-- **Bibs** (`bibs.py`) - Bibliographic records, holdings, items, scan-in
-- **Admin** (`admin.py`) - Sets management (BIB_MMS, USER)
-- **Analytics** (`analytics.py`) - Analytics reports (PRODUCTION only, read-only)
-
-**Available Methods:**
+## Domain Method Reference
 
 Use `alma-api-expert` skill to look up:
 - Method signatures and parameters
@@ -531,19 +496,33 @@ Use `alma-api-expert` skill to look up:
 - Usage examples
 
 **Test Scripts** (`src/tests/`):
-- `test_invoice_creation.py` - Invoice creation workflows
 - `test_resource_sharing_lending.py` - Lending requests
-- `test_users_script.py` - User operations
-- `test_sets_ret.py` - Sets processing
-- `acquisitions_test_script.py` - Acquisitions operations
+- `test_citation_metadata.py` - Citation metadata enrichment
 
-## File Structure Context
+## File Structure
 
-- `src/client/` - Core API client implementation
-- `src/domains/` - Domain-specific API wrappers
-- `src/projects/` - Standalone scripts and utilities
-- `src/tests/` - Test scripts and configuration files
-- `src/utils/` - Shared utilities and helpers
-- `src/alma_logging/` - Logging infrastructure
-- `config/` - Configuration files
-- `logs/` - Log files (gitignored)
+```
+AlmaAPITK/
+├── src/
+│   ├── almaapitk/              # CORE PACKAGE (the goal)
+│   │   ├── __init__.py         # Public API (v0.2.0)
+│   │   ├── client/             # AlmaAPIClient
+│   │   ├── domains/            # Domain classes
+│   │   ├── utils/              # Utilities
+│   │   └── alma_logging/       # Logging infrastructure
+│   │
+│   ├── client/                 # LEGACY SHIM → almaapitk.client
+│   ├── domains/                # LEGACY SHIM → almaapitk.domains
+│   ├── utils/                  # LEGACY SHIM → almaapitk.utils
+│   ├── alma_logging/           # LEGACY SHIM → almaapitk.alma_logging
+│   └── tests/                  # Test scripts
+│
+├── scripts/
+│   ├── smoke_import.py         # Package validation
+│   └── investigations/         # Debug utilities
+│
+├── config/                     # Configuration templates
+├── docs/                       # Documentation
+├── .a5c/                       # Babysitter artifacts
+└── logs/                       # Log files (gitignored)
+```

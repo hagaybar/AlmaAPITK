@@ -187,9 +187,8 @@ python -c "from almaapitk import AlmaAPIClient, Acquisitions; print('OK')"
 # Test legacy imports still work (with deprecation warning)
 python -c "from src.client.AlmaAPIClient import AlmaAPIClient; print('OK')"
 
-# Run test scripts
-python src/tests/test_resource_sharing_lending.py
-python src/tests/test_citation_metadata.py
+# Run core library tests
+poetry run pytest tests/test_public_api_contract.py -v
 ```
 
 ## Coding Standards and Preferences
@@ -478,10 +477,6 @@ Use `alma-api-expert` skill to look up:
 - Error handling patterns
 - Usage examples
 
-**Test Scripts** (`src/tests/`):
-- `test_resource_sharing_lending.py` - Lending requests
-- `test_citation_metadata.py` - Citation metadata enrichment
-
 ## File Structure
 
 ```
@@ -493,7 +488,13 @@ AlmaAPITK/
 │   │   ├── domains/            # Domain classes
 │   │   ├── utils/              # Utilities (TSVGenerator, citation_metadata)
 │   │   └── alma_logging/       # Logging infrastructure
-│   └── tests/                  # Test scripts
+│
+├── tests/                      # Core library tests
+│   ├── test_public_api_contract.py
+│   ├── logging/                # Logging tests
+│   ├── unit/                   # Unit tests (domains, utils)
+│   ├── integration/client/     # Client integration tests
+│   └── meta/                   # Dependency/reorganization tests
 │
 ├── scripts/
 │   ├── smoke_import.py         # Package validation

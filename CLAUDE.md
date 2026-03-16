@@ -19,27 +19,10 @@ AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Libr
 - Branch: `deprecated`
 - Tag: `pre-cleanup-monolith`
 
-## Legacy Compatibility Shims
+## Import Pattern
 
-The following modules are **re-export wrappers** that preserve backward compatibility for external consumers. They issue deprecation warnings and re-export from `almaapitk.*`:
-
-- `src/client/` → re-exports from `almaapitk.client`
-- `src/domains/` → re-exports from `almaapitk.domains`
-- `src/utils/` → re-exports from `almaapitk.utils`
-- `src/alma_logging/` → re-exports from `almaapitk.alma_logging`
-
-**Rules for legacy modules:**
-1. DO NOT delete these modules - external consumers may still use them
-2. DO NOT modify except for backward-compatible bug fixes
-3. All new development goes in `src/almaapitk/` only
-
-**Recommended import pattern:**
 ```python
-# NEW (recommended)
 from almaapitk import AlmaAPIClient, Acquisitions, ResourceSharing
-
-# OLD (still works, issues deprecation warning)
-from src.client.AlmaAPIClient import AlmaAPIClient
 ```
 
 ### Validation Requirements:
@@ -377,7 +360,7 @@ parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
 - **Test in SANDBOX first** before PRODUCTION
 - **Use AlmaResponse wrapper** for all API responses
 - **Follow AlmaAPIError hierarchy**: AlmaAPIError, AlmaValidationError, AlmaRateLimitError
-- **Use src/alma_logging/ framework** (never print statements)
+- **Use almaapitk.alma_logging framework** (never print statements)
 - **Include dry-run mode** in operational scripts
 - **Method naming**: `get_*`, `update_*`, `create_*`, `delete_*`
 
@@ -504,17 +487,12 @@ Use `alma-api-expert` skill to look up:
 ```
 AlmaAPITK/
 ├── src/
-│   ├── almaapitk/              # CORE PACKAGE (the goal)
+│   ├── almaapitk/              # CORE PACKAGE
 │   │   ├── __init__.py         # Public API (v0.2.0)
 │   │   ├── client/             # AlmaAPIClient
 │   │   ├── domains/            # Domain classes
-│   │   ├── utils/              # Utilities
+│   │   ├── utils/              # Utilities (TSVGenerator, citation_metadata)
 │   │   └── alma_logging/       # Logging infrastructure
-│   │
-│   ├── client/                 # LEGACY SHIM → almaapitk.client
-│   ├── domains/                # LEGACY SHIM → almaapitk.domains
-│   ├── utils/                  # LEGACY SHIM → almaapitk.utils
-│   ├── alma_logging/           # LEGACY SHIM → almaapitk.alma_logging
 │   └── tests/                  # Test scripts
 │
 ├── scripts/

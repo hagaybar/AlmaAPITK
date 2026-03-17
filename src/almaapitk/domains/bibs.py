@@ -688,6 +688,95 @@ class BibliographicRecords:
         return response
     
 
+    # Collection methods
+    def get_collection_members(self, collection_id: str, limit: int = 100,
+                               offset: int = 0) -> AlmaResponse:
+        """
+        Get bibliographic records that are members of a collection.
+
+        Args:
+            collection_id: The collection ID
+            limit: Maximum number of records to return (default 100)
+            offset: Starting position for pagination (default 0)
+
+        Returns:
+            AlmaResponse containing list of bib records in the collection
+
+        Raises:
+            AlmaValidationError: If collection_id is empty or None
+            AlmaAPIError: If the API request fails (e.g., collection not found)
+        """
+        if not collection_id:
+            raise AlmaValidationError("Collection ID is required")
+
+        params = {
+            "limit": str(limit),
+            "offset": str(offset)
+        }
+
+        endpoint = f"almaws/v1/bibs/collections/{collection_id}/bibs"
+        response = self.client.get(endpoint, params=params)
+
+        self.logger.info(f"Retrieved collection members for collection {collection_id}")
+        return response
+
+    def add_to_collection(self, collection_id: str, mms_id: str) -> AlmaResponse:
+        """
+        Add a bibliographic record to a collection.
+
+        Args:
+            collection_id: The collection ID
+            mms_id: The MMS ID of the bibliographic record to add
+
+        Returns:
+            AlmaResponse containing the added bib record
+
+        Raises:
+            AlmaValidationError: If collection_id or mms_id is empty or None
+            AlmaAPIError: If the API request fails (e.g., collection/bib not found)
+        """
+        if not collection_id:
+            raise AlmaValidationError("Collection ID is required")
+        if not mms_id:
+            raise AlmaValidationError("MMS ID is required")
+
+        # The API expects a bib object with mms_id
+        bib_data = {
+            "mms_id": mms_id
+        }
+
+        endpoint = f"almaws/v1/bibs/collections/{collection_id}/bibs"
+        response = self.client.post(endpoint, data=bib_data)
+
+        self.logger.info(f"Added bib {mms_id} to collection {collection_id}")
+        return response
+
+    def remove_from_collection(self, collection_id: str, mms_id: str) -> AlmaResponse:
+        """
+        Remove a bibliographic record from a collection.
+
+        Args:
+            collection_id: The collection ID
+            mms_id: The MMS ID of the bibliographic record to remove
+
+        Returns:
+            AlmaResponse confirming removal
+
+        Raises:
+            AlmaValidationError: If collection_id or mms_id is empty or None
+            AlmaAPIError: If the API request fails (e.g., collection/bib not found)
+        """
+        if not collection_id:
+            raise AlmaValidationError("Collection ID is required")
+        if not mms_id:
+            raise AlmaValidationError("MMS ID is required")
+
+        endpoint = f"almaws/v1/bibs/collections/{collection_id}/bibs/{mms_id}"
+        response = self.client.delete(endpoint)
+
+        self.logger.info(f"Removed bib {mms_id} from collection {collection_id}")
+        return response
+
     def get_marc_subfield(self, mms_id: str, field: str, subfield: str) -> List[str]:
         """
         Get specific MARC subfield values from a bibliographic record.

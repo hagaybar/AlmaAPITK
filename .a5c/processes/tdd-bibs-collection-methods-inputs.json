@@ -1,0 +1,24 @@
+{
+  "targetFile": "src/almaapitk/domains/bibs.py",
+  "testFile": "tests/integration/domains/test_bibs_collections.py",
+  "methods": [
+    {
+      "name": "get_collection_members",
+      "endpoint": "GET /bibs/collections/{collection_id}/bibs",
+      "params": ["collection_id", "limit", "offset"],
+      "returns": "AlmaResponse with list of bibs"
+    },
+    {
+      "name": "add_to_collection",
+      "endpoint": "POST /bibs/collections/{collection_id}/bibs",
+      "params": ["collection_id", "mms_id"],
+      "returns": "AlmaResponse with added bib"
+    },
+    {
+      "name": "remove_from_collection",
+      "endpoint": "DELETE /bibs/collections/{collection_id}/bibs/{mms_id}",
+      "params": ["collection_id", "mms_id"],
+      "returns": "AlmaResponse (empty on success)"
+    }
+  ]
+}

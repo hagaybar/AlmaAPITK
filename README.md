@@ -10,6 +10,7 @@ A Python toolkit for interacting with the Ex Libris Alma ILS (Integrated Library
 - **Simple API Client**: Easy-to-use HTTP client with automatic authentication and error handling
 - **Domain Classes**: High-level abstractions for common Alma operations
   - `Acquisitions` - POL operations, invoicing, item receiving
+  - `Analytics` - Analytics reports with pagination support
   - `Users` - User management, email updates
   - `BibliographicRecords` - Bib records, holdings, items
   - `Admin` - Sets management (BIB_MMS, USER)
@@ -111,6 +112,26 @@ request_data = {
 result = rs.create_lending_request("PARTNER_CODE", request_data)
 ```
 
+### Analytics Reports
+
+```python
+from almaapitk import AlmaAPIClient, Analytics
+
+# Analytics API only works with PRODUCTION
+client = AlmaAPIClient('PRODUCTION')
+analytics = Analytics(client)
+
+# Get column headers for a report
+report_path = "/shared/University/Reports/MyReport"
+headers = analytics.get_report_headers(report_path)
+print(f"Columns: {headers}")
+
+# Fetch rows with pagination (limit must be 25-1000)
+rows = analytics.fetch_report_rows(report_path, limit=100, max_rows=500)
+for row in rows:
+    print(row)  # Dict with Column0, Column1, etc.
+```
+
 ## API Reference
 
 ### Core Classes
@@ -127,6 +148,7 @@ result = rs.create_lending_request("PARTNER_CODE", request_data)
 | Class | Description |
 |-------|-------------|
 | `Acquisitions` | POL operations, invoicing, item receiving |
+| `Analytics` | Analytics reports with pagination (ResumptionToken) |
 | `Users` | User management, email updates |
 | `BibliographicRecords` | Bib records, holdings, items, scan-in |
 | `Admin` | Sets management (BIB_MMS, USER sets) |

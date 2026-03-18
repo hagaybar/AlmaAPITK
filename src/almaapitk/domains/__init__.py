@@ -6,6 +6,7 @@ from .users import Users
 from .bibs import BibliographicRecords
 from .acquisition import Acquisitions
 from .resource_sharing import ResourceSharing
+from .analytics import Analytics
 
 __all__ = [
     "Admin",
@@ -13,4 +14,5 @@ __all__ = [
     "BibliographicRecords",
     "Acquisitions",
     "ResourceSharing",
+    "Analytics",
 ]

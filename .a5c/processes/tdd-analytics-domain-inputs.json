@@ -1,0 +1,23 @@
+{
+  "domainFile": "src/almaapitk/domains/analytics.py",
+  "unitTestFile": "tests/unit/domains/test_analytics.py",
+  "integrationTestFile": "tests/integration/domains/test_analytics.py",
+  "initFile": "src/almaapitk/__init__.py",
+  "referenceFile": "/home/hagaybar/projects/Fetch_Alma_Analytics_Reports/fetch_reports_from_alma_analytics.py",
+  "methods": [
+    {
+      "name": "get_report_headers",
+      "description": "Get column headers/schema for an Analytics report",
+      "endpoint": "GET /almaws/v1/analytics/reports",
+      "params": ["report_path"],
+      "returns": "Dict mapping column names to headings"
+    },
+    {
+      "name": "fetch_report_rows",
+      "description": "Fetch rows from Analytics report with pagination",
+      "endpoint": "GET /almaws/v1/analytics/reports",
+      "params": ["report_path", "limit", "max_rows"],
+      "returns": "Generator yielding row dicts"
+    }
+  ]
+}

@@ -61,7 +61,7 @@ The primary deliverable - a clean, importable Python package.
 - `AlmaAPIClient` - Main HTTP client for Alma API
 - `AlmaResponse` - Response wrapper with `.data`, `.json()`, `.success`
 - `AlmaAPIError`, `AlmaValidationError` - Exception classes
-- `Admin`, `Users`, `BibliographicRecords`, `Acquisitions`, `ResourceSharing` - Domain classes
+- `Admin`, `Users`, `BibliographicRecords`, `Acquisitions`, `ResourceSharing`, `Analytics` - Domain classes
 - `TSVGenerator` - TSV file utilities
 - `CitationMetadataError` - Metadata enrichment errors
 
@@ -71,6 +71,7 @@ The primary deliverable - a clean, importable Python package.
 |--------|------|----------------|
 | **Acquisitions** | `acquisition.py` | POL operations, invoicing, item receiving |
 | **Admin** | `admin.py` | Sets management (BIB_MMS, USER) |
+| **Analytics** | `analytics.py` | Analytics reports (headers, rows with pagination) |
 | **BibliographicRecords** | `bibs.py` | Bib records, holdings, items, scan-in |
 | **ResourceSharing** | `resource_sharing.py` | Lending/borrowing via Partners API |
 | **Users** | `users.py` | User management, email updates |

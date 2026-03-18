@@ -10,12 +10,14 @@ Domain classes provide high-level API wrappers for specific Alma functional area
 - BibliographicRecords: Bibliographic record operations
 - Acquisitions: Invoice management and POL operations
 - ResourceSharing: Lending/borrowing requests via Partners API
+- Analytics: Analytics reports and data retrieval
 """
 from almaapitk.domains.admin import Admin
 from almaapitk.domains.users import Users
 from almaapitk.domains.bibs import BibliographicRecords
 from almaapitk.domains.acquisition import Acquisitions
 from almaapitk.domains.resource_sharing import ResourceSharing
+from almaapitk.domains.analytics import Analytics
 
 __all__ = [
     "Admin",
@@ -23,4 +25,5 @@ __all__ = [
     "BibliographicRecords",
     "Acquisitions",
     "ResourceSharing",
+    "Analytics",
 ]

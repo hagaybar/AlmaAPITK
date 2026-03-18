@@ -71,6 +71,7 @@ __all__ = [
     "BibliographicRecords",
     "Acquisitions",
     "ResourceSharing",
+    "Analytics",
     # Utilities
     "TSVGenerator",
     "CitationMetadataError",
@@ -90,6 +91,7 @@ _lazy_imports = {
     "BibliographicRecords": ("almaapitk._internal", "BibliographicRecords"),
     "Acquisitions": ("almaapitk._internal", "Acquisitions"),
     "ResourceSharing": ("almaapitk._internal", "ResourceSharing"),
+    "Analytics": ("almaapitk._internal", "Analytics"),
     # Utilities
     "TSVGenerator": ("almaapitk.utils.tsv_generator", "TSVGenerator"),
     "CitationMetadataError": ("almaapitk.utils.citation_metadata", "CitationMetadataError"),

@@ -1,0 +1,8 @@
+{
+  "repoPath": "/home/hagaybar/projects/Fetch_Alma_Analytics_Reports",
+  "targetBranch": "main",
+  "comparisonBranch": "new_ui",
+  "backendPort": 8000,
+  "frontendPort": 5173,
+  "task8Description": "Migrate Fetch_Alma_Analytics_Reports to almaapitk"
+}

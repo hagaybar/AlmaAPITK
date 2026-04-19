@@ -426,6 +426,63 @@ class TestFetchReportRows:
 
         assert 'limit' in str(exc_info.value).lower() or '1000' in str(exc_info.value)
 
+    def test_fetch_report_rows_invokes_progress_callback_per_page(self):
+        """progress_callback fires once per page with the cumulative total."""
+        from almaapitk.domains.analytics import Analytics
+
+        mock_client = MockAlmaAPIClient('SANDBOX')
+        mock_client.set_get_responses([
+            MockAlmaResponse(SAMPLE_ROWS_XML_PAGE_1),  # 2 rows, has resumption token
+            MockAlmaResponse(SAMPLE_ROWS_XML_PAGE_2),  # 1 row, IsFinished=true
+        ])
+
+        totals = []
+        analytics = Analytics(mock_client)
+        analytics.fetch_report_rows(
+            '/shared/Test/Report',
+            progress_callback=lambda total: totals.append(total),
+        )
+
+        assert totals == [2, 3]
+
+    def test_fetch_report_rows_swallows_progress_callback_exceptions(self):
+        """A raising progress_callback must not abort the fetch or leak."""
+        from almaapitk.domains.analytics import Analytics
+
+        mock_client = MockAlmaAPIClient('SANDBOX')
+        mock_client.set_get_responses([
+            MockAlmaResponse(SAMPLE_ROWS_XML_PAGE_1),
+            MockAlmaResponse(SAMPLE_ROWS_XML_PAGE_2),
+        ])
+
+        def bad_callback(total):
+            raise RuntimeError("boom")
+
+        analytics = Analytics(mock_client)
+        rows = analytics.fetch_report_rows(
+            '/shared/Test/Report',
+            progress_callback=bad_callback,
+        )
+
+        # Fetch still completed and returned all rows from both pages
+        assert len(rows) == 3
+        # Logger saw the warning (exc_info=True path)
+        assert mock_client.logger.warning.called
+
+    def test_fetch_report_rows_no_callback_is_backward_compatible(self):
+        """Omitting progress_callback preserves the original behavior."""
+        from almaapitk.domains.analytics import Analytics
+
+        mock_client = MockAlmaAPIClient('SANDBOX')
+        mock_client.set_get_responses([
+            MockAlmaResponse(SAMPLE_ROWS_XML_SINGLE_PAGE)
+        ])
+
+        analytics = Analytics(mock_client)
+        rows = analytics.fetch_report_rows('/shared/Test/Report')
+
+        assert len(rows) == 2
+
     def test_fetch_report_rows_returns_dict_with_column_keys(self):
         """Test that each row is a dict with Column0, Column1, etc. as keys."""
         from almaapitk.domains.analytics import Analytics

@@ -14,7 +14,7 @@ This domain class follows the standard domain class pattern:
 """
 
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaValidationError
 
@@ -152,7 +152,8 @@ class Analytics:
         self,
         report_path: str,
         limit: int = 1000,
-        max_rows: Optional[int] = None
+        max_rows: Optional[int] = None,
+        progress_callback: Optional[Callable[[int], None]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Fetch rows from an Analytics report with pagination support.
@@ -161,6 +162,10 @@ class Analytics:
             report_path: Path to the Analytics report
             limit: Number of rows per page request (default 1000)
             max_rows: Maximum total rows to return (None for unlimited)
+            progress_callback: Optional callable invoked once per page with
+                the cumulative row count fetched so far. Exceptions raised
+                by the callback are caught and logged; they do not abort
+                the fetch.
 
         Returns:
             List of row dictionaries with Column0, Column1, etc. as keys
@@ -222,6 +227,12 @@ class Analytics:
             all_rows.extend(rows)
 
             self.logger.debug(f"Fetched {len(rows)} rows, total: {len(all_rows)}, finished: {is_finished}")
+
+            if progress_callback is not None:
+                try:
+                    progress_callback(len(all_rows))
+                except Exception:
+                    self.logger.warning("progress_callback raised; continuing fetch", exc_info=True)
 
             # Break if no more pages
             if not resumption_token or is_finished:

@@ -486,8 +486,10 @@ class Users:
         Args:
             user_ids: List of user IDs to process
             years_threshold: Minimum years expired to qualify
-            max_workers: Maximum concurrent processing (respect rate limits)
-        
+            max_workers: NOTE — currently a no-op. Concurrency is planned for a
+                future release; passing this argument has no effect today. The
+                function processes users sequentially.
+
         Returns:
             List of processing results for each user
         """

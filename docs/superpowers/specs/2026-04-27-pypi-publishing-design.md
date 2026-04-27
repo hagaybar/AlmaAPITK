@@ -65,11 +65,13 @@ These are interactive web/local steps no agent can perform.
 ```json
 {
   "sandbox_mms_id": "<a known existing bib MMS ID in the SANDBOX environment>",
-  "sandbox_report_path": "<a known small, low-row analytics report path in SANDBOX>"
+  "analytics_report_path": "<URL-encoded analytics report path; PROD only — see note below>"
 }
 ```
 
-This file must be in place locally before babysitter runs Phase 2.5 / 3.5. It is gitignored — never committed.
+**Important constraint:** Alma Analytics has a single shared database that is only accessible with **PRODUCTION** credentials. There is no analytics endpoint in SANDBOX. So smoke script `03_analytics_headers.py` must instantiate `AlmaAPIClient("PRODUCTION")` and read `ALMA_PROD_API_KEY` from env, while `01_test_connection.py` and `02_get_bib.py` use SANDBOX. The report path is stored URL-encoded as the API expects it.
+
+This file must be in place locally before babysitter runs Phase 2.5 / 3.5. It is gitignored — never committed. **(Already created on 2026-04-27 with confirmed values.)**
 
 ## 6. Architecture
 
@@ -167,7 +169,7 @@ Same artifacts that will go to real PyPI in Phase 3. **No re-builds between Phas
 | 2.2 | `pipx run twine upload --repository testpypi dist/*` | Upload error (most likely: token issue, name conflict, README rendering rejection) |
 | 2.3 | Open `https://test.pypi.org/project/almaapitk/0.3.0/` and visually verify: README renders, classifiers show, project URLs work, version is correct, license is MIT. | Any visible defect |
 | 2.4 | Create fresh venv in `/tmp/almaapitk-smoke-testpypi/` (outside the project tree to avoid editable-install shadowing). `python -m venv /tmp/almaapitk-smoke-testpypi/venv && source /tmp/almaapitk-smoke-testpypi/venv/bin/activate && pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ almaapitk==0.3.0`. The `--extra-index-url` is required because dependencies live on real PyPI. | Install fails |
-| 2.5 | Run all three smoke scripts (see §11) against `SANDBOX`. They read `ALMA_SB_API_KEY` from env and `scripts/post_publish/smoke_config.json` for fixture identifiers. | Any of the three returns non-zero |
+| 2.5 | Run all three smoke scripts (see §11). Scripts 01 and 02 hit `SANDBOX` (need `ALMA_SB_API_KEY`); script 03 hits `PRODUCTION` because Analytics is a single shared DB accessible only via PROD credentials (needs `ALMA_PROD_API_KEY`). All three read `scripts/post_publish/smoke_config.json`. | Any of the three returns non-zero |
 | 2.6 | Run `pip show almaapitk` — version must be `0.3.0`, not a cached older version. | Wrong version |
 
 ## 10. Phase 3 — PyPI publish
@@ -215,19 +217,26 @@ print(f"OK: got bib {config['sandbox_mms_id']}")
 ### 11.3 `03_analytics_headers.py`
 
 ```python
-"""Smoke test: fetch report headers from SANDBOX (validates Analytics domain shipped)."""
+"""Smoke test: fetch report headers (validates Analytics domain shipped).
+
+Note: Analytics has a single shared database accessible only via PRODUCTION
+credentials. SANDBOX has no analytics endpoint. This script therefore uses
+the PROD client; ALMA_PROD_API_KEY must be set.
+"""
 import json, pathlib
 from almaapitk import AlmaAPIClient, Analytics
 
 config = json.loads(pathlib.Path(__file__).parent.joinpath("smoke_config.json").read_text())
-client = AlmaAPIClient("SANDBOX")
+client = AlmaAPIClient("PRODUCTION")
 analytics = Analytics(client)
-headers = analytics.get_report_headers(config["sandbox_report_path"])
+headers = analytics.get_report_headers(config["analytics_report_path"])
 assert headers, "no headers returned"
 print(f"OK: got {len(headers)} headers")
 ```
 
 All three exit non-zero on assertion failure (default Python behavior). Each prints exactly one `OK:` line on success.
+
+**Env vars required when running smoke tests:** `ALMA_SB_API_KEY` (for scripts 01 and 02) and `ALMA_PROD_API_KEY` (for script 03).
 
 A `scripts/post_publish/.gitignore` excludes `smoke_config.json`. A `scripts/post_publish/smoke_config.example.json` is committed with placeholder values. Both files (the example and the gitignore) are created in Phase 1.7. The user fills `smoke_config.json` locally as prerequisite P8.
 

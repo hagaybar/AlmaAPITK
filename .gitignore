@@ -129,6 +129,9 @@ scripts/**/*.tmp.json
 scripts/**/*.tmp.tsv
 scripts/**/*.tmp.csv
 
+# Post-publish smoke-test config (contains institution-specific identifiers)
+scripts/post_publish/smoke_config.json
+
 # FAISS / index binaries that may appear elsewhere
 *.faiss
 *.index

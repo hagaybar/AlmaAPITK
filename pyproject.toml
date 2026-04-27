@@ -1,6 +1,6 @@
 [project]
 name = "almaapitk"
-version = "0.2.0"
+version = "0.3.0"
 description = "Python toolkit for the Ex Libris Alma ILS API"
 authors = [
     {name = "Hagay Bar", email = "hagaybar@gmail.com"}

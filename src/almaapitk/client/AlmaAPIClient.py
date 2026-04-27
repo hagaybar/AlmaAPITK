@@ -177,7 +177,7 @@ class AlmaAPIClient:
 
         # Make request with timing
         start_time = time.time()
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=300)
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response with body for successful requests
@@ -235,10 +235,10 @@ class AlmaAPIClient:
         start_time = time.time()
         if isinstance(data, dict) and not content_type:
             # JSON data
-            response = requests.post(url, headers=headers, json=data, params=params)
+            response = requests.post(url, headers=headers, json=data, params=params, timeout=300)
         else:
             # XML or other data
-            response = requests.post(url, headers=headers, data=data, params=params)
+            response = requests.post(url, headers=headers, data=data, params=params, timeout=300)
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response
@@ -296,10 +296,10 @@ class AlmaAPIClient:
         start_time = time.time()
         if isinstance(data, dict) and not content_type:
             # JSON data
-            response = requests.put(url, headers=headers, json=data, params=params)
+            response = requests.put(url, headers=headers, json=data, params=params, timeout=300)
         else:
             # XML or other data
-            response = requests.put(url, headers=headers, data=data, params=params)
+            response = requests.put(url, headers=headers, data=data, params=params, timeout=300)
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response
@@ -344,7 +344,7 @@ class AlmaAPIClient:
 
         # Make request with timing
         start_time = time.time()
-        response = requests.delete(url, headers=headers, params=params)
+        response = requests.delete(url, headers=headers, params=params, timeout=300)
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response

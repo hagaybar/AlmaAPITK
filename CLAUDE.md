@@ -15,9 +15,8 @@ AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Libr
 | `Alma-Digital-Upload` | Digital file uploads to Alma | Development |
 | `Alma-Acquisitions-Automation` | Rialto POL processing, invoicing | Testing |
 
-**Backup references** (full monolith before cleanup):
-- Branch: `deprecated`
-- Tag: `pre-cleanup-monolith`
+**Backup reference** (full monolith before cleanup):
+- Tag: `pre-cleanup-monolith` (commit `1b1b568`)
 
 ## Import Pattern
 

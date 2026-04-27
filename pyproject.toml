@@ -50,6 +50,12 @@ Issues = "https://github.com/hagaybar/AlmaAPITK/issues"
 
 [tool.poetry]
 packages = [{ include = "almaapitk", from = "src" }]
+include = [
+    { path = "README.md", format = "sdist" },
+    { path = "LICENSE", format = "sdist" },
+    { path = "docs/releases/0.3.0.md", format = "sdist" },
+]
+exclude = ["**/*"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

@@ -319,7 +319,7 @@ cp config/logging_config.example.json config/logging_config.json
 # Customize log levels, rotation, redaction patterns
 ```
 
-See `src/alma_logging/README.md` and `src/alma_logging/docs/LOGGING_IMPLEMENTATION_PLAN.md` for complete documentation.
+See `docs/alma_logging/README.md` and `docs/alma_logging/LOGGING_IMPLEMENTATION_PLAN.md` for complete documentation.
 
 #### Security Notes
 - **Never commit logs to GitHub** - they may contain API responses with sensitive data

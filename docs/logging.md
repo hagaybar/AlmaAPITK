@@ -698,8 +698,8 @@ Logging adds minimal overhead (< 5ms per operation) when properly configured:
 
 ## Additional Resources
 
-- **Module README**: `src/almaapitk/alma_logging/README.md`
-- **Implementation Plan**: `src/almaapitk/alma_logging/docs/LOGGING_IMPLEMENTATION_PLAN.md`
+- **Module README**: `docs/alma_logging/README.md`
+- **Implementation Plan**: `docs/alma_logging/LOGGING_IMPLEMENTATION_PLAN.md`
 - **Example Configuration**: `config/logging_config.example.json`
 - **CLAUDE.md Logging Section**: Project-wide logging requirements
 

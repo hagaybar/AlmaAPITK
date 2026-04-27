@@ -28,7 +28,7 @@ Security:
     - Sensitive data (API keys, passwords, tokens) automatically redacted
     - Never committed to version control
 
-See: src/alma_logging/docs/LOGGING_IMPLEMENTATION_PLAN.md for complete documentation
+See: docs/alma_logging/LOGGING_IMPLEMENTATION_PLAN.md for complete documentation
 """
 
 __version__ = '1.0.0'

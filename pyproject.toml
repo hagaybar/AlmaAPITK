@@ -55,7 +55,19 @@ include = [
     { path = "LICENSE", format = "sdist" },
     { path = "docs/releases/0.3.0.md", format = "sdist" },
 ]
-exclude = ["**/*"]
+exclude = [
+    "tests/**",
+    "scripts/**",
+    "docs/**",
+    "logs/**",
+    "backups/**",
+    ".a5c/**",
+    "config/**",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CLAUDE_tmp.html",
+    "ALMA_DIGITAL_DOCUMENTATION_EVALUATION.md",
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

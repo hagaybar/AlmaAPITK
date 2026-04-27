@@ -70,13 +70,16 @@ client = AlmaAPIClient('SANDBOX')
 
 # Acquisitions operations
 acq = Acquisitions(client)
+# Note: Acquisitions.get_pol returns a plain dict directly
 pol = acq.get_pol("POL-12345")
 print(f"POL Status: {pol['status']['value']}")
 
 # User operations
+# Note: get_user takes a primary ID (NOT email) and returns an AlmaResponse
 users = Users(client)
-user = users.get_user("user@example.com")
-print(f"User: {user['full_name']}")
+user_response = users.get_user("PRIMARY_ID_12345")
+user_data = user_response.json()
+print(f"User: {user_data['full_name']}")
 ```
 
 ### Working with Bibliographic Records
@@ -87,8 +90,8 @@ from almaapitk import AlmaAPIClient, BibliographicRecords
 client = AlmaAPIClient('SANDBOX')
 bibs = BibliographicRecords(client)
 
-# Get a bib record
-record = bibs.get_bib("99123456789")
+# Get a bib record (signature: get_record(mms_id, view="full", expand=None))
+record = bibs.get_record("99123456789")
 
 # Get holdings for a bib
 holdings = bibs.get_holdings("99123456789")
@@ -103,13 +106,17 @@ client = AlmaAPIClient('SANDBOX')
 rs = ResourceSharing(client)
 
 # Create a lending request
-request_data = {
-    "title": "Introduction to Python",
-    "author": "Smith, John",
-    "format_type": "PHYSICAL",
-    "citation_type": "BOOK"
-}
-result = rs.create_lending_request("PARTNER_CODE", request_data)
+# Mandatory: partner_code, external_id, owner, format_type, title
+# (citation_type is required unless mms_id is supplied)
+result = rs.create_lending_request(
+    partner_code="PARTNER_CODE",
+    external_id="EXT-2025-001",
+    owner="MAIN",                  # resource sharing library code
+    format_type="PHYSICAL",
+    title="Introduction to Python",
+    citation_type="BOOK",
+    author="Smith, John",
+)
 ```
 
 ### Analytics Reports
@@ -130,6 +137,18 @@ print(f"Columns: {headers}")
 rows = analytics.fetch_report_rows(report_path, limit=100, max_rows=500)
 for row in rows:
     print(row)  # Dict with Column0, Column1, etc.
+
+# Optional: pass a progress_callback to track progress for large reports.
+# The callback receives one argument: the cumulative row count fetched so far.
+def show_progress(rows_so_far: int) -> None:
+    print(f"  fetched {rows_so_far} rows...")
+
+rows = analytics.fetch_report_rows(
+    report_path,
+    limit=100,
+    max_rows=500,
+    progress_callback=show_progress,
+)
 ```
 
 ## API Reference
@@ -163,15 +182,9 @@ for row in rows:
 
 ## Environment Configuration
 
-The client automatically selects the appropriate API key based on the environment:
-
-```python
-# Uses ALMA_SB_API_KEY
-client = AlmaAPIClient('SANDBOX')
-
-# Uses ALMA_PROD_API_KEY
-client = AlmaAPIClient('PRODUCTION')
-```
+See [Quick Start → Setup](#setup) for environment variable setup. The client
+automatically picks `ALMA_SB_API_KEY` for `'SANDBOX'` and `ALMA_PROD_API_KEY`
+for `'PRODUCTION'`.
 
 ## Error Handling
 
@@ -200,6 +213,9 @@ except AlmaAPIError as e:
 - openpyxl
 - boto3
 - pypdf2
+- pyyaml
+- beautifulsoup4
+- lxml
 
 ## License
 

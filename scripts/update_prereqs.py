@@ -59,6 +59,11 @@ ARCH_TITLES = {
     19: "Dedicated MARC manipulation layer",
     20: "OpenAPI-driven request/response validation",
     21: "CSV/DataFrame BatchRunner with checkpointing",
+    # Foundation bootstrap tickets (referenced as hard prereqs by their siblings)
+    22: "Configuration domain class bootstrap",
+    66: "Electronic domain class bootstrap",
+    70: "TaskLists domain class bootstrap",
+    75: "Courses domain class bootstrap",
 }
 
 # Architecture-issue prereqs (hand-curated dependency graph).

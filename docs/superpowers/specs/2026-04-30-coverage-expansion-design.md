@@ -180,6 +180,100 @@ refs.
 | 57 | Coverage: ResourceSharing: directory members | — |
 | 58 | Coverage: Analytics: paths endpoint | — |
 
+## 5.5 Recommended logical order
+
+The 77 issues span architecture (#3–#21) and coverage (#22–#79). Some
+architecture changes pay back across every coverage method that ships after
+them — landing them first prevents repeated rework. The recommended sequence
+below treats the architecture suite as a foundation, then layers coverage on
+top by priority.
+
+A future agent may pick out-of-order if a specific business need overrides;
+the ordering is a recommendation, not a hard requirement.
+
+### Phase 1 — HTTP foundation (architecture)
+
+Land these before any bulk new method work; they touch every HTTP call.
+
+- #3 Persistent `requests.Session`
+- #4 Consolidate verbs into `_request()`
+- #5 Retry with exponential backoff (429 / 5xx)
+- #6 Configurable timeout (60s default)
+- #14 Replace `print()` with logger; remove `safe_request()`
+
+### Phase 2 — Correctness & ergonomics (architecture)
+
+- #16 Tighten exception handling; cache `AlmaResponse.data`
+- #9 Map Alma error codes to specific exception subclasses
+- #10 Propagate `tracking_id` and `alma_code` on errors
+- #13 Context-manager (`with`-statement) support
+- #7 Configurable region / host
+
+### Phase 3 — Pagination + accessor ergonomics (architecture)
+
+- #11 `iter_paged()` generator at the client level
+- #15 Hierarchical accessors (`client.acq.invoices...`)
+
+### Phase 4 — Coverage foundations (high & medium priority)
+
+These bootstrap tickets create new domain classes; their siblings can't start
+until these merge.
+
+- #22 Configuration domain class — unblocks 12 high-priority Configuration tickets
+- #66 Electronic domain class — unblocks 3 medium-priority tickets
+- #70 TaskLists domain class — unblocks 3 medium-priority tickets
+
+(#75 Courses bootstrap stays in Phase 9 due to LOW priority.)
+
+### Phase 5 — High-priority coverage
+
+24 tickets that the toolkit's consumer projects need most.
+
+- Configuration: #23–#35 (13 tickets)
+- Users: #36–#45 (10 tickets)
+
+### Phase 6 — Architecture: rate-limit, async, advanced
+
+These add capabilities that materially change how Phase 7 work is built; if
+you're about to write a 10-method bulk batch, land these first.
+
+- #8 Client-side rolling-window rate limiting
+- #18 Async / concurrent bulk-call primitive
+- #21 CSV/DataFrame `BatchRunner` with checkpointing
+- #19 Dedicated MARC manipulation layer
+- #20 OpenAPI-driven request/response validation
+- #12 Optional Pydantic response models (derived from #20's vendored specs)
+
+### Phase 7 — Medium-priority coverage
+
+29 tickets covering Bibs, Acquisitions, Electronic, TaskLists, Resource Sharing
+Partners.
+
+- Bibs: #46–#57 (12 tickets)
+- Acquisitions: #58–#65 (8 tickets)
+- Electronic: #67–#69 (3 tickets, after #66 from Phase 4)
+- TaskLists: #71–#73 (3 tickets, after #70 from Phase 4)
+- Resource Sharing Partners: #74
+
+### Phase 8 — Distribution / metadata
+
+- #17 LICENSE file + PyPI metadata cleanup
+
+### Phase 9 — Low-priority coverage
+
+Defer until everything above is in good shape.
+
+- #75 Courses bootstrap → #76 → #77
+- #78 Resource Sharing Directory Members
+- #79 Analytics paths endpoint
+
+### Quick-start summary
+
+If a future agent has limited time and wants the highest-value first move,
+start with **#3 → #4 → #14**. Those three together unlock retries, timeouts,
+rate-limiting, and any new domain method that follows; nothing else materially
+benefits all of #22–#79 the way they do.
+
 ## 6. Partial-overlap warnings
 
 These four issues **extend** existing methods rather than introducing a new

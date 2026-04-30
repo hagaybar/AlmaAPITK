@@ -18,6 +18,77 @@ AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Libr
 **Backup reference** (full monolith before cleanup):
 - Tag: `pre-cleanup-monolith` (commit `1b1b568`)
 
+## Active Backlogs (GitHub Issues)
+
+This repo carries two structured improvement backlogs filed as GitHub issues.
+Before suggesting a new improvement, check these first — chances are it is
+already filed.
+
+### Architectural improvements — issues `#3–#21`
+
+**Filter:** `is:open is:issue label:enhancement -label:api-coverage`
+
+19 issues covering HTTP transport, error taxonomy, response typing,
+async/batch, MARC integration, and packaging hygiene. Each issue has
+`Complexity` (S/M/L) and `Benefit` (Low/Medium/High) at the top, plus a
+`Prerequisites` section with hard blockers and recommended soft prereqs.
+
+### API coverage expansion — issues `#22–#79`
+
+**Filter:** `is:open is:issue label:api-coverage`
+
+58 issues that grow the toolkit's coverage of the Alma REST API. Use the
+priority labels `priority:high` / `priority:medium` / `priority:low` to
+narrow further.
+
+Every coverage issue has a standard body:
+- `Domain`, `Priority`, `Effort` at the top
+- `API endpoints touched` (HTTP method + path)
+- `Methods to add` (Python signatures)
+- `Files to touch` (paths in `src/almaapitk/`)
+- `References` (Alma developer-network URL + skills + existing patterns)
+- `DO NOT re-implement` (4 partial-overlap issues only)
+- `Prerequisites` (hard blockers + recommended soft prereqs)
+- `Acceptance criteria` (explicit, testable)
+- `Notes for the implementing agent` (pitfalls, test strategy)
+
+### Recommended pickup order
+
+The coverage backlog is built on the architectural foundation. Picking up a
+coverage ticket *before* the relevant architectural tickets land usually means
+implementing the same code twice (once now, once after the architecture
+catches up). The recommended ordering is documented in detail in
+`docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` §5.5.
+
+**Quick-start (highest leverage first):**
+
+1. `#3` Persistent `requests.Session` — every HTTP call benefits.
+2. `#4` Consolidate verbs into `_request()` — single chokepoint for retry,
+   timeout, rate-limit.
+3. `#14` Replace `print()` with logger — clears a project-policy violation.
+4. Then either keep climbing the architecture stack (#5, #16, #9, #10, #11)
+   or jump to the highest-priority foundation ticket `#22` (Configuration
+   bootstrap) if coverage is the immediate need.
+
+### Foundation (bootstrap) tickets
+
+Four bootstrap tickets create new domain classes and **block their siblings**:
+
+- `#22` Configuration → blocks `#24–#35`
+- `#66` Electronic → blocks `#67–#69`
+- `#70` TaskLists → blocks `#71–#73`
+- `#75` Courses → blocks `#76–#77`
+
+Issue `#23` (Sets full CRUD + member management) extends the existing `Admin`
+class — it does NOT depend on `#22`.
+
+### Spec doc
+
+Full design rationale, decisions, gap matrix, partial-overlap warnings, and
+phased ordering live in
+`docs/superpowers/specs/2026-04-30-coverage-expansion-design.md`. Read it
+before opening additional coverage issues.
+
 ## Import Pattern
 
 ```python

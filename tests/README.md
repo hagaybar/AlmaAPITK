@@ -20,7 +20,6 @@ This directory contains all tests and test-related files for the AlmaAPITK proje
   - `pols/` - Purchase Order Line (POL) tests
   - `items/` - Item receiving and management tests
 
-  - `POL-12345/` - Rialto complete flow case study
   - `POL-12346/` - Rialto flow variation
   - `POL-12347/` - Receive and keep in department workflow
 
@@ -66,13 +65,10 @@ python3 tests/integration/pols/test_pol_verification.py <pol_id>
 python3 tests/integration/items/test_receive_item.py <pol_id> <item_id>
 ```
 
-### Case Studies
 
-Case studies are complete workflow tests with detailed documentation. Each case study directory contains a README with specific instructions.
 
 ```bash
 
-# See individual case study READMEs for details:
 ```
 
 ## Test Development Guidelines
@@ -89,7 +85,6 @@ Case studies are complete workflow tests with detailed documentation. Each case 
 - Include clear error messages and logging
 - Document expected outcomes and API behavior
 
-### Case Studies
 - Document complete workflows from start to finish
 - Include README explaining purpose and findings
 - Capture API responses and state transitions
@@ -112,7 +107,6 @@ export ALMA_PROD_API_KEY="your-production-api-key"
 1. **Always use SANDBOX first** - Never test new code in production
 2. **Verify data before operations** - Check for existing records to avoid duplicates
 3. **Follow documented workflows** - Especially for invoice and POL operations
-4. **Read case study documentation** - Learn from documented incidents and findings
 
 
 
@@ -136,7 +130,6 @@ When adding new tests:
 3. **Include documentation**:
    - Docstrings explaining test purpose
    - Comments for complex test logic
-   - README for case studies
 
 4. **Use absolute imports**:
    ```python
@@ -146,7 +139,6 @@ When adding new tests:
 
 ## Maintenance
 
-- **Review case studies periodically** - Update with new findings
 - **Archive old test data** - Keep test results in `archive/` subdirectories
 - **Update documentation** - Keep READMEs current with code changes
 - **Clean up obsolete tests** - Remove tests that no longer provide value

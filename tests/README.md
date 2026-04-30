@@ -20,11 +20,9 @@ This directory contains all tests and test-related files for the AlmaAPITK proje
   - `pols/` - Purchase Order Line (POL) tests
   - `items/` - Item receiving and management tests
 
-- **case_studies/** - POL-specific workflow documentation and tests
   - `POL-12345/` - Rialto complete flow case study
   - `POL-12346/` - Rialto flow variation
   - `POL-12347/` - Receive and keep in department workflow
-  - `POL-12352/` - Invoice creation and payment workflow (includes duplicate payment incident)
 
 - **logging/** - Logging infrastructure tests
   - Various logging configuration and output tests
@@ -73,14 +71,8 @@ python3 tests/integration/items/test_receive_item.py <pol_id> <item_id>
 Case studies are complete workflow tests with detailed documentation. Each case study directory contains a README with specific instructions.
 
 ```bash
-# Example: Run POL-12352 complete workflow
-python3 tests/case_studies/POL-12352/complete_invoice_workflow_POL12352.py
 
 # See individual case study READMEs for details:
-# - tests/case_studies/POL-12345/README.md
-# - tests/case_studies/POL-12346/README.md
-# - tests/case_studies/POL-12347/README.md
-# - tests/case_studies/POL-12352/README.md
 ```
 
 ## Test Development Guidelines
@@ -122,17 +114,12 @@ export ALMA_PROD_API_KEY="your-production-api-key"
 3. **Follow documented workflows** - Especially for invoice and POL operations
 4. **Read case study documentation** - Learn from documented incidents and findings
 
-## Important Case Study: Duplicate Payment Prevention
 
-The POL-12352 case study documents a critical duplicate payment incident and the protective measures implemented. **Required reading** for anyone working with invoice operations:
 
-- **Location**: `tests/case_studies/POL-12352/README.md`
-- **Incident Report**: `INCIDENT_REPORT_DUPLICATE_PAYMENT_POL12352.md` (project root)
 - **Key Lessons**:
   1. Always check for existing invoices before creating new ones
   2. Never skip the invoice approval/processing step
   3. Fix existing invoices on error - don't create duplicates
-  4. Trust the automatic duplicate payment protection
 
 ## Contributing
 
@@ -141,7 +128,6 @@ When adding new tests:
 1. **Choose the right category**:
    - Unit test? → `tests/unit/`
    - Integration test? → `tests/integration/`
-   - Complete workflow documentation? → `tests/case_studies/`
 
 2. **Follow naming conventions**:
    - Test files: `test_*.py`

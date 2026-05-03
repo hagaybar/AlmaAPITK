@@ -33,3 +33,50 @@ def test_passes_when_diff_is_empty():
 
     result = check_scope(diff_files=[], files_to_touch=["any"])
     assert result["pass"] is True
+
+
+def test_cli_pass_via_stdin():
+    """CLI: diff_files passed inline → exit 0, JSON pass=true."""
+    import json, subprocess
+    payload = json.dumps({
+        "diff_files": ["a.py"],
+        "files_to_touch": ["a.py"],
+    })
+    result = subprocess.run(
+        ["python", "-m", "scripts.agentic.scope_check"],
+        input=payload, capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+    out = json.loads(result.stdout)
+    assert out["pass"] is True
+
+
+def test_cli_fail_via_stdin():
+    """CLI: out-of-scope file → exit 2, JSON pass=false."""
+    import json, subprocess
+    payload = json.dumps({
+        "diff_files": ["b.py"],
+        "files_to_touch": ["a.py"],
+    })
+    result = subprocess.run(
+        ["python", "-m", "scripts.agentic.scope_check"],
+        input=payload, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    out = json.loads(result.stdout)
+    assert out["pass"] is False
+    assert "b.py" in out["out_of_scope"]
+
+
+def test_cli_bad_payload_returns_structured_error():
+    """CLI: missing files_to_touch → exit 3, JSON error=bad_payload."""
+    import json, subprocess
+    payload = json.dumps({"diff_files": []})  # missing files_to_touch
+    result = subprocess.run(
+        ["python", "-m", "scripts.agentic.scope_check"],
+        input=payload, capture_output=True, text=True,
+    )
+    assert result.returncode == 3
+    out = json.loads(result.stdout)
+    assert out["pass"] is False
+    assert out["error"] == "bad_payload"

@@ -28,19 +28,44 @@ def main() -> int:
     import json
     import sys
 
-    payload = json.load(sys.stdin)
-    if "diff_files" in payload:
-        diff_files = payload["diff_files"]
-    else:
-        diff_files = diff_files_for_branch(
-            base=payload["base"],
-            branch=payload["branch"],
-            repo_root=Path(payload.get("repo_root", ".")),
+    try:
+        payload = json.load(sys.stdin)
+        if "diff_files" in payload:
+            diff_files = payload["diff_files"]
+        else:
+            diff_files = diff_files_for_branch(
+                base=payload["base"],
+                branch=payload["branch"],
+                repo_root=Path(payload.get("repo_root", ".")),
+            )
+        result = check_scope(diff_files, payload["files_to_touch"])
+        json.dump(result, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 0 if result["pass"] else 2
+    except subprocess.CalledProcessError as exc:
+        json.dump(
+            {
+                "pass": False,
+                "error": "git_failed",
+                "stderr": exc.stderr or "",
+            },
+            sys.stdout,
+            indent=2,
         )
-    result = check_scope(diff_files, payload["files_to_touch"])
-    json.dump(result, sys.stdout, indent=2)
-    sys.stdout.write("\n")
-    return 0 if result["pass"] else 2
+        sys.stdout.write("\n")
+        return 3
+    except KeyError as exc:
+        json.dump(
+            {
+                "pass": False,
+                "error": "bad_payload",
+                "missing_key": exc.args[0] if exc.args else "",
+            },
+            sys.stdout,
+            indent=2,
+        )
+        sys.stdout.write("\n")
+        return 3
 
 
 if __name__ == "__main__":

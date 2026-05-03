@@ -312,6 +312,68 @@ After testing finishes, in this exact order:
 
 ---
 
+## 8.5 Operator UX (the agent as guide)
+
+The whole pipeline is human-paced. The human triggers stages, but should never have to remember which chunk is at which stage, or what the "next thing to do" is. The agent — Claude Code in the operator's session — is responsible for:
+
+1. **Knowing the state of every chunk at all times.** A `chunks/<name>/status.json` file is the source of truth. Each stage updates it as it transitions.
+2. **Surfacing a dashboard on demand or unprompted.** When the operator opens a session in this repo, or asks "what's the state of things", the agent reads all `chunks/*/status.json` and presents:
+   - One line per chunk: name, current stage, blocking action, last update timestamp.
+   - A "next recommended action" pointer per active chunk (e.g., "chunk `http-foundation`: implementation done; review the diff and trigger `chunk-test http-foundation` when ready").
+3. **Walking the operator through every interactive stage** — chunk definition, fixture interview, post-test triage. Not just "tell me the answer" prompts; the agent explains what's being asked, why, and what the impact of each option is.
+4. **Announcing transitions.** When a stage finishes (impl done, test results in, PR opened), the agent posts a concise status update unprompted.
+
+### `chunks/<name>/status.json` schema
+
+```json
+{
+  "chunk": "http-foundation",
+  "issues": [3, 4, 14],
+  "stage": "defined | impl-running | impl-done | test-data-pending | test-running | test-done | pr-opened | merged | aborted",
+  "branch": "chunk/http-foundation",
+  "createdAt": "2026-05-03T12:00:00Z",
+  "updatedAt": "2026-05-03T12:34:00Z",
+  "lastEvent": "Implementation complete; test-recommendation.json written. Review and trigger chunk-test when ready.",
+  "nextAction": "chunk-test http-foundation",
+  "openBreakpoints": [],
+  "implRunId": "01KQH...",
+  "testRunId": null,
+  "prUrl": null
+}
+```
+
+### CLI helper: `scripts/agentic/chunks`
+
+A small bash CLI the operator (and the agent) call to interact with chunk state. Subcommands:
+
+| Subcommand | Purpose |
+|---|---|
+| `chunks list` | One-line summary of every chunk in `chunks/*/status.json`, sorted by `updatedAt` |
+| `chunks status <name>` | Full status block for one chunk (manifest, status, next-action, open files) |
+| `chunks next` | Across all chunks, list the recommended next actions in priority order |
+| `chunks define --name <n> --issues <ids>` | Stage 1 entrypoint: builds manifest, validates prereqs, generates impl process, writes initial `status.json` |
+| `chunks run-impl <name>` | Triggers the per-chunk implementation babysitter run; updates `status.json` as it transitions |
+| `chunks run-test <name>` | Triggers `chunk-test.js` against the named chunk; orchestrates the data interview and updates `status.json` |
+| `chunks abort <name>` | Marks the chunk aborted, leaves branches in place for inspection |
+
+These commands are **scripts** so the operator can call them by hand (e.g., from a non-Claude shell) and so the agent has a stable interface to call them from. They are NOT a substitute for the agent's narration — they're the source of truth, the agent is the guide.
+
+### Session-start convention
+
+When a Claude Code session opens in this repo and `chunks/` contains active chunks (`stage` ∉ `{merged, aborted}`), the agent's first message in that session must include a one-paragraph dashboard:
+
+> *"You have 2 active chunks. **`http-foundation`** (#3, #4): implementation done, awaiting your test trigger. **`config-bootstrap`** (#22): impl-running, attempt 2/3 on issue #22. Want me to dig into either, or define a new chunk?"*
+
+This is captured in `docs/CHUNK_PLAYBOOK.md` as standing instruction.
+
+### What the agent does NOT do
+
+- Auto-trigger any stage. Even if a chunk has been sitting at `impl-done` for a week, the agent does not auto-start `run-test`. It surfaces the state and waits.
+- Decide for the operator at any breakpoint. The agent presents context and options, never picks.
+- Hide failures. If something is in `aborted` or has failing tests, the dashboard says so explicitly.
+
+---
+
 ## 9. File layout per chunk
 
 ```
@@ -323,6 +385,7 @@ After testing finishes, in this exact order:
 chunks/
   <name>/
     manifest.json                 # Issue list + parsed prereqs (stage 1)
+    status.json                   # Lifecycle state, source of truth for §8.5 (stages 1–7)
     implementation-summary.md     # What got built per issue (stage 3)
     test-recommendation.json      # The contract (stage 3 output → stage 5 input)
     test-data.json                # Human's fixture answers (stage 5)
@@ -334,8 +397,13 @@ chunks/
       t-3-1.log
       t-3-2.log
 
+scripts/agentic/
+  chunks                          # CLI helper (§8.5): list/status/next/define/run-impl/run-test/abort
+  ...                             # other helpers (issue parser, prereq checker, scope-check, etc.)
+
 docs/
   AGENTIC_RUN_LOG.md              # Append-only chunk log (calibration metrics)
+  CHUNK_PLAYBOOK.md               # Operator cheat sheet + session-start convention (§8.5)
 ```
 
 `chunks/` is checked into git per the user's auto-memory ("Always include `.a5c/` artifacts in commits"). The same applies to chunk artifacts: the run log of a chunk lives forever for traceability.

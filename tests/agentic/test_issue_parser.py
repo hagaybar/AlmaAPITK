@@ -28,3 +28,18 @@ def test_parse_well_formed_issue_999():
     assert len(parsed["acceptance_criteria"]) == 2
     assert "AC-1" in parsed["acceptance_criteria"][0]
     assert parsed["labels"] == ["api-coverage", "priority:medium"]
+
+
+def test_parse_rejects_missing_structured_headers():
+    from scripts.agentic.issue_parser import parse_issue
+
+    raw = json.loads((FIXTURES / "issue-998-bad.json").read_text())
+    with pytest.raises(ValueError, match="missing Domain/Priority/Effort"):
+        parse_issue(raw)
+
+
+def test_parse_rejects_missing_top_level_keys():
+    from scripts.agentic.issue_parser import parse_issue
+
+    with pytest.raises(ValueError, match="missing required key"):
+        parse_issue({"number": 1, "title": "no body"})

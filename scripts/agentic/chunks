@@ -151,9 +151,26 @@ PYEOF
 
   run-test)
     name="${1:?run-test: chunk name required}"
-    echo "TODO: trigger chunk-test.js with chunkName=$name via babysitter run:create" >&2
-    echo "(implementation in Phase 8)" >&2
-    exit 1
+    cd "$REPO_ROOT"
+    inputs="$(mktemp --suffix=.json)"
+    cat > "$inputs" <<EOF
+{"chunkName": "$name", "repoRoot": "$REPO_ROOT"}
+EOF
+    babysitter run:create \
+      --process-id "chunk-test-$name" \
+      --entry "$REPO_ROOT/.a5c/processes/chunk-test.js#process" \
+      --inputs "$inputs" \
+      --prompt "Run SANDBOX tests for chunk $name" \
+      --harness claude-code \
+      --json
+    "$PY" - "$CHUNKS_DIR" "$name" <<'PYEOF'
+import sys
+from pathlib import Path
+from scripts.agentic.chunk_status import transition
+transition(Path(sys.argv[1]) / sys.argv[2], "test-data-pending",
+           "test process started; awaiting fixture interview",
+           "answer the data interview when prompted")
+PYEOF
     ;;
 
   abort)

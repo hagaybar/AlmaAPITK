@@ -60,3 +60,35 @@ def test_cli_round_trip(tmp_path):
     parsed = json.loads(result.stdout)
     assert parsed["number"] == 999
     assert parsed["domain"] == "Users"
+
+
+def test_parse_real_issue_67_format():
+    """Real issue #67 uses bold markdown headers and structured prereq subsections."""
+    from scripts.agentic.issue_parser import parse_issue
+
+    raw = json.loads((FIXTURES / "issue-real-67.json").read_text())
+    parsed = parse_issue(raw)
+
+    assert parsed["number"] == 67
+    assert parsed["domain"] == "Electronic"
+    assert parsed["priority"] == "medium"
+    assert parsed["effort"] == "M" or parsed["effort"] == "S"  # accept either; just must not be empty
+    # Real issue prereqs: hard #66 (Electronic bootstrap), recommended set with #3, #4 etc.
+    assert 66 in parsed["hard_prereqs"], f"expected #66 in hard prereqs; got {parsed['hard_prereqs']}"
+    assert 3 in parsed["soft_prereqs"], f"expected #3 in soft prereqs; got {parsed['soft_prereqs']}"
+    # ACs are bare-bullet; expect non-empty
+    assert len(parsed["acceptance_criteria"]) >= 3, f"expected >= 3 ACs; got {parsed['acceptance_criteria']}"
+    # Endpoints: backtick-quoted in bullets like - `GET /...` — confirm at least one is captured
+    assert any("/almaws/" in e for e in parsed["endpoints"]), f"endpoints: {parsed['endpoints']}"
+
+
+def test_synthetic_fixture_still_works():
+    """Phase 1 baseline must still pass."""
+    from scripts.agentic.issue_parser import parse_issue
+
+    raw = json.loads((FIXTURES / "issue-999.json").read_text())
+    parsed = parse_issue(raw)
+    assert parsed["domain"] == "Users"
+    assert parsed["hard_prereqs"] == [3]
+    assert parsed["soft_prereqs"] == [14]
+    assert len(parsed["acceptance_criteria"]) == 2

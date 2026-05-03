@@ -1,0 +1,7 @@
+{
+  "number": 998,
+  "title": "Bad fixture (missing structured fields)",
+  "url": "https://example.invalid/issue/998",
+  "labels": [],
+  "body": "This issue body has no structured fields. It should make the parser fail clearly."
+}

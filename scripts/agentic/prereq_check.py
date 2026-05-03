@@ -6,30 +6,58 @@ prereq is supposed to introduce.
 """
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
 
-def _symbol_present(symbol: str, search_root: Path) -> bool:
-    """Word-boundary search for `symbol` under `search_root`. Returns True on hit."""
+def _symbol_present(symbol: str, search_root: Path, repo_root: Path) -> bool:
+    """Word-boundary fixed-string search in tracked .py files under search_root."""
     if not search_root.exists():
         return False
+
+    # Get tracked .py files under search_root (deterministic, .gitignore-aware)
+    rel = search_root.resolve().relative_to(repo_root.resolve())
+    ls = subprocess.run(
+        ["git", "-C", str(repo_root), "ls-files", "--", f"{rel}/*.py" if str(rel) != "." else "*.py"],
+        capture_output=True, text=True,
+    )
+    if ls.returncode != 0:
+        # Not a git repo or git failed — fall back to filesystem walk
+        files = [str(p) for p in search_root.rglob("*.py")]
+    else:
+        files = [str(repo_root / line) for line in ls.stdout.splitlines() if line.strip()]
+
+    if not files:
+        return False
+
+    # Try rg first (fixed-string + word boundary), then grep
     try:
-        # ripgrep is preferred but not guaranteed; fall back to grep -r
-        cmd = ["rg", "-l", "-w", symbol, str(search_root)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(
+            ["rg", "-lwF", symbol, *files],
+            capture_output=True, text=True,
+        )
         if result.returncode == 0:
             return bool(result.stdout.strip())
         if result.returncode == 1:
             return False
-        # rg not installed or other error → fall through to grep
+        # rg returncode > 1 → real error; capture and try grep
+        rg_err = result.stderr.strip()
     except FileNotFoundError:
-        pass
-    cmd = ["grep", "-rlw", "--include=*.py", symbol, str(search_root)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.returncode == 0 and bool(result.stdout.strip())
+        rg_err = "rg not installed"
+
+    result = subprocess.run(
+        ["grep", "-lwF", symbol, *files],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        return bool(result.stdout.strip())
+    if result.returncode == 1:
+        return False
+    # grep also failed
+    raise RuntimeError(
+        f"prereq scan for symbol {symbol!r} failed: rg: {rg_err}; grep: {result.stderr.strip()}"
+    )
 
 
 def check_prereqs(prereqs: list[dict[str, Any]], repo_root: Path) -> dict[str, Any]:
@@ -44,12 +72,12 @@ def check_prereqs(prereqs: list[dict[str, Any]], repo_root: Path) -> dict[str, A
     missing: list[dict[str, Any]] = []
     for p in prereqs:
         where = repo_root / p.get("where", ".")
-        if not _symbol_present(p["symbol"], where):
+        if not _symbol_present(p["symbol"], where, repo_root):
             missing.append({
                 "issue": p["issue"],
                 "symbol": p["symbol"],
                 "where": p.get("where", "."),
-                "why": f"symbol '{p['symbol']}' not found under {where}",
+                "why": f"symbol {p['symbol']!r} not found in tracked .py files under {p.get('where', '.')!r}",
             })
     return {"all_merged": not missing, "missing": missing}
 

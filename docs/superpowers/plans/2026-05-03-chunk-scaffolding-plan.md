@@ -3011,7 +3011,7 @@ Expected: every test passes.
 
 ## Out of scope for this plan
 
-- **Pilot chunk implementation** — Phase C in the spec. Once this scaffolding lands, the first real chunk (recommended: `http-foundation` covering #3, #4) is its own plan.
+- **Pilot chunk implementation** — Phase C in the spec. Once this scaffolding lands, the first real chunk (recommended: `http-session-and-request` covering #3, #4 — see `docs/CHUNK_BACKLOG.md`) is its own plan.
 - **Wave-level orchestration** — running multiple chunks in parallel. The spec leaves parallelism = 1 during scaffolding/pilot.
 - **Cross-chunk dependency tracking** — explicitly punted (spec §11).
 - **Chunk-suggest helper** — explicitly punted (spec §13 future work).

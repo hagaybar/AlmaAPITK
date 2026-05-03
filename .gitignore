@@ -196,3 +196,7 @@ archive/
 ###############################################################################
 
 *:Zone.Identifier
+
+# Chunk-driven scaffolding (per spec §9): keep manifests + status, drop raw logs
+chunks/*/sandbox-test-output/
+chunks/*/sandbox-tests/

@@ -43,3 +43,20 @@ def test_parse_rejects_missing_top_level_keys():
 
     with pytest.raises(ValueError, match="missing required key"):
         parse_issue({"number": 1, "title": "no body"})
+
+
+def test_cli_round_trip(tmp_path):
+    """Run the parser as a CLI: stdin → stdout."""
+    import subprocess
+
+    fixture = (FIXTURES / "issue-999.json").read_text()
+    result = subprocess.run(
+        ["python", "-m", "scripts.agentic.issue_parser"],
+        input=fixture,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    parsed = json.loads(result.stdout)
+    assert parsed["number"] == 999
+    assert parsed["domain"] == "Users"

@@ -46,22 +46,49 @@ def format_body(
 """
 
 
+def _norm(value: str | None) -> str:
+    """Normalize a branch/base name: None-safe, trimmed, lowercased."""
+    return (value or "").strip().lower()
+
+
 def build_pr_args(
-    head_branch: str,
+    head_branch: str | None,
     title: str,
     body: str,
     base: str = "main",
     body_file: Path | None = None,
 ) -> list[str]:
-    if base != "main":
+    base_norm = _norm(base)
+    if base_norm != "main":
         raise ValueError(f"base must be 'main' per R1; got {base!r}")
-    if head_branch == "prod":
-        raise ValueError("head must not be 'prod' per R1")
-    if head_branch == "main":
-        raise ValueError("head cannot be 'main'; PR must come from a chunk branch")
+    head_norm = _norm(head_branch)
+    if not head_norm:
+        raise ValueError("head must be a non-empty branch name")
+    forbidden_heads = {
+        "prod",
+        "main",
+        "origin/prod",
+        "refs/heads/prod",
+        "origin/main",
+        "refs/heads/main",
+    }
+    if head_norm in forbidden_heads:
+        raise ValueError(
+            f"head must not be {head_branch!r} per R1 (refers to a protected branch)"
+        )
 
-    args = ["gh", "pr", "create", "--draft", "--base", base, "--head", head_branch,
-            "--title", title]
+    args = [
+        "gh",
+        "pr",
+        "create",
+        "--draft",
+        "--base",
+        base,
+        "--head",
+        head_branch,
+        "--title",
+        title,
+    ]
     if body_file is not None:
         args += ["--body-file", str(body_file)]
     else:
@@ -80,15 +107,16 @@ def open_pr(
     """Create the draft PR. Returns the PR URL on success."""
     body = format_body(chunk_name, issue_numbers, impl_summary, test_summary)
     title = f"chunk: {chunk_name} (#{', #'.join(str(n) for n in issue_numbers)})"
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".md", delete=False, dir=repo_root
-    ) as tf:
+    # Tempfile lives in the system temp dir, not the repo, to avoid polluting
+    # `git status` if cleanup ever fails.
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tf:
         tf.write(body)
         body_file = Path(tf.name)
     try:
         args = build_pr_args(head_branch, title, body=body, body_file=body_file)
-        result = subprocess.run(args, cwd=repo_root, capture_output=True, text=True,
-                                check=True)
+        result = subprocess.run(
+            args, cwd=repo_root, capture_output=True, text=True, check=True
+        )
         return result.stdout.strip()
     finally:
         body_file.unlink(missing_ok=True)
@@ -96,20 +124,59 @@ def open_pr(
 
 def main() -> int:
     import json
+    import subprocess as sp
     import sys
 
-    payload = json.load(sys.stdin)
-    url = open_pr(
-        head_branch=payload["head_branch"],
-        chunk_name=payload["chunk_name"],
-        issue_numbers=payload["issue_numbers"],
-        impl_summary=payload["impl_summary"],
-        test_summary=payload["test_summary"],
-        repo_root=Path(payload.get("repo_root", ".")),
-    )
-    json.dump({"pr_url": url}, sys.stdout, indent=2)
-    sys.stdout.write("\n")
-    return 0
+    try:
+        payload = json.load(sys.stdin)
+        url = open_pr(
+            head_branch=payload["head_branch"],
+            chunk_name=payload["chunk_name"],
+            issue_numbers=payload["issue_numbers"],
+            impl_summary=payload["impl_summary"],
+            test_summary=payload["test_summary"],
+            repo_root=Path(payload.get("repo_root", ".")),
+        )
+        json.dump({"ok": True, "pr_url": url}, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 0
+    except KeyError as exc:
+        json.dump(
+            {
+                "ok": False,
+                "error": "bad_payload",
+                "missing_key": exc.args[0] if exc.args else "",
+            },
+            sys.stdout,
+            indent=2,
+        )
+        sys.stdout.write("\n")
+        return 3
+    except sp.CalledProcessError as exc:
+        json.dump(
+            {
+                "ok": False,
+                "error": "gh_failed",
+                "stderr": (exc.stderr or "").strip(),
+            },
+            sys.stdout,
+            indent=2,
+        )
+        sys.stdout.write("\n")
+        return 3
+    except ValueError as exc:
+        # R1 violation, base/head guard, or other payload-shape issue.
+        json.dump(
+            {
+                "ok": False,
+                "error": "r1_or_payload",
+                "detail": str(exc),
+            },
+            sys.stdout,
+            indent=2,
+        )
+        sys.stdout.write("\n")
+        return 3
 
 
 if __name__ == "__main__":

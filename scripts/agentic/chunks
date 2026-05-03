@@ -144,9 +144,32 @@ PYEOF
 
   run-impl)
     name="${1:?run-impl: chunk name required}"
-    echo "TODO: trigger chunk-<name>-impl.js via babysitter run:create" >&2
-    echo "(implementation in Phase 9)" >&2
-    exit 1
+    cd "$REPO_ROOT"
+    # Ensure the integration branch exists
+    if ! git rev-parse --verify "chunk/$name" >/dev/null 2>&1; then
+      git checkout main
+      git checkout -b "chunk/$name"
+    fi
+    git checkout "chunk/$name"
+    inputs="$(mktemp --suffix=.json)"
+    cat > "$inputs" <<EOF
+{"chunkName": "$name", "repoRoot": "$REPO_ROOT", "maxAttempts": 3}
+EOF
+    babysitter run:create \
+      --process-id "chunk-impl-$name" \
+      --entry "$REPO_ROOT/.a5c/processes/chunk-template-impl.js#process" \
+      --inputs "$inputs" \
+      --prompt "Implement chunk $name on integration branch" \
+      --harness claude-code \
+      --json
+    "$PY" - "$CHUNKS_DIR" "$name" <<'PYEOF'
+import sys
+from pathlib import Path
+from scripts.agentic.chunk_status import transition
+transition(Path(sys.argv[1]) / sys.argv[2], "impl-running",
+           "implementation babysitter run created",
+           "monitor babysitter run; resume CLI when done")
+PYEOF
     ;;
 
   run-test)

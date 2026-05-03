@@ -49,33 +49,49 @@ export const staticGatesTask = defineTask('static-gates', (args, taskCtx) => ({
   kind: 'shell',
   title: 'Static gates: py_compile + smoke_import',
   shell: {
+    // Skip py_compile if no .py files changed; an empty `python -m py_compile`
+    // call exits non-zero, which would falsely fail this gate for doc-only
+    // commits.
     command: `cd "${args.repoRoot}" && \
-      python -m py_compile $(git diff --name-only chunk/${args.chunkName}...HEAD | grep '\\.py$' || true) && \
+      files=$(git diff --name-only chunk/${args.chunkName}...HEAD | grep '\\.py$' || true) && \
+      if [ -n "$files" ]; then python -m py_compile $files; fi && \
       poetry run python scripts/smoke_import.py`,
     timeout: 60000,
   },
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
 }));
 
-export const scopeCheckTask = defineTask('scope-check', (args, taskCtx) => ({
-  kind: 'shell',
-  title: 'Scope-check (R7): every changed file is in Files-to-touch',
-  shell: {
-    command: `cd "${args.repoRoot}" && \
-      python -c "
-import json, sys, subprocess
-from scripts.agentic.scope_check import check_scope
-diff = subprocess.run(['git','diff','--name-only','chunk/${args.chunkName}...HEAD'],
-                     capture_output=True,text=True,check=True).stdout.split()
-files = ${JSON.stringify(args.filesToTouch)}
-result = check_scope([f for f in diff if f.strip()], files)
-print(json.dumps(result))
-sys.exit(0 if result['pass'] else 2)
-"`,
-    timeout: 30000,
-  },
-  io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
-}));
+export const scopeCheckTask = defineTask('scope-check', (args, taskCtx) => {
+  // Write the files-to-touch list to a temp JSON file and pipe a payload
+  // into `scope_check.py`'s CLI so we don't have to embed JSON inside a
+  // `python -c "..."` shell-double-quoted string (where embedded `"` would
+  // terminate the outer quote and break the shell).
+  const filesPath = `${args.repoRoot}/chunks/${args.chunkName}/_files_to_touch_${args.issueNumber}.json`;
+  return {
+    kind: 'shell',
+    title: 'Scope-check (R7): every changed file is in Files-to-touch',
+    shell: {
+      command: `set -e
+mkdir -p "$(dirname "${filesPath}")"
+cat > "${filesPath}" <<'JSON_EOF'
+${JSON.stringify(args.filesToTouch, null, 2)}
+JSON_EOF
+cd "${args.repoRoot}"
+DIFF_FILES_JSON="$(git diff --name-only chunk/${args.chunkName}...HEAD | python -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')"
+FILES_TO_TOUCH_JSON="$(cat "${filesPath}")"
+set +e
+python -m scripts.agentic.scope_check <<PAYLOAD_EOF
+{"diff_files": $DIFF_FILES_JSON, "files_to_touch": $FILES_TO_TOUCH_JSON}
+PAYLOAD_EOF
+RC=$?
+rm -f "${filesPath}"
+exit $RC
+`,
+      timeout: 30000,
+    },
+    io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
+  };
+});
 
 export const unitTestsTask = defineTask('unit-tests', (args, taskCtx) => ({
   kind: 'shell',
@@ -106,6 +122,29 @@ export const mergeIntoIntegrationTask = defineTask('merge-integration', (args, t
       git merge --no-ff feat/${args.issueNumber}-${args.slug} \
         -m "merge feat/${args.issueNumber}-${args.slug} into chunk/${args.chunkName}"`,
     timeout: 30000,
+  },
+  io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
+}));
+
+// Lifecycle status transition. Shell-only so it stays cheap and deterministic.
+// Heredoc keeps quoting safe even when lastEvent / nextAction contain spaces or
+// punctuation.
+export const transitionStatusTask = defineTask('transition-status', (args, taskCtx) => ({
+  kind: 'shell',
+  title: `chunk_status.transition → ${args.newStage}`,
+  shell: {
+    command: `cd "${args.repoRoot}" && python <<'PYEOF'
+from pathlib import Path
+from scripts.agentic.chunk_status import transition
+transition(
+    Path(${JSON.stringify(`${args.repoRoot}/chunks/${args.chunkName}`)}),
+    ${JSON.stringify(args.newStage)},
+    ${JSON.stringify(args.lastEvent)},
+    ${JSON.stringify(args.nextAction)},
+)
+PYEOF
+`,
+    timeout: 15000,
   },
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
 }));
@@ -210,7 +249,9 @@ export async function process(inputs, ctx) {
         await ctx.task(staticGatesTask, { repoRoot, chunkName });
         stage = 'scope';
         await ctx.task(scopeCheckTask, {
-          repoRoot, chunkName, filesToTouch: issue.files_to_touch,
+          repoRoot, chunkName,
+          issueNumber: issue.number,
+          filesToTouch: issue.files_to_touch,
         });
         stage = 'unit';
         await ctx.task(unitTestsTask, { repoRoot });
@@ -225,22 +266,29 @@ export async function process(inputs, ctx) {
     }
 
     if (!success) {
+      // Convention across this repo's processes is question/title/context with
+      // an `approved` + `response` reply (see pypi-publish-0.3.0.js,
+      // verify-analytics-ui.js).
       const decision = await ctx.breakpoint({
-        title: `Issue #${issue.number} exhausted ${maxAttempts} attempts`,
-        options: [
-          { value: 'manual', label: 'I will take over manually; resume from merge' },
-          { value: 'drop', label: 'Drop this issue from the chunk; continue with next' },
-          { value: 'abort', label: 'Abort the entire chunk' },
-        ],
+        question: `Issue #${issue.number} exhausted ${maxAttempts} attempts. Reply with one of: "manual" (operator will take over and resume from merge), "drop" (skip this issue, continue), "abort" (stop the entire chunk).`,
+        title: `Issue #${issue.number} — refinement loop exhausted`,
+        context: {
+          chunk: chunkName,
+          issueNumber: issue.number,
+          maxAttempts,
+          lastFeedback: feedback,
+        },
+        tags: ['chunk-impl', 'r6-exhausted'],
       });
-      if (decision.value === 'abort') {
+      const reply = String(decision.response || '').trim().toLowerCase();
+      if (reply === 'abort') {
         throw new Error(`chunk aborted by operator at issue #${issue.number}`);
       }
-      if (decision.value === 'drop') {
+      if (reply === 'drop') {
         ctx.log(`dropped issue #${issue.number}`);
         continue;
       }
-      // manual fall-through to merge
+      // anything else (including "manual") → fall through to merge
     }
 
     await ctx.task(mergeIntoIntegrationTask, {
@@ -250,6 +298,14 @@ export async function process(inputs, ctx) {
   }
 
   const testRec = await ctx.task(buildTestRecTask, { repoRoot, chunkName });
+
+  // Lifecycle: implementation done; the chunk is ready for the test process.
+  await ctx.task(transitionStatusTask, {
+    repoRoot, chunkName,
+    newStage: 'impl-done',
+    lastEvent: 'implementation complete; test-recommendation.json written',
+    nextAction: `trigger \`chunks run-test ${chunkName}\` when ready`,
+  });
 
   return {
     mergedSubBranches: merged,

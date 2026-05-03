@@ -25,7 +25,7 @@ TERMINAL_STAGES = {"merged", "aborted"}
 
 
 def _now() -> str:
-    return dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def init_status(chunk_dir: Path, chunk_name: str, issues: list[int]) -> None:

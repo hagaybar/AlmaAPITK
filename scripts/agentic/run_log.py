@@ -24,7 +24,7 @@ def append_chunk_row(
 ) -> None:
     issues_str = ", ".join(f"#{n}" for n in issue_numbers)
     attempts_str = ", ".join(f"#{n}:{a}" for n, a in sorted(attempts_used.items()))
-    date = dt.datetime.utcnow().date().isoformat()
+    date = dt.datetime.now(dt.UTC).date().isoformat()
     row = (
         f"| {chunk_name} | {date} | {issues_str} | {attempts_str}"
         f" | {test_outcomes.get('passed', 0)}"

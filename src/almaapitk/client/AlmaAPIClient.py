@@ -32,6 +32,32 @@ DEFAULT_RETRY_BACKOFF_FACTOR = 1.0
 DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "POST", "PUT", "DELETE"})
 
 
+# Mapping of Alma hosting regions to their public API base URLs.
+#
+# Historically the client hardcoded the EU host, which silently broke
+# every non-European Alma tenant. Issue #7 lifts the host into a kwarg,
+# defaulting to ``"EU"`` so existing callers see no behavioural change.
+#
+# Notes:
+# - Asia Pacific is split between Singapore (``AP``) and Australia
+#   (``APS``); Ex Libris exposes them as separate hostnames.
+# - China uses the ``.com.cn`` TLD (NOT ``.com``). The original issue
+#   body had a typo here; the audit-fixed mapping below is the
+#   ground-truth one tested in ``test_cn_uses_com_cn_tld``.
+# - Advanced callers can sidestep this dict entirely by passing the
+#   ``host=`` kwarg with an arbitrary base URL (useful for staging/proxy
+#   deployments and on-prem mirrors).
+REGION_HOSTS: Dict[str, str] = {
+    "EU":  "https://api-eu.hosted.exlibrisgroup.com",
+    "NA":  "https://api-na.hosted.exlibrisgroup.com",
+    "AP":  "https://api-ap.hosted.exlibrisgroup.com",       # Asia Pacific (Singapore)
+    "APS": "https://api-aps.hosted.exlibrisgroup.com",      # Asia Pacific (Australia)
+    "CA":  "https://api-ca.hosted.exlibrisgroup.com",
+    "CN":  "https://api-cn.hosted.exlibrisgroup.com.cn",    # China -- note .com.cn TLD
+}
+DEFAULT_REGION = "EU"
+
+
 def _safe_response_body(response):
     """Best-effort JSON body extraction from a ``requests.Response``.
 
@@ -117,6 +143,8 @@ class AlmaAPIClient:
         backoff_factor: float = DEFAULT_RETRY_BACKOFF_FACTOR,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
+        region: str = DEFAULT_REGION,
+        host: Optional[str] = None,
     ):
         """Initialize the API client.
 
@@ -141,15 +169,26 @@ class AlmaAPIClient:
                 a positive number when supplied. Per-call
                 ``_request(..., timeout=...)`` overrides this on a
                 request-by-request basis.
+            region: Alma hosting region key. Must be one of the keys in
+                ``REGION_HOSTS`` (``EU``, ``NA``, ``AP``, ``APS``, ``CA``,
+                ``CN``). Defaults to ``"EU"`` for backward compatibility
+                with all pre-#7 callers. Ignored when ``host`` is set.
+            host: Override the resolved base URL with an arbitrary
+                string. When non-``None`` this beats ``region`` entirely
+                — useful for staging proxies, on-prem mirrors, and
+                tests. The value is stored verbatim on
+                ``self.base_url``.
 
         Raises:
             AlmaValidationError: If ``max_retries`` is negative or not an
                 int, if ``backoff_factor`` is negative or not numeric,
-                or if ``timeout`` is non-positive or non-numeric.
+                if ``timeout`` is non-positive or non-numeric, or if
+                ``region`` is not a known key and ``host`` is not given.
 
         Pattern source: GitHub issue #5 (HTTP: retry with exponential
-        backoff for 429/5xx) and issue #6 (HTTP: make timeout
-        configurable; lower default from 300s to 60s).
+        backoff for 429/5xx), issue #6 (HTTP: make timeout configurable;
+        lower default from 300s to 60s), and issue #7 (HTTP: make
+        region/host configurable).
         """
         self.environment = environment.upper()
         # Default per-request timeout. Per-call ``timeout=`` kwargs in
@@ -167,6 +206,12 @@ class AlmaAPIClient:
         self._max_retries = max_retries
         self._backoff_factor = backoff_factor
         self._retry_override = retry
+        # Region/host are stashed before ``_load_configuration`` so the
+        # base-URL resolver can pick them up (issue #7). ``switch_environment``
+        # also re-runs ``_load_configuration`` and must therefore see the
+        # same values on ``self``.
+        self._region = region
+        self._host_override = host
         self._load_configuration()
         self._setup_headers()
         self._setup_logger()
@@ -303,7 +348,19 @@ class AlmaAPIClient:
 
 
     def _load_configuration(self) -> None:
-        """Load configuration based on environment."""
+        """Load configuration based on environment.
+
+        Resolves ``self.api_key`` from ``ALMA_SB_API_KEY`` /
+        ``ALMA_PROD_API_KEY`` and ``self.base_url`` from either an
+        explicit ``host`` override or a ``region`` lookup against
+        ``REGION_HOSTS`` (issue #7).
+
+        Raises:
+            ValueError: If the environment-specific API key env var is
+                not set, or if ``environment`` is not SANDBOX/PRODUCTION.
+            AlmaValidationError: If ``region`` is not a known
+                ``REGION_HOSTS`` key and no ``host`` override was given.
+        """
         if self.environment == 'SANDBOX':
             self.api_key = os.getenv('ALMA_SB_API_KEY')
             if not self.api_key:
@@ -314,10 +371,26 @@ class AlmaAPIClient:
                 raise ValueError("ALMA_PROD_API_KEY environment variable not set")
         else:
             raise ValueError("Environment must be 'SANDBOX' or 'PRODUCTION'")
-        
-        # Base URL (could be made configurable via env vars in the future)
-        self.base_url = "https://api-eu.hosted.exlibrisgroup.com"
-        
+
+        # Base URL resolution (issue #7):
+        # - ``host`` (when set) wins outright; advanced callers passing
+        #   their own URL (staging proxies, on-prem mirrors, tests) get
+        #   exactly what they asked for, with no further validation
+        #   beyond it being non-None.
+        # - Otherwise look up ``region`` in ``REGION_HOSTS``. An unknown
+        #   key is surfaced as ``AlmaValidationError`` with a list of the
+        #   accepted keys so the user can self-correct.
+        if self._host_override is not None:
+            self.base_url = self._host_override
+        else:
+            if self._region not in REGION_HOSTS:
+                raise AlmaValidationError(
+                    f"Unknown region {self._region!r}. "
+                    f"Valid regions: {sorted(REGION_HOSTS.keys())}. "
+                    "Pass host='<full-url>' to bypass region lookup."
+                )
+            self.base_url = REGION_HOSTS[self._region]
+
         print(f"✓ Configured for {self.environment} environment")
     
     def _setup_headers(self) -> None:

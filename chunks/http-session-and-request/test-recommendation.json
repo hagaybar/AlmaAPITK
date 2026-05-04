@@ -1,0 +1,111 @@
+{
+  "chunk": "http-session-and-request",
+  "branch": "chunk/http-session-and-request",
+  "createdAt": "2026-05-04T09:23:58Z",
+  "issues": [
+    {
+      "number": 3,
+      "title": "HTTP: use a persistent requests.Session for connection pooling",
+      "classification": "general",
+      "subBranch": "feat/3-http-use-a-persistent-requests",
+      "tests": [
+        {
+          "id": "t-3-1",
+          "kind": "smoke",
+          "scope": "Two consecutive read calls against a known SANDBOX user verify that (a) the session is reused without breaking subsequent requests, (b) per-call custom headers still propagate over session-level defaults, and (c) public method signatures and domain methods continue to work end-to-end against a live Alma response.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "test_user_id",
+              "description": "A user_primary_id of an existing active user in the SANDBOX environment. Read-only; the test only performs GETs.",
+              "example": "testuser01"
+            }
+          ],
+          "pythonCalls": [
+            "client.users.get_user('${test_user_id}')",
+            "client.users.get_user('${test_user_id}', custom_headers={'X-Test-Header': 'almaapitk-session-smoke'})"
+          ],
+          "passCriteria": [
+            "First call returns AlmaResponse with success == True.",
+            "Second call (with per-call custom_headers) returns AlmaResponse with success == True.",
+            "Both responses contain a non-empty .data payload (dict or parsed body) consistent with an Alma user record.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised across the two calls."
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-2: Default headers move from per-call dicts onto `session.headers`; per-call overrides still work.": [
+          "t-3-1"
+        ],
+        "AC-4: Existing domain methods need no changes.": [
+          "t-3-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-1: A single `requests.Session` is created in `__init__` and reused across all four verbs.",
+          "reason": "Object identity of self._session and reuse across verbs is an internal implementation detail not observable through SANDBOX behavior. Verified by unit tests with mocked HTTP, not by live API calls."
+        },
+        {
+          "ac": "AC-3: `tests/test_public_api_contract.py` and `scripts/smoke_import.py` still pass.",
+          "reason": "This is a local test-suite assertion run pre-merge in CI/local environment, not an Alma SANDBOX behavior. Out of SANDBOX scope."
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "title": "HTTP: consolidate get/post/put/delete into a single _request() method",
+      "classification": "general",
+      "subBranch": "feat/4-http-consolidate-getpostputdelete",
+      "tests": [
+        {
+          "id": "t-4-1",
+          "kind": "smoke",
+          "scope": "A single read call against a known SANDBOX user exercises the consolidated _request() path end-to-end: public GET signature is preserved, _safe_response_body() correctly parses the live JSON response, and the AlmaResponse wrapper is returned with the expected shape.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "test_user_id",
+              "description": "A user_primary_id of an existing active user in the SANDBOX environment. Read-only; the test only performs GETs. Same fixture as t-3-1; collect once and reuse.",
+              "example": "testuser01"
+            }
+          ],
+          "pythonCalls": [
+            "client.users.get_user('${test_user_id}')"
+          ],
+          "passCriteria": [
+            "Call returns AlmaResponse with success == True.",
+            "AlmaResponse.data is a non-empty dict (response body parsed by _safe_response_body without raising).",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised."
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-1: Existing public signatures of `get/post/put/delete` are preserved bit-for-bit.": [
+          "t-4-1"
+        ],
+        "AC-3: A `_safe_response_body(response)` helper replaces the four `try: response.json() except: None` blocks.": [
+          "t-4-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-2: `_request` is the only place that calls `self._session.request`.",
+          "reason": "Sole-caller invariant is an internal code-organization property. SANDBOX cannot observe which Python method invoked the underlying session.request call. Verified by unit tests / static inspection, not by live API calls."
+        },
+        {
+          "ac": "AC-4: All existing tests pass.",
+          "reason": "This is a local test-suite assertion run pre-merge in CI/local environment, not an Alma SANDBOX behavior. Out of SANDBOX scope."
+        }
+      ]
+    }
+  ]
+}

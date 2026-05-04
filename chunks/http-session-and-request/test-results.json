@@ -1,0 +1,41 @@
+{
+  "chunk": "http-session-and-request",
+  "testRunStartedAt": "2026-05-04T09:33:00Z",
+  "testRunFinishedAt": "2026-05-04T09:36:00Z",
+  "perTest": [
+    {
+      "id": "t-3-1",
+      "outcome": "passed",
+      "issueNumber": 3,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "test_t_3_1_session_reuse_and_custom_headers PASSED in 1.47s. Both client.users.get_user calls (plain + custom_headers via client.get) returned AlmaResponse.success=True against SANDBOX user <user_primary_id>. _request chokepoint + per-call headers verified live."
+    },
+    {
+      "id": "t-4-1",
+      "outcome": "passed",
+      "issueNumber": 4,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "test_t_4_1_consolidated_request_path PASSED in 0.63s. Single client.users.get_user call returned AlmaResponse with success=True and non-empty .data dict. Consolidated _request() + _safe_response_body() verified against live Alma response."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 3,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "note": "AC-1 (private _session attribute) and AC-3 (test_public_api_contract.py) are in unmappable[] — internal/test-suite assertions cannot be SANDBOX-verified. Should be tested:passing-needs-review per spec §8."
+    },
+    {
+      "number": 4,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "note": "AC-2 (sole-caller invariant) and AC-4 (existing tests) are in unmappable[]. Should be tested:passing-needs-review per spec §8."
+    }
+  ]
+}

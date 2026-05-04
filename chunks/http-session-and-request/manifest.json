@@ -1,0 +1,61 @@
+{
+  "chunk": "http-session-and-request",
+  "issues": [
+    {
+      "number": 3,
+      "title": "HTTP: use a persistent requests.Session for connection pooling",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/3",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S (\u2264\u00bd day)\n**Benefit:** High\n\n## Problem\n\nEvery call to `AlmaAPIClient.get/post/put/delete` issues a fresh `requests.<method>(...)` call (`src/almaapitk/client/AlmaAPIClient.py:180,238,241,299,302,347`). That means a new TCP+TLS handshake per request. For multi-call workflows (bulk user updates, POL receiving, paged invoice listing) this is the dominant per-call cost.\n\nIt also blocks two downstream improvements: retry adapters and rate limiting, both of which want to hang off a persistent session.\n\n## Proposal\n\nHold a single `requests.Session` for the lifetime of the client.\n\n```python\nclass AlmaAPIClient:\n    def __init__(self, environment=\"SANDBOX\"):\n        ...\n        self._session = requests.Session()\n        self._session.headers.update(self.default_headers)\n```\n\nAll HTTP methods route through `self._session.request(method, url, ...)`. Per-call `custom_headers` still wins via the per-call `headers=` kwarg.\n\n## Files to touch\n\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/client/test_alma_api_client.py` (new \u2014 unit tests with mocked HTTP)\n- `tests/unit/client/__init__.py` (new \u2014 empty package marker so pytest can collect the unit tests)\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n_None \u2014 this issue has no upstream dependencies and does not have recommended soft prereqs at the toolkit level._\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- A single `requests.Session` is created in `__init__` and reused across all four verbs.\n- Default headers move from per-call dicts onto `session.headers`; per-call overrides still work.\n- `tests/test_public_api_contract.py` and `scripts/smoke_import.py` still pass.\n- Existing domain methods need no changes.\n\n## Notes\n\nPrerequisite for: retry adapter, client-side rate limiting, context-manager support (separate issues).\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_api_client.py",
+        "tests/unit/client/__init__.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "A single `requests.Session` is created in `__init__` and reused across all four verbs.",
+        "Default headers move from per-call dicts onto `session.headers`; per-call overrides still work.",
+        "`tests/test_public_api_contract.py` and `scripts/smoke_import.py` still pass.",
+        "Existing domain methods need no changes."
+      ]
+    },
+    {
+      "number": 4,
+      "title": "HTTP: consolidate get/post/put/delete into a single _request() method",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/4",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** M (1\u20133 days)\n**Benefit:** High\n\n## Problem\n\n`get`, `post`, `put`, and `delete` in `src/almaapitk/client/AlmaAPIClient.py:157-353` each repeat ~25 lines of: build URL, prepare headers, log_request, time the call, invoke `requests.<verb>`, log_response, optionally debug-log the body, then `_handle_response`. The duplication makes any cross-cutting change (timeout, retry, rate-limit, body redaction, header injection) cost four edits and inevitable drift.\n\n## Proposal\n\nA single internal entry point:\n\n```python\ndef _request(self, method, endpoint, *, params=None, data=None,\n             content_type=None, custom_headers=None, timeout=None) -> AlmaResponse:\n    url = self._build_url(endpoint)\n    headers = self._prepare_headers(content_type)\n    if custom_headers:\n        headers.update(custom_headers)\n    self.logger.log_request(method, endpoint, params=params, headers=headers, body=data)\n\n    request_kwargs = {\"headers\": headers, \"params\": params,\n                      \"timeout\": timeout if timeout is not None else self.timeout}\n    if isinstance(data, dict) and not content_type:\n        request_kwargs[\"json\"] = data\n    elif data is not None:\n        request_kwargs[\"data\"] = data\n\n    start = time.time()\n    response = self._session.request(method, url, **request_kwargs)\n    duration_ms = (time.time() - start) * 1000\n\n    self.logger.log_response(response, duration_ms=duration_ms)\n    body = _safe_response_body(response)\n    if body:\n        self.logger.debug(f\"{method} response body from {endpoint}\",\n                          endpoint=endpoint, status_code=response.status_code,\n                          response_data=body)\n    return self._handle_response(response)\n```\n\nPublic verbs become two-liners: `def get(self, endpoint, **kw): return self._request(\"GET\", endpoint, **kw)` etc. Public signatures preserved.\n\n## Files to touch\n\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/client/test_alma_api_client.py` (new \u2014 unit tests with mocked HTTP)\n- `tests/unit/client/__init__.py` (existing package marker; may add new tests under)\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #3 \u2014 Persistent requests.Session\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- Existing public signatures of `get/post/put/delete` are preserved bit-for-bit.\n- `_request` is the only place that calls `self._session.request`.\n- A `_safe_response_body(response)` helper replaces the four `try: response.json() except: None` blocks.\n- All existing tests pass.\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_api_client.py",
+        "tests/unit/client/__init__.py"
+      ],
+      "references": [],
+      "hard_prereqs": [
+        3
+      ],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "Existing public signatures of `get/post/put/delete` are preserved bit-for-bit.",
+        "`_request` is the only place that calls `self._session.request`.",
+        "A `_safe_response_body(response)` helper replaces the four `try: response.json() except: None` blocks.",
+        "All existing tests pass."
+      ]
+    }
+  ]
+}

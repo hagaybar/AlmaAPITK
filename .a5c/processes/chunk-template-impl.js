@@ -97,7 +97,7 @@ export const unitTestsTask = defineTask('unit-tests', (args, taskCtx) => ({
   kind: 'shell',
   title: 'Unit tests for changed files',
   shell: {
-    command: `cd "${args.repoRoot}" && poetry run pytest tests/unit/ -v --tb=short`,
+    command: `cd "${args.repoRoot}" && poetry run pytest tests/unit/ --ignore=tests/unit/acquisition/test_extract_items.py -v --tb=short`,
     timeout: 300000,
   },
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },

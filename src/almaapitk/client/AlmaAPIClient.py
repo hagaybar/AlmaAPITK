@@ -109,7 +109,7 @@ class AlmaResponse:
 
 class AlmaAPIError(Exception):
     """General Alma API error."""
-    
+
     def __init__(self, message: str, status_code: int = None, response=None):
         super().__init__(message)
         self.status_code = status_code
@@ -118,6 +118,60 @@ class AlmaAPIError(Exception):
 class AlmaValidationError(ValueError):
     """Validation error for Alma API requests."""
     pass
+
+
+# -----------------------------------------------------------------------------
+# Typed AlmaAPIError subclasses (issue #9)
+#
+# These specialise ``AlmaAPIError`` so domain code can branch on exception
+# *type* instead of inspecting error message strings or status codes inline.
+# Every subclass keeps the same ``(message, status_code, response)``
+# constructor signature as ``AlmaAPIError`` so existing
+# ``except AlmaAPIError:`` blocks continue to catch them transparently.
+# -----------------------------------------------------------------------------
+
+class AlmaAuthenticationError(AlmaAPIError):
+    """API authentication failed (HTTP 401)."""
+    pass
+
+
+class AlmaRateLimitError(AlmaAPIError):
+    """Alma API rate limit exceeded (HTTP 429)."""
+    pass
+
+
+class AlmaServerError(AlmaAPIError):
+    """Alma server-side error (HTTP 5xx)."""
+    pass
+
+
+class AlmaResourceNotFoundError(AlmaAPIError):
+    """Requested Alma resource was not found (HTTP 404)."""
+    pass
+
+
+class AlmaDuplicateInvoiceError(AlmaAPIError):
+    """Invoice already exists for the given vendor (Alma error code 402459)."""
+    pass
+
+
+class AlmaInvalidPolModeError(AlmaAPIError):
+    """POL is not in the right mode for the requested operation (Alma error code 40166411)."""
+    pass
+
+
+# Mapping of Alma-specific error codes to typed exception subclasses.
+# When the Alma response payload carries an ``errorList.error[].errorCode``
+# entry that lives in this registry, ``_classify_error`` routes the raised
+# exception to the mapped class. HTTP-status fallbacks (401, 404, 429, 5xx)
+# are handled separately in ``_classify_error`` itself.
+#
+# Pattern source: GitHub issue #9 (errors: map Alma error codes to
+# specific exception subclasses).
+ERROR_CODE_REGISTRY: Dict[str, type] = {
+    "402459":   AlmaDuplicateInvoiceError,
+    "40166411": AlmaInvalidPolModeError,
+}
 
 
 class AlmaAPIClient:
@@ -417,40 +471,103 @@ class AlmaAPIClient:
                 headers['Accept'] = 'application/xml'
         return headers
     
+    def _classify_error(
+        self, status_code: int, alma_code: Optional[str]
+    ) -> type:
+        """Pick the most specific ``AlmaAPIError`` subclass for an error.
+
+        Resolution order:
+
+        1. If ``alma_code`` is in ``ERROR_CODE_REGISTRY``, return the mapped
+           subclass — Alma error codes are more specific than HTTP status
+           and should always win when both are available.
+        2. Otherwise, dispatch by HTTP ``status_code``:
+
+           - ``401`` -> ``AlmaAuthenticationError``
+           - ``404`` -> ``AlmaResourceNotFoundError``
+           - ``429`` -> ``AlmaRateLimitError``
+           - ``5xx`` -> ``AlmaServerError``
+           - anything else -> bare ``AlmaAPIError``
+
+        Args:
+            status_code: HTTP status code of the failing response.
+            alma_code: Alma-specific error code extracted from the
+                response body's ``errorList.error[0].errorCode``, or
+                ``None`` if no such code was present.
+
+        Returns:
+            The most specific ``AlmaAPIError`` subclass to raise.
+
+        Pattern source: GitHub issue #9.
+        """
+        if alma_code is not None and alma_code in ERROR_CODE_REGISTRY:
+            return ERROR_CODE_REGISTRY[alma_code]
+
+        if status_code == 401:
+            return AlmaAuthenticationError
+        if status_code == 404:
+            return AlmaResourceNotFoundError
+        if status_code == 429:
+            return AlmaRateLimitError
+        if 500 <= status_code < 600:
+            return AlmaServerError
+        return AlmaAPIError
+
     def _handle_response(self, response):
         """
         Handle response and convert to AlmaResponse for compatibility.
-        
+
         Args:
             response: requests.Response object
-            
+
         Returns:
             AlmaResponse object
-            
+
         Raises:
-            AlmaAPIError: If the response indicates an error
+            AlmaAPIError: If the response indicates an error. The actual
+                exception class raised is selected by ``_classify_error``
+                based on Alma error code (when present) or HTTP status,
+                so callers can branch on type via ``except`` clauses
+                without parsing message strings (issue #9).
         """
         alma_response = AlmaResponse(response)
-        
+
         if not alma_response.success:
-            # Try to extract error message from response
+            # Try to extract error message and Alma-specific error code
+            # from response body. ``alma_code`` stays ``None`` if the body
+            # is non-JSON or doesn't contain the expected ``errorList``
+            # structure -- ``_classify_error`` then falls back to HTTP
+            # status dispatch.
             error_msg = f"HTTP {response.status_code}"
+            alma_code: Optional[str] = None
             try:
                 if 'application/json' in response.headers.get('content-type', ''):
                     error_data = response.json()
                     if 'errorList' in error_data and 'error' in error_data['errorList']:
                         errors = error_data['errorList']['error']
                         if isinstance(errors, list) and errors:
-                            error_msg = errors[0].get('errorMessage', error_msg)
+                            first_error = errors[0]
                         elif isinstance(errors, dict):
-                            error_msg = errors.get('errorMessage', error_msg)
+                            first_error = errors
+                        else:
+                            first_error = None
+                        if isinstance(first_error, dict):
+                            error_msg = first_error.get('errorMessage', error_msg)
+                            raw_code = first_error.get('errorCode')
+                            # Alma sometimes returns numeric codes; normalise
+                            # to ``str`` so registry lookups are uniform.
+                            if raw_code is not None:
+                                alma_code = str(raw_code)
                 else:
                     error_msg = response.text[:200] if response.text else error_msg
-            except:
+            except Exception:
+                # Defensive: never let response-parsing errors mask the
+                # original API error. Fall back to whatever text we have.
                 error_msg = response.text[:200] if response.text else error_msg
-            
-            raise AlmaAPIError(error_msg, response.status_code, response)
-        
+
+            exc_class = self._classify_error(response.status_code, alma_code)
+            raise exc_class(error_msg, response.status_code, response)
+
         return alma_response
 
 

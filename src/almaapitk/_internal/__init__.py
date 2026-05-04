@@ -11,7 +11,16 @@ WARNING: This is an internal module. Do not import from here directly.
 # Core client and response classes
 from .client import AlmaAPIClient
 from .response import AlmaResponse
-from .exceptions import AlmaAPIError, AlmaValidationError
+from .exceptions import (
+    AlmaAPIError,
+    AlmaValidationError,
+    AlmaAuthenticationError,
+    AlmaRateLimitError,
+    AlmaServerError,
+    AlmaResourceNotFoundError,
+    AlmaDuplicateInvoiceError,
+    AlmaInvalidPolModeError,
+)
 
 # Domain classes
 from .domains import (
@@ -29,6 +38,13 @@ __all__ = [
     "AlmaResponse",
     "AlmaAPIError",
     "AlmaValidationError",
+    # Typed AlmaAPIError subclasses (issue #9)
+    "AlmaAuthenticationError",
+    "AlmaRateLimitError",
+    "AlmaServerError",
+    "AlmaResourceNotFoundError",
+    "AlmaDuplicateInvoiceError",
+    "AlmaInvalidPolModeError",
     # Domains
     "Admin",
     "Users",

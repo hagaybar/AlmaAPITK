@@ -4,6 +4,24 @@ Internal re-export module for Alma exceptions.
 This module is part of the internal namespace and should not be imported directly.
 Use `from almaapitk import AlmaAPIError, AlmaValidationError` instead.
 """
-from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError
+from almaapitk.client.AlmaAPIClient import (
+    AlmaAPIError,
+    AlmaValidationError,
+    AlmaAuthenticationError,
+    AlmaRateLimitError,
+    AlmaServerError,
+    AlmaResourceNotFoundError,
+    AlmaDuplicateInvoiceError,
+    AlmaInvalidPolModeError,
+)
 
-__all__ = ["AlmaAPIError", "AlmaValidationError"]
+__all__ = [
+    "AlmaAPIError",
+    "AlmaValidationError",
+    "AlmaAuthenticationError",
+    "AlmaRateLimitError",
+    "AlmaServerError",
+    "AlmaResourceNotFoundError",
+    "AlmaDuplicateInvoiceError",
+    "AlmaInvalidPolModeError",
+]

@@ -13,9 +13,14 @@ from urllib3.util.retry import Retry
 from almaapitk.alma_logging import get_logger
 
 
-# Default per-request timeout (seconds) for Alma API calls. Mirrors the
-# previous per-verb literal so behavior is unchanged after consolidation.
-DEFAULT_REQUEST_TIMEOUT = 300
+# Default per-request timeout (seconds) for Alma API calls. Lowered from
+# the previous 300s in issue #6: a 5-minute hang on a single request would
+# stall scripts and CI runs long after the underlying call had clearly
+# stopped making progress. 60s is a safer default for the typical Alma
+# verb; long-running endpoints (paged jobs, exports) can opt back into a
+# higher value via the ``timeout=`` constructor kwarg or the per-call
+# ``_request(..., timeout=...)`` override.
+DEFAULT_REQUEST_TIMEOUT = 60
 
 # Default retry configuration for the urllib3-backed HTTPAdapter mounted
 # on the persistent session (issue #5). The status forcelist covers Alma's
@@ -111,6 +116,7 @@ class AlmaAPIClient:
         max_retries: int = DEFAULT_RETRY_TOTAL,
         backoff_factor: float = DEFAULT_RETRY_BACKOFF_FACTOR,
         retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
     ):
         """Initialize the API client.
 
@@ -130,18 +136,30 @@ class AlmaAPIClient:
                 for advanced callers who need to tune fields not exposed
                 by the simple kwargs (allowed_methods, raise_on_status,
                 etc.).
+            timeout: Default per-request timeout in seconds. ``None``
+                falls back to ``DEFAULT_REQUEST_TIMEOUT`` (60s). Must be
+                a positive number when supplied. Per-call
+                ``_request(..., timeout=...)`` overrides this on a
+                request-by-request basis.
 
         Raises:
             AlmaValidationError: If ``max_retries`` is negative or not an
-                int, or if ``backoff_factor`` is negative or not numeric.
+                int, if ``backoff_factor`` is negative or not numeric,
+                or if ``timeout`` is non-positive or non-numeric.
 
         Pattern source: GitHub issue #5 (HTTP: retry with exponential
-        backoff for 429/5xx).
+        backoff for 429/5xx) and issue #6 (HTTP: make timeout
+        configurable; lower default from 300s to 60s).
         """
         self.environment = environment.upper()
         # Default per-request timeout. Per-call ``timeout=`` kwargs in
-        # ``_request`` override this on a request-by-request basis.
-        self.timeout = DEFAULT_REQUEST_TIMEOUT
+        # ``_request`` override this on a request-by-request basis. The
+        # constructor kwarg lets callers opt into a longer ceiling for
+        # workloads dominated by paged/long-running endpoints.
+        self._validate_timeout(timeout)
+        self.timeout = (
+            timeout if timeout is not None else DEFAULT_REQUEST_TIMEOUT
+        )
         # Validate retry knobs early so misconfiguration surfaces at
         # construction time rather than on the first network failure.
         if retry is None:
@@ -188,6 +206,36 @@ class AlmaAPIClient:
         if backoff_factor < 0:
             raise AlmaValidationError(
                 f"backoff_factor must be >= 0, got {backoff_factor}"
+            )
+
+    @staticmethod
+    def _validate_timeout(timeout: Any) -> None:
+        """Validate the ``timeout`` constructor kwarg.
+
+        ``None`` is allowed and means "fall back to the module default".
+        Anything else must be a positive ``int`` or ``float``. ``bool``
+        is a subclass of ``int`` in Python -- callers passing
+        ``True``/``False`` almost certainly mean to enable/disable the
+        feature, not to set a numeric timeout, so it is rejected
+        explicitly.
+
+        Args:
+            timeout: Candidate value for the ``timeout`` kwarg.
+
+        Raises:
+            AlmaValidationError: If ``timeout`` is not ``None`` and is
+                not a positive ``int``/``float`` (excluding ``bool``).
+        """
+        if timeout is None:
+            return
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise AlmaValidationError(
+                "timeout must be a positive number or None, "
+                f"got {type(timeout).__name__}"
+            )
+        if timeout <= 0:
+            raise AlmaValidationError(
+                f"timeout must be > 0, got {timeout}"
             )
 
     @staticmethod

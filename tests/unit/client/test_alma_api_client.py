@@ -430,5 +430,81 @@ class TestRetryAdapterMounted(_AlmaAPIClientTestBase):
             AlmaAPIClient('SANDBOX', backoff_factor=-0.1)
 
 
+class TestTimeoutConfiguration(_AlmaAPIClientTestBase):
+    """Tests for issue #6: configurable timeout, lower default (60s).
+
+    AC-1: default lowered from 300s to 60s.
+    AC-2: ``AlmaAPIClient(timeout=120.0)`` accepted and persisted.
+    AC-3: per-call override path still works (issue #4 wiring).
+    AC-4: the new default actually flows into ``Session.request`` calls.
+    AC-5: invalid values rejected via ``AlmaValidationError``.
+
+    Pattern source: GitHub issue #6 acceptance criteria.
+    """
+
+    def test_default_timeout_is_60(self):
+        """A bare ``AlmaAPIClient`` should expose ``timeout == 60``."""
+        client = AlmaAPIClient('SANDBOX')
+        self.assertEqual(client.timeout, 60)
+
+    def test_timeout_kwarg_overrides_default(self):
+        """Passing ``timeout=120.0`` should win over the module default."""
+        client = AlmaAPIClient('SANDBOX', timeout=120.0)
+        self.assertEqual(client.timeout, 120.0)
+
+    def test_timeout_none_uses_default(self):
+        """``timeout=None`` is the documented "use the default" sentinel."""
+        client = AlmaAPIClient('SANDBOX', timeout=None)
+        self.assertEqual(client.timeout, 60)
+
+    def test_timeout_passed_to_session_request(self):
+        """The default ``self.timeout`` should flow into ``Session.request``."""
+        client = AlmaAPIClient('SANDBOX')
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response()
+        ) as mock_request:
+            client.get('almaws/v1/conf/libraries')
+
+        _args, kwargs = mock_request.call_args
+        # The verb wrappers don't expose ``timeout`` to keep their
+        # signatures bit-stable, so the value must come from
+        # ``self.timeout``.
+        self.assertEqual(kwargs.get('timeout'), 60)
+        self.assertEqual(kwargs.get('timeout'), client.timeout)
+
+    def test_per_call_timeout_overrides_self_timeout(self):
+        """Per-call ``_request(..., timeout=5)`` must beat ``self.timeout``."""
+        client = AlmaAPIClient('SANDBOX', timeout=120.0)
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response()
+        ) as mock_request:
+            client._request('GET', 'almaws/v1/conf/libraries', timeout=5)
+
+        _args, kwargs = mock_request.call_args
+        self.assertEqual(kwargs.get('timeout'), 5)
+        # Sanity: self.timeout itself wasn't mutated by the per-call override.
+        self.assertEqual(client.timeout, 120.0)
+
+    def test_invalid_timeout_negative_raises(self):
+        """Negative timeouts must be rejected at construction time."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', timeout=-1)
+
+    def test_invalid_timeout_zero_raises(self):
+        """Zero is rejected: a 0-second timeout would fire immediately."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', timeout=0)
+
+    def test_invalid_timeout_string_raises(self):
+        """Non-numeric values must be rejected (not silently coerced)."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', timeout="abc")
+
+    def test_invalid_timeout_bool_raises(self):
+        """``bool`` is rejected even though it's an ``int`` subclass."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', timeout=True)
+
+
 if __name__ == '__main__':
     unittest.main()

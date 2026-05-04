@@ -108,12 +108,43 @@ class AlmaResponse:
         return self.json()
 
 class AlmaAPIError(Exception):
-    """General Alma API error."""
+    """General Alma API error.
 
-    def __init__(self, message: str, status_code: int = None, response=None):
+    Carries the HTTP status, the underlying ``requests.Response``, and --
+    when the failing response body included an Alma ``errorList`` payload --
+    the per-error ``trackingId`` and ``errorCode`` Ex Libris support uses
+    to investigate cases (issue #10). Both fields default to safe
+    sentinels (``None`` / ``""``) so call sites that construct exceptions
+    without a parsed body (tests, the typed-subclass constructors, the
+    legacy ``(message, status_code, response)`` positional path used
+    pre-#10) keep working unchanged.
+
+    Attributes:
+        status_code: HTTP status code of the failing response, or ``None``
+            for synthetic errors raised outside the response handler.
+        response: The underlying ``requests.Response`` (or test double).
+        tracking_id: The ``trackingId`` field from
+            ``errorList.error[0]``. ``None`` when the body had no
+            ``errorList`` or no trackingId entry.
+        alma_code: The ``errorCode`` field from ``errorList.error[0]``,
+            normalised to ``str``. Empty string when no code was present
+            -- chosen over ``None`` so log formatters can interpolate it
+            without a falsy guard.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int = None,
+        response=None,
+        tracking_id: Optional[str] = None,
+        alma_code: str = "",
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.response = response
+        self.tracking_id = tracking_id
+        self.alma_code = alma_code
 
 class AlmaValidationError(ValueError):
     """Validation error for Alma API requests."""
@@ -513,6 +544,68 @@ class AlmaAPIClient:
             return AlmaServerError
         return AlmaAPIError
 
+    @staticmethod
+    def _extract_alma_error_fields(response):
+        """Pull ``(error_msg, alma_code, tracking_id)`` from an error response.
+
+        Centralises the JSON-body / ``errorList.error[0]`` traversal that
+        used to live inline in ``_handle_response``. Splitting it out lets
+        ``_handle_response`` stay readable and gives the parsing logic a
+        single, unit-testable home.
+
+        Returns:
+            Tuple of ``(error_msg, alma_code, tracking_id)``:
+
+            - ``error_msg``: human-readable message; falls back to
+              ``"HTTP <status>"`` when no message can be extracted.
+            - ``alma_code``: ``str`` form of ``errorList.error[0].errorCode``,
+              or ``None`` when no recognisable code is present. Always
+              normalised to ``str`` so ``ERROR_CODE_REGISTRY`` lookups
+              don't hinge on whether Alma returned a number or a string.
+            - ``tracking_id``: ``trackingId`` value from the same payload,
+              or ``None``. Ex Libris support uses this to look up the
+              individual server-side request when investigating a case
+              (issue #10).
+
+        The parsing is best-effort: any exception while traversing the
+        body collapses to ``(error_msg-from-text, None, None)`` so that a
+        malformed response can never mask the original API error.
+        """
+        error_msg = f"HTTP {response.status_code}"
+        alma_code: Optional[str] = None
+        tracking_id: Optional[str] = None
+        try:
+            if 'application/json' in response.headers.get('content-type', ''):
+                error_data = response.json()
+                if 'errorList' in error_data and 'error' in error_data['errorList']:
+                    errors = error_data['errorList']['error']
+                    if isinstance(errors, list) and errors:
+                        first_error = errors[0]
+                    elif isinstance(errors, dict):
+                        first_error = errors
+                    else:
+                        first_error = None
+                    if isinstance(first_error, dict):
+                        error_msg = first_error.get('errorMessage', error_msg)
+                        raw_code = first_error.get('errorCode')
+                        # Alma sometimes returns numeric codes; normalise
+                        # to ``str`` so registry lookups are uniform.
+                        if raw_code is not None:
+                            alma_code = str(raw_code)
+                        # ``trackingId`` is opaque -- keep it verbatim so
+                        # operators can quote it back to Ex Libris support.
+                        raw_tracking = first_error.get('trackingId')
+                        if raw_tracking is not None:
+                            tracking_id = raw_tracking
+            else:
+                error_msg = response.text[:200] if response.text else error_msg
+        except Exception:
+            # Defensive: never let response-parsing errors mask the
+            # original API error. Fall back to whatever text we have.
+            error_msg = response.text[:200] if response.text else error_msg
+
+        return error_msg, alma_code, tracking_id
+
     def _handle_response(self, response):
         """
         Handle response and convert to AlmaResponse for compatibility.
@@ -528,45 +621,31 @@ class AlmaAPIClient:
                 exception class raised is selected by ``_classify_error``
                 based on Alma error code (when present) or HTTP status,
                 so callers can branch on type via ``except`` clauses
-                without parsing message strings (issue #9).
+                without parsing message strings (issue #9). The raised
+                exception also carries ``tracking_id`` and ``alma_code``
+                attributes extracted from the same ``errorList.error[0]``
+                payload so log lines and operator hand-offs to Ex Libris
+                support can quote the per-request trackingId (issue #10).
         """
         alma_response = AlmaResponse(response)
 
         if not alma_response.success:
-            # Try to extract error message and Alma-specific error code
-            # from response body. ``alma_code`` stays ``None`` if the body
-            # is non-JSON or doesn't contain the expected ``errorList``
-            # structure -- ``_classify_error`` then falls back to HTTP
-            # status dispatch.
-            error_msg = f"HTTP {response.status_code}"
-            alma_code: Optional[str] = None
-            try:
-                if 'application/json' in response.headers.get('content-type', ''):
-                    error_data = response.json()
-                    if 'errorList' in error_data and 'error' in error_data['errorList']:
-                        errors = error_data['errorList']['error']
-                        if isinstance(errors, list) and errors:
-                            first_error = errors[0]
-                        elif isinstance(errors, dict):
-                            first_error = errors
-                        else:
-                            first_error = None
-                        if isinstance(first_error, dict):
-                            error_msg = first_error.get('errorMessage', error_msg)
-                            raw_code = first_error.get('errorCode')
-                            # Alma sometimes returns numeric codes; normalise
-                            # to ``str`` so registry lookups are uniform.
-                            if raw_code is not None:
-                                alma_code = str(raw_code)
-                else:
-                    error_msg = response.text[:200] if response.text else error_msg
-            except Exception:
-                # Defensive: never let response-parsing errors mask the
-                # original API error. Fall back to whatever text we have.
-                error_msg = response.text[:200] if response.text else error_msg
-
+            error_msg, alma_code, tracking_id = self._extract_alma_error_fields(
+                response
+            )
             exc_class = self._classify_error(response.status_code, alma_code)
-            raise exc_class(error_msg, response.status_code, response)
+            # ``alma_code`` is normalised to "" on the exception (the
+            # default in ``AlmaAPIError.__init__``) so log formatters can
+            # interpolate it without a None-guard. ``tracking_id`` stays
+            # ``None`` when missing because there's no sensible empty
+            # tracking value to hand to support.
+            raise exc_class(
+                error_msg,
+                response.status_code,
+                response,
+                tracking_id=tracking_id,
+                alma_code=alma_code if alma_code is not None else "",
+            )
 
         return alma_response
 

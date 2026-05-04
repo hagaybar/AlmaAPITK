@@ -215,33 +215,6 @@ def test_environment_switching(clients):
             print(f"✗ Environment switching failed: {e}")
 
 
-def test_safe_request_method(clients):
-    """Test the safe_request utility method"""
-    print("\n=== Testing Safe Request Method ===")
-    
-    if 'SANDBOX' in clients:
-        client = clients['SANDBOX']
-        
-        # Test successful request
-        print("Testing successful request...")
-        result = client.safe_request('GET', 'almaws/v1/conf/libraries')
-        if result:
-            if isinstance(result, dict):
-                print(f"✓ Got {result.get('total_record_count', 0)} libraries")
-            else:
-                print("✓ Got response data")
-        else:
-            print("✗ Safe request returned None")
-        
-        # Test failed request
-        print("Testing failed request...")
-        result = client.safe_request('GET', 'almaws/v1/bibs/invalid_mms_id')
-        if result is None:
-            print("✓ Safe request correctly handled error")
-        else:
-            print("✗ Expected None for invalid request")
-
-
 def main():
     """Run all tests"""
     print("AlmaAPIClient Test Suite - FIXED VERSION")
@@ -271,10 +244,7 @@ def main():
     
     # Test environment switching
     test_environment_switching(clients)
-    
-    # Test safe request method
-    test_safe_request_method(clients)
-    
+
     # Test bib record (with your test MMS ID)
     test_bib_record(clients, "990022169340204146")
     

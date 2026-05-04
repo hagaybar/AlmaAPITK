@@ -8,12 +8,23 @@ import requests
 import json
 from typing import Optional, Dict, Any, Union, List
 import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from almaapitk.alma_logging import get_logger
 
 
 # Default per-request timeout (seconds) for Alma API calls. Mirrors the
 # previous per-verb literal so behavior is unchanged after consolidation.
 DEFAULT_REQUEST_TIMEOUT = 300
+
+# Default retry configuration for the urllib3-backed HTTPAdapter mounted
+# on the persistent session (issue #5). The status forcelist covers Alma's
+# rate-limit response (429) and the transient-server-error band (5xx) that
+# is safe to retry idempotently.
+DEFAULT_RETRY_STATUS_FORCELIST = (429, 500, 502, 503, 504)
+DEFAULT_RETRY_TOTAL = 3
+DEFAULT_RETRY_BACKOFF_FACTOR = 1.0
+DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "POST", "PUT", "DELETE"})
 
 
 def _safe_response_body(response):
@@ -93,21 +104,112 @@ class AlmaAPIClient:
     (BiblioGraphicRecords, Users, Admin, etc.)
     """
     
-    def __init__(self, environment: str = 'SANDBOX'):
-        """
-        Initialize the API client.
+    def __init__(
+        self,
+        environment: str = 'SANDBOX',
+        *,
+        max_retries: int = DEFAULT_RETRY_TOTAL,
+        backoff_factor: float = DEFAULT_RETRY_BACKOFF_FACTOR,
+        retry: Optional[Retry] = None,
+    ):
+        """Initialize the API client.
 
         Args:
-            environment: 'SANDBOX' or 'PRODUCTION'
+            environment: 'SANDBOX' or 'PRODUCTION'.
+            max_retries: Total number of retries the mounted HTTPAdapter
+                should attempt on retryable responses (429 and 5xx).
+                Must be an ``int >= 0``. Ignored when ``retry`` is given.
+            backoff_factor: Exponential backoff multiplier passed to
+                ``urllib3.util.Retry``. With ``backoff_factor=1`` the wait
+                schedule between attempts is roughly 1s, 2s, 4s, ...
+                Must be a non-negative number. Ignored when ``retry`` is
+                given.
+            retry: Optional fully-built ``urllib3.util.Retry`` instance.
+                When supplied, it is used verbatim and ``max_retries`` /
+                ``backoff_factor`` are ignored — this is the escape hatch
+                for advanced callers who need to tune fields not exposed
+                by the simple kwargs (allowed_methods, raise_on_status,
+                etc.).
+
+        Raises:
+            AlmaValidationError: If ``max_retries`` is negative or not an
+                int, or if ``backoff_factor`` is negative or not numeric.
+
+        Pattern source: GitHub issue #5 (HTTP: retry with exponential
+        backoff for 429/5xx).
         """
         self.environment = environment.upper()
         # Default per-request timeout. Per-call ``timeout=`` kwargs in
         # ``_request`` override this on a request-by-request basis.
         self.timeout = DEFAULT_REQUEST_TIMEOUT
+        # Validate retry knobs early so misconfiguration surfaces at
+        # construction time rather than on the first network failure.
+        if retry is None:
+            self._validate_retry_kwargs(max_retries, backoff_factor)
+        self._max_retries = max_retries
+        self._backoff_factor = backoff_factor
+        self._retry_override = retry
         self._load_configuration()
         self._setup_headers()
         self._setup_logger()
         self._setup_session()
+
+    @staticmethod
+    def _validate_retry_kwargs(max_retries: Any, backoff_factor: Any) -> None:
+        """Validate the simple retry kwargs accepted by ``__init__``.
+
+        Args:
+            max_retries: Candidate value for the ``max_retries`` kwarg.
+            backoff_factor: Candidate value for the ``backoff_factor``
+                kwarg.
+
+        Raises:
+            AlmaValidationError: If either value falls outside its
+                allowed domain.
+        """
+        # ``bool`` is a subclass of ``int`` in Python -- callers passing
+        # ``True``/``False`` almost certainly mean to enable/disable the
+        # feature, not to set a numeric retry count. Reject explicitly.
+        if isinstance(max_retries, bool) or not isinstance(max_retries, int):
+            raise AlmaValidationError(
+                f"max_retries must be an int >= 0, got {type(max_retries).__name__}"
+            )
+        if max_retries < 0:
+            raise AlmaValidationError(
+                f"max_retries must be >= 0, got {max_retries}"
+            )
+        if isinstance(backoff_factor, bool) or not isinstance(
+            backoff_factor, (int, float)
+        ):
+            raise AlmaValidationError(
+                "backoff_factor must be a non-negative number, "
+                f"got {type(backoff_factor).__name__}"
+            )
+        if backoff_factor < 0:
+            raise AlmaValidationError(
+                f"backoff_factor must be >= 0, got {backoff_factor}"
+            )
+
+    @staticmethod
+    def _build_retry(max_retries: int, backoff_factor: float) -> Retry:
+        """Construct the default ``urllib3.util.Retry`` policy.
+
+        Args:
+            max_retries: Total number of retry attempts.
+            backoff_factor: Exponential backoff multiplier.
+
+        Returns:
+            A configured ``Retry`` instance with the project defaults
+            applied (status forcelist, allowed methods, Retry-After
+            header respected).
+        """
+        return Retry(
+            total=max_retries,
+            status_forcelist=list(DEFAULT_RETRY_STATUS_FORCELIST),
+            backoff_factor=backoff_factor,
+            allowed_methods=DEFAULT_RETRY_ALLOWED_METHODS,
+            respect_retry_after_header=True,
+        )
 
     def _setup_logger(self) -> None:
         """Setup comprehensive logger for API client."""
@@ -122,13 +224,34 @@ class AlmaAPIClient:
         also gives downstream improvements (retry adapters, rate limiting,
         context-manager support) a single mount point.
 
-        Pattern source: GitHub issue #3 (HTTP: persistent requests.Session).
+        Mounts an ``HTTPAdapter`` with a ``urllib3.util.Retry`` policy so
+        transient 429/5xx responses from Alma are retried with
+        exponential backoff and ``Retry-After`` header awareness — long
+        paged jobs no longer have to be re-run from scratch when a single
+        intermediate response trips the rate limiter (issue #5).
+
+        Pattern source: GitHub issue #3 (HTTP: persistent requests.Session)
+        and issue #5 (HTTP: add retry with exponential backoff for
+        429/5xx).
         """
         self._session = requests.Session()
         # Default headers live on the session; per-call ``custom_headers``
         # still wins via the per-call ``headers=`` kwarg passed to
         # ``self._session.request(...)``.
         self._session.headers.update(self.default_headers)
+
+        # Mount the retry-aware HTTPAdapter on both schemes. ``http://``
+        # is included for completeness even though Alma's public API is
+        # HTTPS-only -- a misconfigured base URL or a future on-prem
+        # variant should still benefit from the same retry policy.
+        retry_policy = (
+            self._retry_override
+            if self._retry_override is not None
+            else self._build_retry(self._max_retries, self._backoff_factor)
+        )
+        adapter = HTTPAdapter(max_retries=retry_policy)
+        self._session.mount("https://", adapter)
+        self._session.mount("http://", adapter)
 
 
     def _load_configuration(self) -> None:

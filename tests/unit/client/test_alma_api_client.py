@@ -24,6 +24,7 @@ from unittest.mock import patch, MagicMock
 import requests
 
 from almaapitk import AlmaAPIClient
+from almaapitk.client.AlmaAPIClient import _safe_response_body
 
 
 def _make_mock_response(
@@ -218,6 +219,105 @@ class TestSessionReuse(_AlmaAPIClientTestBase):
         self.assertEqual(mock_request.call_count, 2)
         # The session reference must not have been swapped out.
         self.assertEqual(id(client._session), session_id_before)
+
+
+class TestRequestChokepoint(_AlmaAPIClientTestBase):
+    """Tests for issue #4: ``_request`` is the single HTTP chokepoint.
+
+    AC-1 (signatures preserved) is covered by the existing
+    ``TestVerbsRouteThroughSession`` class above. AC-2 (single chokepoint)
+    is enforced here by routing each verb through ``_request`` and
+    confirming the underlying ``Session.request`` is hit exactly once with
+    the expected method/URL/dispatch shape.
+
+    Pattern source: GitHub issue #4 acceptance criteria.
+    """
+
+    def test_request_single_chokepoint_for_get(self):
+        """``client.get`` must reach ``Session.request`` exactly once."""
+        client = AlmaAPIClient('SANDBOX')
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response()
+        ) as mock_request:
+            client.get('almaws/v1/conf/libraries', params={'limit': 5})
+
+        # Exactly one call -- proving the verb method is a thin wrapper
+        # over ``_request`` and not redundantly issuing the call itself.
+        self.assertEqual(mock_request.call_count, 1)
+        args, kwargs = mock_request.call_args
+        self.assertEqual(args[0], 'GET')
+        self.assertEqual(
+            args[1],
+            'https://api-eu.hosted.exlibrisgroup.com/almaws/v1/conf/libraries',
+        )
+        self.assertEqual(kwargs.get('params'), {'limit': 5})
+        # Default timeout flows from ``client.timeout`` when no per-call
+        # override is supplied.
+        self.assertEqual(kwargs.get('timeout'), client.timeout)
+
+    def test_request_uses_json_for_dict_data(self):
+        """Dict bodies without a content-type override go via ``json=``."""
+        client = AlmaAPIClient('SANDBOX')
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response(201)
+        ) as mock_request:
+            client.post('almaws/v1/users', data={'first_name': 'Ada'})
+
+        _args, kwargs = mock_request.call_args
+        self.assertEqual(kwargs.get('json'), {'first_name': 'Ada'})
+        # Mutually exclusive with ``data=`` so requests doesn't double-send.
+        self.assertNotIn('data', kwargs)
+
+    def test_request_uses_data_for_xml(self):
+        """When content_type is set, the body goes via ``data=`` verbatim."""
+        client = AlmaAPIClient('SANDBOX')
+        xml_body = '<bib><record/></bib>'
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response(200)
+        ) as mock_request:
+            client.post(
+                'almaws/v1/bibs',
+                data=xml_body,
+                content_type='application/xml',
+            )
+
+        _args, kwargs = mock_request.call_args
+        self.assertEqual(kwargs.get('data'), xml_body)
+        self.assertNotIn('json', kwargs)
+
+    def test_request_custom_timeout_overrides_default(self):
+        """Per-call ``timeout=`` should win over ``client.timeout``."""
+        client = AlmaAPIClient('SANDBOX')
+        # Sanity: default differs from the override we'll pass.
+        self.assertNotEqual(client.timeout, 5)
+        with patch.object(
+            client._session, 'request', return_value=_make_mock_response()
+        ) as mock_request:
+            # ``_request`` is the documented entry point for callers that
+            # need to override timeout (the public verbs don't expose it
+            # to keep their signatures bit-stable).
+            client._request('GET', 'almaws/v1/conf/libraries', timeout=5)
+
+        _args, kwargs = mock_request.call_args
+        self.assertEqual(kwargs.get('timeout'), 5)
+
+    def test_safe_response_body_returns_none_on_parse_error(self):
+        """``_safe_response_body`` should swallow JSON decode failures."""
+        bad_response = MagicMock(spec=requests.Response)
+        bad_response.headers = {'content-type': 'application/json'}
+        bad_response.json.side_effect = ValueError('not json')
+        # Helper must not propagate the parse error -- it returns None so
+        # callers can fall through to text/empty handling.
+        self.assertIsNone(_safe_response_body(bad_response))
+
+    def test_safe_response_body_returns_none_for_non_json_content_type(self):
+        """Non-JSON content types short-circuit without invoking ``.json()``."""
+        text_response = MagicMock(spec=requests.Response)
+        text_response.headers = {'content-type': 'text/plain'}
+        text_response.json.side_effect = AssertionError(
+            "should not be called for non-JSON content"
+        )
+        self.assertIsNone(_safe_response_body(text_response))
 
 
 if __name__ == '__main__':

@@ -62,18 +62,36 @@ class AlmaAPIClient:
     def __init__(self, environment: str = 'SANDBOX'):
         """
         Initialize the API client.
-        
+
         Args:
             environment: 'SANDBOX' or 'PRODUCTION'
         """
         self.environment = environment.upper()
         self._load_configuration()
         self._setup_headers()
-        self._setup_logger() 
+        self._setup_logger()
+        self._setup_session()
 
     def _setup_logger(self) -> None:
         """Setup comprehensive logger for API client."""
         self.logger = get_logger('api_client', environment=self.environment)
+
+    def _setup_session(self) -> None:
+        """Create a persistent ``requests.Session`` for connection pooling.
+
+        Holding a single session for the lifetime of the client lets the
+        underlying ``urllib3`` connection pool reuse TCP+TLS connections
+        across calls instead of paying a fresh handshake per request. It
+        also gives downstream improvements (retry adapters, rate limiting,
+        context-manager support) a single mount point.
+
+        Pattern source: GitHub issue #3 (HTTP: persistent requests.Session).
+        """
+        self._session = requests.Session()
+        # Default headers live on the session; per-call ``custom_headers``
+        # still wins via the per-call ``headers=`` kwarg passed to
+        # ``self._session.request(...)``.
+        self._session.headers.update(self.default_headers)
 
 
     def _load_configuration(self) -> None:
@@ -175,9 +193,13 @@ class AlmaAPIClient:
         # Log request
         self.logger.log_request('GET', endpoint, params=params, headers=headers)
 
-        # Make request with timing
+        # Make request with timing.
+        # Route through self._session so TCP+TLS connections are pooled
+        # across calls (issue #3).
         start_time = time.time()
-        response = requests.get(url, headers=headers, params=params, timeout=300)
+        response = self._session.request(
+            'GET', url, headers=headers, params=params, timeout=300
+        )
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response with body for successful requests
@@ -231,14 +253,19 @@ class AlmaAPIClient:
                 request_data=data
             )
 
-        # Make request with timing
+        # Make request with timing.
+        # Route through self._session for connection pooling (issue #3).
         start_time = time.time()
         if isinstance(data, dict) and not content_type:
             # JSON data
-            response = requests.post(url, headers=headers, json=data, params=params, timeout=300)
+            response = self._session.request(
+                'POST', url, headers=headers, json=data, params=params, timeout=300
+            )
         else:
             # XML or other data
-            response = requests.post(url, headers=headers, data=data, params=params, timeout=300)
+            response = self._session.request(
+                'POST', url, headers=headers, data=data, params=params, timeout=300
+            )
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response
@@ -259,7 +286,7 @@ class AlmaAPIClient:
             )
 
         return self._handle_response(response)
-    
+
     def put(self, endpoint: str, data: Any = None, params: Optional[Dict] = None,
             content_type: Optional[str] = None,
             custom_headers: Optional[Dict] = None) -> AlmaResponse:
@@ -292,14 +319,19 @@ class AlmaAPIClient:
                 request_data=data
             )
 
-        # Make request with timing
+        # Make request with timing.
+        # Route through self._session for connection pooling (issue #3).
         start_time = time.time()
         if isinstance(data, dict) and not content_type:
             # JSON data
-            response = requests.put(url, headers=headers, json=data, params=params, timeout=300)
+            response = self._session.request(
+                'PUT', url, headers=headers, json=data, params=params, timeout=300
+            )
         else:
             # XML or other data
-            response = requests.put(url, headers=headers, data=data, params=params, timeout=300)
+            response = self._session.request(
+                'PUT', url, headers=headers, data=data, params=params, timeout=300
+            )
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response
@@ -342,9 +374,12 @@ class AlmaAPIClient:
         # Log request
         self.logger.log_request('DELETE', endpoint, params=params, headers=headers)
 
-        # Make request with timing
+        # Make request with timing.
+        # Route through self._session for connection pooling (issue #3).
         start_time = time.time()
-        response = requests.delete(url, headers=headers, params=params, timeout=300)
+        response = self._session.request(
+            'DELETE', url, headers=headers, params=params, timeout=300
+        )
         duration_ms = (time.time() - start_time) * 1000
 
         # Log response
@@ -383,12 +418,19 @@ class AlmaAPIClient:
         try:
             self._load_configuration()
             self._setup_headers()
+            # Keep the session's headers in sync with the new environment
+            # so the persistent session sends the correct apikey going
+            # forward (issue #3).
+            if hasattr(self, '_session') and self._session is not None:
+                self._session.headers.update(self.default_headers)
             print(f"✓ Switched from {old_env} to {self.environment}")
         except Exception as e:
             # Revert to old environment if switch fails
             self.environment = old_env
             self._load_configuration()
             self._setup_headers()
+            if hasattr(self, '_session') and self._session is not None:
+                self._session.headers.update(self.default_headers)
             raise e
     
     def get_environment(self) -> str:

@@ -13,9 +13,14 @@ from urllib3.util.retry import Retry
 from almaapitk.alma_logging import get_logger
 
 
-# Default per-request timeout (seconds) for Alma API calls. Mirrors the
-# previous per-verb literal so behavior is unchanged after consolidation.
-DEFAULT_REQUEST_TIMEOUT = 300
+# Default per-request timeout (seconds) for Alma API calls. Lowered from
+# the previous 300s in issue #6: a 5-minute hang on a single request would
+# stall scripts and CI runs long after the underlying call had clearly
+# stopped making progress. 60s is a safer default for the typical Alma
+# verb; long-running endpoints (paged jobs, exports) can opt back into a
+# higher value via the ``timeout=`` constructor kwarg or the per-call
+# ``_request(..., timeout=...)`` override.
+DEFAULT_REQUEST_TIMEOUT = 60
 
 # Default retry configuration for the urllib3-backed HTTPAdapter mounted
 # on the persistent session (issue #5). The status forcelist covers Alma's
@@ -25,6 +30,32 @@ DEFAULT_RETRY_STATUS_FORCELIST = (429, 500, 502, 503, 504)
 DEFAULT_RETRY_TOTAL = 3
 DEFAULT_RETRY_BACKOFF_FACTOR = 1.0
 DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "POST", "PUT", "DELETE"})
+
+
+# Mapping of Alma hosting regions to their public API base URLs.
+#
+# Historically the client hardcoded the EU host, which silently broke
+# every non-European Alma tenant. Issue #7 lifts the host into a kwarg,
+# defaulting to ``"EU"`` so existing callers see no behavioural change.
+#
+# Notes:
+# - Asia Pacific is split between Singapore (``AP``) and Australia
+#   (``APS``); Ex Libris exposes them as separate hostnames.
+# - China uses the ``.com.cn`` TLD (NOT ``.com``). The original issue
+#   body had a typo here; the audit-fixed mapping below is the
+#   ground-truth one tested in ``test_cn_uses_com_cn_tld``.
+# - Advanced callers can sidestep this dict entirely by passing the
+#   ``host=`` kwarg with an arbitrary base URL (useful for staging/proxy
+#   deployments and on-prem mirrors).
+REGION_HOSTS: Dict[str, str] = {
+    "EU":  "https://api-eu.hosted.exlibrisgroup.com",
+    "NA":  "https://api-na.hosted.exlibrisgroup.com",
+    "AP":  "https://api-ap.hosted.exlibrisgroup.com",       # Asia Pacific (Singapore)
+    "APS": "https://api-aps.hosted.exlibrisgroup.com",      # Asia Pacific (Australia)
+    "CA":  "https://api-ca.hosted.exlibrisgroup.com",
+    "CN":  "https://api-cn.hosted.exlibrisgroup.com.cn",    # China -- note .com.cn TLD
+}
+DEFAULT_REGION = "EU"
 
 
 def _safe_response_body(response):
@@ -111,6 +142,9 @@ class AlmaAPIClient:
         max_retries: int = DEFAULT_RETRY_TOTAL,
         backoff_factor: float = DEFAULT_RETRY_BACKOFF_FACTOR,
         retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        region: str = DEFAULT_REGION,
+        host: Optional[str] = None,
     ):
         """Initialize the API client.
 
@@ -130,18 +164,41 @@ class AlmaAPIClient:
                 for advanced callers who need to tune fields not exposed
                 by the simple kwargs (allowed_methods, raise_on_status,
                 etc.).
+            timeout: Default per-request timeout in seconds. ``None``
+                falls back to ``DEFAULT_REQUEST_TIMEOUT`` (60s). Must be
+                a positive number when supplied. Per-call
+                ``_request(..., timeout=...)`` overrides this on a
+                request-by-request basis.
+            region: Alma hosting region key. Must be one of the keys in
+                ``REGION_HOSTS`` (``EU``, ``NA``, ``AP``, ``APS``, ``CA``,
+                ``CN``). Defaults to ``"EU"`` for backward compatibility
+                with all pre-#7 callers. Ignored when ``host`` is set.
+            host: Override the resolved base URL with an arbitrary
+                string. When non-``None`` this beats ``region`` entirely
+                — useful for staging proxies, on-prem mirrors, and
+                tests. The value is stored verbatim on
+                ``self.base_url``.
 
         Raises:
             AlmaValidationError: If ``max_retries`` is negative or not an
-                int, or if ``backoff_factor`` is negative or not numeric.
+                int, if ``backoff_factor`` is negative or not numeric,
+                if ``timeout`` is non-positive or non-numeric, or if
+                ``region`` is not a known key and ``host`` is not given.
 
         Pattern source: GitHub issue #5 (HTTP: retry with exponential
-        backoff for 429/5xx).
+        backoff for 429/5xx), issue #6 (HTTP: make timeout configurable;
+        lower default from 300s to 60s), and issue #7 (HTTP: make
+        region/host configurable).
         """
         self.environment = environment.upper()
         # Default per-request timeout. Per-call ``timeout=`` kwargs in
-        # ``_request`` override this on a request-by-request basis.
-        self.timeout = DEFAULT_REQUEST_TIMEOUT
+        # ``_request`` override this on a request-by-request basis. The
+        # constructor kwarg lets callers opt into a longer ceiling for
+        # workloads dominated by paged/long-running endpoints.
+        self._validate_timeout(timeout)
+        self.timeout = (
+            timeout if timeout is not None else DEFAULT_REQUEST_TIMEOUT
+        )
         # Validate retry knobs early so misconfiguration surfaces at
         # construction time rather than on the first network failure.
         if retry is None:
@@ -149,6 +206,12 @@ class AlmaAPIClient:
         self._max_retries = max_retries
         self._backoff_factor = backoff_factor
         self._retry_override = retry
+        # Region/host are stashed before ``_load_configuration`` so the
+        # base-URL resolver can pick them up (issue #7). ``switch_environment``
+        # also re-runs ``_load_configuration`` and must therefore see the
+        # same values on ``self``.
+        self._region = region
+        self._host_override = host
         self._load_configuration()
         self._setup_headers()
         self._setup_logger()
@@ -188,6 +251,36 @@ class AlmaAPIClient:
         if backoff_factor < 0:
             raise AlmaValidationError(
                 f"backoff_factor must be >= 0, got {backoff_factor}"
+            )
+
+    @staticmethod
+    def _validate_timeout(timeout: Any) -> None:
+        """Validate the ``timeout`` constructor kwarg.
+
+        ``None`` is allowed and means "fall back to the module default".
+        Anything else must be a positive ``int`` or ``float``. ``bool``
+        is a subclass of ``int`` in Python -- callers passing
+        ``True``/``False`` almost certainly mean to enable/disable the
+        feature, not to set a numeric timeout, so it is rejected
+        explicitly.
+
+        Args:
+            timeout: Candidate value for the ``timeout`` kwarg.
+
+        Raises:
+            AlmaValidationError: If ``timeout`` is not ``None`` and is
+                not a positive ``int``/``float`` (excluding ``bool``).
+        """
+        if timeout is None:
+            return
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise AlmaValidationError(
+                "timeout must be a positive number or None, "
+                f"got {type(timeout).__name__}"
+            )
+        if timeout <= 0:
+            raise AlmaValidationError(
+                f"timeout must be > 0, got {timeout}"
             )
 
     @staticmethod
@@ -255,7 +348,19 @@ class AlmaAPIClient:
 
 
     def _load_configuration(self) -> None:
-        """Load configuration based on environment."""
+        """Load configuration based on environment.
+
+        Resolves ``self.api_key`` from ``ALMA_SB_API_KEY`` /
+        ``ALMA_PROD_API_KEY`` and ``self.base_url`` from either an
+        explicit ``host`` override or a ``region`` lookup against
+        ``REGION_HOSTS`` (issue #7).
+
+        Raises:
+            ValueError: If the environment-specific API key env var is
+                not set, or if ``environment`` is not SANDBOX/PRODUCTION.
+            AlmaValidationError: If ``region`` is not a known
+                ``REGION_HOSTS`` key and no ``host`` override was given.
+        """
         if self.environment == 'SANDBOX':
             self.api_key = os.getenv('ALMA_SB_API_KEY')
             if not self.api_key:
@@ -266,10 +371,26 @@ class AlmaAPIClient:
                 raise ValueError("ALMA_PROD_API_KEY environment variable not set")
         else:
             raise ValueError("Environment must be 'SANDBOX' or 'PRODUCTION'")
-        
-        # Base URL (could be made configurable via env vars in the future)
-        self.base_url = "https://api-eu.hosted.exlibrisgroup.com"
-        
+
+        # Base URL resolution (issue #7):
+        # - ``host`` (when set) wins outright; advanced callers passing
+        #   their own URL (staging proxies, on-prem mirrors, tests) get
+        #   exactly what they asked for, with no further validation
+        #   beyond it being non-None.
+        # - Otherwise look up ``region`` in ``REGION_HOSTS``. An unknown
+        #   key is surfaced as ``AlmaValidationError`` with a list of the
+        #   accepted keys so the user can self-correct.
+        if self._host_override is not None:
+            self.base_url = self._host_override
+        else:
+            if self._region not in REGION_HOSTS:
+                raise AlmaValidationError(
+                    f"Unknown region {self._region!r}. "
+                    f"Valid regions: {sorted(REGION_HOSTS.keys())}. "
+                    "Pass host='<full-url>' to bypass region lookup."
+                )
+            self.base_url = REGION_HOSTS[self._region]
+
         print(f"✓ Configured for {self.environment} environment")
     
     def _setup_headers(self) -> None:

@@ -100,7 +100,13 @@ export const openPrTask = defineTask('open-pr', (args, taskCtx) => ({
   kind: 'shell',
   title: `Open draft PR for chunk/${args.chunkName}`,
   shell: {
-    command: `cd "${args.repoRoot}" && python -m scripts.agentic.pr_open <<'PAYLOAD_EOF'
+    // The chunk integration branch must exist on origin before `gh pr create`
+    // can resolve it (otherwise gh fails with "Head sha can't be blank").
+    // Push first, then call pr_open; pr_open's structured-error envelope
+    // catches any remaining gh failure and surfaces it cleanly via exit 3.
+    command: `cd "${args.repoRoot}" && \
+      git push -u origin chunk/${args.chunkName} && \
+      python -m scripts.agentic.pr_open <<'PAYLOAD_EOF'
 ${JSON.stringify({
   head_branch: `chunk/${args.chunkName}`,
   chunk_name: args.chunkName,
@@ -173,10 +179,15 @@ export const runPytestTask = defineTask('run-pytest', (args, taskCtx) => ({
   kind: 'shell',
   title: `Run SANDBOX test ${args.testId}`,
   shell: {
+    // - mkdir -p the output dir first, otherwise the redirect fails with
+    //   "No such file or directory" on a fresh chunk and pytest never runs.
+    // - DO NOT trail with `echo $?` — it makes the bash composite always
+    //   exit 0, masking real pytest failures (the orchestrator inspects
+    //   the bash exit code via the task's posted exitCode).
     command: `cd "${args.repoRoot}" && \
+      mkdir -p "chunks/${args.chunkName}/sandbox-test-output" && \
       poetry run pytest "${args.testFile}" -v --tb=short \
-      > "chunks/${args.chunkName}/sandbox-test-output/${args.testId}.log" 2>&1
-echo $?`,
+      > "chunks/${args.chunkName}/sandbox-test-output/${args.testId}.log" 2>&1`,
     timeout: 300000,
   },
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },

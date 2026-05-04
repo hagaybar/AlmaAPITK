@@ -9,6 +9,7 @@
  * @outputs { resultsPath: string, summary: object, prUrl: string|null }
  */
 import pkg from '@a5c-ai/babysitter-sdk';
+import { readFileSync } from 'node:fs';
 const { defineTask } = pkg;
 
 // ---------- shell tasks ----------
@@ -260,7 +261,14 @@ export async function process(inputs, ctx) {
 
   await ctx.task(validateEnvTask, { repoRoot, chunkName });
 
-  const testRec = await ctx.task(readTestRecTask, { chunkName, repoRoot });
+  // Read test-recommendation.json directly. The previous readTestRecTask
+  // approach (a shell task that just `cat`'d the file) only returned an
+  // {exitCode: 0} envelope to the JS, NOT the parsed JSON content — so
+  // `testRec.issues` was always undefined and the fixture interview
+  // breakpoint was silently skipped. Reading the file in-process here is
+  // simpler and avoids that whole shape-mismatch class of bug.
+  const testRecPath = `${repoRoot}/chunks/${chunkName}/test-recommendation.json`;
+  const testRec = JSON.parse(readFileSync(testRecPath, 'utf8'));
 
   // Aggregate every needsHumanInput.key across all tests for one breakpoint
   const fixtures = new Map();

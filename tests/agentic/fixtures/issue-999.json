@@ -1,0 +1,10 @@
+{
+  "number": 999,
+  "title": "Synthetic test fixture: Users: get_user (smoke)",
+  "url": "https://example.invalid/issue/999",
+  "labels": [
+    {"name": "api-coverage"},
+    {"name": "priority:medium"}
+  ],
+  "body": "Domain: Users\nPriority: medium\nEffort: S\n\n## API endpoints touched\n- GET /almaws/v1/users/{user_id}\n\n## Methods to add\n```python\nclass Users:\n    def get_user(self, user_id: str) -> AlmaResponse: ...\n```\n\n## Files to touch\n- src/almaapitk/domains/users.py\n- tests/unit/domains/test_users.py\n\n## References\n- https://developers.exlibrisgroup.com/alma/apis/users/\n\n## Prerequisites\n- Hard: #3 (persistent Session)\n- Soft: #14 (logger)\n\n## Acceptance criteria\n- [ ] AC-1: get_user returns AlmaResponse with .success == True for a valid user_id\n- [ ] AC-2: get_user raises AlmaValidationError when user_id is empty\n\n## Notes for the implementing agent\n- Mirror Acquisitions.get_invoice as the pattern source.\n"
+}

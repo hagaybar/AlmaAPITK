@@ -244,25 +244,44 @@ export async function process(inputs, ctx) {
         feedback, attempt,
       });
 
-      let stage = 'static';
-      try {
-        await ctx.task(staticGatesTask, { repoRoot, chunkName });
-        stage = 'scope';
-        await ctx.task(scopeCheckTask, {
+      // Run gates as plain awaits with explicit pass-checking on each
+      // resolved result. We DO NOT wrap individual awaits in try/catch —
+      // the SDK's pending-effect signal interferes with that pattern and
+      // causes spurious "gate failed" branches when an effect is simply
+      // not yet resolved.
+      //
+      // Convention: each shell task's posted output.json includes
+      // {"exitCode": N}. exitCode === 0 means pass; anything else is a
+      // gate failure that should drive the next refinement attempt.
+      const gateChain = [
+        ['static', staticGatesTask, { repoRoot, chunkName }],
+        ['scope', scopeCheckTask, {
           repoRoot, chunkName,
           issueNumber: issue.number,
           filesToTouch: issue.files_to_touch,
-        });
-        stage = 'unit';
-        await ctx.task(unitTestsTask, { repoRoot });
-        stage = 'contract';
-        await ctx.task(contractTestTask, { repoRoot });
+        }],
+        ['unit', unitTestsTask, { repoRoot }],
+        ['contract', contractTestTask, { repoRoot }],
+      ];
+      let firstFailedGate = null;
+      let firstFailedExit = 0;
+      for (const [gateName, gateTask, gateArgs] of gateChain) {
+        const result = await ctx.task(gateTask, gateArgs);
+        const exitCode = (result && typeof result === 'object'
+          ? (result.exitCode ?? 0)
+          : 0);
+        if (exitCode !== 0) {
+          firstFailedGate = gateName;
+          firstFailedExit = exitCode;
+          break;
+        }
+      }
+      if (firstFailedGate === null) {
         success = true;
         break;
-      } catch (e) {
-        feedback = `attempt ${attempt} failed at ${stage}-gate: ${e.message || e}`;
-        ctx.log(feedback);
       }
+      feedback = `attempt ${attempt} failed at ${firstFailedGate}-gate (exit=${firstFailedExit})`;
+      ctx.log(feedback);
     }
 
     if (!success) {

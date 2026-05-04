@@ -6,7 +6,7 @@ This is designed to be 'pluggable' - other classes will use this as their founda
 import os
 import requests
 import json
-from typing import Optional, Dict, Any, Union, List
+from typing import Optional, Dict, Any
 import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -212,9 +212,12 @@ class AlmaAPIClient:
         # same values on ``self``.
         self._region = region
         self._host_override = host
+        # Logger is set up first so ``_load_configuration`` can use
+        # ``self.logger`` instead of ``print()``. Only ``self.environment``
+        # (set above) is required for logger setup.
+        self._setup_logger()
         self._load_configuration()
         self._setup_headers()
-        self._setup_logger()
         self._setup_session()
 
     @staticmethod
@@ -391,7 +394,7 @@ class AlmaAPIClient:
                 )
             self.base_url = REGION_HOSTS[self._region]
 
-        print(f"✓ Configured for {self.environment} environment")
+        self.logger.info(f"Configured for {self.environment} environment")
     
     def _setup_headers(self) -> None:
         """Setup default headers for API requests."""
@@ -634,12 +637,14 @@ class AlmaAPIClient:
             response = self.get('almaws/v1/conf/libraries')
             success = response.status_code == 200
             if success:
-                print(f"✓ Successfully connected to Alma API ({self.environment})")
+                self.logger.info(f"Successfully connected to Alma API ({self.environment})")
             else:
-                print(f"✗ Connection failed: {response.status_code} - {response.text}")
+                self.logger.error(
+                    f"Connection failed: {response.status_code} - {response.text}"
+                )
             return success
         except Exception as e:
-            print(f"✗ Connection error: {e}")
+            self.logger.exception(f"Connection error: {e}")
             return False
     
     def switch_environment(self, new_environment: str) -> None:
@@ -659,7 +664,7 @@ class AlmaAPIClient:
             # forward (issue #3).
             if hasattr(self, '_session') and self._session is not None:
                 self._session.headers.update(self.default_headers)
-            print(f"✓ Switched from {old_env} to {self.environment}")
+            self.logger.info(f"Switched from {old_env} to {self.environment}")
         except Exception as e:
             # Revert to old environment if switch fails
             self.environment = old_env
@@ -677,50 +682,6 @@ class AlmaAPIClient:
         """Get base URL."""
         return self.base_url
     
-    # Utility methods that domain classes can use
-    
-    def safe_request(self, method: str, endpoint: str, **kwargs) -> Union[Dict, str, None]:
-        """
-        Make a request and handle common errors gracefully.
-        
-        Args:
-            method: HTTP method ('GET', 'POST', 'PUT', 'DELETE')
-            endpoint: API endpoint
-            **kwargs: Additional arguments for the request
-            
-        Returns:
-            Parsed response data or None if error
-        """
-        try:
-            method = method.upper()
-            if method == 'GET':
-                response = self.get(endpoint, **kwargs)
-            elif method == 'POST':
-                response = self.post(endpoint, **kwargs)
-            elif method == 'PUT':
-                response = self.put(endpoint, **kwargs)
-            elif method == 'DELETE':
-                response = self.delete(endpoint, **kwargs)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-            
-            response.raise_for_status()
-            
-            # Try to return JSON, fall back to text
-            try:
-                return response.json()
-            except:
-                return response.text
-                
-        except requests.exceptions.RequestException as e:
-            print(f"Request error: {e}")
-            return None
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return None
-
-
-
 
 
 
@@ -732,6 +693,15 @@ if __name__ == "__main__":
     Example usage of the AlmaAPIClient.
     This shows how the class works as a foundation.
     """
+    # Mirror INFO+ logger output to stderr so CLI users see the same
+    # progress/error messages that the alma_logging file handlers
+    # capture. Library code itself emits no raw stdout (issue #14).
+    import logging as _logging
+    _stderr_handler = _logging.StreamHandler(sys.stderr)
+    _stderr_handler.setFormatter(_logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    _logging.getLogger("almapi").addHandler(_stderr_handler)
+    _logging.getLogger("almapi").setLevel(_logging.INFO)
+
     try:
         # Initialize client
         client = AlmaAPIClient('PRODUCTION')  # or 'SANDBOX'

@@ -378,12 +378,12 @@ class Acquisitions:
             )
 
             # Create invoice via low-level method
-            print(f"Creating invoice {invoice_number} for vendor {vendor_code}: {total_amount} {currency}")
+            self.logger.info(f"Creating invoice {invoice_number} for vendor {vendor_code}: {total_amount} {currency}")
             created_invoice = self.create_invoice(invoice_data)
 
             invoice_id = created_invoice.get('id')
             if invoice_id:
-                print(f"✓ Invoice created successfully: {invoice_id}")
+                self.logger.info(f"✓ Invoice created successfully: {invoice_id}")
                 self.logger.info(
                     f"Invoice created successfully: {invoice_id}",
                     invoice_id=invoice_id,
@@ -392,7 +392,7 @@ class Acquisitions:
                     total_amount=total_amount
                 )
             else:
-                print(f"⚠️ Invoice created but no ID returned")
+                self.logger.warning(f"⚠️ Invoice created but no ID returned")
                 self.logger.warning(
                     "Invoice created but no ID in response",
                     invoice_number=invoice_number
@@ -509,7 +509,7 @@ class Acquisitions:
         try:
             # If fund_code not provided, try to get from POL
             if not fund_code:
-                print(f"No fund code provided - attempting to extract from POL {pol_id}")
+                self.logger.info(f"No fund code provided - attempting to extract from POL {pol_id}")
                 self.logger.debug(
                     f"Extracting fund code from POL: {pol_id}",
                     pol_id=pol_id
@@ -517,7 +517,7 @@ class Acquisitions:
                 fund_code = self.get_fund_from_pol(pol_id)
 
                 if fund_code:
-                    print(f"✓ Found fund code in POL: {fund_code}")
+                    self.logger.info(f"✓ Found fund code in POL: {fund_code}")
                     self.logger.info(
                         f"Fund code extracted from POL: {fund_code}",
                         pol_id=pol_id,
@@ -552,10 +552,10 @@ class Acquisitions:
             )
 
             # Create invoice line via low-level method
-            print(f"Creating invoice line for POL {pol_id}: {quantity} x {amount} {currency} (Fund: {fund_code})")
+            self.logger.info(f"Creating invoice line for POL {pol_id}: {quantity} x {amount} {currency} (Fund: {fund_code})")
             created_line = self.create_invoice_line(invoice_id, line_data)
 
-            print(f"✓ Invoice line created successfully")
+            self.logger.info(f"✓ Invoice line created successfully")
             self.logger.info(
                 f"Invoice line created successfully",
                 invoice_id=invoice_id,
@@ -765,9 +765,9 @@ class Acquisitions:
 
         try:
             # Step 1: Calculate total amount from lines
-            print("=" * 70)
-            print("STEP 1: Calculate total amount from lines")
-            print("-" * 70)
+            self.logger.info("=" * 70)
+            self.logger.info("STEP 1: Calculate total amount from lines")
+            self.logger.info("-" * 70)
 
             self.logger.info(
                 "Workflow Step 1: Calculating total amount",
@@ -778,8 +778,8 @@ class Acquisitions:
             total_amount = sum(line['amount'] for line in lines)
             result['total_amount'] = total_amount
 
-            print(f"Lines: {len(lines)}")
-            print(f"Total amount: {total_amount} {currency}")
+            self.logger.info(f"Lines: {len(lines)}")
+            self.logger.info(f"Total amount: {total_amount} {currency}")
 
             self.logger.info(
                 "Total amount calculated",
@@ -790,9 +790,9 @@ class Acquisitions:
             )
 
             # Step 2: Create invoice
-            print("\n" + "=" * 70)
-            print("STEP 2: Create invoice")
-            print("-" * 70)
+            self.logger.info("\n" + "=" * 70)
+            self.logger.info("STEP 2: Create invoice")
+            self.logger.info("-" * 70)
 
             self.logger.info(
                 "Workflow Step 2: Creating invoice",
@@ -819,7 +819,7 @@ class Acquisitions:
                 raise AlmaAPIError("Invoice created but no ID returned")
 
             result['invoice_id'] = invoice_id
-            print(f"✓ Invoice created: {invoice_id}")
+            self.logger.info(f"✓ Invoice created: {invoice_id}")
 
             self.logger.info(
                 "Invoice created in workflow",
@@ -828,9 +828,9 @@ class Acquisitions:
             )
 
             # Step 3: Add all lines
-            print("\n" + "=" * 70)
-            print(f"STEP 3: Add {len(lines)} invoice line(s)")
-            print("-" * 70)
+            self.logger.info("\n" + "=" * 70)
+            self.logger.info(f"STEP 3: Add {len(lines)} invoice line(s)")
+            self.logger.info("-" * 70)
 
             self.logger.info(
                 f"Workflow Step 3: Adding {len(lines)} invoice lines",
@@ -842,7 +842,7 @@ class Acquisitions:
 
             # Optional: Check for duplicate invoicing
             if check_duplicates:
-                print("\n⚠️  Duplicate check enabled - validating POLs...")
+                self.logger.info("\n⚠️  Duplicate check enabled - validating POLs...")
                 duplicates_found = []
                 for line in lines:
                     pol_id = line['pol_id']
@@ -854,16 +854,16 @@ class Acquisitions:
                                 'existing_invoices': check['invoices']
                             })
                     except Exception as e:
-                        print(f"  ⚠️  Could not check {pol_id}: {e}")
+                        self.logger.exception(f"  ⚠️  Could not check {pol_id}: {e}")
 
                 if duplicates_found:
                     error_msg = f"Duplicate invoicing detected for {len(duplicates_found)} POL(s)"
-                    print(f"\n✗ {error_msg}:")
+                    self.logger.error(f"\n✗ {error_msg}:")
                     for dup in duplicates_found:
-                        print(f"  - {dup['pol_id']}: already has {len(dup['existing_invoices'])} invoice(s)")
+                        self.logger.debug(f"  - {dup['pol_id']}: already has {len(dup['existing_invoices'])} invoice(s)")
                     raise ValueError(error_msg)
                 else:
-                    print("  ✓ No duplicates found - safe to proceed")
+                    self.logger.debug("  ✓ No duplicates found - safe to proceed")
 
             for idx, line in enumerate(lines, 1):
                 try:
@@ -876,7 +876,7 @@ class Acquisitions:
                     line_kwargs = {k: v for k, v in line.items()
                                    if k not in ['pol_id', 'amount', 'quantity', 'fund_code']}
 
-                    print(f"\nLine {idx}/{len(lines)}: POL {pol_id}, Amount: {amount}")
+                    self.logger.info(f"\nLine {idx}/{len(lines)}: POL {pol_id}, Amount: {amount}")
 
                     created_line = self.create_invoice_line_simple(
                         invoice_id=invoice_id,
@@ -895,7 +895,7 @@ class Acquisitions:
                 except Exception as e:
                     error_msg = f"Line {idx} (POL {pol_id}): {str(e)}"
                     result['errors'].append(error_msg)
-                    print(f"✗ {error_msg}")
+                    self.logger.exception(f"✗ {error_msg}")
                     # Continue with remaining lines
 
             # Check if all lines succeeded
@@ -910,7 +910,7 @@ class Acquisitions:
 
             if len(result['line_ids']) < len(lines):
                 failed_count = len(lines) - len(result['line_ids'])
-                print(f"\n⚠️ Warning: {failed_count} line(s) failed")
+                self.logger.error(f"\n⚠️ Warning: {failed_count} line(s) failed")
                 self.logger.warning(
                     f"{failed_count} invoice lines failed",
                     invoice_id=invoice_id,
@@ -920,7 +920,7 @@ class Acquisitions:
                     total=len(lines)
                 )
             else:
-                print(f"\n✓ All {len(lines)} line(s) created successfully")
+                self.logger.info(f"\n✓ All {len(lines)} line(s) created successfully")
                 self.logger.info(
                     "All invoice lines created successfully",
                     invoice_id=invoice_id,
@@ -930,9 +930,9 @@ class Acquisitions:
 
             # Step 4: Process invoice (if requested)
             if auto_process:
-                print("\n" + "=" * 70)
-                print("STEP 4: Process (approve) invoice")
-                print("-" * 70)
+                self.logger.info("\n" + "=" * 70)
+                self.logger.info("STEP 4: Process (approve) invoice")
+                self.logger.info("-" * 70)
 
                 self.logger.info(
                     "Workflow Step 4: Processing invoice",
@@ -944,7 +944,7 @@ class Acquisitions:
                     processed_invoice = self.approve_invoice(invoice_id)
                     result['processed'] = True
                     result['status'] = processed_invoice.get('invoice_status', {}).get('value')
-                    print(f"✓ Invoice processed")
+                    self.logger.info(f"✓ Invoice processed")
 
                     self.logger.info(
                         "Invoice processed successfully",
@@ -956,7 +956,7 @@ class Acquisitions:
                 except Exception as e:
                     error_msg = f"Failed to process invoice: {str(e)}"
                     result['errors'].append(error_msg)
-                    print(f"✗ {error_msg}")
+                    self.logger.exception(f"✗ {error_msg}")
                     self.logger.error(
                         "Failed to process invoice",
                         invoice_id=invoice_id,
@@ -969,7 +969,7 @@ class Acquisitions:
                 if not auto_process or not result['processed']:
                     error_msg = "Cannot pay invoice: must be processed first"
                     result['errors'].append(error_msg)
-                    print(f"\n✗ {error_msg}")
+                    self.logger.error(f"\n✗ {error_msg}")
                     self.logger.warning(
                         "Cannot pay invoice: not processed",
                         invoice_id=invoice_id,
@@ -978,9 +978,9 @@ class Acquisitions:
                         processed=result['processed']
                     )
                 else:
-                    print("\n" + "=" * 70)
-                    print("STEP 5: Mark invoice as paid")
-                    print("-" * 70)
+                    self.logger.info("\n" + "=" * 70)
+                    self.logger.info("STEP 5: Mark invoice as paid")
+                    self.logger.info("-" * 70)
 
                     self.logger.info(
                         "Workflow Step 5: Marking invoice as paid",
@@ -992,7 +992,7 @@ class Acquisitions:
                         paid_invoice = self.mark_invoice_paid(invoice_id)
                         result['paid'] = True
                         result['status'] = paid_invoice.get('invoice_status', {}).get('value')
-                        print(f"✓ Invoice marked as paid")
+                        self.logger.info(f"✓ Invoice marked as paid")
 
                         self.logger.info(
                             "Invoice marked as paid successfully",
@@ -1004,7 +1004,7 @@ class Acquisitions:
                     except Exception as e:
                         error_msg = f"Failed to mark invoice as paid: {str(e)}"
                         result['errors'].append(error_msg)
-                        print(f"✗ {error_msg}")
+                        self.logger.exception(f"✗ {error_msg}")
                         self.logger.error(
                             "Failed to mark invoice as paid",
                             invoice_id=invoice_id,
@@ -1013,21 +1013,21 @@ class Acquisitions:
                         )
 
             # Final summary
-            print("\n" + "=" * 70)
-            print("WORKFLOW SUMMARY")
-            print("=" * 70)
-            print(f"Invoice ID: {result['invoice_id']}")
-            print(f"Invoice Number: {result['invoice_number']}")
-            print(f"Total Amount: {result['total_amount']} {currency}")
-            print(f"Lines Created: {len(result['line_ids'])}/{len(lines)}")
-            print(f"Processed: {'Yes' if result['processed'] else 'No'}")
-            print(f"Paid: {'Yes' if result['paid'] else 'No'}")
-            print(f"Status: {result['status'] or 'Unknown'}")
+            self.logger.info("\n" + "=" * 70)
+            self.logger.info("WORKFLOW SUMMARY")
+            self.logger.info("=" * 70)
+            self.logger.info(f"Invoice ID: {result['invoice_id']}")
+            self.logger.info(f"Invoice Number: {result['invoice_number']}")
+            self.logger.info(f"Total Amount: {result['total_amount']} {currency}")
+            self.logger.info(f"Lines Created: {len(result['line_ids'])}/{len(lines)}")
+            self.logger.info(f"Processed: {'Yes' if result['processed'] else 'No'}")
+            self.logger.info(f"Paid: {'Yes' if result['paid'] else 'No'}")
+            self.logger.info(f"Status: {result['status'] or 'Unknown'}")
 
             if result['errors']:
-                print(f"\nErrors encountered: {len(result['errors'])}")
+                self.logger.error(f"\nErrors encountered: {len(result['errors'])}")
                 for error in result['errors']:
-                    print(f"  - {error}")
+                    self.logger.error(f"  - {error}")
                 self.logger.warning(
                     f"Workflow completed with {len(result['errors'])} errors",
                     invoice_id=result['invoice_id'],
@@ -1036,7 +1036,7 @@ class Acquisitions:
                     errors=result['errors']
                 )
             else:
-                print("\n✓ Workflow completed successfully with no errors")
+                self.logger.info("\n✓ Workflow completed successfully with no errors")
                 self.logger.info(
                     "Workflow completed successfully",
                     invoice_id=result['invoice_id'],
@@ -1095,7 +1095,7 @@ class Acquisitions:
         if not invoice_id:
             raise ValueError("Invoice ID is required")
         
-        print(f"Retrieving invoice: {invoice_id} from {self.environment}")
+        self.logger.info(f"Retrieving invoice: {invoice_id} from {self.environment}")
         
         params = {"view": view} if view != "full" else None
         
@@ -1110,11 +1110,11 @@ class Acquisitions:
             # Parse JSON response
             invoice_data = response.json()
             
-            print(f"✓ Successfully retrieved invoice {invoice_id}")
+            self.logger.info(f"✓ Successfully retrieved invoice {invoice_id}")
             return invoice_data
             
         except Exception as e:
-            print(f"✗ Failed to retrieve invoice {invoice_id}: {str(e)}")
+            self.logger.exception(f"✗ Failed to retrieve invoice {invoice_id}: {str(e)}")
             raise
     
     def process_invoice_service(self, invoice_id: str, operation: str) -> Dict[str, Any]:
@@ -1145,9 +1145,9 @@ class Acquisitions:
         # Validate operation
         valid_operations = ['paid', 'process_invoice', 'mark_in_erp', 'rejected']
         if operation not in valid_operations:
-            print(f"⚠️  Warning: '{operation}' is not in known operations: {valid_operations}")
+            self.logger.warning(f"⚠️  Warning: '{operation}' is not in known operations: {valid_operations}")
         
-        print(f"Processing invoice service: {invoice_id}, operation: {operation}")
+        self.logger.debug(f"Processing invoice service: {invoice_id}, operation: {operation}")
         
         try:
             endpoint = f"almaws/v1/acq/invoices/{invoice_id}"
@@ -1165,11 +1165,11 @@ class Acquisitions:
             # Parse JSON response
             result_data = response.json()
             
-            print(f"✓ Successfully processed invoice service {operation} for invoice {invoice_id}")
+            self.logger.info(f"✓ Successfully processed invoice service {operation} for invoice {invoice_id}")
             return result_data
             
         except Exception as e:
-            print(f"✗ Failed to process invoice service {operation} for invoice {invoice_id}: {str(e)}")
+            self.logger.exception(f"✗ Failed to process invoice service {operation} for invoice {invoice_id}: {str(e)}")
             raise
     
     def check_invoice_payment_status(self, invoice_id: str) -> Dict[str, Any]:
@@ -1294,10 +1294,10 @@ class Acquisitions:
                 raise AlmaAPIError(error_msg)
 
             # Log that payment protection check passed
-            print(f"✓ Payment protection check passed for invoice {invoice_id}")
-            print(f"  Current state: {check['invoice_status']} / {check['approval_status']} / {check['payment_status']}")
+            self.logger.info(f"✓ Payment protection check passed for invoice {invoice_id}")
+            self.logger.debug(f"  Current state: {check['invoice_status']} / {check['approval_status']} / {check['payment_status']}")
         else:
-            print(f"⚠️ WARNING: Bypassing payment protection for invoice {invoice_id}")
+            self.logger.warning(f"⚠️ WARNING: Bypassing payment protection for invoice {invoice_id}")
 
         return self.process_invoice_service(invoice_id, "paid")
     
@@ -1384,11 +1384,11 @@ class Acquisitions:
                 "payment_status": payment_status_value
             }
             
-            print(f"✓ Generated summary for invoice {invoice_id}")
+            self.logger.info(f"✓ Generated summary for invoice {invoice_id}")
             return summary
             
         except Exception as e:
-            print(f"✗ Failed to generate summary for invoice {invoice_id}: {str(e)}")
+            self.logger.exception(f"✗ Failed to generate summary for invoice {invoice_id}: {str(e)}")
             raise
     
     def list_invoices(self, limit: int = 10, offset: int = 0, 
@@ -1406,7 +1406,7 @@ class Acquisitions:
         Returns:
             Dict containing the list of invoices
         """
-        print(f"Listing invoices (limit: {limit}, offset: {offset})")
+        self.logger.info(f"Listing invoices (limit: {limit}, offset: {offset})")
         
         params = {
             "limit": str(limit),
@@ -1435,11 +1435,11 @@ class Acquisitions:
             invoices_data = response.json()
             
             total_count = invoices_data.get('total_record_count', 0)
-            print(f"✓ Successfully retrieved {total_count} invoices")
+            self.logger.info(f"✓ Successfully retrieved {total_count} invoices")
             return invoices_data
             
         except Exception as e:
-            print(f"✗ Failed to list invoices: {str(e)}")
+            self.logger.exception(f"✗ Failed to list invoices: {str(e)}")
             raise
     
     def search_invoices(self, query: str, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
@@ -1457,7 +1457,7 @@ class Acquisitions:
         if not query:
             raise ValueError("Search query is required")
         
-        print(f"Searching invoices with query: {query}")
+        self.logger.info(f"Searching invoices with query: {query}")
         
         params = {
             "q": query,
@@ -1477,11 +1477,11 @@ class Acquisitions:
             search_results = response.json()
             
             total_count = search_results.get('total_record_count', 0)
-            print(f"✓ Search found {total_count} invoices matching query")
+            self.logger.info(f"✓ Search found {total_count} invoices matching query")
             return search_results
             
         except Exception as e:
-            print(f"✗ Invoice search failed: {str(e)}")
+            self.logger.exception(f"✗ Invoice search failed: {str(e)}")
             raise
     
     def get_invoice_lines(self, invoice_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
@@ -1499,7 +1499,7 @@ class Acquisitions:
         if not invoice_id:
             raise ValueError("Invoice ID is required")
 
-        print(f"Retrieving lines for invoice: {invoice_id}")
+        self.logger.info(f"Retrieving lines for invoice: {invoice_id}")
 
         try:
             # Use dedicated lines endpoint
@@ -1524,11 +1524,11 @@ class Acquisitions:
                 invoice_lines = [invoice_lines]
 
             total_count = lines_data.get('total_record_count', len(invoice_lines))
-            print(f"✓ Retrieved {len(invoice_lines)} line(s) for invoice {invoice_id} (total: {total_count})")
+            self.logger.info(f"✓ Retrieved {len(invoice_lines)} line(s) for invoice {invoice_id} (total: {total_count})")
             return invoice_lines
 
         except Exception as e:
-            print(f"✗ Failed to get invoice lines for {invoice_id}: {str(e)}")
+            self.logger.exception(f"✗ Failed to get invoice lines for {invoice_id}: {str(e)}")
             raise
 
     def get_pol(self, pol_id: str) -> Dict[str, Any]:
@@ -1583,51 +1583,51 @@ class Acquisitions:
         items = []
 
         # DEBUG: Check if location field exists
-        print(f"[DEBUG] Checking for 'location' field in POL data...")
+        self.logger.info(f"[DEBUG] Checking for 'location' field in POL data...")
         if 'location' not in pol_data:
-            print(f"[DEBUG] ✗ No 'location' field found in POL data")
-            print(f"[DEBUG] Available top-level fields: {list(pol_data.keys())}")
+            self.logger.info(f"[DEBUG] ✗ No 'location' field found in POL data")
+            self.logger.info(f"[DEBUG] Available top-level fields: {list(pol_data.keys())}")
             return items
 
-        print(f"[DEBUG] ✓ 'location' field found")
+        self.logger.info(f"[DEBUG] ✓ 'location' field found")
 
         # Navigate to location list
         locations = pol_data.get('location', [])
-        print(f"[DEBUG] Location type: {type(locations)}")
+        self.logger.info(f"[DEBUG] Location type: {type(locations)}")
 
         # Ensure locations is a list
         if isinstance(locations, dict):
-            print(f"[DEBUG] Location is a dict, converting to list")
+            self.logger.info(f"[DEBUG] Location is a dict, converting to list")
             locations = [locations]
 
-        print(f"[DEBUG] Number of locations: {len(locations)}")
+        self.logger.info(f"[DEBUG] Number of locations: {len(locations)}")
 
         # Extract items from each location's copy list
         for loc_idx, location in enumerate(locations):
-            print(f"[DEBUG] Processing location {loc_idx + 1}/{len(locations)}")
-            print(f"[DEBUG] Location keys: {list(location.keys())}")
+            self.logger.debug(f"[DEBUG] Processing location {loc_idx + 1}/{len(locations)}")
+            self.logger.info(f"[DEBUG] Location keys: {list(location.keys())}")
 
             if 'copy' not in location:
-                print(f"[DEBUG] ✗ No 'copy' field in location {loc_idx + 1}")
+                self.logger.info(f"[DEBUG] ✗ No 'copy' field in location {loc_idx + 1}")
                 continue
 
             copies = location.get('copy', [])
-            print(f"[DEBUG] Copy type: {type(copies)}")
+            self.logger.info(f"[DEBUG] Copy type: {type(copies)}")
 
             # Ensure copies is a list
             if isinstance(copies, dict):
-                print(f"[DEBUG] Copy is a dict, converting to list")
+                self.logger.info(f"[DEBUG] Copy is a dict, converting to list")
                 copies = [copies]
 
-            print(f"[DEBUG] Number of copies in location {loc_idx + 1}: {len(copies)}")
+            self.logger.info(f"[DEBUG] Number of copies in location {loc_idx + 1}: {len(copies)}")
 
             # Each copy is an item
             for copy_idx, copy in enumerate(copies):
-                print(f"[DEBUG] Copy {copy_idx + 1} keys: {list(copy.keys())[:10]}")  # First 10 keys
+                self.logger.info(f"[DEBUG] Copy {copy_idx + 1} keys: {list(copy.keys())[:10]}")  # First 10 keys
                 items.append(copy)
 
-        print(f"[DEBUG] Total items extracted: {len(items)}")
-        print(f"✓ Extracted {len(items)} item(s) from POL data")
+        self.logger.info(f"[DEBUG] Total items extracted: {len(items)}")
+        self.logger.info(f"✓ Extracted {len(items)} item(s) from POL data")
         return items
 
     def get_pol_items(self, pol_id: str) -> List[Dict[str, Any]]:
@@ -1653,7 +1653,7 @@ class Acquisitions:
         if not pol_id:
             raise ValueError("POL ID is required")
 
-        print(f"Retrieving items for POL: {pol_id}")
+        self.logger.info(f"Retrieving items for POL: {pol_id}")
 
         endpoint = f"almaws/v1/acq/po-lines/{pol_id}/items"
         response = self.client.get(endpoint)
@@ -1666,10 +1666,10 @@ class Acquisitions:
                 items = items_data['item']
                 if isinstance(items, dict):
                     items = [items]
-                print(f"✓ Retrieved {len(items)} item(s) for POL {pol_id}")
+                self.logger.info(f"✓ Retrieved {len(items)} item(s) for POL {pol_id}")
                 return items
             else:
-                print(f"✓ No items found for POL {pol_id}")
+                self.logger.info(f"✓ No items found for POL {pol_id}")
                 return []
         else:
             raise AlmaAPIError(f"Failed to get items for POL {pol_id}")
@@ -1710,7 +1710,7 @@ class Acquisitions:
         if not item_id:
             raise ValueError("Item ID is required")
 
-        print(f"Receiving item {item_id} for POL {pol_id}")
+        self.logger.info(f"Receiving item {item_id} for POL {pol_id}")
 
         # Build query parameters
         params = {"op": "receive"}
@@ -1736,7 +1736,7 @@ class Acquisitions:
             )
 
             if response.success:
-                print(f"✓ Successfully received item {item_id} for POL {pol_id}")
+                self.logger.info(f"✓ Successfully received item {item_id} for POL {pol_id}")
                 # API returns XML for this endpoint, try JSON first, fall back to XML parsing
                 try:
                     return response.json()
@@ -1761,7 +1761,7 @@ class Acquisitions:
         except AlmaAPIError:
             raise
         except Exception as e:
-            print(f"✗ Failed to receive item {item_id} for POL {pol_id}: {str(e)}")
+            self.logger.exception(f"✗ Failed to receive item {item_id} for POL {pol_id}: {str(e)}")
             raise
 
     def receive_and_keep_in_department(self,
@@ -1824,12 +1824,12 @@ class Acquisitions:
                 "POL ID, item ID, MMS ID, holding ID, library, and department are required"
             )
 
-        print(f"\n=== Receiving item and keeping in department ===")
-        print(f"POL: {pol_id}, Item: {item_id}")
-        print(f"Department: {department} at library {library}")
+        self.logger.info(f"\n=== Receiving item and keeping in department ===")
+        self.logger.info(f"POL: {pol_id}, Item: {item_id}")
+        self.logger.info(f"Department: {department} at library {library}")
 
         # Step 1: Receive the item
-        print(f"\nStep 1: Receiving item {item_id}...")
+        self.logger.info(f"\nStep 1: Receiving item {item_id}...")
         receive_result = self.receive_item(
             pol_id=pol_id,
             item_id=item_id,
@@ -1839,7 +1839,7 @@ class Acquisitions:
         )
 
         # Step 2: Scan in the item to keep it in department
-        print(f"\nStep 2: Scanning item into department to prevent Transit...")
+        self.logger.info(f"\nStep 2: Scanning item into department to prevent Transit...")
         bibs = BibliographicRecords(self.client)
 
         scan_result = bibs.scan_in_item(
@@ -1854,8 +1854,8 @@ class Acquisitions:
         )
 
         if scan_result.success:
-            print(f"✓ Successfully received and kept item in department {department}")
-            print(f"  Work order: {work_order_type} - Status: {work_order_status}")
+            self.logger.info(f"✓ Successfully received and kept item in department {department}")
+            self.logger.debug(f"  Work order: {work_order_type} - Status: {work_order_status}")
             return scan_result.json()
         else:
             raise AlmaAPIError(
@@ -1972,14 +1972,14 @@ class Acquisitions:
             vendor_code = pol_data.get('vendor', {}).get('value')
 
             if vendor_code:
-                print(f"✓ Found vendor in POL {pol_id}: {vendor_code}")
+                self.logger.info(f"✓ Found vendor in POL {pol_id}: {vendor_code}")
             else:
-                print(f"⚠️ No vendor found in POL {pol_id}")
+                self.logger.warning(f"⚠️ No vendor found in POL {pol_id}")
 
             return vendor_code
 
         except AlmaAPIError as e:
-            print(f"✗ Failed to get vendor from POL {pol_id}: {e}")
+            self.logger.exception(f"✗ Failed to get vendor from POL {pol_id}: {e}")
             raise
 
     def get_fund_from_pol(self, pol_id: str) -> Optional[str]:
@@ -2041,16 +2041,16 @@ class Acquisitions:
                 fund_code = first_fund.get('fund_code', {}).get('value')
 
                 if fund_code:
-                    print(f"✓ Found fund in POL {pol_id}: {fund_code}")
+                    self.logger.info(f"✓ Found fund in POL {pol_id}: {fund_code}")
                     if len(fund_distribution) > 1:
-                        print(f"  Note: POL has {len(fund_distribution)} funds, using first (primary) fund")
+                        self.logger.debug(f"  Note: POL has {len(fund_distribution)} funds, using first (primary) fund")
                     return fund_code
 
-            print(f"⚠️ No fund distribution found in POL {pol_id}")
+            self.logger.warning(f"⚠️ No fund distribution found in POL {pol_id}")
             return None
 
         except AlmaAPIError as e:
-            print(f"✗ Failed to get fund from POL {pol_id}: {e}")
+            self.logger.exception(f"✗ Failed to get fund from POL {pol_id}: {e}")
             raise
 
     def get_price_from_pol(self, pol_id: str) -> Optional[float]:
@@ -2110,17 +2110,17 @@ class Acquisitions:
             if price is not None:
                 price_float = float(price)
                 currency = pol_data.get('price', {}).get('currency', {}).get('value', 'N/A')
-                print(f"✓ Found price in POL {pol_id}: {price_float} {currency}")
+                self.logger.info(f"✓ Found price in POL {pol_id}: {price_float} {currency}")
                 return price_float
 
-            print(f"⚠️ No price found in POL {pol_id}")
+            self.logger.warning(f"⚠️ No price found in POL {pol_id}")
             return None
 
         except (ValueError, TypeError) as e:
-            print(f"⚠️ Could not parse price from POL {pol_id}: {e}")
+            self.logger.exception(f"⚠️ Could not parse price from POL {pol_id}: {e}")
             return None
         except AlmaAPIError as e:
-            print(f"✗ Failed to get price from POL {pol_id}: {e}")
+            self.logger.exception(f"✗ Failed to get price from POL {pol_id}: {e}")
             raise
 
     def check_pol_invoiced(self, pol_id: str) -> Dict[str, Any]:
@@ -2180,7 +2180,7 @@ class Acquisitions:
                 'invoices': []
             }
 
-            print(f"Checking if POL {pol_id} is already invoiced...")
+            self.logger.info(f"Checking if POL {pol_id} is already invoiced...")
 
             # Direct POL search - Alma API supports searching by pol_number
             # Query format: pol_number~{pol_id}
@@ -2202,7 +2202,7 @@ class Acquisitions:
                     invoices = data.get('invoice', [])
 
                     if invoices:
-                        print(f"  Found {len(invoices)} invoice(s) containing POL {pol_id}")
+                        self.logger.debug(f"  Found {len(invoices)} invoice(s) containing POL {pol_id}")
 
                         # Get detailed line information for each invoice
                         for invoice in invoices:
@@ -2247,26 +2247,26 @@ class Acquisitions:
                                         'amount': amount_display,
                                         'line_status': line.get('status', {}).get('value', 'N/A')
                                     })
-                                    print(f"  ⚠️  Found: Invoice {invoice_number} (status: {invoice_status}, payment: {payment_status}) has line for {pol_id}: {amount_display}")
+                                    self.logger.debug(f"  ⚠️  Found: Invoice {invoice_number} (status: {invoice_status}, payment: {payment_status}) has line for {pol_id}: {amount_display}")
 
                     if not result['is_invoiced']:
-                        print(f"  ✓ POL {pol_id} is not yet invoiced")
+                        self.logger.debug(f"  ✓ POL {pol_id} is not yet invoiced")
                     else:
-                        print(f"  ⚠️  POL {pol_id} has {result['invoice_count']} existing invoice line(s)")
+                        self.logger.debug(f"  ⚠️  POL {pol_id} has {result['invoice_count']} existing invoice line(s)")
 
                 else:
-                    print(f"  ⚠️ Could not search invoices: {response.status_code}")
+                    self.logger.debug(f"  ⚠️ Could not search invoices: {response.status_code}")
                     result['search_error'] = f"API returned status {response.status_code}"
 
             except Exception as e:
-                print(f"  ⚠️ Could not complete invoice search: {e}")
+                self.logger.exception(f"  ⚠️ Could not complete invoice search: {e}")
                 # Return inconclusive result
                 result['search_error'] = str(e)
 
             return result
 
         except AlmaAPIError as e:
-            print(f"✗ Failed to check if POL {pol_id} is invoiced: {e}")
+            self.logger.exception(f"✗ Failed to check if POL {pol_id} is invoiced: {e}")
             raise
 
     # =========================================================================
@@ -2290,14 +2290,14 @@ class Acquisitions:
             success = response.status_code == 200
             
             if success:
-                print(f"✓ Acquisitions API connection successful ({self.environment})")
+                self.logger.info(f"✓ Acquisitions API connection successful ({self.environment})")
             else:
-                print(f"✗ Acquisitions API connection failed: {response.status_code}")
+                self.logger.error(f"✗ Acquisitions API connection failed: {response.status_code}")
             
             return success
             
         except Exception as e:
-            print(f"✗ Acquisitions API connection error: {e}")
+            self.logger.exception(f"✗ Acquisitions API connection error: {e}")
             return False
 
 
@@ -2306,6 +2306,16 @@ if __name__ == "__main__":
     """
     Example usage of the Acquisitions domain with AlmaAPIClient.
     """
+    # Mirror INFO+ logger output to stderr so CLI users see the
+    # progress messages that the alma_logging file handlers also
+    # capture. Library code itself emits no raw stdout (issue #14).
+    import logging as _logging
+    import sys as _sys
+    _stderr_handler = _logging.StreamHandler(_sys.stderr)
+    _stderr_handler.setFormatter(_logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    _logging.getLogger("almapi").addHandler(_stderr_handler)
+    _logging.getLogger("almapi").setLevel(_logging.INFO)
+
     try:
         # Initialize the base client
         client = AlmaAPIClient('SANDBOX')  # or 'PRODUCTION'

@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
+from almaapitk.alma_logging import get_logger
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient
 from almaapitk.domains.admin import Admin
 
@@ -31,6 +32,9 @@ class TSVGenerator:
             config_path: Path to JSON configuration file
         """
         self.config_path = config_path
+        # Logger goes up first so ``_load_config`` can use ``self.logger``
+        # instead of ``print()`` (issue #14).
+        self.logger = get_logger("tsv_generator")
         self.config = self._load_config()
         self.alma_client = None
         self.admin_client = None
@@ -62,14 +66,14 @@ class TSVGenerator:
                 if not os.path.exists(tsv_path):
                     raise ValueError(f"Direct TSV file not found: {tsv_path}")
                 
-                print(f"✓ Using direct TSV input: {tsv_path}")
+                self.logger.info(f"✓ Using direct TSV input: {tsv_path}")
             else:
 
 
 
                 if 'alma_set_id' not in input_config:
                     raise ValueError("Missing 'alma_set_id' in input configuration")
-                print(f"✓ Using Alma set ID: {input_config['alma_set_id']}")
+                self.logger.info(f"✓ Using Alma set ID: {input_config['alma_set_id']}")
                 
             if 'environment' not in input_config:
                 raise ValueError("Missing 'environment' in input configuration")
@@ -78,7 +82,7 @@ class TSVGenerator:
             if not config['columns'] or not isinstance(config['columns'], list):
                 raise ValueError("'columns' must be a non-empty list")
             
-            print(f"✓ Configuration loaded successfully from {self.config_path}")
+            self.logger.info(f"✓ Configuration loaded successfully from {self.config_path}")
             return config
             
         except FileNotFoundError:
@@ -90,7 +94,7 @@ class TSVGenerator:
         """Initialize Alma API clients."""
         environment = environment_override or self.config['input']['environment']
         
-        print(f"Initializing Alma API client for {environment} environment...")
+        self.logger.info(f"Initializing Alma API client for {environment} environment...")
         
         try:
             self.alma_client = AlmaAPIClient(environment)
@@ -103,7 +107,7 @@ class TSVGenerator:
             if not self.admin_client.test_connection():
                 raise RuntimeError("Failed to connect to Alma Admin API")
             
-            print(f"✓ Alma API clients initialized successfully")
+            self.logger.info(f"✓ Alma API clients initialized successfully")
             
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Alma clients: {e}")
@@ -112,11 +116,11 @@ class TSVGenerator:
         """Get MMS IDs from the configured Alma set."""
         set_id = set_id_override or self.config['input']['alma_set_id']
         
-        print(f"Retrieving MMS IDs from Alma set: {set_id}")
+        self.logger.info(f"Retrieving MMS IDs from Alma set: {set_id}")
         
         try:
             mms_ids = self.admin_client.get_set_members(set_id)
-            print(f"✓ Retrieved {len(mms_ids)} MMS IDs from set {set_id}")
+            self.logger.info(f"✓ Retrieved {len(mms_ids)} MMS IDs from set {set_id}")
             return mms_ids
             
         except Exception as e:
@@ -156,7 +160,7 @@ class TSVGenerator:
         output_path = Path(output_dir).resolve()
         output_path.mkdir(parents=True, exist_ok=True)
         
-        print(f"✓ Output directory ready: {output_path}")
+        self.logger.info(f"✓ Output directory ready: {output_path}")
         return str(output_path)
     
     def _generate_filename(self, set_id: str) -> str:
@@ -184,8 +188,8 @@ class TSVGenerator:
         
         include_headers = self.config['output_settings'].get('include_headers', False)
         
-        print(f"Writing TSV file: {full_path}")
-        print(f"Processing {len(mms_ids)} records...")
+        self.logger.info(f"Writing TSV file: {full_path}")
+        self.logger.debug(f"Processing {len(mms_ids)} records...")
         
         try:
             with open(full_path, 'w', newline='', encoding='utf-8') as tsvfile:
@@ -195,7 +199,7 @@ class TSVGenerator:
                 if include_headers:
                     headers = [col.get('name', f'Column_{i}') for i, col in enumerate(self.config['columns'])]
                     writer.writerow(headers)
-                    print(f"  ✓ Headers written: {headers}")
+                    self.logger.debug(f"  ✓ Headers written: {headers}")
                 
                 # Write data rows
                 for i, mms_id in enumerate(mms_ids, 1):
@@ -204,11 +208,11 @@ class TSVGenerator:
                     
                     # Progress indicator for large sets
                     if i % 100 == 0:
-                        print(f"  Processed {i}/{len(mms_ids)} records...")
+                        self.logger.debug(f"  Processed {i}/{len(mms_ids)} records...")
                 
-            print(f"✓ TSV file created successfully: {full_path}")
-            print(f"  Total records: {len(mms_ids)}")
-            print(f"  Columns: {len(self.config['columns'])}")
+            self.logger.info(f"✓ TSV file created successfully: {full_path}")
+            self.logger.debug(f"  Total records: {len(mms_ids)}")
+            self.logger.debug(f"  Columns: {len(self.config['columns'])}")
             
             return full_path
             
@@ -236,9 +240,9 @@ class TSVGenerator:
                     raise ValueError(f"Row {i} has {len(row)} columns, expected {expected_columns}")
             
             actual_data_rows = len(rows) - (1 if include_headers else 0)
-            print(f"✓ TSV file validation passed")
-            print(f"  Data rows: {actual_data_rows}")
-            print(f"  Columns per row: {expected_columns}")
+            self.logger.info(f"✓ TSV file validation passed")
+            self.logger.debug(f"  Data rows: {actual_data_rows}")
+            self.logger.debug(f"  Columns per row: {expected_columns}")
             
         except Exception as e:
             raise RuntimeError(f"TSV file validation failed: {e}")
@@ -254,8 +258,8 @@ class TSVGenerator:
         Returns:
             Path to the created TSV file
         """
-        print(f"\n=== TSV Generation Started ===")
-        print(f"Config file: {self.config_path}")
+        self.logger.info(f"\n=== TSV Generation Started ===")
+        self.logger.info(f"Config file: {self.config_path}")
         
         try:
             # Step 1: Initialize Alma clients
@@ -276,38 +280,38 @@ class TSVGenerator:
             # Step 5: Validate the created file
             self._validate_tsv_file(tsv_path)
             
-            print(f"\n=== TSV Generation Completed Successfully ===")
-            print(f"Output file: {tsv_path}")
+            self.logger.info(f"\n=== TSV Generation Completed Successfully ===")
+            self.logger.info(f"Output file: {tsv_path}")
             
             return tsv_path
             
         except Exception as e:
-            print(f"\n✗ TSV Generation Failed: {e}")
+            self.logger.exception(f"\n✗ TSV Generation Failed: {e}")
             raise
     
     def preview_config(self) -> None:
         """Print a preview of the current configuration."""
-        print(f"\n=== Configuration Preview ===")
-        print(f"Config file: {self.config_path}")
-        print(f"Alma Set ID: {self.config['input']['alma_set_id']}")
-        print(f"Environment: {self.config['input']['environment']}")
-        print(f"Number of columns: {len(self.config['columns'])}")
+        self.logger.info(f"\n=== Configuration Preview ===")
+        self.logger.info(f"Config file: {self.config_path}")
+        self.logger.info(f"Alma Set ID: {self.config['input']['alma_set_id']}")
+        self.logger.info(f"Environment: {self.config['input']['environment']}")
+        self.logger.info(f"Number of columns: {len(self.config['columns'])}")
         
-        print(f"\nColumns:")
+        self.logger.info(f"\nColumns:")
         for i, col in enumerate(self.config['columns'], 1):
             name = col.get('name', f'Column_{i}')
             source = col.get('source', 'default_value')
             default = col.get('default_value', '')
             if source == 'alma_set':
-                print(f"  {i}. {name}: [MMS IDs from Alma set]")
+                self.logger.debug(f"  {i}. {name}: [MMS IDs from Alma set]")
             else:
-                print(f"  {i}. {name}: '{default}'")
+                self.logger.debug(f"  {i}. {name}: '{default}'")
         
         output_settings = self.config['output_settings']
-        print(f"\nOutput Settings:")
-        print(f"  Directory: {output_settings.get('output_directory', './output')}")
-        print(f"  File prefix: {output_settings.get('file_prefix', 'alma_output')}")
-        print(f"  Include headers: {output_settings.get('include_headers', False)}")
+        self.logger.info(f"\nOutput Settings:")
+        self.logger.debug(f"  Directory: {output_settings.get('output_directory', './output')}")
+        self.logger.debug(f"  File prefix: {output_settings.get('file_prefix', 'alma_output')}")
+        self.logger.debug(f"  Include headers: {output_settings.get('include_headers', False)}")
 
 
 # Convenience functions for easy usage
@@ -383,7 +387,7 @@ def create_sample_config(output_path: str = "alma_tsv_config.json") -> str:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(sample_config, f, indent=2)
         
-        print(f"✓ Sample configuration created: {output_path}")
+        self.logger.info(f"✓ Sample configuration created: {output_path}")
         return output_path
         
     except Exception as e:
@@ -395,6 +399,16 @@ if __name__ == "__main__":
     """
     Example usage of the TSV Generator.
     """
+    # Mirror INFO+ logger output to stderr so CLI users see the
+    # progress messages that the alma_logging file handlers also
+    # capture. Library code itself emits no raw stdout (issue #14).
+    import logging as _logging
+    import sys as _sys
+    _stderr_handler = _logging.StreamHandler(_sys.stderr)
+    _stderr_handler.setFormatter(_logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    _logging.getLogger("almapi").addHandler(_stderr_handler)
+    _logging.getLogger("almapi").setLevel(_logging.INFO)
+
     try:
         print("=== TSV Generator Test ===")
         

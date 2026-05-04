@@ -209,13 +209,6 @@ except AlmaAPIError as e:
 
 - Python 3.12+
 - requests
-- pandas
-- openpyxl
-- boto3
-- pypdf2
-- pyyaml
-- beautifulsoup4
-- lxml
 
 ## License
 

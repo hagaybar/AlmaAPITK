@@ -1,0 +1,68 @@
+{
+  "chunk": "http-retry",
+  "branch": "chunk/http-retry",
+  "createdAt": "2026-05-04T10:33:35Z",
+  "issues": [
+    {
+      "number": 5,
+      "title": "HTTP: add retry with exponential backoff for 429 / 5xx",
+      "classification": "general",
+      "subBranch": "feat/5-http-add-retry-with-exponentia",
+      "tests": [
+        {
+          "id": "t-5-1",
+          "kind": "smoke",
+          "scope": "After the Retry adapter is mounted on the session, a normal GET against SANDBOX still completes successfully \u2014 verifies the adapter doesn't break the happy path.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "test_user_id",
+              "description": "Existing user_primary_id in SANDBOX (read-only).",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.domains.users import Users",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "users = Users(client)",
+            "response = users.get_user('${test_user_id}')"
+          ],
+          "passCriteria": [
+            "AlmaResponse.success is True",
+            "response.data is a non-empty dict (live JSON parsed by _safe_response_body)",
+            "client._session.adapters['https://'] is the HTTPAdapter we mounted (not the default)",
+            "No AlmaAPIError or AlmaValidationError raised"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-5: Existing tests pass; public signatures unchanged": [
+          "t-5-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-1: HTTPAdapter mounted on https/http",
+          "reason": "Internal session-config invariant; verified by unit tests asserting on client._session.adapters[...]. No SANDBOX-observable behavior."
+        },
+        {
+          "ac": "AC-2: Default Retry config (total/backoff/status_forcelist/allowed_methods)",
+          "reason": "Internal Retry-instance config; verified by unit tests. SANDBOX cannot reveal these values."
+        },
+        {
+          "ac": "AC-3: max_retries / backoff_factor kwargs override defaults",
+          "reason": "Constructor-kwarg semantics; verified by unit tests asserting on the mounted Retry config."
+        },
+        {
+          "ac": "AC-4: pre-built retry kwarg wins over other kwargs",
+          "reason": "Constructor-kwarg precedence; verified by unit tests."
+        }
+      ]
+    }
+  ]
+}

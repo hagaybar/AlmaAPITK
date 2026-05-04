@@ -102,11 +102,14 @@ export const openPrTask = defineTask('open-pr', (args, taskCtx) => ({
   shell: {
     // The chunk integration branch must exist on origin before `gh pr create`
     // can resolve it (otherwise gh fails with "Head sha can't be blank").
-    // Push first, then call pr_open; pr_open's structured-error envelope
-    // catches any remaining gh failure and surfaces it cleanly via exit 3.
+    // Push first, then call pr_open. pr_open prints {"ok":..,"pr_url":..} on
+    // stdout — capture that to chunks/<name>/_pr_open_result.json so
+    // appendRunLogTask can read it. (The babysitter shell-task result
+    // envelope (output.json) only carries exit code; we use a separate
+    // chunk-local sidecar for the PR URL.)
     command: `cd "${args.repoRoot}" && \
       git push -u origin chunk/${args.chunkName} && \
-      python -m scripts.agentic.pr_open <<'PAYLOAD_EOF'
+      python -m scripts.agentic.pr_open > "chunks/${args.chunkName}/_pr_open_result.json" <<'PAYLOAD_EOF'
 ${JSON.stringify({
   head_branch: `chunk/${args.chunkName}`,
   chunk_name: args.chunkName,
@@ -365,14 +368,25 @@ export async function process(inputs, ctx) {
     (results.perIssue || []).map(p => p.number);
 
   // Stage 7b: open the draft PR.
-  const prResult = await ctx.task(openPrTask, {
+  await ctx.task(openPrTask, {
     repoRoot, chunkName,
     issueNumbers,
     implSummary: triage.implSummary || '(see commits)',
     testSummary: triage.testSummary || '(see chunks/<name>/test-results.json)',
   });
-  // pr_open emits {ok, pr_url} JSON on stdout, captured into output.json.
-  const prUrl = (prResult && prResult.pr_url) || null;
+  // openPrTask redirects pr_open's stdout into a per-chunk sidecar file
+  // (chunks/<name>/_pr_open_result.json). Read it from there to recover
+  // the PR URL for the run-log row. Sidecar is per-chunk; safe to read.
+  let prUrl = null;
+  try {
+    const prResultRaw = readFileSync(
+      `${repoRoot}/chunks/${chunkName}/_pr_open_result.json`, 'utf8'
+    );
+    const prResult = JSON.parse(prResultRaw);
+    prUrl = (prResult && prResult.ok && prResult.pr_url) || null;
+  } catch (e) {
+    ctx.log(`warn: could not read PR URL sidecar: ${e.message || e}`);
+  }
 
   // Stage 7c: append the run-log row.
   const timeTotalSeconds = Math.round((Date.now() - startedAt) / 1000);

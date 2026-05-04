@@ -1,0 +1,25 @@
+{
+  "chunk": "http-retry",
+  "testRunStartedAt": "2026-05-04T11:00:00Z",
+  "testRunFinishedAt": "2026-05-04T11:00:30Z",
+  "perTest": [
+    {
+      "id": "t-5-1",
+      "outcome": "passed",
+      "issueNumber": 5,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "test_t_5_1_retry_adapter_does_not_break_happy_path PASSED in 0.66s. Verified: client._session.adapters['https://'] is HTTPAdapter with Retry instance, Retry.total >= 1, normal users.get_user('<user_primary_id>') still returns AlmaResponse.success=True with non-empty .data. Adapter doesn't break the happy path."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 5,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "note": "AC-1 through AC-4 are private session/Retry config invariants in unmappable[] \u2014 verified by 22 unit tests, not SANDBOX-observable. tested:passing-needs-review per spec \u00a78."
+    }
+  ]
+}

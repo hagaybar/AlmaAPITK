@@ -1,0 +1,16 @@
+{
+  "chunk": "http-retry",
+  "issues": [
+    5
+  ],
+  "stage": "merged",
+  "branch": "chunk/http-retry",
+  "createdAt": "2026-05-04T10:28:11Z",
+  "updatedAt": "2026-05-04T12:34:10Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/82)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": null,
+  "testRunId": null,
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/82"
+}

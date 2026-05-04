@@ -1,0 +1,33 @@
+{
+  "chunk": "http-retry",
+  "issues": [
+    {
+      "number": 5,
+      "title": "HTTP: add retry with exponential backoff for 429 / 5xx",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/5",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** High\n\n## Problem\n\nAny 429/502/503/504 from the Alma API surfaces immediately as `AlmaAPIError`. Long-running scripts (user-expiry runs, bulk POL receiving, paged invoice listing) fail mid-flight and have to be re-run from scratch. CLAUDE.md \"Archived Advanced Features Documentation\" already documents this as the intended design \u2014 it just hasn't been re-implemented.\n\n## Proposal\n\nMount a `urllib3.util.Retry` adapter on the session.\n\n```python\nfrom requests.adapters import HTTPAdapter\nfrom urllib3.util.retry import Retry\n\nretry = Retry(\n    total=3,\n    status_forcelist=[429, 500, 502, 503, 504],\n    backoff_factor=1,                     # 1s, 2s, 4s\n    allowed_methods=frozenset({\"GET\", \"POST\", \"PUT\", \"DELETE\"}),\n    respect_retry_after_header=True,\n)\nadapter = HTTPAdapter(max_retries=retry)\nself._session.mount(\"https://\", adapter)\nself._session.mount(\"http://\", adapter)\n```\n\nExpose knobs via constructor kwargs with sensible defaults: `max_retries=3`, `backoff_factor=1`. Advanced callers may pass a fully-built `Retry` object.\n\n## Files to touch\n\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/client/test_alma_api_client.py` (existing \u2014 add retry tests under)\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #3 \u2014 Persistent requests.Session\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- Retries are observable via the existing logger at WARNING level (one log entry per retry, including target URL, status, and attempt number).\n- `respect_retry_after_header=True` so we honor Alma's `Retry-After`.\n- Constructor exposes `max_retries`, `backoff_factor` (or a `retry: Retry` instance escape hatch).\n- POST/PUT retries are explicitly opt-in or scoped to truly idempotent operations \u2014 review carefully; some POSTs (invoice creation) are NOT idempotent.\n\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_api_client.py"
+      ],
+      "references": [],
+      "hard_prereqs": [
+        3
+      ],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "Retries are observable via the existing logger at WARNING level (one log entry per retry, including target URL, status, and attempt number).",
+        "`respect_retry_after_header=True` so we honor Alma's `Retry-After`.",
+        "Constructor exposes `max_retries`, `backoff_factor` (or a `retry: Retry` instance escape hatch).",
+        "POST/PUT retries are explicitly opt-in or scoped to truly idempotent operations \u2014 review carefully; some POSTs (invoice creation) are NOT idempotent."
+      ]
+    }
+  ]
+}

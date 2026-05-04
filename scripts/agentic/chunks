@@ -34,6 +34,7 @@ Subcommands:
   run-test <name>               trigger the generic chunk-test process
   abort <name>                  mark chunk aborted; leave branches in place
   complete <name> [--pr-url U]  mark chunk merged; record PR URL; close lifecycle
+  regression-smoke              re-run every chunk's sandbox smoke tests against HEAD
   help                          show this message
 
 Env:
@@ -257,6 +258,11 @@ transition(chunk_dir, new_stage="merged",
            **extra)
 print(f"chunk '{name}' marked merged" + (f" with PR {pr_url}" if pr_url else ""))
 PYEOF
+    ;;
+
+  regression-smoke)
+    cd "$REPO_ROOT"
+    "$PY" -m scripts.agentic.regression_smoke "$@"
     ;;
 
   *)

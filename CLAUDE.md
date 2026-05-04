@@ -37,6 +37,16 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 
 When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the supplied test user", not the literal value). When the operator volunteers an ID in chat, use it for the run but redact it in any artifact that gets written or pushed.
 
+**Hard rule R10 — bug-driven regression tests.** When a real-world bug is discovered (in production, by an operator, or by a chunk's SANDBOX testing), the workflow is:
+
+1. **First** write a failing test that reproduces the bug — preferably as a unit test under `tests/unit/`, but a SANDBOX smoke under `chunks/<name>/sandbox-tests/` is also acceptable if it requires live behavior.
+2. Confirm the test fails on current `main`.
+3. Implement the fix.
+4. Confirm the test now passes.
+5. Commit both the test AND the fix in the same change.
+
+The test stays in the suite forever; the bug can never silently regress. This applies to bugs found post-merge (cleanup commit) AND bugs found mid-chunk (extra test in the chunk's diff). The cumulative suite is run via `scripts/agentic/chunks regression-smoke` before each test release. R10 is the discipline that makes the suite worth running: a regression suite without bug-driven tests is just smoke tests by another name.
+
 ---
 
 ## Project Overview

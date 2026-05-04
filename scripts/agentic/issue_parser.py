@@ -39,13 +39,35 @@ def _section(body: str, header: str) -> str | None:
 
 
 def _bullet_lines(section_body: str | None) -> list[str]:
+    """Extract list bullets, stripping markdown backticks and trailing parentheticals.
+
+    Handles all of:
+        - path                                  -> path
+        - `path`                                -> path
+        - `path` (comment about it)             -> path
+        - `path (comment inside backticks)`     -> path
+        - GET /api/v1/x                          -> GET /api/v1/x
+    """
     if not section_body:
         return []
-    return [
-        line[2:].strip()
-        for line in section_body.splitlines()
-        if line.startswith("- ") or line.startswith("* ")
-    ]
+    out: list[str] = []
+    for line in section_body.splitlines():
+        if not (line.startswith("- ") or line.startswith("* ")):
+            continue
+        text = line[2:].strip()
+        # If wrapped in backticks, take only what's inside the first backtick span.
+        if text.startswith("`"):
+            end = text.find("`", 1)
+            if end > 0:
+                text = text[1:end]
+        # Strip trailing " (annotation)" annotation, if any.
+        paren_idx = text.find(" (")
+        if paren_idx > 0:
+            text = text[:paren_idx]
+        text = text.strip()
+        if text:
+            out.append(text)
+    return out
 
 
 def _parse_prereqs(section_body: str | None) -> tuple[list[int], list[int]]:

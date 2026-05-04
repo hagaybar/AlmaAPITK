@@ -34,7 +34,7 @@ def test_parse_rejects_missing_structured_headers():
     from scripts.agentic.issue_parser import parse_issue
 
     raw = json.loads((FIXTURES / "issue-998-bad.json").read_text())
-    with pytest.raises(ValueError, match="missing Domain/Priority/Effort"):
+    with pytest.raises(ValueError, match="Priority/Benefit"):
         parse_issue(raw)
 
 
@@ -92,3 +92,19 @@ def test_synthetic_fixture_still_works():
     assert parsed["hard_prereqs"] == [3]
     assert parsed["soft_prereqs"] == [14]
     assert len(parsed["acceptance_criteria"]) == 2
+
+
+def test_parse_real_issue_3_arch_format():
+    """Architecture issue #3 has Complexity/Benefit aliases and no Domain header."""
+    from scripts.agentic.issue_parser import parse_issue
+
+    raw = json.loads((FIXTURES / "issue-real-3.json").read_text())
+    parsed = parse_issue(raw)
+
+    assert parsed["number"] == 3
+    # Architecture issues default Domain to "Architecture" since they have none
+    assert parsed["domain"] == "Architecture"
+    # **Benefit:** High → priority="high"
+    assert parsed["priority"] == "high"
+    # **Complexity:** S (≤½ day) → effort="S"
+    assert parsed["effort"] == "S"

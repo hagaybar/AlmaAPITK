@@ -28,6 +28,7 @@ from urllib3.util.retry import Retry
 from almaapitk import AlmaAPIClient
 from almaapitk.client.AlmaAPIClient import (
     AlmaValidationError,
+    REGION_HOSTS,
     _safe_response_body,
 )
 
@@ -504,6 +505,144 @@ class TestTimeoutConfiguration(_AlmaAPIClientTestBase):
         """``bool`` is rejected even though it's an ``int`` subclass."""
         with self.assertRaises(AlmaValidationError):
             AlmaAPIClient('SANDBOX', timeout=True)
+
+
+class TestRegionHostConfiguration(_AlmaAPIClientTestBase):
+    """Tests for issue #7: configurable region/host base URL.
+
+    AC-1: Six regions exposed in ``REGION_HOSTS`` (EU, NA, AP, APS, CA, CN).
+    AC-2: ``region`` defaults to ``"EU"`` so existing callers see no change.
+    AC-3: ``host`` kwarg, when non-None, beats ``region`` outright.
+    AC-4: Unknown ``region`` raises ``AlmaValidationError``.
+    AC-5: Existing callers still work (regression guard for
+          ``environment=`` positional/kwarg path).
+    AC-6: ``client.base_url`` remains the public-introspectable attribute.
+
+    Pattern source: GitHub issue #7 acceptance criteria.
+    """
+
+    # The six regions the toolkit officially supports. The CN entry is
+    # the audit-fix value (.com.cn); the original issue body had .com
+    # which would silently 404 against the real Chinese host.
+    EXPECTED_REGION_HOSTS = {
+        "EU":  "https://api-eu.hosted.exlibrisgroup.com",
+        "NA":  "https://api-na.hosted.exlibrisgroup.com",
+        "AP":  "https://api-ap.hosted.exlibrisgroup.com",
+        "APS": "https://api-aps.hosted.exlibrisgroup.com",
+        "CA":  "https://api-ca.hosted.exlibrisgroup.com",
+        "CN":  "https://api-cn.hosted.exlibrisgroup.com.cn",
+    }
+
+    def test_region_hosts_dict_exposes_six_regions(self):
+        """AC-1: REGION_HOSTS must contain exactly the six expected keys."""
+        self.assertEqual(
+            set(REGION_HOSTS.keys()),
+            set(self.EXPECTED_REGION_HOSTS.keys()),
+        )
+        # Spot-check each URL so a future refactor can't silently swap
+        # one region's host for another.
+        for key, expected_url in self.EXPECTED_REGION_HOSTS.items():
+            self.assertEqual(REGION_HOSTS[key], expected_url, msg=key)
+
+    def test_default_region_is_eu(self):
+        """AC-2: bare construction should still use the EU host."""
+        client = AlmaAPIClient('SANDBOX')
+        self.assertEqual(
+            client.base_url,
+            "https://api-eu.hosted.exlibrisgroup.com",
+        )
+
+    def test_region_kwarg_selects_url(self):
+        """AC-1 + AC-2: each region key resolves to its expected URL."""
+        for region, expected_url in self.EXPECTED_REGION_HOSTS.items():
+            with self.subTest(region=region):
+                client = AlmaAPIClient('SANDBOX', region=region)
+                self.assertEqual(client.base_url, expected_url)
+
+    def test_cn_uses_com_cn_tld(self):
+        """AC-1 audit-fix regression guard: CN must end in ``.com.cn``.
+
+        The original issue body had ``api-cn.hosted.exlibrisgroup.com``
+        which is wrong -- the real host uses the ``.com.cn`` TLD. This
+        test pins the corrected value so a future copy-paste from the
+        original issue can't silently regress it.
+        """
+        client = AlmaAPIClient('SANDBOX', region='CN')
+        self.assertTrue(
+            client.base_url.endswith('.com.cn'),
+            f"CN base_url should end with .com.cn, got {client.base_url!r}",
+        )
+        self.assertEqual(
+            client.base_url,
+            "https://api-cn.hosted.exlibrisgroup.com.cn",
+        )
+
+    def test_host_kwarg_overrides_region(self):
+        """AC-3: a non-None ``host`` should win even with a valid region."""
+        client = AlmaAPIClient(
+            'SANDBOX',
+            region='NA',
+            host='https://custom.example/',
+        )
+        self.assertEqual(client.base_url, 'https://custom.example/')
+
+    def test_host_kwarg_accepts_arbitrary_url(self):
+        """AC-3: the ``host`` value is taken verbatim (no validation)."""
+        # No trailing slash, internal hostname, non-standard port -- all
+        # legal for staging/proxy deployments.
+        client = AlmaAPIClient(
+            'SANDBOX',
+            host='https://alma-staging.internal.example:8443',
+        )
+        self.assertEqual(
+            client.base_url,
+            'https://alma-staging.internal.example:8443',
+        )
+
+    def test_invalid_region_raises(self):
+        """AC-4: an unknown region must surface ``AlmaValidationError``."""
+        with self.assertRaises(AlmaValidationError) as ctx:
+            AlmaAPIClient('SANDBOX', region='ZZ')
+        # Error message should mention the offending value AND the list
+        # of accepted regions so the user can self-correct without
+        # reading source.
+        message = str(ctx.exception)
+        self.assertIn("ZZ", message)
+        self.assertIn("EU", message)
+
+    def test_existing_environment_kwarg_still_works(self):
+        """AC-5: pre-#7 callers using ``environment=`` must still work.
+
+        Regression guard for the bit-stable public signature: every
+        downstream consumer constructs the client as
+        ``AlmaAPIClient('SANDBOX')`` or ``AlmaAPIClient('PRODUCTION')``.
+        These paths must continue to land on the EU host with no extra
+        kwargs.
+        """
+        with patch.dict(
+            os.environ, {'ALMA_PROD_API_KEY': 'test-prod-key'}, clear=False
+        ):
+            client_pos = AlmaAPIClient('PRODUCTION')
+            self.assertEqual(client_pos.environment, 'PRODUCTION')
+            self.assertEqual(
+                client_pos.base_url,
+                "https://api-eu.hosted.exlibrisgroup.com",
+            )
+
+            client_kw = AlmaAPIClient(environment='PRODUCTION')
+            self.assertEqual(client_kw.environment, 'PRODUCTION')
+            self.assertEqual(
+                client_kw.base_url,
+                "https://api-eu.hosted.exlibrisgroup.com",
+            )
+
+    def test_base_url_is_public_attribute(self):
+        """AC-6: ``client.base_url`` must remain introspectable (not private)."""
+        client = AlmaAPIClient('SANDBOX', region='NA')
+        # No underscore prefix -- the attribute is part of the public
+        # surface area (``get_base_url()`` already documents this).
+        self.assertTrue(hasattr(client, 'base_url'))
+        self.assertEqual(client.base_url, client.get_base_url())
 
 
 if __name__ == '__main__':

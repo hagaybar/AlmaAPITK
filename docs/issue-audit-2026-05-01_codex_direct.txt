@@ -1,0 +1,625 @@
+
+• ## Summary
+
+  - Total open issues reviewed: 79
+  - Aligned: 40
+  - Partially aligned: 26
+  - Not aligned: 2
+  - Cannot verify: 11
+
+  I used the official Alma REST API pages and OpenAPI links from Ex Libris. Important caveat: Ex Libris says OpenAPI
+  support is still “early phases” and subject to change, so I treated rendered endpoint docs as authoritative when they
+  conflicted with OpenAPI.
+
+  ## Issue Review
+
+  ### Issue #1: Approach 3: Trusted Publisher (OIDC) + GitHub Actions release workflow
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: PyPI release automation is outside Alma API behavior.
+  Recommended action: keep as wrapper/distribution task
+
+  ### Issue #2: Logging: stray (taskName=None) on every log line under Python 3.12+
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: This is Python logging behavior, not Alma API behavior.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #3: HTTP: use a persistent requests.Session for connection pooling
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Calling Alma APIs (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Alma documents HTTPS API calls and authentication, but not client connection pooling.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #4: HTTP: consolidate get/post/put/delete into a single _request() method
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Structure of REST URIs (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Alma documents HTTP verbs, but this refactor is internal wrapper structure.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #5: HTTP: add retry with exponential backoff for 429 / 5xx
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Error Handling and API Governance Thresholds
+  (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: 429, 500, and 503 are documented. 502/504 and Retry-After are not documented on the official page. Retrying
+  POST/PUT is risky because POST creates resources and PUT replaces full entities.
+  Recommended action: update issue description
+
+  ### Issue #6: HTTP: make timeout configurable; lower default from 300s to 60s
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not specified by Alma docs
+  Findings: Alma docs do not define client timeout behavior.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #7: HTTP: make region/host configurable (currently EU is hardcoded)
+
+  Status: Not aligned with documentation
+  Relevant documentation: Calling Alma APIs (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: The proposal uses wrong hosts for Australia and China. Docs list api-aps.hosted.exlibrisgroup.com for Asia
+  Pacific Australia and api-cn.hosted.exlibrisgroup.com.cn for China. It also collapses APAC into one code while docs
+  distinguish Singapore and Australia.
+  Recommended action: update issue description before implementation
+
+  ### Issue #8: HTTP: implement client-side rolling-window rate limiting
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: API Governance Thresholds (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Client throttling is sensible, and 429 thresholds are documented. The issue’s “~25 RPS” claim is outdated
+  or unsupported. Docs state 50 requests/sec and 1500/min for production, 10/sec and 300/min for sandboxes.
+  Recommended action: update issue description
+
+  ### Issue #9: Errors: map Alma error codes to specific exception subclasses
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Error Handling (https://developers.exlibrisgroup.com/alma/apis/), Acquisitions API
+  (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Alma error payloads do include errorCode and status-dependent errors. The specific examples are weak:
+  402459 is documented for “Error while trying to retrieve invoice X,” not duplicate invoice; 40166411 is a generic
+  invalid-parameter style code in multiple areas, not specifically “POL not in the right mode.”
+  Recommended action: update issue description
+
+  ### Issue #10: Errors: propagate Alma tracking_id and error_code onto raised exceptions
+
+  Status: Aligned with documentation
+  Relevant documentation: Error Handling (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Official error examples include errorCode, errorMessage, and trackingId. Minor terminology point: prefer an
+  error_code attribute or alias because the documented field is errorCode.
+  Recommended action: update issue description
+
+  ### Issue #11: API: add iter_paged() generator at the client level
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Alma OpenAPI specs for paged list endpoints, e.g. Users
+  (https://developers.exlibrisgroup.com/alma/apis/users/) and Acquisitions
+  (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: limit and offset are widely documented. The generic record_key and total_record_count assumptions must
+  remain endpoint-specific because response wrappers differ by API.
+  Recommended action: update issue description
+
+  ### Issue #12: API: add optional Pydantic response models for hot-path payloads
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Domain OpenAPI specs and XSD links from each API page
+  Findings: Official schemas exist, but the issue proposes hand-modeled objects from sandbox payloads. That is
+  practical, but should be explicitly checked against XSD/OpenAPI schemas and allow schema drift.
+  Recommended action: request clarification
+
+  ### Issue #13: API: add context-manager support to AlmaAPIClient
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: Session lifecycle management is a wrapper concern.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #14: Quality: replace print() with logger; remove or harden safe_request()
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: Logging behavior is internal wrapper quality, not official Alma behavior.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #15: API: add hierarchical accessors
+
+  Status: Cannot verify from documentation
+  Relevant documentation: REST APIs index (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Alma docs define functional areas, not Python accessor style. The naming should stay close to official
+  areas: Acquisitions, Bibliographic Records and Inventory, Configuration, Users, Analytics, Resource Sharing.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #16: Quality: tighten exception handling and cache AlmaResponse.data
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: JSON parsing and exception hygiene are wrapper implementation details.
+  Recommended action: keep as wrapper implementation task
+
+  ### Issue #17: Distribution: add LICENSE file and tighten PyPI metadata
+
+  Status: Cannot verify from documentation
+  Relevant documentation: Not Alma API documentation
+  Findings: Packaging metadata is outside Alma API behavior.
+  Recommended action: keep as distribution task
+
+  ### Issue #18: API: add async/concurrent bulk-call primitive
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: API Governance Thresholds (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Concurrency should respect Alma thresholds. The proposed default 25 RPS is not documented and is too high
+  for sandbox, where docs state 10/sec. Retry-After is not documented.
+  Recommended action: update issue description
+
+  ### Issue #19: API: dedicated MARC manipulation layer
+
+  Status: Aligned with documentation
+  Relevant documentation: Input and Output Formats (https://developers.exlibrisgroup.com/alma/apis/), Bibs API
+  (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Docs explicitly say APIs with MARCXML, including Create/Update Bib/Holdings, do not support JSON input. A
+  MARC-focused layer is consistent with that.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #20: API: optional OpenAPI-driven request/response validation
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: OpenAPI Support (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: OpenAPI specs are official, but Ex Libris states support is early and subject to change. I also found
+  rendered docs for endpoints missing from OpenAPI, so validation must not treat OpenAPI absence as definitive
+  invalidity. Include all current areas, including Courses, Partners, Task Lists, and RSDirectoryMember.
+  Recommended action: update issue description
+
+  ### Issue #21: API: CSV/DataFrame BatchRunner with progress + checkpointing
+
+  Status: Cannot verify from documentation
+  Relevant documentation: API Governance Thresholds (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: BatchRunner is wrapper workflow functionality. Only rate-limit and tracking-id behavior can be anchored to
+  Alma docs.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #22: Coverage: Configuration: bootstrap Configuration domain class
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration and Administration API (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Configuration is an official Alma API area. No endpoint claims in this foundation ticket.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #23: Coverage: Configuration: Sets full CRUD + member management
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Sets (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Set create/update/delete and member management via POST /conf/sets/{set_id} with op are documented.
+  Recommended action: keep as-is
+
+  ### Issue #24: Coverage: Configuration: organization units
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Organization Units (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Libraries, departments, and circulation desk endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #25: Coverage: Configuration: locations CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Organization Units (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Location list/create/get/update/delete endpoints under libraries are documented.
+  Recommended action: keep as-is
+
+  ### Issue #26: Coverage: Configuration: code tables
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - General (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Code table list/get/update endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #27: Coverage: Configuration: mapping tables
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - General (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Mapping table list/get/update endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #28: Coverage: Configuration: jobs
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Jobs (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Jobs, job details, submit, instances, download, events, and matches endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #29: Coverage: Configuration: integration profiles CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Configuration API - Integration Profiles
+  (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: GET, POST, GET by id, and PUT are documented. Official docs also include DELETE /almaws/v1/conf/
+  integration-profiles/{id}, so “CRUD” is incomplete.
+  Recommended action: update issue description
+
+  ### Issue #30: Coverage: Configuration: deposit profiles + import profiles
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Deposit Profiles and Import Profiles
+  (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Read-only deposit/import profile endpoints are documented. The deprecated import-profile POST is correctly
+  omitted.
+  Recommended action: keep as-is
+
+  ### Issue #31: Coverage: Configuration: license terms CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - License Terms (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Create, get, update, and delete license term endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #32: Coverage: Configuration: open hours + relations
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - General (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Open-hours and relations endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #33: Coverage: Configuration: letters + printers
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Printers and Letter
+  (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Printer read endpoints and letter read/update endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #34: Coverage: Configuration: reminders CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Reminders (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Reminder list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #35: Coverage: Configuration: workflows runner + utilities
+
+  Status: Aligned with documentation
+  Relevant documentation: Configuration API - Utilities and Library Open Workflows
+  (https://developers.exlibrisgroup.com/alma/apis/conf/)
+  Findings: Workflow run, fee-transactions utility, and general configuration endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #36: Coverage: Users: list & search users
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Users (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: GET /users, query search, pagination, source-institution filter, and personal-data endpoint are documented.
+  Recommended action: keep as-is
+
+  ### Issue #37: Coverage: Users: create / delete user
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Users (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Create and delete user endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #38: Coverage: Users: authentication operations
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Users (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: POST /almaws/v1/users/{user_id} is documented as authenticate or refresh user.
+  Recommended action: keep as-is
+
+  ### Issue #39: Coverage: Users: user attachments
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Users API - User Attachments (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: The endpoints exist. The issue’s raw bytes and multipart-upload assumptions are not supported by the docs;
+  official pages describe Attachment/Attachments objects and expand=content or content_no_encoding.
+  Recommended action: update issue description
+
+  ### Issue #40: Coverage: Users: loans
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Users API - Loans (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Endpoints exist, and op=renew is documented. create_user_loan should use documented item_pid or
+  item_barcode; library and circ_desk are not documented parameters for this endpoint.
+  Recommended action: update issue description
+
+  ### Issue #41: Coverage: Users: requests
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Users API - Requests (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Endpoints exist. Cancel request requires a reason query parameter in the docs, but the issue makes reason
+  optional.
+  Recommended action: update issue description
+
+  ### Issue #42: Coverage: Users: resource sharing requests
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Resource Sharing Requests (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Create, get, cancel, and operation endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #43: Coverage: Users: purchase requests
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Purchase Requests (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: User purchase request list/create/get/operation endpoints are documented, including status filtering.
+  Recommended action: keep as-is
+
+  ### Issue #44: Coverage: Users: fines & fees
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Fines and Fees (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Fee list/create/get, pay-all, and fee operation endpoints are documented with pay/waive/dispute/restore
+  operations.
+  Recommended action: keep as-is
+
+  ### Issue #45: Coverage: Users: deposits
+
+  Status: Aligned with documentation
+  Relevant documentation: Users API - Deposits (https://developers.exlibrisgroup.com/alma/apis/users/)
+  Findings: Deposit list/create/get/action endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #46: Coverage: Bibs: complete holdings CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Catalog (https://developers.exlibrisgroup.com/alma/apis/bibs/), Input and Output
+  Formats (https://developers.exlibrisgroup.com/alma/apis/)
+  Findings: Holdings update/delete endpoints exist. The proposed holding_data: Dict is risky because docs state Create/
+  Update Bib/Holdings APIs with MARCXML do not support JSON input. override_attached_items is not a documented delete
+  parameter; docs show bib.
+  Recommended action: update issue description
+
+  ### Issue #47: Coverage: Bibs: complete items CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Catalog (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Item update and withdraw endpoints exist. Withdraw supports holdings and bib; docs also document override,
+  which the method omits.
+  Recommended action: update issue description
+
+  ### Issue #48: Coverage: Bibs: bib-attached portfolios CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Bibs API - Catalog / Portfolios (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Bib-attached portfolio list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #49: Coverage: Bibs: bib-level requests
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Requests (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Endpoints exist. Delete title request uses documented camelCase placeholders and requires reason; the issue
+  uses snake_case placeholders and makes reason optional.
+  Recommended action: update issue description
+
+  ### Issue #50: Coverage: Bibs: item-level requests
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Requests (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Endpoints exist. Cancel item request requires reason, and the delete endpoint uses documented camelCase
+  placeholders.
+  Recommended action: update issue description
+
+  ### Issue #51: Coverage: Bibs: loans
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Loans (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Loan endpoints exist. Create item loan documents user_id as the required query parameter; library and
+  circ_desk are not documented for this endpoint. Loan action currently documents only op=renew.
+  Recommended action: update issue description
+
+  ### Issue #52: Coverage: Bibs: booking availability + request options
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Booking Availability and Request Options
+  (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Endpoints exist. Booking availability requires period and documents period_type; the proposed method makes
+  period optional and omits period_type.
+  Recommended action: update issue description
+
+  ### Issue #53: Coverage: Bibs: collections CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Bibs API - Collections (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Collection list/create/get/update/delete endpoints are documented. Deletion is specifically “Remove a
+  collection with no Bibs,” so implementation should preserve that constraint.
+  Recommended action: keep as-is
+
+  ### Issue #54: Coverage: Bibs: bib-level e-collections
+
+  Status: Aligned with documentation
+  Relevant documentation: Bibs API - E-Collections (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Bib-level electronic collection read endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #55: Coverage: Bibs: bib reminders CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Bibs API - Reminders (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Bib reminder list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #56: Coverage: Bibs: authorities CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Bibs API - Authorities (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: Authority CRUD endpoints exist. The list endpoint does not document a q parameter; it documents
+  originating-system identifiers, limit, offset, and view.
+  Recommended action: update issue description
+
+  ### Issue #57: Coverage: Bibs: bib record operations
+
+  Status: Not aligned with documentation
+  Relevant documentation: Bibs API - Catalog (https://developers.exlibrisgroup.com/alma/apis/bibs/)
+  Findings: POST /almaws/v1/bibs/{mms_id} exists, but docs currently document only op=unlink_from_nz. The issue’s
+  suppress/unsuppress claim is unsupported for this endpoint.
+  Recommended action: close as invalid or rewrite for unlink_from_nz
+
+  ### Issue #58: Coverage: Acquisitions: vendors CRUD + nested invoices/POLs
+
+  Status: Aligned with documentation
+  Relevant documentation: Acquisitions API - Vendors (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Vendor CRUD plus vendor invoices and PO lines endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #59: Coverage: Acquisitions: funds CRUD + fund service
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Acquisitions API - Funds (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Fund endpoints exist. Fund Service documents op=activate or deactivate; the issue’s “transfer, allocate,
+  etc.” claim is unsupported. Also consider matching API defaults instead of forcing status='ACTIVE'.
+  Recommended action: update issue description
+
+  ### Issue #60: Coverage: Acquisitions: fund transactions
+
+  Status: Aligned with documentation
+  Relevant documentation: Acquisitions API - Fund Transactions (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Fund transaction list/create endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #61: Coverage: Acquisitions: PO Lines list + create + cancel
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Acquisitions API - PO Lines (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Endpoints exist. Cancel PO Line requires query parameter reason; the issue names it reason_code and omits
+  documented optional parameters inform_vendor, override, and bib.
+  Recommended action: update issue description
+
+  ### Issue #62: Coverage: Acquisitions: invoice attachments CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Acquisitions API - Invoices (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Invoice attachment endpoints exist in rendered docs. The issue assumes file-path upload/raw bytes and
+  multipart format; official docs describe Attachment objects and attachment XSDs, not multipart upload semantics.
+  Recommended action: update issue description
+
+  ### Issue #63: Coverage: Acquisitions: licenses + amendments + attachments
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Acquisitions API - Licenses (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: License, amendment, and attachment endpoints exist. Attachment method signatures should use documented
+  Attachment objects/content fields, not assume raw byte returns or multipart file upload.
+  Recommended action: update issue description
+
+  ### Issue #64: Coverage: Acquisitions: lookups
+
+  Status: Aligned with documentation
+  Relevant documentation: Acquisitions API - Currencies and FiscalPeriods
+  (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Currency and fiscal-period lookup endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #65: Coverage: Acquisitions: purchase requests
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Acquisitions API - Purchase Requests (https://developers.exlibrisgroup.com/alma/apis/acq/)
+  Findings: Endpoints exist. The list endpoint does not document q; it documents filters such as format,
+  owning_library, status, citation_type, limit, and offset.
+  Recommended action: update issue description
+
+  ### Issue #66: Coverage: Electronic: bootstrap Electronic domain class
+
+  Status: Aligned with documentation
+  Relevant documentation: Electronic Resources API (https://developers.exlibrisgroup.com/alma/apis/electronic/)
+  Findings: Electronic Resources is an official Alma API area. No endpoint claims in this foundation ticket.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #67: Coverage: Electronic: e-collections CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Electronic Resources API - Electronic Collections
+  (https://developers.exlibrisgroup.com/alma/apis/electronic/)
+  Findings: Electronic collection list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #68: Coverage: Electronic: e-services CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Electronic Resources API - Electronic Services
+  (https://developers.exlibrisgroup.com/alma/apis/electronic/)
+  Findings: Electronic service list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #69: Coverage: Electronic: electronic portfolios CRUD
+
+  Status: Aligned with documentation
+  Relevant documentation: Electronic Resources API - Portfolios
+  (https://developers.exlibrisgroup.com/alma/apis/electronic/)
+  Findings: Portfolio list/create/get/update/delete endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #70: Coverage: TaskLists: bootstrap TaskLists domain class
+
+  Status: Aligned with documentation
+  Relevant documentation: Task Lists API (https://developers.exlibrisgroup.com/alma/apis/tasklists/)
+  Findings: Task Lists is an official Alma API area. No endpoint claims in this foundation ticket.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #71: Coverage: TaskLists: requested resources
+
+  Status: Aligned with documentation
+  Relevant documentation: Task Lists API - Requested Resources
+  (https://developers.exlibrisgroup.com/alma/apis/tasklists/)
+  Findings: Requested resources GET and POST action endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #72: Coverage: TaskLists: lending requests workflow
+
+  Status: Aligned with documentation
+  Relevant documentation: Task Lists API - Lending Requests (https://developers.exlibrisgroup.com/alma/apis/tasklists/)
+  Findings: Lending requests GET and POST action endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #73: Coverage: TaskLists: printouts
+
+  Status: Aligned with documentation
+  Relevant documentation: Task Lists API - Printouts (https://developers.exlibrisgroup.com/alma/apis/tasklists/)
+  Findings: Printout retrieve, action, create, get, and service endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #74: Coverage: ResourceSharing: partner management CRUD
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Resource Sharing Partners API (https://developers.exlibrisgroup.com/alma/apis/partners/)
+  Findings: Partner CRUD endpoints exist. list_partners should use documented filters limit, offset, and status; q and
+  type_filter are not documented.
+  Recommended action: update issue description
+
+  ### Issue #75: Coverage: Courses: bootstrap Courses domain class
+
+  Status: Aligned with documentation
+  Relevant documentation: Courses API (https://developers.exlibrisgroup.com/alma/apis/courses/)
+  Findings: Courses is an official Alma API area. No endpoint claims in this foundation ticket.
+  Recommended action: convert to wrapper implementation task
+
+  ### Issue #76: Coverage: Courses: courses CRUD + enrollment
+
+  Status: Aligned with documentation
+  Relevant documentation: Courses API - Courses (https://developers.exlibrisgroup.com/alma/apis/courses/)
+  Findings: Course CRUD, enroll, course users, and list enrollment deletion endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #77: Coverage: Courses: reading lists + citations + owners + tags
+
+  Status: Aligned with documentation
+  Relevant documentation: Courses API - Reading Lists, Citations, Owners, Tags
+  (https://developers.exlibrisgroup.com/alma/apis/courses/)
+  Findings: All listed reading-list, citation, owner, and tag endpoints are documented.
+  Recommended action: keep as-is
+
+  ### Issue #78: Coverage: ResourceSharing: directory members
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Resource Sharing Directory Members API
+  (https://developers.exlibrisgroup.com/alma/apis/rsdirectorymember/)
+  Findings: List/get/localize endpoints exist. The list endpoint does not document limit or offset, so
+  list_directory_members(limit, offset) should not imply supported pagination.
+  Recommended action: update issue description
+
+  ### Issue #79: Coverage: Analytics: paths endpoint
+
+  Status: Partially aligned / needs clarification
+  Relevant documentation: Analytics API - Paths (https://developers.exlibrisgroup.com/alma/apis/analytics/)
+  Findings: GET /analytics/paths/{path} is documented, and OpenAPI also includes root GET /analytics/paths. The docs
+  describe Analytics results as XML, though OpenAPI advertises JSON/XML schemas. The issue’s production-only credential
+  note is not verified by official docs.
+  Recommended action: update issue description

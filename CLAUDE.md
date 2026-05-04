@@ -35,7 +35,7 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 - Documentation
 - Prompt-template `example` fields (use synthetic/placeholder values like `<user_primary_id>` or `tau000000`)
 
-When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the supplied test user", not "user <user_primary_id>"). When the operator volunteers an ID in chat, use it for the run but redact it in any artifact that gets written or pushed.
+When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the supplied test user", not the literal value). When the operator volunteers an ID in chat, use it for the run but redact it in any artifact that gets written or pushed.
 
 ---
 

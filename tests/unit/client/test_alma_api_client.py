@@ -22,9 +22,14 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from almaapitk import AlmaAPIClient
-from almaapitk.client.AlmaAPIClient import _safe_response_body
+from almaapitk.client.AlmaAPIClient import (
+    AlmaValidationError,
+    _safe_response_body,
+)
 
 
 def _make_mock_response(
@@ -318,6 +323,111 @@ class TestRequestChokepoint(_AlmaAPIClientTestBase):
             "should not be called for non-JSON content"
         )
         self.assertIsNone(_safe_response_body(text_response))
+
+
+class TestRetryAdapterMounted(_AlmaAPIClientTestBase):
+    """Tests for issue #5: HTTPAdapter with Retry policy mounted on session.
+
+    These tests inspect the *configuration* of the mounted adapter
+    rather than driving the retry loop end-to-end. The earlier code
+    review of #5 noted that the existing test suite patches
+    ``client._session.request`` — patching at that level bypasses
+    urllib3's adapter logic, so retry behavior cannot be verified by
+    patching at that level. Inspecting the adapter's ``max_retries``
+    attribute (which is the ``Retry`` instance after ``HTTPAdapter``
+    init) is the recommended alternative.
+
+    Pattern source: GitHub issue #5 acceptance criteria.
+    """
+
+    def _get_mounted_retry(
+        self, client: AlmaAPIClient, scheme: str
+    ) -> Retry:
+        """Pull the ``Retry`` instance off the adapter mounted for ``scheme``."""
+        adapter = client._session.adapters[scheme]
+        self.assertIsInstance(adapter, HTTPAdapter)
+        retry = adapter.max_retries
+        self.assertIsInstance(retry, Retry)
+        return retry
+
+    def test_init_mounts_retry_adapter_https(self):
+        """AC-1 + AC-2: default Retry policy is mounted for ``https://``."""
+        client = AlmaAPIClient('SANDBOX')
+        retry = self._get_mounted_retry(client, 'https://')
+        self.assertEqual(retry.total, 3)
+        self.assertEqual(
+            set(retry.status_forcelist), {429, 500, 502, 503, 504}
+        )
+        self.assertEqual(retry.backoff_factor, 1)
+        # ``allowed_methods`` is normalized by urllib3 -- compare as a set.
+        self.assertEqual(
+            set(retry.allowed_methods), {"GET", "POST", "PUT", "DELETE"}
+        )
+        self.assertTrue(retry.respect_retry_after_header)
+
+    def test_init_mounts_retry_adapter_http(self):
+        """AC-1 + AC-2: default Retry policy is mounted for ``http://`` too."""
+        client = AlmaAPIClient('SANDBOX')
+        retry = self._get_mounted_retry(client, 'http://')
+        self.assertEqual(retry.total, 3)
+        self.assertEqual(
+            set(retry.status_forcelist), {429, 500, 502, 503, 504}
+        )
+        self.assertEqual(retry.backoff_factor, 1)
+        self.assertEqual(
+            set(retry.allowed_methods), {"GET", "POST", "PUT", "DELETE"}
+        )
+        self.assertTrue(retry.respect_retry_after_header)
+
+    def test_max_retries_kwarg_overrides_default(self):
+        """AC-3: ``max_retries`` kwarg overrides the ``total`` default."""
+        client = AlmaAPIClient('SANDBOX', max_retries=5)
+        retry = self._get_mounted_retry(client, 'https://')
+        self.assertEqual(retry.total, 5)
+        # Other defaults should be unaffected by the override.
+        self.assertEqual(retry.backoff_factor, 1)
+        self.assertEqual(
+            set(retry.status_forcelist), {429, 500, 502, 503, 504}
+        )
+
+    def test_backoff_factor_kwarg_overrides_default(self):
+        """AC-3: ``backoff_factor`` kwarg overrides the multiplier."""
+        client = AlmaAPIClient('SANDBOX', backoff_factor=0.5)
+        retry = self._get_mounted_retry(client, 'https://')
+        self.assertEqual(retry.backoff_factor, 0.5)
+        # Defaults preserved for the other knobs.
+        self.assertEqual(retry.total, 3)
+
+    def test_retry_kwarg_wins_over_other_kwargs(self):
+        """AC-4: a hand-built ``Retry`` instance overrides simple kwargs."""
+        custom_retry = Retry(
+            total=10,
+            status_forcelist=[418],
+            backoff_factor=0.25,
+            allowed_methods=frozenset({"GET"}),
+        )
+        # Pass conflicting simple kwargs to prove ``retry`` wins.
+        client = AlmaAPIClient(
+            'SANDBOX',
+            max_retries=99,
+            backoff_factor=2.0,
+            retry=custom_retry,
+        )
+        retry = self._get_mounted_retry(client, 'https://')
+        self.assertEqual(retry.total, 10)
+        self.assertEqual(list(retry.status_forcelist), [418])
+        self.assertEqual(retry.backoff_factor, 0.25)
+        self.assertEqual(set(retry.allowed_methods), {"GET"})
+
+    def test_invalid_max_retries_raises(self):
+        """Negative ``max_retries`` should be rejected at construction time."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', max_retries=-1)
+
+    def test_invalid_backoff_factor_raises(self):
+        """Negative ``backoff_factor`` should be rejected at construction time."""
+        with self.assertRaises(AlmaValidationError):
+            AlmaAPIClient('SANDBOX', backoff_factor=-0.1)
 
 
 if __name__ == '__main__':

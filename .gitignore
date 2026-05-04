@@ -200,3 +200,6 @@ archive/
 # Chunk-driven scaffolding (per spec §9): keep manifests + status, drop raw logs
 chunks/*/sandbox-test-output/
 chunks/*/sandbox-tests/
+# Operator-supplied fixture values (user IDs, MMS IDs, vendor codes, etc.) live
+# in test-data.json — NEVER commit these. Treated as PII / institution-internal.
+chunks/*/test-data.json

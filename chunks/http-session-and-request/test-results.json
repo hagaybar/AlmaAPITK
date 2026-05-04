@@ -27,7 +27,7 @@
       "everyTestPassed": true,
       "anySkips": false,
       "autoCloseEligible": false,
-      "note": "AC-1 (private _session attribute) and AC-3 (test_public_api_contract.py) are in unmappable[] — internal/test-suite assertions cannot be SANDBOX-verified. Should be tested:passing-needs-review per spec §8."
+      "note": "AC-1 (private _session attribute) and AC-3 (test_public_api_contract.py) are in unmappable[] \u2014 internal/test-suite assertions cannot be SANDBOX-verified. Should be tested:passing-needs-review per spec \u00a78."
     },
     {
       "number": 4,
@@ -35,7 +35,7 @@
       "everyTestPassed": true,
       "anySkips": false,
       "autoCloseEligible": false,
-      "note": "AC-2 (sole-caller invariant) and AC-4 (existing tests) are in unmappable[]. Should be tested:passing-needs-review per spec §8."
+      "note": "AC-2 (sole-caller invariant) and AC-4 (existing tests) are in unmappable[]. Should be tested:passing-needs-review per spec \u00a78."
     }
   ]
 }

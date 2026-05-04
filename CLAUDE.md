@@ -27,6 +27,16 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 
 **Hard rule R8:** the chunks CLI refuses to run if `ALMA_PROD_API_KEY` is set in the environment. If `chunks list` exits with that error, the operator's shell has the prod key set; instruct them to `unset ALMA_PROD_API_KEY` and retry.
 
+**Hard rule R9 — never put actual identifiers in publicly-visible content.** This is a public PyPI repo. Never include real operator-supplied identifiers (user_primary_id, MMS ID, vendor code, POL ID, institution code, email addresses, etc.) in:
+- Committed files (especially `test-data.json` — gitignored for this reason)
+- Commit messages
+- GitHub PR descriptions or titles
+- GitHub issue comments or titles
+- Documentation
+- Prompt-template `example` fields (use synthetic/placeholder values like `<user_primary_id>` or `tau000000`)
+
+When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the supplied test user", not "user <user_primary_id>"). When the operator volunteers an ID in chat, use it for the run but redact it in any artifact that gets written or pushed.
+
 ---
 
 ## Project Overview

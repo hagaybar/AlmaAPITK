@@ -12,13 +12,23 @@ import re
 from typing import Any
 
 
-# Header regexes accept BOTH bare and bold-markdown forms:
-#   "Domain: Users"        (synthetic fixture)
-#   "**Domain:** Users"    (real issues #22-#79)
+# Header regexes accept BOTH bare and bold-markdown forms, AND aliased headers
+# used by different issue templates in this repo:
+#   "Domain: Users"           (synthetic fixture)
+#   "**Domain:** Users"       (api-coverage issues #22-#79)
+#   (Domain absent)            (architecture issues #1-#21 — cross-cutting)
+#   "**Priority:** High"      (api-coverage issues)
+#   "**Benefit:** High"       (architecture issues — alias for Priority)
+#   "**Effort:** S"           (api-coverage issues)
+#   "**Complexity:** S"       (architecture issues — alias for Effort)
 # Capture is line-bounded; trailing whitespace is stripped after capture.
 _DOMAIN_RE = re.compile(r"^\**Domain:?\**\s*:?\s*(.+?)\s*$", re.MULTILINE)
-_PRIORITY_RE = re.compile(r"^\**Priority:?\**\s*:?\s*(.+?)\s*$", re.MULTILINE)
-_EFFORT_RE = re.compile(r"^\**Effort:?\**\s*:?\s*(.+?)\s*$", re.MULTILINE)
+_PRIORITY_RE = re.compile(
+    r"^\**(?:Priority|Benefit):?\**\s*:?\s*(.+?)\s*$", re.MULTILINE
+)
+_EFFORT_RE = re.compile(
+    r"^\**(?:Effort|Complexity):?\**\s*:?\s*(.+?)\s*$", re.MULTILINE
+)
 
 
 def _section(body: str, header: str) -> str | None:
@@ -136,26 +146,28 @@ def parse_issue(raw: dict[str, Any]) -> dict[str, Any]:
     domain_m = _DOMAIN_RE.search(body)
     priority_m = _PRIORITY_RE.search(body)
     effort_m = _EFFORT_RE.search(body)
-    if not (domain_m and priority_m and effort_m):
+    # Domain is OPTIONAL — architecture issues (#1-#21) are cross-cutting and
+    # carry no Domain header. Priority (or its alias Benefit) and Effort
+    # (or its alias Complexity) are required.
+    if not (priority_m and effort_m):
         missing = [
             name
             for name, match in (
-                ("Domain", domain_m),
-                ("Priority", priority_m),
-                ("Effort", effort_m),
+                ("Priority/Benefit", priority_m),
+                ("Effort/Complexity", effort_m),
             )
             if not match
         ]
         raise ValueError(
-            f"issue #{out['number']} missing Domain/Priority/Effort header lines"
-            f" (missing: {', '.join(missing)})"
+            f"issue #{out['number']} missing Priority/Benefit and/or Effort/Complexity"
+            f" header lines (missing: {', '.join(missing)})"
         )
 
     # Strip trailing markdown bold markers and surrounding whitespace.
     def _clean(value: str) -> str:
         return value.strip().rstrip("*").strip()
 
-    out["domain"] = _clean(domain_m.group(1))
+    out["domain"] = _clean(domain_m.group(1)) if domain_m else "Architecture"
     out["priority"] = _clean(priority_m.group(1)).lower()
     # Effort may include a trailing parenthetical like "S (≤½ day)" — keep only
     # the leading alpha token (S/M/L), uppercased.

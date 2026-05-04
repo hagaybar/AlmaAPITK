@@ -33,6 +33,7 @@ Subcommands:
   run-impl <name>               trigger the per-chunk implementation babysitter run
   run-test <name>               trigger the generic chunk-test process
   abort <name>                  mark chunk aborted; leave branches in place
+  complete <name> [--pr-url U]  mark chunk merged; record PR URL; close lifecycle
   help                          show this message
 
 Env:
@@ -227,6 +228,34 @@ transition(chunk_dir, new_stage="aborted",
            last_event="aborted by operator",
            next_action="inspect branches and clean up manually")
 print(f"chunk '{sys.argv[2]}' marked aborted")
+PYEOF
+    ;;
+
+  complete)
+    # complete <name> [--pr-url <url>]
+    name="${1:?complete: chunk name required}"
+    shift
+    pr_url=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --pr-url) pr_url="$2"; shift 2;;
+        *) echo "unknown flag: $1" >&2; exit 2;;
+      esac
+    done
+    "$PY" - "$CHUNKS_DIR" "$name" "$pr_url" <<'PYEOF'
+import sys
+from pathlib import Path
+from scripts.agentic.chunk_status import transition
+chunks_dir = Path(sys.argv[1])
+name = sys.argv[2]
+pr_url = sys.argv[3] if len(sys.argv) > 3 else ""
+chunk_dir = chunks_dir / name
+extra = {"prUrl": pr_url} if pr_url else {}
+transition(chunk_dir, new_stage="merged",
+           last_event=f"PR merged" + (f" ({pr_url})" if pr_url else ""),
+           next_action="soak before prod release; promotion is manual (R1)",
+           **extra)
+print(f"chunk '{name}' marked merged" + (f" with PR {pr_url}" if pr_url else ""))
 PYEOF
     ;;
 

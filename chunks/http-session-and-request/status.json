@@ -1,0 +1,17 @@
+{
+  "chunk": "http-session-and-request",
+  "issues": [
+    3,
+    4
+  ],
+  "stage": "merged",
+  "branch": "chunk/http-session-and-request",
+  "createdAt": "2026-05-04T09:16:06Z",
+  "updatedAt": "2026-05-04T10:17:38Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/81)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": null,
+  "testRunId": null,
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/81"
+}

@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Session-start protocol (chunk-driven work)
+
+This project's primary mode of work is the **chunk-driven implementation pipeline** (design: `docs/superpowers/specs/2026-05-03-chunk-driven-implementation-design.md`). At the start of every Claude Code session in this repo, **before responding to anything else**:
+
+1. **Run `scripts/agentic/chunks list`** to surface any chunks not in a terminal stage (`merged` / `aborted`).
+2. **If any chunks are active**, include a one-paragraph dashboard in your first message: chunk name, current stage, last event, and recommended next action (each chunk's `nextAction` field).
+3. **If no chunks are active**, mention the recommended next pickup from `docs/CHUNK_BACKLOG.md` — the lowest-numbered phase whose hard prereqs are merged in `main`, and within it the first chunk that isn't already done. Cross-reference recent rows in `docs/AGENTIC_RUN_LOG.md` to know what's already shipped.
+4. **Then await the user's instruction.** Do NOT auto-trigger any chunk action; the pipeline is human-paced (R3).
+
+This implements the operator-UX dashboard from spec §8.5. The user has explicitly opted into chunk-driven work — don't propose alternative workflows unless they ask.
+
+**CLI cheat sheet** (`scripts/agentic/chunks <subcommand>`):
+- `list` — one-line summary of every active chunk
+- `status <name>` — full status block for one chunk
+- `next` — recommended next actions across all chunks
+- `define --name N --issues 3,4` — create a new chunk
+- `run-impl <name>` — trigger per-chunk implementation babysitter run
+- `run-test <name>` — trigger generic interactive testing process
+- `abort <name>` — mark chunk aborted; leave branches in place
+- `complete <name> [--pr-url U]` — mark chunk merged; close lifecycle (run after manual PR merge)
+
+**Operator playbook:** `docs/CHUNK_PLAYBOOK.md` — full lifecycle walkthrough, R1–R8 cheat sheet, failure recipes.
+
+**Hard rule R8:** the chunks CLI refuses to run if `ALMA_PROD_API_KEY` is set in the environment. If `chunks list` exits with that error, the operator's shell has the prod key set; instruct them to `unset ALMA_PROD_API_KEY` and retry.
+
+---
+
 ## Project Overview
 
 AlmaAPITK is a Python toolkit for interacting with the Alma ILS (Integrated Library System) API. It provides a structured approach to API operations with domain-specific classes and utilities.

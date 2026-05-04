@@ -98,6 +98,52 @@ class TestPublicAPIContract(unittest.TestCase):
         # It should be a ValueError subclass
         self.assertTrue(issubclass(AlmaValidationError, ValueError))
 
+    def test_typed_error_subclasses_importable(self):
+        """Test that typed AlmaAPIError subclasses are importable from almaapitk (issue #9)."""
+        from almaapitk import (
+            AlmaAPIError,
+            AlmaAuthenticationError,
+            AlmaRateLimitError,
+            AlmaServerError,
+            AlmaResourceNotFoundError,
+            AlmaDuplicateInvoiceError,
+            AlmaInvalidPolModeError,
+        )
+        # Each must be a non-None class.
+        for cls in (
+            AlmaAuthenticationError,
+            AlmaRateLimitError,
+            AlmaServerError,
+            AlmaResourceNotFoundError,
+            AlmaDuplicateInvoiceError,
+            AlmaInvalidPolModeError,
+        ):
+            self.assertIsNotNone(cls)
+            # All typed subclasses must remain ``AlmaAPIError`` so existing
+            # ``except AlmaAPIError:`` blocks continue to catch them.
+            self.assertTrue(
+                issubclass(cls, AlmaAPIError),
+                f"{cls.__name__} must subclass AlmaAPIError for backwards-compat",
+            )
+
+    def test_typed_error_subclasses_in_all(self):
+        """Test that typed AlmaAPIError subclasses are in __all__ (issue #9)."""
+        import almaapitk
+        expected_typed_errors = [
+            'AlmaAuthenticationError',
+            'AlmaRateLimitError',
+            'AlmaServerError',
+            'AlmaResourceNotFoundError',
+            'AlmaDuplicateInvoiceError',
+            'AlmaInvalidPolModeError',
+        ]
+        for symbol in expected_typed_errors:
+            self.assertIn(
+                symbol,
+                almaapitk.__all__,
+                f"Expected typed-error symbol '{symbol}' to be in __all__",
+            )
+
     def test_admin_importable(self):
         """Test that Admin domain class is importable from almaapitk."""
         from almaapitk import Admin

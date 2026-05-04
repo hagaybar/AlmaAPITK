@@ -10,6 +10,40 @@ from typing import Optional, Dict, Any, Union, List
 import time
 from almaapitk.alma_logging import get_logger
 
+
+# Default per-request timeout (seconds) for Alma API calls. Mirrors the
+# previous per-verb literal so behavior is unchanged after consolidation.
+DEFAULT_REQUEST_TIMEOUT = 300
+
+
+def _safe_response_body(response):
+    """Best-effort JSON body extraction from a ``requests.Response``.
+
+    Returns the parsed JSON body when the response advertises a JSON
+    content-type and decodes cleanly, otherwise ``None``. This replaces
+    the four near-identical ``try: response.json() except: None`` blocks
+    that previously lived in each verb method (issue #4).
+
+    Args:
+        response: A ``requests.Response`` (or compatible test double).
+
+    Returns:
+        Parsed JSON body, or ``None`` if no JSON body is available.
+    """
+    content_type = ''
+    try:
+        content_type = response.headers.get('content-type', '') or ''
+    except AttributeError:
+        # Defensive: some test doubles may omit ``headers``.
+        return None
+    if 'application/json' not in content_type:
+        return None
+    try:
+        return response.json()
+    except (ValueError, requests.exceptions.JSONDecodeError):
+        return None
+
+
 class AlmaResponse:
     """Response wrapper to maintain compatibility with existing domain classes."""
     
@@ -67,6 +101,9 @@ class AlmaAPIClient:
             environment: 'SANDBOX' or 'PRODUCTION'
         """
         self.environment = environment.upper()
+        # Default per-request timeout. Per-call ``timeout=`` kwargs in
+        # ``_request`` override this on a request-by-request basis.
+        self.timeout = DEFAULT_REQUEST_TIMEOUT
         self._load_configuration()
         self._setup_headers()
         self._setup_logger()
@@ -171,7 +208,98 @@ class AlmaAPIClient:
 
 
     # Core HTTP Methods - These are the foundation for all API interactions
-    
+
+    def _request(self, method: str, endpoint: str, *,
+                 params: Optional[Dict] = None,
+                 data: Any = None,
+                 content_type: Optional[str] = None,
+                 custom_headers: Optional[Dict] = None,
+                 timeout: Optional[float] = None) -> AlmaResponse:
+        """
+        Single chokepoint for all HTTP requests to the Alma API.
+
+        Replaces the near-duplicate bodies of ``get``/``post``/``put``/``delete``
+        so cross-cutting concerns (timeout, retry, rate-limit, body redaction,
+        header injection) live in one place. Per the proposal in issue #4,
+        this is the only method in the client that should call
+        ``self._session.request``.
+
+        Args:
+            method: HTTP verb ('GET', 'POST', 'PUT', 'DELETE').
+            endpoint: API endpoint (e.g., 'almaws/v1/bibs/123456').
+            params: Query parameters.
+            data: Request body. ``dict`` is sent as JSON unless
+                ``content_type`` overrides; any other type goes via ``data=``.
+            content_type: Override Content-Type (e.g., 'application/xml').
+                When set, ``data`` is sent verbatim via the ``data=`` kwarg
+                regardless of its Python type.
+            custom_headers: Additional/overriding per-call headers.
+            timeout: Override the default per-request timeout (seconds).
+                When ``None``, ``self.timeout`` is used.
+
+        Returns:
+            AlmaResponse wrapping the underlying ``requests.Response``.
+
+        Raises:
+            AlmaAPIError: When ``_handle_response`` rejects the response.
+
+        Pattern source: GitHub issue #4 (HTTP: consolidate verbs into _request).
+        """
+        url = self._build_url(endpoint)
+        headers = self._prepare_headers(content_type)
+        if custom_headers:
+            headers.update(custom_headers)
+
+        # Log the outgoing request. Body is included only when present so
+        # the logger's redaction layer can decide what to scrub.
+        self.logger.log_request(
+            method, endpoint, params=params, headers=headers, body=data
+        )
+
+        # Detailed request body trace (DEBUG only). Mirrors the previous
+        # per-verb behaviour so log volume is unchanged.
+        if isinstance(data, dict) and not content_type:
+            self.logger.debug(
+                f"{method} request body to {endpoint}",
+                endpoint=endpoint,
+                request_data=data,
+            )
+
+        # Build the kwargs for ``Session.request``. Dict bodies without an
+        # explicit content_type go via ``json=`` so requests sets the
+        # Content-Type to application/json correctly; everything else goes
+        # via ``data=``. This preserves the prior per-verb dispatch.
+        request_kwargs: Dict[str, Any] = {
+            'headers': headers,
+            'params': params,
+            'timeout': timeout if timeout is not None else self.timeout,
+        }
+        if isinstance(data, dict) and not content_type:
+            request_kwargs['json'] = data
+        elif data is not None:
+            request_kwargs['data'] = data
+
+        # Route through self._session so TCP+TLS connections are pooled
+        # across calls (issue #3).
+        start_time = time.time()
+        response = self._session.request(method, url, **request_kwargs)
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Log the response (status + timing). The detailed body trace below
+        # is DEBUG-only and gated on a successful JSON parse.
+        self.logger.log_response(response, duration_ms=duration_ms)
+
+        response_body = _safe_response_body(response)
+        if response_body:
+            self.logger.debug(
+                f"{method} response body from {endpoint}",
+                endpoint=endpoint,
+                status_code=response.status_code,
+                response_data=response_body,
+            )
+
+        return self._handle_response(response)
+
     def get(self, endpoint: str, params: Optional[Dict] = None,
             custom_headers: Optional[Dict] = None) -> AlmaResponse:
         """
@@ -185,42 +313,10 @@ class AlmaAPIClient:
         Returns:
             AlmaResponse object
         """
-        url = self._build_url(endpoint)
-        headers = self._prepare_headers()
-        if custom_headers:
-            headers.update(custom_headers)
-
-        # Log request
-        self.logger.log_request('GET', endpoint, params=params, headers=headers)
-
-        # Make request with timing.
-        # Route through self._session so TCP+TLS connections are pooled
-        # across calls (issue #3).
-        start_time = time.time()
-        response = self._session.request(
-            'GET', url, headers=headers, params=params, timeout=300
+        return self._request(
+            'GET', endpoint, params=params, custom_headers=custom_headers
         )
-        duration_ms = (time.time() - start_time) * 1000
 
-        # Log response with body for successful requests
-        try:
-            response_body = response.json() if response.ok and 'application/json' in response.headers.get('content-type', '') else None
-        except:
-            response_body = None
-
-        self.logger.log_response(response, duration_ms=duration_ms)
-
-        # Log detailed response body for debugging
-        if response_body:
-            self.logger.debug(
-                f"Response body from {endpoint}",
-                endpoint=endpoint,
-                status_code=response.status_code,
-                response_data=response_body
-            )
-
-        return self._handle_response(response)
-    
     def post(self, endpoint: str, data: Any = None, params: Optional[Dict] = None,
              content_type: Optional[str] = None,
              custom_headers: Optional[Dict] = None) -> requests.Response:
@@ -237,55 +333,11 @@ class AlmaAPIClient:
         Returns:
             AlmaResponse object
         """
-        url = self._build_url(endpoint)
-        headers = self._prepare_headers(content_type)
-        if custom_headers:
-            headers.update(custom_headers)
-
-        # Log request with full body data
-        self.logger.log_request('POST', endpoint, params=params, headers=headers, body=data)
-
-        # Log detailed request body
-        if isinstance(data, dict):
-            self.logger.debug(
-                f"POST request body to {endpoint}",
-                endpoint=endpoint,
-                request_data=data
-            )
-
-        # Make request with timing.
-        # Route through self._session for connection pooling (issue #3).
-        start_time = time.time()
-        if isinstance(data, dict) and not content_type:
-            # JSON data
-            response = self._session.request(
-                'POST', url, headers=headers, json=data, params=params, timeout=300
-            )
-        else:
-            # XML or other data
-            response = self._session.request(
-                'POST', url, headers=headers, data=data, params=params, timeout=300
-            )
-        duration_ms = (time.time() - start_time) * 1000
-
-        # Log response
-        self.logger.log_response(response, duration_ms=duration_ms)
-
-        # Log detailed response body
-        try:
-            response_body = response.json() if 'application/json' in response.headers.get('content-type', '') else None
-        except:
-            response_body = None
-
-        if response_body:
-            self.logger.debug(
-                f"POST response body from {endpoint}",
-                endpoint=endpoint,
-                status_code=response.status_code,
-                response_data=response_body
-            )
-
-        return self._handle_response(response)
+        return self._request(
+            'POST', endpoint,
+            params=params, data=data,
+            content_type=content_type, custom_headers=custom_headers,
+        )
 
     def put(self, endpoint: str, data: Any = None, params: Optional[Dict] = None,
             content_type: Optional[str] = None,
@@ -303,56 +355,12 @@ class AlmaAPIClient:
         Returns:
             AlmaResponse object
         """
-        url = self._build_url(endpoint)
-        headers = self._prepare_headers(content_type)
-        if custom_headers:
-            headers.update(custom_headers)
+        return self._request(
+            'PUT', endpoint,
+            params=params, data=data,
+            content_type=content_type, custom_headers=custom_headers,
+        )
 
-        # Log request with full body data
-        self.logger.log_request('PUT', endpoint, params=params, headers=headers, body=data)
-
-        # Log detailed request body
-        if isinstance(data, dict):
-            self.logger.debug(
-                f"PUT request body to {endpoint}",
-                endpoint=endpoint,
-                request_data=data
-            )
-
-        # Make request with timing.
-        # Route through self._session for connection pooling (issue #3).
-        start_time = time.time()
-        if isinstance(data, dict) and not content_type:
-            # JSON data
-            response = self._session.request(
-                'PUT', url, headers=headers, json=data, params=params, timeout=300
-            )
-        else:
-            # XML or other data
-            response = self._session.request(
-                'PUT', url, headers=headers, data=data, params=params, timeout=300
-            )
-        duration_ms = (time.time() - start_time) * 1000
-
-        # Log response
-        self.logger.log_response(response, duration_ms=duration_ms)
-
-        # Log detailed response body
-        try:
-            response_body = response.json() if 'application/json' in response.headers.get('content-type', '') else None
-        except:
-            response_body = None
-
-        if response_body:
-            self.logger.debug(
-                f"PUT response body from {endpoint}",
-                endpoint=endpoint,
-                status_code=response.status_code,
-                response_data=response_body
-            )
-
-        return self._handle_response(response)
-    
     def delete(self, endpoint: str, params: Optional[Dict] = None,
                custom_headers: Optional[Dict] = None)  -> AlmaResponse:
         """
@@ -366,26 +374,10 @@ class AlmaAPIClient:
         Returns:
             AlmaResponse object
         """
-        url = self._build_url(endpoint)
-        headers = self._prepare_headers()
-        if custom_headers:
-            headers.update(custom_headers)
-
-        # Log request
-        self.logger.log_request('DELETE', endpoint, params=params, headers=headers)
-
-        # Make request with timing.
-        # Route through self._session for connection pooling (issue #3).
-        start_time = time.time()
-        response = self._session.request(
-            'DELETE', url, headers=headers, params=params, timeout=300
+        return self._request(
+            'DELETE', endpoint,
+            params=params, custom_headers=custom_headers,
         )
-        duration_ms = (time.time() - start_time) * 1000
-
-        # Log response
-        self.logger.log_response(response, duration_ms=duration_ms)
-
-        return self._handle_response(response)
     
     def test_connection(self) -> bool:
         """

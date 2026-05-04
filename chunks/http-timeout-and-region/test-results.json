@@ -1,0 +1,41 @@
+{
+  "chunk": "http-timeout-and-region",
+  "testRunStartedAt": "2026-05-04T13:44:14Z",
+  "testRunFinishedAt": "2026-05-04T13:44:37Z",
+  "perTest": [
+    {
+      "id": "t-6-1",
+      "outcome": "passed",
+      "issueNumber": 6,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Default timeout==60s; users.get_user(...) returned success with non-empty data dict in 0.52s."
+    },
+    {
+      "id": "t-7-1",
+      "outcome": "passed",
+      "issueNumber": 7,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Default base_url=='https://api-eu.hosted.exlibrisgroup.com'; users.get_user(...) returned success with non-empty data dict in 0.51s."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 6,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "notes": "AC-1 and AC-3 mapped to t-6-1; AC-2/AC-4/AC-5 are unmappable (covered by unit tests / CHANGELOG deferred). Auto-close blocked by R4."
+    },
+    {
+      "number": 7,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "notes": "AC-2/AC-5/AC-6 mapped to t-7-1; AC-1/AC-3/AC-4 are unmappable (internal dict / kwarg precedence / validation — all unit-tested). Auto-close blocked by R4."
+    }
+  ]
+}

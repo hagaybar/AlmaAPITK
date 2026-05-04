@@ -1,0 +1,89 @@
+{
+  "chunk": "http-timeout-and-region",
+  "branch": "chunk/http-timeout-and-region",
+  "createdAt": "2026-05-04T13:02:31Z",
+  "issues": [
+    {
+      "number": 6,
+      "title": "HTTP: make timeout configurable; lower default from 300s to 60s",
+      "classification": "general",
+      "subBranch": "feat/6-http-make-timeout-configurable",
+      "tests": [
+        {
+          "id": "t-6-1",
+          "kind": "smoke",
+          "scope": "Verify the new 60s default timeout doesn't break a normal GET (would surface if 60s is too short for typical Alma reads).",
+          "endpoints": ["GET /almaws/v1/users/{user_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {"key": "test_user_id", "description": "Existing user_primary_id in SANDBOX (read-only).", "example": "<user_primary_id>"}
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.domains.users import Users",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "users = Users(client)",
+            "response = users.get_user('${test_user_id}')"
+          ],
+          "passCriteria": [
+            "client.timeout == 60",
+            "response.success is True",
+            "response.data is a non-empty dict",
+            "Call completes within timeout (no requests.exceptions.Timeout raised)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-1: Default lowered to 60s": ["t-6-1"],
+        "AC-3: Per-call override path exists": ["t-6-1"]
+      },
+      "unmappable": [
+        {"ac": "AC-2: AlmaAPIClient(timeout=120.0) accepted", "reason": "Constructor-kwarg validation; verified by unit tests."},
+        {"ac": "AC-4: Test asserts new default flows into session.request", "reason": "Mock-level assertion; verified by unit tests."},
+        {"ac": "AC-5: CHANGELOG note added", "reason": "CHANGELOG.md does not exist at repo root; deferred to a separate chunk."}
+      ]
+    },
+    {
+      "number": 7,
+      "title": "HTTP: make region/host configurable",
+      "classification": "general",
+      "subBranch": "feat/7-http-make-region-host-configur",
+      "tests": [
+        {
+          "id": "t-7-1",
+          "kind": "smoke",
+          "scope": "Verify default region='EU' preserves backward-compat — bare AlmaAPIClient() still hits the EU URL and returns a successful read.",
+          "endpoints": ["GET /almaws/v1/users/{user_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {"key": "test_user_id", "description": "Existing user_primary_id in SANDBOX (read-only).", "example": "<user_primary_id>"}
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.domains.users import Users",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "users = Users(client)",
+            "response = users.get_user('${test_user_id}')"
+          ],
+          "passCriteria": [
+            "client.base_url == 'https://api-eu.hosted.exlibrisgroup.com'",
+            "response.success is True",
+            "response.data is a non-empty dict"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-2: region defaults to EU": ["t-7-1"],
+        "AC-5: Existing tests pass; public signatures preserved": ["t-7-1"],
+        "AC-6: client.base_url is public": ["t-7-1"]
+      },
+      "unmappable": [
+        {"ac": "AC-1: Six regions in REGION_HOSTS dict (incl. CN .com.cn)", "reason": "Internal dict content; verified by unit tests."},
+        {"ac": "AC-3: host kwarg overrides region", "reason": "Constructor-kwarg precedence; verified by unit tests. (Could be SANDBOX-tested with the same EU URL but adds no signal beyond AC-2.)"},
+        {"ac": "AC-4: Invalid region raises AlmaValidationError", "reason": "Constructor-input validation; verified by unit tests."}
+      ]
+    }
+  ]
+}

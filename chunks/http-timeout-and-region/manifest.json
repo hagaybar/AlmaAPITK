@@ -1,0 +1,64 @@
+{
+  "chunk": "http-timeout-and-region",
+  "issues": [
+    {
+      "number": 6,
+      "title": "HTTP: make timeout configurable; lower default from 300s to 60s",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/6",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Medium\n\n## Problem\n\n`timeout=300` is hardcoded in every HTTP method (`src/almaapitk/client/AlmaAPIClient.py:180,238,241,299,302,347`). Five-minute timeouts mask real problems: a hung call blocks bulk pipelines for ages before failing, and there is no way to dial it down for fast-fail cases or up for genuinely slow operations (large analytics reports).\n\n## Proposal\n\n- New constructor kwarg `timeout: float | None = 60.0`.\n- Stored as `self.timeout`.\n- Per-call override via the `_request(..., timeout=...)` parameter (lands cleanly with the verb-consolidation issue).\n- CHANGELOG entry calling out the behavior change explicitly: \"Default HTTP timeout reduced from 300s to 60s; pass `timeout=300` to AlmaAPIClient if you depend on the old default.\"\n\n## Files to touch\n\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/client/test_alma_api_client.py` (existing \u2014 add tests under)\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #4 \u2014 Consolidate HTTP verbs into _request() (cleaner per-call timeout once verbs are consolidated)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- Default lowered to 60s.\n- `AlmaAPIClient(timeout=120.0)` accepted.\n- Per-call override path exists.\n- Test asserts the new default is in effect (e.g., monkeypatched session captures the timeout).\n- CHANGELOG note added.\n",
+      "domain": "Architecture",
+      "priority": "medium",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_api_client.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        4
+      ],
+      "acceptance_criteria": [
+        "Default lowered to 60s.",
+        "`AlmaAPIClient(timeout=120.0)` accepted.",
+        "Per-call override path exists.",
+        "Test asserts the new default is in effect (e.g., monkeypatched session captures the timeout).",
+        "CHANGELOG note added."
+      ]
+    },
+    {
+      "number": 7,
+      "title": "HTTP: make region/host configurable (currently EU is hardcoded)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/7",
+      "labels": [
+        "enhancement",
+        "priority:high"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Medium\n\n## Background\n\n`self.base_url = \"https://api-eu.hosted.exlibrisgroup.com\"` is hardcoded at `src/almaapitk/client/AlmaAPIClient.py:93`. Anyone outside the EU must fork the package or monkey-patch the attribute. Trivial to add now, painful to add later once external callers depend on it being a constant.\n\nA public downstream caller, [`Update_Alma_Digital_Collections`](https://github.com/hagaybar/Update_Alma_Digital_Collections), already has to disclose this constraint in its README \u2014 a real adoption blocker for any non-EU institution. Landing this issue lets that paragraph collapse into a single `region=\"NA\"` kwarg in the example.\n\n## Current wrapper behavior\n\n`AlmaAPIClient._load_configuration()` hardcodes `self.base_url = \"https://api-eu.hosted.exlibrisgroup.com\"`. There is no constructor kwarg for region or host.\n\n## Expected wrapper behavior\n\n```python\nREGION_HOSTS = {\n    \"EU\":   \"https://api-eu.hosted.exlibrisgroup.com\",\n    \"NA\":   \"https://api-na.hosted.exlibrisgroup.com\",\n    \"AP\":   \"https://api-ap.hosted.exlibrisgroup.com\",      # Asia Pacific (Singapore)\n    \"APS\":  \"https://api-aps.hosted.exlibrisgroup.com\",     # Asia Pacific (Australia)\n    \"CA\":   \"https://api-ca.hosted.exlibrisgroup.com\",\n    \"CN\":   \"https://api-cn.hosted.exlibrisgroup.com.cn\",   # China \u2014 note .com.cn TLD\n}\n\ndef __init__(self, environment=\"SANDBOX\", region=\"EU\", host=None):\n    ...\n    if host is not None:\n        self.base_url = host\n    else:\n        region = region.upper()\n        if region not in REGION_HOSTS:\n            raise ValueError(f\"Unknown region {region!r}; valid: {sorted(REGION_HOSTS)}\")\n        self.base_url = REGION_HOSTS[region]\n```\n\n## Implementation notes\n\n- **Two distinct APAC hosts:** Ex Libris documents `api-ap.hosted.exlibrisgroup.com` (Singapore) and `api-aps.hosted.exlibrisgroup.com` (Australia) as separate datacenters. The codes must be distinct (`AP` vs `APS`); collapsing them into a single `APAC` entry is incorrect.\n- **China uses `.com.cn`:** the documented host is `api-cn.hosted.exlibrisgroup.com.cn` (not `.com`). Easy to get wrong if you copy-paste from the other regions.\n- Default region remains `\"EU\"` so existing callers see zero behavior change.\n- The `host=` escape hatch supports proxies, mock servers in tests, and any future region the docs add before the registry is updated.\n\n## Acceptance criteria\n\n- [ ] Default region remains `\"EU\"` \u2014 zero behavior change for existing callers.\n- [ ] `AlmaAPIClient(region=\"NA\")` works.\n- [ ] Both `AlmaAPIClient(region=\"AP\")` (Singapore) and `AlmaAPIClient(region=\"APS\")` (Australia) resolve to their respective documented hosts.\n- [ ] `AlmaAPIClient(region=\"CN\")` resolves to `https://api-cn.hosted.exlibrisgroup.com.cn` (note `.com.cn` TLD).\n- [ ] `AlmaAPIClient(host=\"https://api-eu.hosted.exlibrisgroup.com\")` works (escape hatch for tests, proxies, or future regions).\n- [ ] Invalid region raises `ValueError` listing valid options.\n- [ ] `get_base_url()` / domain-knowledge sections of CLAUDE.md updated if relevant.\n\n## Open questions\n\n- None \u2014 Ex Libris's \"Calling Alma APIs\" page enumerates the host list explicitly.\n\n## Audit notes (2026-05-01)\n\nThe original ticket listed five regions (`EU`, `NA`, `APAC`, `CA`, `CN`) with two errors flagged in both the structured audit and the Codex direct audit:\n1. `APAC` collapsed two distinct documented datacenters (`api-ap` Singapore and `api-aps` Australia) into one entry.\n2. `CN` used the `.com` TLD; the documented host is `.com.cn`.\n\nThis rewrite splits APAC into `AP` / `APS` and corrects the CN TLD per https://developers.exlibrisgroup.com/alma/apis/.\n\n## Files to touch\n\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/client/test_alma_api_client.py` (existing \u2014 add tests under)\n\n## Prerequisites\n\n_None \u2014 this issue has no upstream dependencies and does not have recommended soft prereqs at the toolkit level._\n",
+      "domain": "Architecture",
+      "priority": "medium",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_api_client.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "Default region remains `\"EU\"` \u2014 zero behavior change for existing callers.",
+        "`AlmaAPIClient(region=\"NA\")` works.",
+        "Both `AlmaAPIClient(region=\"AP\")` (Singapore) and `AlmaAPIClient(region=\"APS\")` (Australia) resolve to their respective documented hosts.",
+        "`AlmaAPIClient(region=\"CN\")` resolves to `https://api-cn.hosted.exlibrisgroup.com.cn` (note `.com.cn` TLD).",
+        "`AlmaAPIClient(host=\"https://api-eu.hosted.exlibrisgroup.com\")` works (escape hatch for tests, proxies, or future regions).",
+        "Invalid region raises `ValueError` listing valid options.",
+        "`get_base_url()` / domain-knowledge sections of CLAUDE.md updated if relevant."
+      ]
+    }
+  ]
+}

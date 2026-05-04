@@ -1,0 +1,17 @@
+{
+  "chunk": "http-timeout-and-region",
+  "issues": [
+    6,
+    7
+  ],
+  "stage": "merged",
+  "branch": "chunk/http-timeout-and-region",
+  "createdAt": "2026-05-04T12:52:57Z",
+  "updatedAt": "2026-05-04T13:53:34Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/84)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": null,
+  "testRunId": null,
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/84"
+}

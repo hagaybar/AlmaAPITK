@@ -65,6 +65,13 @@ __all__ = [
     "AlmaResponse",
     "AlmaAPIError",
     "AlmaValidationError",
+    # Typed AlmaAPIError subclasses (issue #9)
+    "AlmaAuthenticationError",
+    "AlmaRateLimitError",
+    "AlmaServerError",
+    "AlmaResourceNotFoundError",
+    "AlmaDuplicateInvoiceError",
+    "AlmaInvalidPolModeError",
     # Domain classes
     "Admin",
     "Users",
@@ -85,6 +92,13 @@ _lazy_imports = {
     "AlmaResponse": ("almaapitk._internal", "AlmaResponse"),
     "AlmaAPIError": ("almaapitk._internal", "AlmaAPIError"),
     "AlmaValidationError": ("almaapitk._internal", "AlmaValidationError"),
+    # Typed AlmaAPIError subclasses (issue #9)
+    "AlmaAuthenticationError": ("almaapitk._internal", "AlmaAuthenticationError"),
+    "AlmaRateLimitError": ("almaapitk._internal", "AlmaRateLimitError"),
+    "AlmaServerError": ("almaapitk._internal", "AlmaServerError"),
+    "AlmaResourceNotFoundError": ("almaapitk._internal", "AlmaResourceNotFoundError"),
+    "AlmaDuplicateInvoiceError": ("almaapitk._internal", "AlmaDuplicateInvoiceError"),
+    "AlmaInvalidPolModeError": ("almaapitk._internal", "AlmaInvalidPolModeError"),
     # Domains
     "Admin": ("almaapitk._internal", "Admin"),
     "Users": ("almaapitk._internal", "Users"),

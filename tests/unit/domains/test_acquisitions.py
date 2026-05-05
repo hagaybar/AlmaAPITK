@@ -564,5 +564,214 @@ def main():
         print("Invalid choice.")
 
 
+# =============================================================================
+# Unit tests with mocked HTTP (issue #11 -- iter_paged migration proof point)
+#
+# These tests verify the post-#11 ``Acquisitions.list_invoices`` shape: it
+# routes through ``client.iter_paged`` for the common ``offset=0`` walk
+# while preserving the legacy ``{"invoice": [...], "total_record_count": N}``
+# return contract. They use unittest+mock so pytest can pick them up
+# alongside the rest of the unit-test suite without touching real HTTP.
+# =============================================================================
+import os
+import unittest
+from unittest.mock import MagicMock, patch
+
+import requests
+
+from almaapitk import AlmaAPIClient as _AlmaAPIClient
+from almaapitk import Acquisitions as _Acquisitions
+
+
+def _mock_alma_response(status_code: int = 200, json_body=None):
+    """Build a minimal ``requests.Response``-like mock for unit tests."""
+    mock_response = MagicMock(spec=requests.Response)
+    mock_response.status_code = status_code
+    mock_response.ok = status_code < 400
+    mock_response.headers = {'content-type': 'application/json'}
+    mock_response.text = ''
+    mock_response.json.return_value = json_body or {}
+    return mock_response
+
+
+class TestListInvoicesIterPaged(unittest.TestCase):
+    """Unit tests for ``Acquisitions.list_invoices`` post-#11 migration.
+
+    Pattern source: GitHub issue #11 acceptance criteria + the
+    ``tests/unit/client/test_alma_api_client.py`` mocking style.
+    """
+
+    def setUp(self):
+        self._env_patcher = patch.dict(
+            os.environ, {'ALMA_SB_API_KEY': 'test-sandbox-key'}, clear=False
+        )
+        self._env_patcher.start()
+        self.addCleanup(self._env_patcher.stop)
+
+    def test_list_invoices_returns_legacy_payload_shape(self):
+        """The migrated method must still return ``{"invoice": [...], "total_record_count": N}``."""
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        invoices = [{'id': 'inv-1'}, {'id': 'inv-2'}]
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_mock_alma_response(
+                json_body={
+                    'invoice': invoices,
+                    'total_record_count': 2,
+                },
+            ),
+        ):
+            result = acq.list_invoices(limit=2)
+
+        # Legacy callers read these two keys directly.
+        self.assertEqual(result.get('invoice'), invoices)
+        self.assertEqual(result.get('total_record_count'), 2)
+
+    def test_list_invoices_routes_through_iter_paged(self):
+        """``offset=0`` (default) must walk via ``client.iter_paged``."""
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        # Patch ``iter_paged`` so we can prove the migration sends the
+        # call through the shared paginator and not a hand-rolled loop.
+        with patch.object(
+            client, 'iter_paged', return_value=iter([{'id': 'inv-1'}])
+        ) as mock_paged:
+            result = acq.list_invoices(limit=10, status='ACTIVE')
+
+        self.assertEqual(mock_paged.call_count, 1)
+        _args, kwargs = mock_paged.call_args
+        # Endpoint and record_key are positional/keyword choices the
+        # migration locked in -- if they regress, downstream callers
+        # walking custom queries break.
+        self.assertEqual(_args[0], 'almaws/v1/acq/invoices')
+        self.assertEqual(kwargs.get('record_key'), 'invoice')
+        self.assertEqual(kwargs.get('page_size'), 10)
+        self.assertEqual(kwargs.get('max_records'), 10)
+        # Status filter built into the ``q`` query param.
+        self.assertEqual(
+            kwargs.get('params', {}).get('q'),
+            'invoice_status~ACTIVE',
+        )
+        # Result still shaped like the legacy payload.
+        self.assertEqual(result.get('total_record_count'), 1)
+        self.assertEqual(result.get('invoice'), [{'id': 'inv-1'}])
+
+    def test_list_invoices_offset_falls_back_to_direct_get(self):
+        """Non-zero ``offset`` keeps using a single direct GET (legacy deep-page path)."""
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        body = {
+            'invoice': [{'id': 'inv-200'}],
+            'total_record_count': 500,
+        }
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_mock_alma_response(json_body=body),
+        ) as mock_request, patch.object(
+            client, 'iter_paged'
+        ) as mock_paged:
+            result = acq.list_invoices(limit=10, offset=200)
+
+        # iter_paged NOT called -- the offset>0 branch fires.
+        mock_paged.assert_not_called()
+        self.assertEqual(mock_request.call_count, 1)
+        _args, kwargs = mock_request.call_args
+        sent = kwargs.get('params', {})
+        self.assertEqual(sent.get('offset'), '200')
+        self.assertEqual(sent.get('limit'), '10')
+        # Pass-through return shape on the deep-page branch.
+        self.assertEqual(result, body)
+
+
+class TestSearchInvoicesIterPaged(unittest.TestCase):
+    """Unit tests for ``Acquisitions.search_invoices`` post-#11 migration.
+
+    Replaces ``BibliographicRecords.search_records`` as proof-point #2:
+    ``/almaws/v1/bibs`` is identifier-only and rejects ``q=``, so it
+    cannot validate ``iter_paged()`` against a paginated search. The
+    ``/acq/invoices`` endpoint genuinely supports ``q=`` + ``offset``
+    pagination, which is what ``iter_paged()`` is for.
+    """
+
+    def setUp(self):
+        self._env_patcher = patch.dict(
+            os.environ, {'ALMA_SB_API_KEY': 'test-sandbox-key'}, clear=False
+        )
+        self._env_patcher.start()
+        self.addCleanup(self._env_patcher.stop)
+
+    def test_search_invoices_validates_empty_query(self):
+        from almaapitk.client.AlmaAPIClient import AlmaValidationError
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        with self.assertRaises(AlmaValidationError):
+            acq.search_invoices(query='')
+
+    def test_search_invoices_validates_limit_over_100(self):
+        from almaapitk.client.AlmaAPIClient import AlmaValidationError
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        with self.assertRaises(AlmaValidationError):
+            acq.search_invoices(query='vendor~ACME', limit=101)
+
+    def test_search_invoices_returns_legacy_payload_shape(self):
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        invoices = [{'id': 'inv-1'}, {'id': 'inv-2'}]
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_mock_alma_response(
+                json_body={'invoice': invoices, 'total_record_count': 2},
+            ),
+        ):
+            result = acq.search_invoices(query='vendor~ACME', limit=2)
+        self.assertEqual(result.get('invoice'), invoices)
+        self.assertEqual(result.get('total_record_count'), 2)
+
+    def test_search_invoices_routes_through_iter_paged(self):
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        with patch.object(
+            client, 'iter_paged', return_value=iter([{'id': 'inv-1'}])
+        ) as mock_paged:
+            result = acq.search_invoices(query='vendor~ACME', limit=10)
+
+        self.assertEqual(mock_paged.call_count, 1)
+        args, kwargs = mock_paged.call_args
+        self.assertEqual(args[0], 'almaws/v1/acq/invoices')
+        self.assertEqual(kwargs.get('record_key'), 'invoice')
+        self.assertEqual(kwargs.get('page_size'), 10)
+        self.assertEqual(kwargs.get('max_records'), 10)
+        self.assertEqual(kwargs.get('params', {}).get('q'), 'vendor~ACME')
+        self.assertEqual(result.get('total_record_count'), 1)
+        self.assertEqual(result.get('invoice'), [{'id': 'inv-1'}])
+
+    def test_search_invoices_offset_falls_back_to_direct_get(self):
+        client = _AlmaAPIClient('SANDBOX')
+        acq = _Acquisitions(client)
+        body = {'invoice': [{'id': 'inv-200'}], 'total_record_count': 500}
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_mock_alma_response(json_body=body),
+        ) as mock_request, patch.object(
+            client, 'iter_paged'
+        ) as mock_paged:
+            result = acq.search_invoices(query='vendor~ACME', limit=10, offset=200)
+
+        mock_paged.assert_not_called()
+        self.assertEqual(mock_request.call_count, 1)
+        _args, kwargs = mock_request.call_args
+        sent = kwargs.get('params', {})
+        self.assertEqual(sent.get('q'), 'vendor~ACME')
+        self.assertEqual(sent.get('offset'), '200')
+        self.assertEqual(sent.get('limit'), '10')
+        self.assertEqual(result, body)
+
+
 if __name__ == "__main__":
     main()

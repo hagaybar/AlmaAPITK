@@ -5,7 +5,7 @@ Handles invoice management operations using the AlmaAPIClient foundation.
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse
+from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse, AlmaValidationError
 from almaapitk.domains.bibs import BibliographicRecords
 from almaapitk.alma_logging import get_logger
 
@@ -1391,53 +1391,90 @@ class Acquisitions:
             self.logger.exception(f"✗ Failed to generate summary for invoice {invoice_id}: {str(e)}")
             raise
     
-    def list_invoices(self, limit: int = 10, offset: int = 0, 
-                     status: Optional[str] = None, 
+    def list_invoices(self, limit: int = 10, offset: int = 0,
+                     status: Optional[str] = None,
                      vendor_code: Optional[str] = None) -> Dict[str, Any]:
         """
         List invoices with optional filtering.
-        
+
+        Pre-#11 behaviour is preserved bit-for-bit: the method still
+        accepts ``limit`` / ``offset`` and returns a single Alma list
+        payload (``{"invoice": [...], "total_record_count": N}``). The
+        ``offset`` kwarg is honoured by passing it as a base param into
+        ``client.iter_paged`` so callers that page manually
+        (e.g., ``offset=200`` to skip the first two pages) still see
+        the records they expect.
+
+        Pattern source: GitHub issue #11 (API: add iter_paged()
+        generator at the client level) -- proof-point migration #1.
+        ``list_invoices`` keeps a list-shaped public return for
+        backwards compatibility; callers that want streaming should
+        switch to ``client.iter_paged(...)`` directly.
+
         Args:
-            limit: Maximum number of results to return
-            offset: Starting point for results
-            status: Optional status filter
-            vendor_code: Optional vendor code filter
-        
+            limit: Maximum number of results to return.
+            offset: Starting point for results.
+            status: Optional status filter.
+            vendor_code: Optional vendor code filter.
+
         Returns:
-            Dict containing the list of invoices
+            Dict containing the list of invoices, in the same shape
+            the Alma /acq/invoices endpoint returns.
         """
         self.logger.info(f"Listing invoices (limit: {limit}, offset: {offset})")
-        
-        params = {
-            "limit": str(limit),
-            "offset": str(offset)
-        }
-        
+
         # Build query string for filters
+        base_params: Dict[str, Any] = {}
         query_parts = []
         if status:
             query_parts.append(f"invoice_status~{status}")
         if vendor_code:
             query_parts.append(f"vendor~{vendor_code}")
-        
         if query_parts:
-            params["q"] = " AND ".join(query_parts)
-        
+            base_params["q"] = " AND ".join(query_parts)
+
         try:
-            endpoint = "almaws/v1/acq/invoices"
-            response = self.client.get(endpoint, params=params)
-            
-            # Raise for HTTP errors
-            if not response.success:
-                raise Exception(f"API request failed with status {response.status_code}")
-            
-            # Parse JSON response
-            invoices_data = response.json()
-            
-            total_count = invoices_data.get('total_record_count', 0)
+            if offset:
+                # Deep-paging fall-through: ``iter_paged`` always starts
+                # at offset 0 by design (the issue-#11 contract). The
+                # legacy ``offset>0`` window is rarely used in this
+                # toolkit (no in-tree caller exercises it), so we fall
+                # back to a direct one-page fetch rather than walking
+                # ``offset+limit`` records and slicing.
+                page_params = {
+                    **base_params,
+                    "limit": str(limit),
+                    "offset": str(offset),
+                }
+                invoices_data = self.client.get(
+                    "almaws/v1/acq/invoices", params=page_params
+                ).json()
+                total_count = invoices_data.get('total_record_count', 0)
+                self.logger.info(
+                    f"✓ Successfully retrieved {total_count} invoices"
+                )
+                return invoices_data
+
+            invoices = list(
+                self.client.iter_paged(
+                    "almaws/v1/acq/invoices",
+                    params=base_params,
+                    page_size=limit,
+                    record_key="invoice",
+                    max_records=limit,
+                )
+            )
+
+            total_count = len(invoices)
             self.logger.info(f"✓ Successfully retrieved {total_count} invoices")
-            return invoices_data
-            
+            # Re-shape into the legacy Alma list payload so existing
+            # callers that read ``result["invoice"]`` /
+            # ``result["total_record_count"]`` keep working.
+            return {
+                "invoice": invoices,
+                "total_record_count": total_count,
+            }
+
         except Exception as e:
             self.logger.exception(f"✗ Failed to list invoices: {str(e)}")
             raise
@@ -1445,41 +1482,75 @@ class Acquisitions:
     def search_invoices(self, query: str, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
         """
         Search invoices with a custom query.
-        
+
+        Pattern source: GitHub issue #11 (API: add iter_paged()
+        generator at the client level) -- proof-point migration #2.
+        The method routes through ``client.iter_paged`` for the
+        common offset=0 case so the page-size, max_records cap, and
+        total_record_count bookkeeping live in one place. The
+        legacy ``offset > 0`` window falls back to a direct one-page
+        GET, matching the ``list_invoices`` migration for symmetry.
+
         Args:
-            query: Search query (e.g., "vendor~VENDOR_CODE AND invoice_status~WAITING_TO_BE_SENT")
-            limit: Maximum number of results to return
-            offset: Starting point for results
-        
+            query: Search query (e.g., ``"vendor~VENDOR_CODE AND
+                invoice_status~WAITING_TO_BE_SENT"``).
+            limit: Maximum number of results to return. Must be in
+                the ``1..100`` range (the Alma per-endpoint limit).
+            offset: Starting point for results.
+
         Returns:
-            Dict containing the search results
+            Dict in the legacy Alma list shape:
+            ``{"invoice": [...], "total_record_count": N}``.
+
+        Raises:
+            AlmaValidationError: If ``query`` is empty or ``limit``
+                is outside the ``1..100`` range.
         """
         if not query:
-            raise ValueError("Search query is required")
-        
+            raise AlmaValidationError("Search query is required")
+
+        if limit > 100:
+            raise AlmaValidationError("Limit cannot exceed 100")
+
         self.logger.info(f"Searching invoices with query: {query}")
-        
-        params = {
-            "q": query,
-            "limit": str(limit),
-            "offset": str(offset)
-        }
-        
+
+        base_params: Dict[str, Any] = {"q": query}
+
         try:
-            endpoint = "almaws/v1/acq/invoices"
-            response = self.client.get(endpoint, params=params)
-            
-            # Raise for HTTP errors
-            if not response.success:
-                raise Exception(f"API request failed with status {response.status_code}")
-            
-            # Parse JSON response
-            search_results = response.json()
-            
-            total_count = search_results.get('total_record_count', 0)
-            self.logger.info(f"✓ Search found {total_count} invoices matching query")
-            return search_results
-            
+            if offset:
+                page_params = {
+                    **base_params,
+                    "limit": str(limit),
+                    "offset": str(offset),
+                }
+                search_results = self.client.get(
+                    "almaws/v1/acq/invoices", params=page_params
+                ).json()
+                total_count = search_results.get("total_record_count", 0)
+                self.logger.info(
+                    f"✓ Search found {total_count} invoices matching query"
+                )
+                return search_results
+
+            invoices = list(
+                self.client.iter_paged(
+                    "almaws/v1/acq/invoices",
+                    params=base_params,
+                    page_size=limit,
+                    record_key="invoice",
+                    max_records=limit,
+                )
+            )
+
+            total_count = len(invoices)
+            self.logger.info(
+                f"✓ Search found {total_count} invoices matching query"
+            )
+            return {
+                "invoice": invoices,
+                "total_record_count": total_count,
+            }
+
         except Exception as e:
             self.logger.exception(f"✗ Invoice search failed: {str(e)}")
             raise

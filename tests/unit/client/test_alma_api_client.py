@@ -645,5 +645,218 @@ class TestRegionHostConfiguration(_AlmaAPIClientTestBase):
         self.assertEqual(client.base_url, client.get_base_url())
 
 
+class TestIterPaged(_AlmaAPIClientTestBase):
+    """Tests for issue #11: ``client.iter_paged`` shared paginator.
+
+    Verifies the generator semantics, multi-page traversal,
+    ``max_records`` cap, ``record_key=None`` no-op behaviour, and
+    input validation. Each test patches ``client._session.request``
+    so no real network calls are made.
+
+    Pattern source: GitHub issue #11 acceptance criteria.
+    """
+
+    def _page(
+        self,
+        records,
+        total: int,
+        record_key: str = "invoice",
+    ):
+        """Build a JSON page body matching the standard Alma list shape."""
+        return {
+            record_key: records,
+            "total_record_count": total,
+        }
+
+    def test_iter_paged_returns_generator(self):
+        """``iter_paged`` must be a generator (yield, not list)."""
+        import types
+        client = AlmaAPIClient('SANDBOX')
+        # Empty endpoint walk -- one fetch, no records, generator returns.
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_response(json_body=self._page([], 0)),
+        ):
+            gen = client.iter_paged(
+                'almaws/v1/acq/invoices', record_key='invoice'
+            )
+            self.assertIsInstance(gen, types.GeneratorType)
+            # Consume so the request is actually issued.
+            self.assertEqual(list(gen), [])
+
+    def test_iter_paged_single_page(self):
+        """A single page (total <= page_size) should yield all its records."""
+        client = AlmaAPIClient('SANDBOX')
+        records = [{'id': 'inv-1'}, {'id': 'inv-2'}, {'id': 'inv-3'}]
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_response(
+                json_body=self._page(records, total=3),
+            ),
+        ) as mock_request:
+            out = list(
+                client.iter_paged(
+                    'almaws/v1/acq/invoices',
+                    record_key='invoice',
+                    page_size=100,
+                )
+            )
+
+        self.assertEqual(out, records)
+        # Exactly one HTTP request (no second page fetch).
+        self.assertEqual(mock_request.call_count, 1)
+        _args, kwargs = mock_request.call_args
+        # The paginator's limit / offset must reach the wire.
+        self.assertEqual(kwargs.get('params', {}).get('limit'), 100)
+        self.assertEqual(kwargs.get('params', {}).get('offset'), 0)
+
+    def test_iter_paged_multi_page_traversal(self):
+        """Walks past total_record_count across multiple pages."""
+        client = AlmaAPIClient('SANDBOX')
+        page_one = [{'id': f'inv-{i}'} for i in range(2)]
+        page_two = [{'id': f'inv-{i}'} for i in range(2, 4)]
+        page_three = [{'id': 'inv-4'}]
+        responses = [
+            _make_mock_response(json_body=self._page(page_one, total=5)),
+            _make_mock_response(json_body=self._page(page_two, total=5)),
+            _make_mock_response(json_body=self._page(page_three, total=5)),
+        ]
+        with patch.object(
+            client._session, 'request', side_effect=responses
+        ) as mock_request:
+            out = list(
+                client.iter_paged(
+                    'almaws/v1/acq/invoices',
+                    record_key='invoice',
+                    page_size=2,
+                )
+            )
+
+        # All five records yielded, in order.
+        self.assertEqual(out, page_one + page_two + page_three)
+        # One request per page.
+        self.assertEqual(mock_request.call_count, 3)
+        # Offsets walk 0, 2, 4 -- proving the paginator advanced.
+        offsets = [
+            call.kwargs.get('params', {}).get('offset')
+            for call in mock_request.call_args_list
+        ]
+        self.assertEqual(offsets, [0, 2, 4])
+
+    def test_iter_paged_respects_max_records(self):
+        """``max_records`` should hard-cap output and stop fetching."""
+        client = AlmaAPIClient('SANDBOX')
+        page_one = [{'id': f'inv-{i}'} for i in range(5)]
+        # Pretend there are more pages -- the cap should prevent
+        # fetching them. We give side_effect a single response so
+        # that any second fetch would raise StopIteration loudly.
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_response(
+                json_body=self._page(page_one, total=50),
+            ),
+        ) as mock_request:
+            out = list(
+                client.iter_paged(
+                    'almaws/v1/acq/invoices',
+                    record_key='invoice',
+                    page_size=5,
+                    max_records=3,
+                )
+            )
+
+        self.assertEqual(out, page_one[:3])
+        # Only the first page was fetched -- the cap fired before
+        # the next iteration could request page 2.
+        self.assertEqual(mock_request.call_count, 1)
+
+    def test_iter_paged_record_key_none_yields_nothing(self):
+        """``record_key=None`` is a probe shape: no records yielded."""
+        client = AlmaAPIClient('SANDBOX')
+        # Body intentionally has populated arrays -- without a
+        # ``record_key`` the paginator does not know which array to
+        # walk and yields nothing. One fetch happens; the loop then
+        # exits because ``items`` is empty.
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_response(
+                json_body={
+                    'invoice': [{'id': 'inv-1'}],
+                    'total_record_count': 1,
+                },
+            ),
+        ) as mock_request:
+            out = list(
+                client.iter_paged('almaws/v1/acq/invoices')
+            )
+
+        self.assertEqual(out, [])
+        self.assertEqual(mock_request.call_count, 1)
+
+    def test_iter_paged_merges_caller_params(self):
+        """Caller-supplied ``params`` should reach the wire alongside limit/offset."""
+        client = AlmaAPIClient('SANDBOX')
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_response(
+                json_body=self._page([], total=0),
+            ),
+        ) as mock_request:
+            list(
+                client.iter_paged(
+                    'almaws/v1/acq/invoices',
+                    params={'q': 'vendor~ACME'},
+                    record_key='invoice',
+                )
+            )
+
+        _args, kwargs = mock_request.call_args
+        sent = kwargs.get('params', {})
+        self.assertEqual(sent.get('q'), 'vendor~ACME')
+        # Paginator's limit/offset still merged in.
+        self.assertEqual(sent.get('limit'), 100)
+        self.assertEqual(sent.get('offset'), 0)
+
+    def test_iter_paged_validates_endpoint(self):
+        """Empty endpoint must raise ``AlmaValidationError``."""
+        client = AlmaAPIClient('SANDBOX')
+        with self.assertRaises(AlmaValidationError):
+            # Generators raise on first ``next()`` -- consume to fire.
+            list(client.iter_paged('', record_key='invoice'))
+
+    def test_iter_paged_validates_page_size(self):
+        """Non-positive ``page_size`` must raise ``AlmaValidationError``."""
+        client = AlmaAPIClient('SANDBOX')
+        for bad in (0, -1, 'ten', None, True):
+            with self.subTest(page_size=bad):
+                with self.assertRaises(AlmaValidationError):
+                    list(
+                        client.iter_paged(
+                            'almaws/v1/acq/invoices',
+                            record_key='invoice',
+                            page_size=bad,
+                        )
+                    )
+
+    def test_iter_paged_validates_max_records(self):
+        """Negative or non-int ``max_records`` must raise ``AlmaValidationError``."""
+        client = AlmaAPIClient('SANDBOX')
+        for bad in (-1, 'ten', True):
+            with self.subTest(max_records=bad):
+                with self.assertRaises(AlmaValidationError):
+                    list(
+                        client.iter_paged(
+                            'almaws/v1/acq/invoices',
+                            record_key='invoice',
+                            max_records=bad,
+                        )
+                    )
+
+
 if __name__ == '__main__':
     unittest.main()

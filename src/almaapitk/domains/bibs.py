@@ -71,43 +71,8 @@ class BibliographicRecords:
         
         self.logger.info(f"Retrieved bib record {mms_id}")
         return response
-    
-    def search_records(self, q: str, limit: int = 10, offset: int = 0, 
-                      order_by: str = None, direction: str = "asc") -> AlmaResponse:
-        """
-        Search bibliographic records.
-        
-        Args:
-            q: Search query (e.g., "title~Harry Potter")
-            limit: Number of results to return (max 100)
-            offset: Starting point for results
-            order_by: Field to sort by
-            direction: Sort direction (asc, desc)
-        
-        Returns:
-            AlmaResponse containing search results
-        """
-        if not q:
-            raise AlmaValidationError("Search query is required")
-        
-        if limit > 100:
-            raise AlmaValidationError("Limit cannot exceed 100")
-        
-        params = {
-            "q": q,
-            "limit": str(limit),
-            "offset": str(offset),
-            "order_by": order_by or "mms_id",
-            "direction": direction
-        }
-        
-        endpoint = "almaws/v1/bibs"
-        response = self.client.get(endpoint, params=params)
-        
-        self.logger.info(f"Searched bibs with query: {q}, found {limit} results")
-        return response
-    
-    def create_record(self, marc_xml: str, validate: bool = True, 
+
+    def create_record(self, marc_xml: str, validate: bool = True,
                      override_warning: bool = False) -> AlmaResponse:
         """
         Create a new bibliographic record.

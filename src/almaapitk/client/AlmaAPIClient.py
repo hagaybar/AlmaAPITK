@@ -207,6 +207,13 @@ ERROR_CODE_REGISTRY: Dict[str, type] = {
     # never fires. Map the code explicitly. Discovered via SANDBOX smoke test
     # t-9-1 (chunk errors-mapping, 2026-05-04).
     "401861":   AlmaResourceNotFoundError,
+    # Issue #90 swagger backfill (users domain). Alma returns HTTP 400 +
+    # errorCode 60224 ("Organization institution not found") for GET/POST
+    # /almaws/v1/users when the requested organization institution does not
+    # exist. Documented in the Ex Libris users.json swagger; mapped here as
+    # the proof-of-concept that swagger-driven harvesting (issue #90) can
+    # replace ad-hoc registry growth.
+    "60224":    AlmaResourceNotFoundError,
 }
 
 

@@ -237,6 +237,31 @@ class TestErrorClassificationByAlmaCode(_AlmaAPIClientErrorTestBase):
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertEqual(ctx.exception.alma_code, "401861")
 
+    def test_code_60224_raises_resource_not_found_error(self):
+        """Alma error code 60224 ("Organization institution not found") on
+        the /users endpoints must raise ``AlmaResourceNotFoundError``.
+
+        Pattern source: issue #90 swagger backfill — the code is documented
+        in Ex Libris's users.json swagger across GET/POST /almaws/v1/users,
+        and the typed exception lets callers branch on missing-org as
+        cleanly as on missing-user (#9 / 401861) without parsing
+        errorMessage strings.
+        """
+        client = AlmaAPIClient('SANDBOX')
+        payload = _alma_error_payload(
+            "60224", "Organization institution not found.",
+        )
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_error_response(400, json_body=payload),
+        ):
+            with self.assertRaises(AlmaResourceNotFoundError) as ctx:
+                client.get('almaws/v1/users')
+        self.assertIsInstance(ctx.exception, AlmaAPIError)
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.alma_code, "60224")
+
     def test_400_with_unrecognized_code_raises_bare_alma_api_error(self):
         """A 400 with an unknown Alma code falls through to bare ``AlmaAPIError``."""
         client = AlmaAPIClient('SANDBOX')

@@ -1,0 +1,9 @@
+# Cache directory for fetched Alma swagger JSON.
+#
+# Files written here by fetch_domain_codes.py:
+#   <domain>.json         — raw swagger as fetched from
+#                           https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/<domain>.json
+#   <domain>.fetched.json — sidecar metadata: { "url": ..., "fetchedAt": ... }
+#
+# Both kept under git so re-runs are reproducible across operators.
+# JSON cannot carry a header comment, hence the sidecar.

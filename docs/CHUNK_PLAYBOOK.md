@@ -117,6 +117,22 @@ When you're ready, your manual flow:
 
 The agent never participates in step 1, 2, or 3. R1 is hard.
 
+## Coverage-issue acceptance criterion: swagger error codes accounted for
+
+When you open a NEW coverage issue (`#22-#79` style), include this acceptance criterion in the issue body:
+
+> All Alma error codes documented in the swagger for the touched endpoints are accounted for in `ERROR_CODE_REGISTRY` (mapped to a typed `AlmaAPIError` subclass, or explicitly noted as `# unmapped: <reason>`).
+
+Why this is here, not on the existing `#22-#79` issues: those were authored before issue #90 landed; we don't retroactively edit them. The new AC applies to any coverage issue opened after #90 merged. Backfill happens organically — whenever a chunk next touches a domain, it sees the full documented-code list for that domain and adds anything missing.
+
+How the chunk pipeline supports this AC:
+
+- `scripts/error_codes/fetch_domain_codes.py <domain>` — CLI to download the per-domain swagger (`https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/<domain>.json`) and emit documented codes as JSON. Caches to `scripts/error_codes/swagger_cache/<domain>.json` (raw swagger) + `<domain>.fetched.json` (URL + ISO fetch timestamp). Re-run with `--force` to refresh.
+- `.a5c/processes/chunk-template-impl.js` — before each issue's `implement` agent task fires, the per-issue `fetch-swagger-codes` shell step infers the swagger domain(s) from the issue's Files-to-touch / endpoints (via `scripts.agentic.issue_parser.infer_swagger_domains`) and writes a sidecar at `chunks/<name>/_swagger_errors_<issue_number>.json`. The implement agent's prompt receives the path as `context.swaggerErrorsPath` and is instructed to cross-check `ERROR_CODE_REGISTRY` against the documented codes whose declaring endpoints overlap the issue's "API endpoints touched".
+- Failure of the swagger fetch (network outage, dev-network down) is non-fatal: the sidecar is written with an empty `reports[]` and the chunk continues. The new AC degrades to best-effort in that case rather than blocking the chunk.
+
+`scripts/agentic/issue_parser.py` carries a small `DOMAIN_ALIASES` map (in `scripts/error_codes/fetch_domain_codes.py`) that translates `src/almaapitk/domains/<file>.py` filenames to Alma's swagger domain names — e.g. `acquisition.py` → `acq`, `admin.py` → `conf`. Add to that table when introducing a new domain class.
+
 ## Common things you'll do
 
 ### See what's active

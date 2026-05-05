@@ -1,0 +1,16 @@
+{
+  "chunk": "pagination-helper",
+  "issues": [
+    11
+  ],
+  "stage": "merged",
+  "branch": "chunk/pagination-helper",
+  "createdAt": "2026-05-05T18:43:45Z",
+  "updatedAt": "2026-05-05T19:58:07Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/104)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KQWQ9YRQD6VW809W45QG14JM",
+  "testRunId": "01KQWTYHT8JMBFVHMQR14PJ6KE",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/104"
+}

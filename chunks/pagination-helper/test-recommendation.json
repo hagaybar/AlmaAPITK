@@ -1,0 +1,110 @@
+{
+  "chunk": "pagination-helper",
+  "branch": "chunk/pagination-helper",
+  "createdAt": "2026-05-05T18:57:31Z",
+  "issues": [
+    {
+      "number": 11,
+      "title": "API: add iter_paged() generator at the client level",
+      "classification": "general",
+      "subBranch": "feat/11-api-add-iter-paged-generator-a",
+      "tests": [
+        {
+          "id": "t-11-1",
+          "kind": "smoke",
+          "scope": "Drive client.iter_paged(...) directly against a live SANDBOX list endpoint to confirm the new public method exists with the documented signature, walks pages on demand, honours max_records as a hard cap, and yields dict records that match the Alma /acq/invoices payload shape.",
+          "endpoints": [
+            "GET /almaws/v1/acq/invoices"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "result = list(client.iter_paged('almaws/v1/acq/invoices', record_key='invoice', page_size=5, max_records=10))"
+          ],
+          "passCriteria": [
+            "iter_paged is callable with the documented kwargs (endpoint, record_key, page_size, max_records) without raising TypeError or AlmaValidationError.",
+            "result is a list (the test consumes the generator via list(...)).",
+            "len(result) is <= 10 (max_records cap is respected; the SANDBOX may legitimately have fewer than 10 invoices, in which case the cap is not the limiting factor and the smaller result is acceptable).",
+            "Every element of result is a dict (the per-record payload yielded under record_key='invoice').",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised across the walk."
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-11-2",
+          "kind": "smoke",
+          "scope": "Confirm the migrated Acquisitions.list_invoices proof-point method still produces a valid response against live SANDBOX data and preserves its pre-#11 public return shape ({'invoice': [...], 'total_record_count': N}) so existing callers continue to work bit-for-bit.",
+          "endpoints": [
+            "GET /almaws/v1/acq/invoices"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.acquisition import Acquisitions",
+            "acq = Acquisitions(client)",
+            "result = acq.list_invoices(limit=5)"
+          ],
+          "passCriteria": [
+            "result is a dict (the legacy Alma list-payload shape is preserved).",
+            "result contains the key 'invoice' and result['invoice'] is a list.",
+            "result contains the key 'total_record_count'.",
+            "len(result['invoice']) is <= 5 (the limit cap from the call is honoured).",
+            "Every element of result['invoice'] is a dict.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised."
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-11-3",
+          "kind": "smoke",
+          "scope": "Confirm the migrated Acquisitions.search_invoices proof-point method still produces valid results against live SANDBOX data after being rewired to client.iter_paged. Replaces the original /bibs-based test: GET /almaws/v1/bibs is identifier-only and rejects q= queries (HTTP 400, errorCode 401873), so it cannot validate iter_paged() against a paginated search. /acq/invoices genuinely supports q= + offset pagination, which is what iter_paged() is for. BibliographicRecords.search_records was removed entirely in the same change (it never worked at the live API).",
+          "endpoints": [
+            "GET /almaws/v1/acq/invoices"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.acquisition import Acquisitions",
+            "acq = Acquisitions(client)",
+            "result = acq.search_invoices(query='invoice_status~ACTIVE', limit=5)"
+          ],
+          "passCriteria": [
+            "result is a dict (the migrated method preserves the legacy Alma list payload shape).",
+            "result contains the keys 'invoice' and 'total_record_count'.",
+            "result['invoice'] is a list capped at <= 5 elements (the limit cap is honoured; SANDBOX may legitimately return fewer hits, including zero).",
+            "Every element of result['invoice'] is a dict.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised."
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-1: New `client.iter_paged(...)` method with the signature above (or equivalent).": [
+          "t-11-1"
+        ],
+        "AC-2: At least two existing domain methods migrated as proof points; their tests still pass.": [
+          "t-11-2",
+          "t-11-3"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-2 (sub-clause): 'their tests still pass'",
+          "reason": "The 'tests still pass' facet refers to the local pytest suite (18 unit tests across tests/unit/client/test_alma_api_client.py, tests/unit/domains/test_acquisitions.py, tests/unit/domains/test_bibs.py) which is exercised pre-merge in CI / local environment, not a SANDBOX behaviour. The live-API facet of AC-2 (the migrated methods still produce valid results) is mapped to t-11-2 and t-11-3."
+        },
+        {
+          "ac": "AC-3: Documented in CLAUDE.md as the preferred way to walk results.",
+          "reason": "Doc-only acceptance criterion. CLAUDE.md is a local repo file; its content cannot be observed via Alma SANDBOX API behaviour. Verified by reviewing the CLAUDE.md diff in the chunk PR, not by live calls."
+        },
+        {
+          "ac": "AC-4: `_fetch_all_pages()` references in CLAUDE.md / python-dev-expert skill aligned.",
+          "reason": "Doc-only acceptance criterion. References inside CLAUDE.md and the python-dev-expert skill text are not observable via SANDBOX API behaviour. Verified by reviewing the CLAUDE.md diff and skill text in the chunk PR."
+        },
+        {
+          "ac": "AC-5: Generator semantics (yield, not list) preserved — callers that need a list use `list(...)`.",
+          "reason": "Generator-vs-list semantics is a Python language-level property of the iter_paged return value (e.g., inspect.isgenerator(...) / lazy fetch verification). It is not observable as Alma API behaviour and is more naturally and reliably exercised as a unit test (already covered in tests/unit/client/test_alma_api_client.py). A SANDBOX smoke could only re-confirm what the unit suite already proves, so it is intentionally not duplicated here."
+        }
+      ]
+    }
+  ]
+}

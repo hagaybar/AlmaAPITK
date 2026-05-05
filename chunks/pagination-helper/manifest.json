@@ -1,0 +1,42 @@
+{
+  "chunk": "pagination-helper",
+  "issues": [
+    {
+      "number": 11,
+      "title": "API: add iter_paged() generator at the client level",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/11",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** M\n**Benefit:** Medium\n\n## Problem\n\nDomain methods that walk paged Alma endpoints either expose `limit`/`offset` to the caller (e.g., `list_invoices(limit, offset)` in `src/almaapitk/domains/acquisition.py:1394`, `search_invoices` at :1445, `get_invoice_lines` at :1487, `search_records` in `domains/bibs.py:75`, `process_users_batch` in `domains/users.py:481`) or hand-roll the loop. There is no shared paginator, so each domain re-derives the offset bookkeeping and total_record_count handling.\n\n## Proposal\n\nA generator method on `AlmaAPIClient`:\n\n```python\ndef iter_paged(self, endpoint, *, params=None, page_size=100,\n               record_key=None, max_records=None):\n    \"\"\"Yield records one at a time, fetching pages on demand.\n\n    record_key: e.g. 'invoice', 'pol', 'user' \u2014 the key under which the array lives\n                in the Alma response payload.\n    max_records: hard cap; None means yield until exhaustion.\n    \"\"\"\n    offset = 0\n    yielded = 0\n    while True:\n        page_params = {**(params or {}), \"limit\": page_size, \"offset\": offset}\n        body = self.get(endpoint, params=page_params).json()\n        items = body.get(record_key, []) if record_key else []\n        for item in items:\n            if max_records is not None and yielded >= max_records:\n                return\n            yield item\n            yielded += 1\n        total = body.get(\"total_record_count\", 0)\n        offset += page_size\n        if offset >= total or not items:\n            return\n```\n\nExisting domain methods become thin wrappers \u2014 `list_invoices` calls `self.client.iter_paged(\"almaws/v1/acq/invoices\", record_key=\"invoice\", ...)` and either yields or `list(...)`s the result.\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #4 \u2014 Consolidate HTTP verbs into _request() (cleaner via the single _request() chokepoint)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- New `client.iter_paged(...)` method with the signature above (or equivalent).\n- At least two existing domain methods migrated as proof points; their tests still pass.\n- Documented in CLAUDE.md as the preferred way to walk results.\n- `_fetch_all_pages()` references in CLAUDE.md / python-dev-expert skill aligned.\n- Generator semantics (yield, not list) preserved \u2014 callers that need a list use `list(...)`.\n\n",
+      "domain": "methods that walk paged Alma endpoints either expose `limit`/`offset` to the caller (e.g., `list_invoices(limit, offset)` in `src/almaapitk/domains/acquisition.py:1394`, `search_invoices` at :1445, `get_invoice_lines` at :1487, `search_records` in `domains/bibs.py:75`, `process_users_batch` in `domains/users.py:481`) or hand-roll the loop. There is no shared paginator, so each domain re-derives the offset bookkeeping and total_record_count handling.",
+      "priority": "medium",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "src/almaapitk/domains/acquisition.py",
+        "src/almaapitk/domains/bibs.py",
+        "tests/unit/client/test_alma_api_client.py",
+        "tests/unit/domains/test_acquisitions.py",
+        "tests/unit/domains/test_bibs.py",
+        "CLAUDE.md",
+        "docs/api-reference.md",
+        "docs/examples.md",
+        "docs/domains/bibliographicrecords.md"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        4
+      ],
+      "acceptance_criteria": [
+        "New `client.iter_paged(...)` method with the signature above (or equivalent).",
+        "At least two existing domain methods migrated as proof points; their tests still pass.",
+        "Documented in CLAUDE.md as the preferred way to walk results.",
+        "`_fetch_all_pages()` references in CLAUDE.md / python-dev-expert skill aligned.",
+        "Generator semantics (yield, not list) preserved \u2014 callers that need a list use `list(...)`."
+      ]
+    }
+  ]
+}

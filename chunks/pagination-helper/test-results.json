@@ -1,0 +1,41 @@
+{
+  "chunk": "pagination-helper",
+  "testRunStartedAt": "2026-05-05T19:51:09Z",
+  "testRunFinishedAt": "2026-05-05T19:51:43Z",
+  "perTest": [
+    {
+      "id": "t-11-1",
+      "outcome": "passed",
+      "issueNumber": 11,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "client.iter_paged('almaws/v1/acq/invoices', record_key='invoice', page_size=5, max_records=10) walked GET /almaws/v1/acq/invoices on demand, honoured the max_records hard cap, and yielded dict records matching the Alma invoice payload shape. No AlmaAPIError/Validation/RateLimit raised."
+    },
+    {
+      "id": "t-11-2",
+      "outcome": "passed",
+      "issueNumber": 11,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Acquisitions.list_invoices(limit=5) against GET /almaws/v1/acq/invoices preserved its pre-#11 public return shape: dict with 'invoice' (list of dicts, len <= 5) and 'total_record_count'. Confirms the iter_paged migration kept legacy callers bit-for-bit compatible."
+    },
+    {
+      "id": "t-11-3",
+      "outcome": "passed",
+      "issueNumber": 11,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Acquisitions.search_invoices(query='invoice_status~ACTIVE', limit=5) preserved the legacy {invoice, total_record_count} payload. Replaces the original /bibs-based test (search_records was removed — its q= signature never worked at the live API; /bibs is identifier-only). Follow-up issue #103 covers the broader gap."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 11,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "autoCloseRationale": "All SANDBOX tests pass, but unmappable[] is non-empty (4 entries: AC-2 sub-clause, AC-3, AC-4, AC-5) so per R4 closure remains a manual operator step."
+    }
+  ]
+}

@@ -1,0 +1,5353 @@
+{
+  "issueNumber": 11,
+  "domains": [
+    "acq",
+    "bibs"
+  ],
+  "reports": [
+    {
+      "domain": "acq",
+      "swaggerUrl": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/acq.json",
+      "fetchedAt": "2026-05-05T18:46:09+00:00",
+      "codeCount": 127,
+      "codes": [
+        {
+          "code": "60100",
+          "message": "The parameter X must be a number greater than zero.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X bad format."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X bad format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            }
+          ]
+        },
+        {
+          "code": "60106",
+          "message": "The query parameter is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "The query parameter is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60186",
+          "message": "License name is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License name is required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License name is required."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License name is required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License name is required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "License name is required."
+            }
+          ]
+        },
+        {
+          "code": "60187",
+          "message": "License type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License type is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60188",
+          "message": "License status is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License status is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License status is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60189",
+          "message": "License review status is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License review status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License review status is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License review status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License review status is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60190",
+          "message": "License licensor is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License licensor is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License licensor is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License licensor is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License licensor is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60191",
+          "message": "License XXX date is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License XXX date is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License XXX date is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License XXX date is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License XXX date is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60192",
+          "message": "License location is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License location is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License location is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License location is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License location is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60193",
+          "message": "License agent is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License agent is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License agent is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License agent is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License agent is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60194",
+          "message": "License terms are not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License terms are not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License terms are not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License terms are not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License terms are not valid."
+            }
+          ]
+        },
+        {
+          "code": "60195",
+          "message": "License terms and types are not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License terms and types are not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License terms and types are not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License terms and types are not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License terms and types are not valid."
+            }
+          ]
+        },
+        {
+          "code": "60196",
+          "message": "License not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License not created."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License not created."
+            }
+          ]
+        },
+        {
+          "code": "60197",
+          "message": "License code required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License code required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License code required."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License code required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License code required."
+            }
+          ]
+        },
+        {
+          "code": "60198",
+          "message": "License code not unique.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            }
+          ]
+        },
+        {
+          "code": "60200",
+          "message": "License could not be deleted.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License could not be deleted."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License could not be deleted."
+            }
+          ]
+        },
+        {
+          "code": "60201",
+          "message": "License end date before start date.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License end date before start date."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License end date before start date."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License end date before start date."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License end date before start date."
+            }
+          ]
+        },
+        {
+          "code": "60202",
+          "message": "License not updated.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License not updated."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License amendment not updated."
+            }
+          ]
+        },
+        {
+          "code": "60220",
+          "message": "License administrator is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses",
+              "httpStatus": "400",
+              "messageVariant": "License administrator is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License administrator is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60221",
+          "message": "Mms ID is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Mms ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60233",
+          "message": "Invoice number not in payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice number not in payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice number not in payload."
+            }
+          ]
+        },
+        {
+          "code": "60234",
+          "message": "Invoice date not in payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice date not in payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice date not in payload."
+            }
+          ]
+        },
+        {
+          "code": "60235",
+          "message": "Invoice total amount not in payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice total amount not in payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice total amount not in payload."
+            }
+          ]
+        },
+        {
+          "code": "60236",
+          "message": "Invoice currency not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice currency not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice currency not valid."
+            }
+          ]
+        },
+        {
+          "code": "60237",
+          "message": "Invoice vendor account not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor account not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor account not valid."
+            }
+          ]
+        },
+        {
+          "code": "60238",
+          "message": "Invoice payment method not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice payment method not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice payment method not valid."
+            }
+          ]
+        },
+        {
+          "code": "60239",
+          "message": "Invoice status not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice status not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice status not valid."
+            }
+          ]
+        },
+        {
+          "code": "60240",
+          "message": "Invoice prepaid not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice prepaid not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice prepaid not valid."
+            }
+          ]
+        },
+        {
+          "code": "60241",
+          "message": "Invoice explicit ratio not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice explicit ratio not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice explicit ratio not valid."
+            }
+          ]
+        },
+        {
+          "code": "60242",
+          "message": "Invoice vendor not material supplier.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor not material supplier."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor not material supplier."
+            }
+          ]
+        },
+        {
+          "code": "60243",
+          "message": "Invoice vendor currency not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor currency not supported."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor currency not supported."
+            }
+          ]
+        },
+        {
+          "code": "60244",
+          "message": "Invoice explicit ratio duplicate currency.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice explicit ratio duplicate currency."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice explicit ratio duplicate currency."
+            }
+          ]
+        },
+        {
+          "code": "60245",
+          "message": "Invoice payment status not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice payment status not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice payment status not valid."
+            }
+          ]
+        },
+        {
+          "code": "60246",
+          "message": "Invoice owner not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice owner not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice owner not valid."
+            }
+          ]
+        },
+        {
+          "code": "60247",
+          "message": "Invoice line type not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line type not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line type not valid."
+            }
+          ]
+        },
+        {
+          "code": "60248",
+          "message": "Invoice line",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line"
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line"
+            }
+          ]
+        },
+        {
+          "code": "60249",
+          "message": "Invoice line subscription from/to dates not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line subscription from/to dates not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line subscription from/to dates not found."
+            }
+          ]
+        },
+        {
+          "code": "60250",
+          "message": "Invoice line additional information not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line additional information not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line additional information not found."
+            }
+          ]
+        },
+        {
+          "code": "60251",
+          "message": "Invoice line reporting code not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line reporting code not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line reporting code not valid."
+            }
+          ]
+        },
+        {
+          "code": "60252",
+          "message": "Invoice vat percentage or amount allowed but not both.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat percentage or amount allowed but not both."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat percentage or amount allowed but not both."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat percentage or amount allowed but not both."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat percentage or amount allowed but not both."
+            }
+          ]
+        },
+        {
+          "code": "60253",
+          "message": "Invoice vat code not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat code not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat code not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat code not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vat code not valid."
+            }
+          ]
+        },
+        {
+          "code": "60254",
+          "message": "Fund code not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Fund code not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Fund code not valid."
+            }
+          ]
+        },
+        {
+          "code": "60255",
+          "message": "Invoice line not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line not created."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line not created."
+            }
+          ]
+        },
+        {
+          "code": "60256",
+          "message": "Invoice not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice not created."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice not updated."
+            }
+          ]
+        },
+        {
+          "code": "60257",
+          "message": "Fund percent or amount is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Fund percent or amount is required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Fund percent or amount is required."
+            }
+          ]
+        },
+        {
+          "code": "60260",
+          "message": "Failed to start invoice process and workflow.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to start invoice process and workflow."
+            }
+          ]
+        },
+        {
+          "code": "60267",
+          "message": "Failed to process invoice in ERP.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to process invoice in ERP."
+            }
+          ]
+        },
+        {
+          "code": "60268",
+          "message": "The invoice note is mandatory.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "The invoice note is mandatory."
+            }
+          ]
+        },
+        {
+          "code": "60269",
+          "message": "Search for purchase requests failed.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/purchase-requests/",
+              "httpStatus": "400",
+              "messageVariant": "Search for purchase requests failed."
+            }
+          ]
+        },
+        {
+          "code": "60270",
+          "message": "Requested format is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Requested format is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60271",
+          "message": "Currency is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Currency is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60272",
+          "message": "Vendor account is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Vendor account is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60273",
+          "message": "Title is missing.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Title is missing."
+            }
+          ]
+        },
+        {
+          "code": "60274",
+          "message": "Resource metadata is required.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Resource metadata is required."
+            }
+          ]
+        },
+        {
+          "code": "60276",
+          "message": "Purchase request id is not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request id is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "The purchase request identifier is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request id is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request id is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60279",
+          "message": "Fund is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Fund is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60284",
+          "message": "Invoice line not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line not valid."
+            }
+          ]
+        },
+        {
+          "code": "60285",
+          "message": "Invoice not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice not valid."
+            }
+          ]
+        },
+        {
+          "code": "60286",
+          "message": "Invoice line update not allowed.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line update not allowed."
+            }
+          ]
+        },
+        {
+          "code": "60287",
+          "message": "Invoice line not valid for invoice.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line not valid for invoice."
+            }
+          ]
+        },
+        {
+          "code": "60288",
+          "message": "Invoice number not unique in payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice number not unique in payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice number not unique in payload."
+            }
+          ]
+        },
+        {
+          "code": "60290",
+          "message": "Invoice task status not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice task status not valid."
+            }
+          ]
+        },
+        {
+          "code": "60291",
+          "message": "Invoice update not allowed due to status.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice update not allowed due to status."
+            }
+          ]
+        },
+        {
+          "code": "60306",
+          "message": "Invoice line number is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice line number is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60308",
+          "message": "A reject reason is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "A reject reason is required."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request update failed."
+            }
+          ]
+        },
+        {
+          "code": "60309",
+          "message": "An active purchase order exists for this request.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "An active purchase order exists for this request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request status not valid for update."
+            }
+          ]
+        },
+        {
+          "code": "60312",
+          "message": "Purchase request invalid status.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request invalid status."
+            }
+          ]
+        },
+        {
+          "code": "60313",
+          "message": "Purchase request approved_by not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request approved_by not found."
+            }
+          ]
+        },
+        {
+          "code": "60314",
+          "message": "Purchase request owning library not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request owning library not found."
+            }
+          ]
+        },
+        {
+          "code": "60315",
+          "message": "Delete bib failure during reject.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete bib failure during reject."
+            }
+          ]
+        },
+        {
+          "code": "60316",
+          "message": "Purchase request MMS record not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request MMS record not found."
+            }
+          ]
+        },
+        {
+          "code": "60317",
+          "message": "Purchase request no PO line type.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request no PO line type."
+            }
+          ]
+        },
+        {
+          "code": "60319",
+          "message": "Purchase request operation failed",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request operation failed"
+            }
+          ]
+        },
+        {
+          "code": "60320",
+          "message": "No charge is not allowed for this PO line configuration.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "No charge is not allowed for this PO line configuration."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "No charge is not allowed for this PO line configuration."
+            }
+          ]
+        },
+        {
+          "code": "60321",
+          "message": "Attachment X not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment X not found."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment was not found"
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment X not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment was not found"
+            }
+          ]
+        },
+        {
+          "code": "60322",
+          "message": "Attachment content could not be processed.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            }
+          ]
+        },
+        {
+          "code": "60323",
+          "message": "Search for attachments failed.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Search for attachments failed."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Search for attachments failed."
+            }
+          ]
+        },
+        {
+          "code": "60329",
+          "message": "Purchase requested material type is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Purchase requested material type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60337",
+          "message": "Vendor Account library has incorrect scope.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "Vendor Account library has incorrect scope."
+            }
+          ]
+        },
+        {
+          "code": "60338",
+          "message": "Vendor Account library is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "Vendor Account library is required."
+            }
+          ]
+        },
+        {
+          "code": "60345",
+          "message": "Attachment content size exceeds allowed maximum.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content size exceeds allowed maximum."
+            }
+          ]
+        },
+        {
+          "code": "60346",
+          "message": "Attachment content not allowed if file name not set.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content not allowed if file name not set."
+            }
+          ]
+        },
+        {
+          "code": "60348",
+          "message": "The exchange rate cannot be determined.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/currencies",
+              "httpStatus": "400",
+              "messageVariant": "The exchange rate cannot be determined."
+            }
+          ]
+        },
+        {
+          "code": "401664",
+          "message": "Mandatory field is missing: X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field is missing: X"
+            }
+          ]
+        },
+        {
+          "code": "401666",
+          "message": "A parameter is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/currencies",
+              "httpStatus": "400",
+              "messageVariant": "A parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/fiscal-periods",
+              "httpStatus": "400",
+              "messageVariant": "The mode parameter is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401676",
+          "message": "Request body not found.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request body not found."
+            }
+          ]
+        },
+        {
+          "code": "401870",
+          "message": "PoLine X already exists.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "PoLine X already exists."
+            }
+          ]
+        },
+        {
+          "code": "401871",
+          "message": "Po-Line X not found.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Po-Line X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Po-Line X not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "PO Line not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Po-Line X not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the PO Line."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the PO Line."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}",
+              "httpStatus": "400",
+              "messageVariant": "Vendor X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Vendor X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Vendor X not found."
+            }
+          ]
+        },
+        {
+          "code": "401872",
+          "message": "Given X is illegal.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Given X is illegal."
+            }
+          ]
+        },
+        {
+          "code": "401873",
+          "message": "There is no current fiscal period.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/fiscal-periods",
+              "httpStatus": "400",
+              "messageVariant": "There is no current fiscal period."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Filter not supported when mode=POL."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "The fund identifier is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/",
+              "httpStatus": "400",
+              "messageVariant": "Request failed: X"
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "The search query parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/",
+              "httpStatus": "400",
+              "messageVariant": "Request failed: X"
+            }
+          ]
+        },
+        {
+          "code": "401874",
+          "message": "Failed to cancel the PO Line.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to cancel the PO Line."
+            }
+          ]
+        },
+        {
+          "code": "401875",
+          "message": "Failed to find the department.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the department."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the department."
+            }
+          ]
+        },
+        {
+          "code": "401876",
+          "message": "Failed to update PO Line (with error message).",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to update PO Line (with error message)."
+            }
+          ]
+        },
+        {
+          "code": "401877",
+          "message": "Failed to receive PO Line (with error message).",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Failed to receive PO Line (with error message)."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to receive PO Line (with error message)."
+            }
+          ]
+        },
+        {
+          "code": "401878",
+          "message": "Failed to update the item after the receive.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Failed to update the item after the receive."
+            }
+          ]
+        },
+        {
+          "code": "401881",
+          "message": "Failed to cancel the PO Line. (With error message)",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to cancel the PO Line. (With error message)"
+            }
+          ]
+        },
+        {
+          "code": "401884",
+          "message": "PO Line already cancelled.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "PO Line already cancelled."
+            }
+          ]
+        },
+        {
+          "code": "401890",
+          "message": "Requester was not found.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Requester was not found."
+            }
+          ]
+        },
+        {
+          "code": "402119",
+          "message": "General error.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/purchase-requests/",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}/invoices",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            }
+          ]
+        },
+        {
+          "code": "402401",
+          "message": "Invoice X not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            }
+          ]
+        },
+        {
+          "code": "402459",
+          "message": "Error while trying to retrieve invoice X.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Error while trying to retrieve invoice X."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Error while trying to retrieve invoice X."
+            }
+          ]
+        },
+        {
+          "code": "402469",
+          "message": "Owning library is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Owning library is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402880",
+          "message": "Vendor is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/purchase-requests/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Vendor is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "Vendor X not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/vendors/{vendorCode}",
+              "httpStatus": "400",
+              "messageVariant": "Vendor X not found."
+            }
+          ]
+        },
+        {
+          "code": "402892",
+          "message": "Vendor EDI field not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/vendors",
+              "httpStatus": "400",
+              "messageVariant": "Vendor EDI field not found."
+            }
+          ]
+        },
+        {
+          "code": "403400",
+          "message": "License with code X not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "License with code X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "License with code X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "License with code X not found."
+            }
+          ]
+        },
+        {
+          "code": "403401",
+          "message": "Failed to retrieve license with code X.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve license with code X."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve license with code X."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve license with code X."
+            }
+          ]
+        },
+        {
+          "code": "410873",
+          "message": "Request Failed. See error message for details.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Request Failed. See error message for details."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request Failed. See error message for details."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request Failed. See error message for details."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request Failed. See error message for details."
+            }
+          ]
+        },
+        {
+          "code": "412400",
+          "message": "Invoice X not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice X not found."
+            }
+          ]
+        },
+        {
+          "code": "4018841",
+          "message": "Missing mandatory field",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Missing mandatory field"
+            }
+          ]
+        },
+        {
+          "code": "4018842",
+          "message": "Transaction type is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Transaction type is not supported."
+            }
+          ]
+        },
+        {
+          "code": "4018843",
+          "message": "Missing mandatory field",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Missing mandatory field"
+            }
+          ]
+        },
+        {
+          "code": "4018845",
+          "message": "Missing mandatory field",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Missing mandatory field"
+            }
+          ]
+        },
+        {
+          "code": "4018846",
+          "message": "Fund id in",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Fund id in"
+            }
+          ]
+        },
+        {
+          "code": "4018847",
+          "message": "Selected fund id in",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Selected fund id in"
+            }
+          ]
+        },
+        {
+          "code": "4018848",
+          "message": "Selected fund id in",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Selected fund id in"
+            }
+          ]
+        },
+        {
+          "code": "4018850",
+          "message": "Fund code not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Fund code not valid."
+            }
+          ]
+        },
+        {
+          "code": "4018851",
+          "message": "Selected Fund code is a ledger / summary fund, transaction could not be created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Selected Fund code is a ledger / summary fund, transaction could not be created."
+            }
+          ]
+        },
+        {
+          "code": "4028805",
+          "message": "Invoice vendor not in payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor not in payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invoice vendor not in payload."
+            }
+          ]
+        },
+        {
+          "code": "40166404",
+          "message": "Invalid field with valid options.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Invalid field with valid options."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "The filter parameter is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid field with valid options."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid field with valid options."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid field with valid options."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/",
+              "httpStatus": "400",
+              "messageVariant": "Given field X has invalid value Y, please use one of the valid values listed under the Z code table."
+            }
+          ]
+        },
+        {
+          "code": "40166410",
+          "message": "A currency parameter is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/currencies",
+              "httpStatus": "400",
+              "messageVariant": "A currency parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds/{fund_id}/transactions",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/acq/funds/{fund_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter invalid with valid options."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/invoices/{invoice_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter op is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/purchase-requests/",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is invalid, please choose one of the valid options."
+            }
+          ]
+        },
+        {
+          "code": "40166411",
+          "message": "Param value is invalid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/licenses/",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            }
+          ]
+        },
+        {
+          "code": "40166419",
+          "message": "Parameter has no valid options.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/funds",
+              "httpStatus": "400",
+              "messageVariant": "Parameter has no valid options."
+            }
+          ]
+        },
+        {
+          "code": "40188600",
+          "message": "Search query parameter X is not supported.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Search query parameter X is not supported."
+            }
+          ]
+        },
+        {
+          "code": "40188602",
+          "message": "Results cannot be sorted by item attribute without providing at least one condition for item search.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Results cannot be sorted by item attribute without providing at least one condition for item search."
+            }
+          ]
+        },
+        {
+          "code": "40188603",
+          "message": "Results can be sorted by one or more item attributes OR one Poline attribute.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "Results can be sorted by one or more item attributes OR one Poline attribute."
+            }
+          ]
+        },
+        {
+          "code": "40188604",
+          "message": "order_by value X is invalid. Valid sort values are: [list of valid sort values].",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "order_by value X is invalid. Valid sort values are: [list of valid sort values]."
+            }
+          ]
+        },
+        {
+          "code": "40188605",
+          "message": "The provided search query returns more than X items. Please narrow your search.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/acq/po-lines",
+              "httpStatus": "400",
+              "messageVariant": "The provided search query returns more than X items. Please narrow your search."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "bibs",
+      "swaggerUrl": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/bibs.json",
+      "fetchedAt": "2026-05-05T18:46:10+00:00",
+      "codeCount": 127,
+      "codes": [
+        {
+          "code": "10106",
+          "message": "Matching work record not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Matching work record not found."
+            }
+          ]
+        },
+        {
+          "code": "10109",
+          "message": "Work associated with an instance cannot be deleted.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Work associated with an instance cannot be deleted."
+            }
+          ]
+        },
+        {
+          "code": "10111",
+          "message": "Alma URI cannot be changed.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Alma URI cannot be changed."
+            }
+          ]
+        },
+        {
+          "code": "10112",
+          "message": "InstanceOf does not match hasInstance in work",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "InstanceOf does not match hasInstance in work"
+            }
+          ]
+        },
+        {
+          "code": "10114",
+          "message": "Mandatory field Instance of is missing",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field Instance of is missing"
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field Instance of is missing"
+            }
+          ]
+        },
+        {
+          "code": "33007",
+          "message": "No record found for MMS id X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "No record found for MMS id X"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "No record found for MMS id X"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "No record found for MMS id X"
+            }
+          ]
+        },
+        {
+          "code": "33008",
+          "message": "Failed to create holding due to errors: X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create holding due to errors: X"
+            }
+          ]
+        },
+        {
+          "code": "33009",
+          "message": "Failed to create holding.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create holding."
+            }
+          ]
+        },
+        {
+          "code": "60105",
+          "message": "JSON is not supported for this API.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            }
+          ]
+        },
+        {
+          "code": "60106",
+          "message": "Invalid query format.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "Invalid query format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Invalid query format."
+            }
+          ]
+        },
+        {
+          "code": "60123",
+          "message": "Failed to find the Portfolio ID.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Portfolio ID."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Portfolio ID."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Portfolio ID."
+            }
+          ]
+        },
+        {
+          "code": "60151",
+          "message": "Failed to find the Electronic Collection ID.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/e-collections/{collection_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Electronic Collection ID."
+            }
+          ]
+        },
+        {
+          "code": "60161",
+          "message": "The portfolio availability code is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The portfolio availability code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The portfolio availability code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60163",
+          "message": "Failed to create the TPS metadata.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create the TPS metadata."
+            }
+          ]
+        },
+        {
+          "code": "60164",
+          "message": "Failed to create the Portfolio metadata.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create the Portfolio metadata."
+            }
+          ]
+        },
+        {
+          "code": "60165",
+          "message": "A metadata operation has failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "A metadata operation has failed."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "A metadata operation has failed."
+            }
+          ]
+        },
+        {
+          "code": "60166",
+          "message": "The URL type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The URL type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The URL type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60167",
+          "message": "The proxy enable flag is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The proxy enable flag is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The proxy enable flag is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60168",
+          "message": "The proxy code is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The proxy code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The proxy code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60169",
+          "message": "The license is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The license is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The license is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60170",
+          "message": "The coverage in use is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The coverage in use is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The coverage in use is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60171",
+          "message": "The material type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The material type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The material type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60172",
+          "message": "The PO line reference is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The PO line reference is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The PO line reference is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60177",
+          "message": "Reminder ID is not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60178",
+          "message": "Reminder Type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60179",
+          "message": "Reminder Status is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Status is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60180",
+          "message": "Reminder not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder not created."
+            }
+          ]
+        },
+        {
+          "code": "60181",
+          "message": "Reminder not updated.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder not updated."
+            }
+          ]
+        },
+        {
+          "code": "60185",
+          "message": "Reminder Date is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Date is required."
+            }
+          ]
+        },
+        {
+          "code": "60211",
+          "message": "Loan operation not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Loan operation not valid."
+            }
+          ]
+        },
+        {
+          "code": "60212",
+          "message": "Deletion of holdings record failed.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Deletion of holdings record failed."
+            }
+          ]
+        },
+        {
+          "code": "60213",
+          "message": "Holding ID not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Holding ID not valid."
+            }
+          ]
+        },
+        {
+          "code": "60214",
+          "message": "Holding has been deleted or cannot be deleted.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Holding has been deleted or cannot be deleted."
+            }
+          ]
+        },
+        {
+          "code": "60215",
+          "message": "Current location is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Current location is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60216",
+          "message": "The ordering is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "The ordering is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60217",
+          "message": "The offset is too large.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "The offset is too large."
+            }
+          ]
+        },
+        {
+          "code": "60218",
+          "message": "Invalid action on Bib record without holdings.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid action on Bib record without holdings."
+            }
+          ]
+        },
+        {
+          "code": "60221",
+          "message": "The MMS ID is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The MMS ID is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The MMS ID is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The MMS ID is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value mms_id is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value mms_id is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value mms_id is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60222",
+          "message": "Failed to create the IEE metadata.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create the IEE metadata."
+            }
+          ]
+        },
+        {
+          "code": "60223",
+          "message": "The interface name is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The interface name is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The interface name is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60258",
+          "message": "The API Restricted profile is not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/holdings/{holdingId}/items/{itemPid}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60264",
+          "message": "Record format is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Record format is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60265",
+          "message": "Authority creation failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Authority creation failed."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Authority update failed."
+            }
+          ]
+        },
+        {
+          "code": "60266",
+          "message": "Vocabulary code is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Vocabulary code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60292",
+          "message": "One of the system parameters is required.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "One of the system parameters is required."
+            }
+          ]
+        },
+        {
+          "code": "60293",
+          "message": "The originating system was supplied without the system ID.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "The originating system was supplied without the system ID."
+            }
+          ]
+        },
+        {
+          "code": "60294",
+          "message": "The authority record creation has failed with warnings.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "The authority record creation has failed with warnings."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "The authority record update has failed with warnings."
+            }
+          ]
+        },
+        {
+          "code": "60295",
+          "message": "The authority record element is not in the payload.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "The authority record element is not in the payload."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "The authority record element is not in the payload."
+            }
+          ]
+        },
+        {
+          "code": "60303",
+          "message": "Cannot delete this record due to insufficient cataloger level privileges.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot delete this record due to insufficient cataloger level privileges."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot delete this record due to insufficient cataloger level privileges."
+            }
+          ]
+        },
+        {
+          "code": "60307",
+          "message": "The given bib object has matching records.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "The given bib object has matching records."
+            }
+          ]
+        },
+        {
+          "code": "60308",
+          "message": "Delivery to personal address is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery to personal address is not supported."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery to personal address is not supported."
+            }
+          ]
+        },
+        {
+          "code": "60309",
+          "message": "User does not have address for personal delivery.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User does not have address for personal delivery."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User does not have address for personal delivery."
+            }
+          ]
+        },
+        {
+          "code": "60310",
+          "message": "Delivery is not supported for this type of personal address.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery is not supported for this type of personal address."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery is not supported for this type of personal address."
+            }
+          ]
+        },
+        {
+          "code": "60325",
+          "message": "Fulfillment network institution is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network institution is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network institution is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60326",
+          "message": "Fulfillment network pickup library or pickup circulation desk is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60327",
+          "message": "Fulfillment network pickup library or pickup circulation desk is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is required."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is required."
+            }
+          ]
+        },
+        {
+          "code": "60328",
+          "message": "Item for request was not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Item for request was not found."
+            }
+          ]
+        },
+        {
+          "code": "60330",
+          "message": "Invalid partial digitization volume or issue.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            }
+          ]
+        },
+        {
+          "code": "60331",
+          "message": "Failed to create request.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create request."
+            }
+          ]
+        },
+        {
+          "code": "60340",
+          "message": "The request is API Restricted by library.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/holdings/{holdingId}/items/{itemPid}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            }
+          ]
+        },
+        {
+          "code": "60341",
+          "message": "The import profile is not correct for authority.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "The import profile is not correct for authority."
+            }
+          ]
+        },
+        {
+          "code": "60342",
+          "message": "The converted authority element is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "The converted authority element is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60360",
+          "message": "The provenance code is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The provenance code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The provenance code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401129",
+          "message": "No items can fulfill the submitted request.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "No items can fulfill the submitted request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "No items can fulfill the submitted request."
+            }
+          ]
+        },
+        {
+          "code": "401136",
+          "message": "Failed to save the request: Patron has active request for selected item.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to save the request: Patron has active request for selected item."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to save the request: Patron has active request for selected item."
+            }
+          ]
+        },
+        {
+          "code": "401153",
+          "message": "Item cannot be loaned from this circulation desk.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "Item cannot be loaned from this circulation desk."
+            }
+          ]
+        },
+        {
+          "code": "401651",
+          "message": "Item is not loanable.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "Item is not loanable."
+            }
+          ]
+        },
+        {
+          "code": "401652",
+          "message": "General Error - An error has occurred while processing the request.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections/{pid}/bibs",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/holdings/{holdingId}/items/{itemPid}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mmsId}/requests/{requestId}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/request-options",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/representations",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/representations",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}/files",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}/files",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}/files/{file_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}/files/{file_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/representations/{rep_id}/files/{file_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/request-options",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            }
+          ]
+        },
+        {
+          "code": "401666",
+          "message": "X parameter is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "X parameter is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "X parameter is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401681",
+          "message": "Due date cannot be in the past.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Due date cannot be in the past."
+            }
+          ]
+        },
+        {
+          "code": "401684",
+          "message": "Search for request physical item failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Search for request physical item failed."
+            }
+          ]
+        },
+        {
+          "code": "401688",
+          "message": "Error while retrieving items.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Error while retrieving items."
+            }
+          ]
+        },
+        {
+          "code": "401822",
+          "message": "Cannot renew loan: Loan ID XXX.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot renew loan: Loan ID XXX."
+            }
+          ]
+        },
+        {
+          "code": "401823",
+          "message": "Loan ID XXX does not exist.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Loan ID XXX does not exist."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Loan ID XXX does not exist."
+            }
+          ]
+        },
+        {
+          "code": "401824",
+          "message": "Due date is not in loan object.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Due date is not in loan object."
+            }
+          ]
+        },
+        {
+          "code": "401849",
+          "message": "Item delete errors: {description of the specific case}",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "Item delete errors: {description of the specific case}"
+            }
+          ]
+        },
+        {
+          "code": "401873",
+          "message": "Input parameter mms_id or parameter override is not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mms_id or parameter override is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mms_id or parameter override is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401885",
+          "message": "Given poline does not fit item; POLine",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Given poline does not fit item; POLine"
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "Given poline does not fit item; POLine"
+            }
+          ]
+        },
+        {
+          "code": "401890",
+          "message": "User with identifier X of type Y was not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/loans",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            }
+          ]
+        },
+        {
+          "code": "401907",
+          "message": "Failed to find a request for the given request ID.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find a request for the given request ID."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find a request for the given request ID."
+            }
+          ]
+        },
+        {
+          "code": "401932",
+          "message": "Request X is not a Digitization request",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request X is not a Digitization request"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request X is not a Digitization request"
+            }
+          ]
+        },
+        {
+          "code": "401933",
+          "message": "Cannot move forward in workflow. Request ID: X, Step: Y",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot move forward in workflow. Request ID: X, Step: Y"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot move forward in workflow. Request ID: X, Step: Y"
+            }
+          ]
+        },
+        {
+          "code": "401934",
+          "message": "Move digitization request to next step in workflow has failed. Request ID: X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Move digitization request to next step in workflow has failed. Request ID: X"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Move digitization request to next step in workflow has failed. Request ID: X"
+            }
+          ]
+        },
+        {
+          "code": "402203",
+          "message": "Input parameter mmsId list is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mmsId list is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "An error has occured while validating the mms_id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input authority ID is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "An error has occured while validating the mms_id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/e-collections",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mms Id is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Bib ID not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "The Bib Record is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mms Id is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter mms Id is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402204",
+          "message": "Input parameters mmsId X is not numeric.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters requestId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters mmsId X is not numeric."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameters requestId X is not numeric."
+            }
+          ]
+        },
+        {
+          "code": "402205",
+          "message": "Input parameter X (Y) is not numeric.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter X (Y) is not numeric."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter X (Y) is not numeric."
+            }
+          ]
+        },
+        {
+          "code": "402208",
+          "message": "Search failed for Holdings ID: X",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}",
+              "httpStatus": "400",
+              "messageVariant": "Search failed for Holdings ID: X"
+            }
+          ]
+        },
+        {
+          "code": "402209",
+          "message": "Given bib xml is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Given bib xml is invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Given Authority xml is invalid."
+            }
+          ]
+        },
+        {
+          "code": "402210",
+          "message": "Failed to create new bib.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create new bib."
+            }
+          ]
+        },
+        {
+          "code": "402211",
+          "message": "Given holding xml is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "Given holding xml is invalid."
+            }
+          ]
+        },
+        {
+          "code": "402212",
+          "message": "Failed to create new holding.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create new holding."
+            }
+          ]
+        },
+        {
+          "code": "402214",
+          "message": "Authority save failed from missing data.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Authority save failed from missing data."
+            }
+          ]
+        },
+        {
+          "code": "402215",
+          "message": "An input parameter was not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "An input parameter was not valid."
+            }
+          ]
+        },
+        {
+          "code": "402217",
+          "message": "Invalid date format for item filter.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Invalid date format for item filter."
+            }
+          ]
+        },
+        {
+          "code": "402260",
+          "message": "Bib record is not assigned to a collection.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/representations",
+              "httpStatus": "400",
+              "messageVariant": "Bib record is not assigned to a collection."
+            }
+          ]
+        },
+        {
+          "code": "402278",
+          "message": "Error - Parse exception for input record.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Error - Parse exception for input record."
+            }
+          ]
+        },
+        {
+          "code": "402468",
+          "message": "An update or partial update failed.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "An update or partial update failed."
+            }
+          ]
+        },
+        {
+          "code": "402469",
+          "message": "The library query was not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The library query was not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The Library of the collection was not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The library was not found for the collection."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "Current library is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/",
+              "httpStatus": "400",
+              "messageVariant": "The library code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/portfolios/{portfolio_id}",
+              "httpStatus": "400",
+              "messageVariant": "The library code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402471",
+          "message": "The collection Name is a duplicate of another collection Name.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The collection Name is a duplicate of another collection Name."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The collection Name is a duplicate of another collection Name."
+            }
+          ]
+        },
+        {
+          "code": "402472",
+          "message": "The collection Name must be provided.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The collection Name must be provided."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The collection name must be provided."
+            }
+          ]
+        },
+        {
+          "code": "402502",
+          "message": "Scan in of item failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "Scan in of item failed."
+            }
+          ]
+        },
+        {
+          "code": "402504",
+          "message": "Scan in has failed due to item retrieve issue.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "Scan in has failed due to item retrieve issue."
+            }
+          ]
+        },
+        {
+          "code": "402550",
+          "message": "The Parent Pid of the collection was not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The Parent Pid of the collection was not found."
+            }
+          ]
+        },
+        {
+          "code": "402551",
+          "message": "The collection creation failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "The collection creation failed."
+            }
+          ]
+        },
+        {
+          "code": "402552",
+          "message": "The deletion failed.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The deletion failed."
+            }
+          ]
+        },
+        {
+          "code": "402553",
+          "message": "The collection has a Bib attached.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The collection has a Bib attached."
+            }
+          ]
+        },
+        {
+          "code": "402554",
+          "message": "The collection parent is not valid.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The collection parent is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402555",
+          "message": "The collection has sub collections.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "The collection has sub collections."
+            }
+          ]
+        },
+        {
+          "code": "701115",
+          "message": "Bib record is already assigned to this collection.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections/{pid}/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Bib record is already assigned to this collection."
+            }
+          ]
+        },
+        {
+          "code": "701116",
+          "message": "Bib record is not assigned to this collection.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Bib record is not assigned to this collection."
+            }
+          ]
+        },
+        {
+          "code": "701117",
+          "message": "Can not remove bib record from this collection.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Can not remove bib record from this collection."
+            }
+          ]
+        },
+        {
+          "code": "702266",
+          "message": "Collection order must be greater than or equal to 0.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/collections",
+              "httpStatus": "400",
+              "messageVariant": "Collection order must be greater than or equal to 0."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "Collection order must be greater than or equal to 0."
+            }
+          ]
+        },
+        {
+          "code": "4018990",
+          "message": "Unsupported period type.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "Unsupported period type."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/booking-availability",
+              "httpStatus": "400",
+              "messageVariant": "Unsupported period type."
+            }
+          ]
+        },
+        {
+          "code": "4022020",
+          "message": "Delete Authority error.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete Authority error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete Bib error."
+            }
+          ]
+        },
+        {
+          "code": "4022030",
+          "message": "Invalid normalization profile ID.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Invalid normalization profile ID."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Invalid normalization profile ID."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid normalization profile ID."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid normalization profile ID."
+            }
+          ]
+        },
+        {
+          "code": "4022031",
+          "message": "Failed to normalize record.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Failed to normalize record."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/authorities",
+              "httpStatus": "400",
+              "messageVariant": "Failed to normalize record."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to normalize record."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to normalize record."
+            }
+          ]
+        },
+        {
+          "code": "4022032",
+          "message": "The record failed validation (with specified error).",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "The record failed validation (with specified error)."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "The record failed validation (with specified error)."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "The record failed validation (with specified error)."
+            }
+          ]
+        },
+        {
+          "code": "4022033",
+          "message": "Failed validation on the record.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Failed validation on the record."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "The record could not be validated."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed validation on the record."
+            }
+          ]
+        },
+        {
+          "code": "4022034",
+          "message": "The authority record version is stale.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "The authority record version is stale."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "A newer version of this record exists in the repository."
+            }
+          ]
+        },
+        {
+          "code": "4022040",
+          "message": "Cataloging level is not enabled for your institution.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs",
+              "httpStatus": "400",
+              "messageVariant": "Cataloging level is not enabled for your institution."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cataloging level is not enabled for your institution."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cataloging level is not enabled for your institution."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cataloging level is not enabled for your institution."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cataloging level is not enabled for your institution."
+            }
+          ]
+        },
+        {
+          "code": "4022041",
+          "message": "Cannot update this record due to insufficient cataloger level privileges.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot update this record due to insufficient cataloger level privileges."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot update this record due to insufficient cataloger level privileges."
+            }
+          ]
+        },
+        {
+          "code": "4800090",
+          "message": "Request cost exceeds maximum borrowing cost allowed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "Request cost exceeds maximum borrowing cost allowed."
+            }
+          ]
+        },
+        {
+          "code": "40166404",
+          "message": "An invalid field has been entered in the item object.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items",
+              "httpStatus": "400",
+              "messageVariant": "An invalid field has been entered in the item object."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}",
+              "httpStatus": "400",
+              "messageVariant": "An invalid field has been entered in the item object."
+            }
+          ]
+        },
+        {
+          "code": "40166411",
+          "message": "Param value is invalid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/collections/{pid}",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            }
+          ]
+        },
+        {
+          "code": "40166452",
+          "message": "Error - Not supported from the network zone.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Error - Not supported from the network zone."
+            }
+          ]
+        },
+        {
+          "code": "40166453",
+          "message": "Error - Not supported from the institution zone.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Error - Not supported from the institution zone."
+            }
+          ]
+        },
+        {
+          "code": "40166454",
+          "message": "Delete Authority error. Community Zone Authority cannot be deleted.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/authorities/{authority_record_id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete Authority error. Community Zone Authority cannot be deleted."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete Bib error. Community Zone Bib cannot be deleted."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/bibs/{mms_id}",
+              "httpStatus": "400",
+              "messageVariant": "Error - Not supported from the community zone."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

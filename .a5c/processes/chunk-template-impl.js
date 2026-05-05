@@ -33,6 +33,67 @@ poetry run python scripts/smoke_import.py
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
 }));
 
+// Issue #90: harvest documented Alma error codes for the swagger domains
+// implied by this issue's Files-to-touch / endpoints, and write them to a
+// per-issue sidecar file so the implement-agent prompt can read them as
+// context.swaggerErrors. Failure to fetch (e.g. dev-network outage) is
+// non-fatal — we write an empty result and exit 0 so the chunk continues;
+// the new acceptance criterion ("swagger error codes accounted for") is
+// then a degraded best-effort instead of a hard block.
+//
+// The shell pattern mirrors `scopeCheckTask`: stage the issue context to a
+// temp JSON file, then run a single-quoted Python heredoc that reads the
+// staged file. This keeps the JS template literal simple and avoids
+// quoting cliffs.
+export const fetchSwaggerCodesTask = defineTask('fetch-swagger-codes', (args, taskCtx) => {
+  const stagingPath = `${args.repoRoot}/chunks/${args.chunkName}/_swagger_input_${args.issueNumber}.json`;
+  const sidecarPath = `${args.repoRoot}/chunks/${args.chunkName}/_swagger_errors_${args.issueNumber}.json`;
+  return {
+    kind: 'shell',
+    title: `Harvest documented Alma error codes for issue #${args.issueNumber}`,
+    shell: {
+      command: `set -e
+mkdir -p "$(dirname "${stagingPath}")"
+cat > "${stagingPath}" <<'JSON_EOF'
+${JSON.stringify({
+  issueNumber: args.issueNumber,
+  files_to_touch: args.filesToTouch || [],
+  endpoints: args.endpoints || [],
+  domain: args.domainHeader || '',
+  sidecarPath,
+}, null, 2)}
+JSON_EOF
+cd "${args.repoRoot}"
+python <<'PYEOF'
+import json
+from pathlib import Path
+from scripts.agentic.issue_parser import infer_swagger_domains
+from scripts.error_codes.fetch_domain_codes import build_report, fetch_swagger
+
+stage = json.loads(Path(${JSON.stringify(stagingPath)}).read_text())
+domains = infer_swagger_domains({
+    "files_to_touch": stage.get("files_to_touch") or [],
+    "endpoints": stage.get("endpoints") or [],
+    "domain": stage.get("domain") or "",
+})
+out = {"issueNumber": stage["issueNumber"], "domains": domains, "reports": []}
+for d in domains:
+    try:
+        sw = fetch_swagger(d)
+        out["reports"].append(build_report(d, sw))
+    except Exception as exc:
+        out["reports"].append({"domain": d, "error": str(exc), "codes": []})
+Path(stage["sidecarPath"]).write_text(json.dumps(out, indent=2) + "\\n", encoding="utf-8")
+print(f"swagger-codes: domains={domains} sidecar={stage['sidecarPath']}")
+PYEOF
+rm -f "${stagingPath}"
+`,
+      timeout: 60000,
+    },
+    io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
+  };
+});
+
 export const createSubBranchTask = defineTask('create-sub-branch', (args, taskCtx) => ({
   kind: 'shell',
   title: `Create sub-branch feat/${args.issueNumber}-${args.slug}`,
@@ -165,6 +226,11 @@ export const implementTask = defineTask('implement', (args, taskCtx) => ({
         feedback: args.feedback || null,
         attemptNumber: args.attempt || 1,
         promptTemplatePath: 'scripts/agentic/prompts/implement.v1.md',
+        // Issue #90: per-issue swagger error-code harvest sidecar (path
+        // relative to repoRoot). When the inferred swagger domain set was
+        // empty or fetch failed, the file's `reports` array may be empty
+        // — treat that as "no documented codes available", not a failure.
+        swaggerErrorsPath: args.swaggerErrorsPath || null,
       },
       instructions: [
         'Read scripts/agentic/prompts/implement.v1.md and follow it strictly.',
@@ -175,6 +241,7 @@ export const implementTask = defineTask('implement', (args, taskCtx) => ({
         'Do not modify any file not in Files to touch.',
         'Add unit tests under tests/unit/domains/ with mocked HTTP (responses or requests-mock).',
         'When you commit, reference the issue with "Refs #N" — NEVER use "Closes #N", "Fixes #N", or "Resolves #N". GitHub auto-closes from any merged commit body, which would bypass R4 (auto-close only on perfect-green / no unmappable ACs). Issue closure is a manual operator step.',
+        'If context.swaggerErrorsPath is non-null, read that JSON file and cross-check ERROR_CODE_REGISTRY in src/almaapitk/client/AlmaAPIClient.py against the documented codes whose declaring endpoints overlap your "API endpoints touched". Map any code that carries enough semantics for a typed subclass; for codes you choose not to map, the bare AlmaAPIError fallback is acceptable.',
         'When done, list every file you changed.',
       ],
       outputFormat: 'JSON: { filesChanged: string[], summary: string, testsAdded: string[] }',
@@ -235,6 +302,21 @@ export async function process(inputs, ctx) {
       repoRoot, chunkName, issueNumber: issue.number, slug,
     });
 
+    // Issue #90: harvest documented Alma error codes for the swagger
+    // domains this issue touches BEFORE the implement agent runs, so its
+    // prompt can read the sidecar via context.swaggerErrorsPath. Runs once
+    // per issue; the implement agent can then iterate attempts against the
+    // same harvest. Failure inside the task is non-fatal — the sidecar may
+    // contain an empty `reports` array.
+    await ctx.task(fetchSwaggerCodesTask, {
+      repoRoot, chunkName,
+      issueNumber: issue.number,
+      filesToTouch: issue.files_to_touch,
+      endpoints: issue.endpoints,
+      domainHeader: issue.domain || '',
+    });
+    const swaggerErrorsPath = `chunks/${chunkName}/_swagger_errors_${issue.number}.json`;
+
     let feedback = null;
     let success = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -242,6 +324,7 @@ export async function process(inputs, ctx) {
         repoRoot, issueNumber: issue.number, slug,
         issueBody: issue.body_raw,
         filesToTouch: issue.files_to_touch,
+        swaggerErrorsPath,
         feedback, attempt,
       });
 

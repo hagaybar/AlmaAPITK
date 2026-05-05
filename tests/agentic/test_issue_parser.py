@@ -38,6 +38,70 @@ def test_parse_rejects_missing_structured_headers():
         parse_issue(raw)
 
 
+def test_infer_swagger_domains_from_files_to_touch():
+    """Files-to-touch under src/almaapitk/domains/<file>.py is the strongest signal."""
+    from scripts.agentic.issue_parser import infer_swagger_domains
+
+    # users.py → 'users' (alias same)
+    assert infer_swagger_domains({
+        "files_to_touch": ["src/almaapitk/domains/users.py", "tests/unit/domains/test_users.py"],
+        "endpoints": [],
+        "domain": "",
+    }) == ["users"]
+
+    # acquisition.py → 'acq' (alias differs)
+    assert infer_swagger_domains({
+        "files_to_touch": ["src/almaapitk/domains/acquisition.py"],
+        "endpoints": [],
+        "domain": "",
+    }) == ["acq"]
+
+    # admin.py → 'conf' (alias differs)
+    assert infer_swagger_domains({
+        "files_to_touch": ["src/almaapitk/domains/admin.py"],
+        "endpoints": [],
+        "domain": "",
+    }) == ["conf"]
+
+
+def test_infer_swagger_domains_from_endpoints_when_no_files():
+    """Architecture issues (#1-#21) have no Files-to-touch; fall back to endpoints."""
+    from scripts.agentic.issue_parser import infer_swagger_domains
+
+    assert infer_swagger_domains({
+        "files_to_touch": [],
+        "endpoints": ["GET /almaws/v1/bibs/{mms_id}", "POST /almaws/v1/bibs"],
+        "domain": "",
+    }) == ["bibs"]
+
+
+def test_infer_swagger_domains_dedups_and_sorts():
+    """Multiple signals pointing at multiple domains return sorted, deduped."""
+    from scripts.agentic.issue_parser import infer_swagger_domains
+
+    assert infer_swagger_domains({
+        "files_to_touch": [
+            "src/almaapitk/domains/users.py",
+            "src/almaapitk/domains/bibs.py",
+            "src/almaapitk/domains/users.py",  # dup
+        ],
+        "endpoints": ["GET /almaws/v1/bibs/{mms_id}"],
+        "domain": "",
+    }) == ["bibs", "users"]
+
+
+def test_infer_swagger_domains_returns_empty_when_no_signal():
+    """No domain-bearing inputs → empty list. The chunk-impl hook then
+    skips the swagger fetch rather than guess."""
+    from scripts.agentic.issue_parser import infer_swagger_domains
+
+    assert infer_swagger_domains({
+        "files_to_touch": ["docs/CHANGELOG.md"],
+        "endpoints": [],
+        "domain": "Architecture",
+    }) == []
+
+
 def test_parse_rejects_missing_top_level_keys():
     from scripts.agentic.issue_parser import parse_issue
 

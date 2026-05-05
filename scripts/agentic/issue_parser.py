@@ -145,6 +145,73 @@ def _parse_ac(section_body: str | None) -> list[str]:
     return out
 
 
+def infer_swagger_domains(issue: dict[str, Any]) -> list[str]:
+    """Infer the Alma swagger domain(s) an issue's implementation would touch.
+
+    Used by ``.a5c/processes/chunk-template-impl.js`` to decide which
+    ``fetch_domain_codes.py <domain>`` invocations to run before the
+    ``implement`` agent fires (issue #90).
+
+    Inputs are matched against ``DOMAIN_ALIASES`` in the canonical map,
+    which lives in ``scripts/error_codes/fetch_domain_codes.py`` to keep
+    the swagger-domain knowledge in one place. Heuristics are deliberately
+    conservative:
+
+    1. ``files_to_touch`` paths under ``src/almaapitk/domains/<file>.py``
+       — strongest signal; the file basename is the issue's primary domain.
+    2. The issue's ``domain`` header value (``Users``, ``Acquisitions``, ...).
+    3. ``endpoints`` URL prefixes — falls back to e.g. ``/almaws/v1/users``
+       → ``users`` when the file list is empty (issue #1-#21 architecture
+       tickets are cross-cutting and have no Files-to-touch).
+
+    Returns a deduplicated, sorted list. Empty list = no swagger domain
+    can be confidently inferred (the chunk-impl hook will skip the fetch
+    step in that case rather than guess and pull noise).
+    """
+    # Lazy import to keep issue_parser usable without scripts.error_codes
+    # on PYTHONPATH (e.g. older installs). The aliases table is small and
+    # version-stable; the import is cheap.
+    try:
+        from scripts.error_codes.fetch_domain_codes import DOMAIN_ALIASES
+    except Exception:  # pragma: no cover — defensive only
+        DOMAIN_ALIASES = {}
+
+    seen: set[str] = set()
+
+    # 1. Files to touch — strongest signal.
+    for path in issue.get("files_to_touch") or []:
+        # Match src/almaapitk/domains/<basename>.py
+        m = re.search(r"src/almaapitk/domains/([a-zA-Z_]+)\.py", path)
+        if m:
+            key = m.group(1).lower()
+            mapped = DOMAIN_ALIASES.get(key)
+            if mapped:
+                seen.add(mapped)
+
+    # 2. Issue domain header — hits the alias table directly when set.
+    domain_header = (issue.get("domain") or "").strip().lower()
+    if domain_header and domain_header != "architecture":
+        # Strip trailing s for plurals not already in aliases ("Users" → "users")
+        for variant in (domain_header, domain_header.rstrip("s")):
+            mapped = DOMAIN_ALIASES.get(variant)
+            if mapped:
+                seen.add(mapped)
+                break
+
+    # 3. Endpoint prefixes — e.g. ``/almaws/v1/users/...`` → ``users``.
+    for ep in issue.get("endpoints") or []:
+        # ep is like "GET /almaws/v1/users/{user_id}". Find the prefix segment
+        # AFTER ``/almaws/v1/``.
+        m = re.search(r"/almaws/v\d+/([a-zA-Z_-]+)", ep)
+        if m:
+            key = m.group(1).lower()
+            mapped = DOMAIN_ALIASES.get(key)
+            if mapped:
+                seen.add(mapped)
+
+    return sorted(seen)
+
+
 def parse_issue(raw: dict[str, Any]) -> dict[str, Any]:
     """Parse one issue JSON object into a structured dict.
 

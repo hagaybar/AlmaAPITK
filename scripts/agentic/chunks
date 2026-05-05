@@ -177,21 +177,31 @@ PYEOF
     cat > "$inputs" <<EOF
 {"chunkName": "$name", "repoRoot": "$REPO_ROOT", "maxAttempts": 3}
 EOF
-    babysitter run:create \
+    run_create_output="$(babysitter run:create \
       --process-id "chunk-impl-$name" \
       --entry "$REPO_ROOT/.a5c/processes/chunk-template-impl.js#process" \
       --inputs "$inputs" \
       --prompt "Implement chunk $name on integration branch" \
       --harness claude-code \
-      --json
-    "$PY" - "$CHUNKS_DIR" "$name" <<'PYEOF'
+      --json)"
+    echo "$run_create_output"
+    run_id="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["runId"])' <<<"$run_create_output")"
+    "$PY" - "$CHUNKS_DIR" "$name" "$run_id" <<'PYEOF'
 import sys
 from pathlib import Path
 from scripts.agentic.chunk_status import transition
 transition(Path(sys.argv[1]) / sys.argv[2], "impl-running",
            "implementation babysitter run created",
-           "monitor babysitter run; resume CLI when done")
+           "drive via /chunk-run-impl in chat, or babysitter run:iterate manually",
+           implRunId=sys.argv[3])
 PYEOF
+    cat >&2 <<EOF
+
+Run created. To drive it from a Claude Code session, type in chat:
+    /chunk-run-impl $name
+Driving manually requires babysitter run:iterate calls; see
+docs/CHUNK_PLAYBOOK.md "manual driving fallback".
+EOF
     ;;
 
   run-test)

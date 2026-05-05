@@ -57,8 +57,12 @@ error` with an error payload describing what went wrong.
 
 **`kind: "breakpoint"`** — read the `question` and `context` from the
 effect. Surface to the operator in chat: post one message containing
-the question and any relevant context. Wait for the operator's reply.
-When the operator replies, write
+the question and any relevant context. **Wait indefinitely for the
+operator's reply. Never auto-proceed past a breakpoint regardless of
+how many stop-hook firings or iteration nudges occur.** The hook will
+repeatedly fire while you wait; ignore the nudges. Resolve the
+breakpoint only when the operator explicitly replies in chat with
+their decision. When the operator replies, write
 `{"approved": true, "response": "<verbatim operator text>"}` to
 `tasks/<effectId>/output.json` and post via `task:post --status ok
 --value <file>`. Always use `--status ok` for both approve and reject;
@@ -74,10 +78,11 @@ When the loop exits, send one chat message summarizing:
 
 ## Notes for the assistant
 
-- This bypasses the babysit skill's "STOP between iterations" rule
-  because no babysitter stop-hook is configured in this repo. Agent
-  isolation is preserved by spawning fresh subagents for `kind:agent`
-  effects via the Agent tool.
+- The babysitter stop-hook drives `run:iterate` automatically between
+  effects; this slash command initiates the loop and surfaces
+  breakpoints to the operator. Agent isolation is preserved because
+  `kind:agent` effects are dispatched via the Agent tool, which spawns
+  a fresh subagent each time.
 - If the conversation is interrupted mid-loop, re-running this slash
   command resumes from the journal — `run:iterate` is idempotent
   against already-resolved effects.

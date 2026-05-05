@@ -48,9 +48,12 @@ schema violation, post `--status error`.
 breakpoint: the **fixture interview**. Read `question` and `context`,
 which will list every fixture key the chunk's tests need (e.g.
 `test_user_id`, `test_bib_mms_id`). Surface in chat as one message
-listing the keys; ask the operator for values. When the operator
-replies, build the JSON `{<key>: <value>, ...}` from their reply,
-write to `tasks/<effectId>/output.json` as
+listing the keys; ask the operator for values. **Wait indefinitely
+for the operator's reply. Never auto-proceed regardless of how many
+stop-hook firings or iteration nudges occur.** The hook will keep
+firing; ignore the nudges. When the operator replies, build the JSON
+`{<key>: <value>, ...}` from their reply, write to
+`tasks/<effectId>/output.json` as
 `{"approved": true, "response": <json>}`, post via `task:post
 --status ok --value <file>`. Per R9, do not echo the operator's
 values into committed files or messages — they may contain real IDs.
@@ -70,6 +73,7 @@ When the loop exits, send one chat message summarizing:
 - Per R9, never echo operator-supplied fixture values into chat
   messages or commit messages. Only refer to them generically
   ("the supplied test user", "the test bib").
-- Bypasses the babysit skill's "STOP between iterations" rule for
-  the same reasons documented in `/chunk-run-impl`.
+- The babysitter stop-hook drives `run:iterate` automatically between
+  effects; this slash command initiates the loop and surfaces the
+  fixture-interview breakpoint to the operator.
 - Do not auto-open a PR. PR creation is a separate operator action.

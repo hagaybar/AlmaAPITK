@@ -45,3 +45,45 @@ def test_chunk_run_test_body_has_required_markers():
     assert "ALMA_PROD_API_KEY" in body
     # The fixture interview is the headline breakpoint of run-test
     assert "fixture" in body.lower()
+
+
+# ---- R10-shaped regression for #97: breakpoint-wait discipline + STOP-rule note ----
+
+def test_chunk_run_impl_has_explicit_indefinite_wait():
+    """Issue #97 — during validation the assistant waited 6 hook firings then
+    auto-proceeded with a recommended option. The breakpoint discipline must
+    be explicit about waiting indefinitely and ignoring stop-hook nudges."""
+    body = (COMMANDS / "chunk-run-impl.md").read_text()
+    assert "Wait indefinitely" in body, (
+        "breakpoint handler must explicitly say 'Wait indefinitely' so the "
+        "assistant never auto-proceeds past a human gate"
+    )
+    assert "Never auto-proceed" in body, (
+        "breakpoint handler must explicitly forbid auto-proceeding"
+    )
+
+
+def test_chunk_run_test_has_explicit_indefinite_wait():
+    """Same #97 discipline for the chunk-test slash command."""
+    body = (COMMANDS / "chunk-run-test.md").read_text()
+    assert "Wait indefinitely" in body
+    assert "Never auto-proceed" in body
+
+
+def test_no_obsolete_no_stop_hook_claim_in_either_body():
+    """Issue #97 — the validation run proved a babysitter stop-hook IS
+    firing (`Babysitter iteration N/256` messages). The earlier disclaimer
+    'no babysitter stop-hook is configured in this repo' was wrong and
+    must be removed from both slash-command bodies."""
+    impl_body = (COMMANDS / "chunk-run-impl.md").read_text()
+    test_body = (COMMANDS / "chunk-run-test.md").read_text()
+    obsolete = "no babysitter stop-hook is configured"
+    assert obsolete not in impl_body, (
+        "chunk-run-impl.md still claims 'no babysitter stop-hook is "
+        "configured' — proven false by the 2026-05-05 validation run; "
+        "rewrite to acknowledge the hook drives iteration."
+    )
+    assert obsolete not in test_body, (
+        "chunk-run-test.md still claims 'no babysitter stop-hook is "
+        "configured' — same as above."
+    )

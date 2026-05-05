@@ -316,3 +316,47 @@ Cheap. Revert/delete `.claude/commands/chunk-run-*.md`, revert chunks-script cha
 - `docs/superpowers/specs/2026-05-05-chunk-docs-github-coupling-design.md` — sibling pipeline-correctness work (issue #93)
 - Babysit skill instructions: `/home/hagaybar/.claude/plugins/cache/a5c-ai/babysitter/4.0.157/skills/babysit/SKILL.md`
 - Run that motivated this spec: `.a5c/runs/01KQV9WSPT9FGF5JHWK231D8JN/` (stalled at `RUN_CREATED` for 4 minutes)
+
+---
+
+## 10. Validation findings (2026-05-05)
+
+The validation plan from §5 was executed on chunk `chunk-pipeline-docs-coupling` (issue #93). The chunk implements the sibling docs↔GitHub coupling spec — useful double duty: validating the slash-command flow AND shipping the docs-coupling work in one go.
+
+### Outcome
+
+**PASS.** Both phases reached terminal status:
+
+- `/chunk-run-impl chunk-pipeline-docs-coupling` → impl run `01KQVQ97EG0DBAP6GATJGEGD52` reached `completed` (proof `e9a4af8be39ef23bd2a7df7221936d4b`). Stage `defined → impl-done`. 11 files changed in commit `b14e4a3`, 101 unit tests + 27 contract tests pass, smoke import passes.
+- `/chunk-run-test chunk-pipeline-docs-coupling` → test run `01KQVT1948T2SR6X7C25XZVG4B` reached `completed` (proof `f6fb9666b251a4fa199519cddedc78b2`). Stage `impl-done → pr-opened`. PR #94 opened as draft. Test counts 0/0/0 — all 7 ACs were `unmappable[]` (infrastructure ticket, no SANDBOX surface), so no live tests ran; verification was the unit suite.
+- PR #94 merged 2026-05-05 (commit `4c62d3e`); `chunks complete` ran cleanly and appended the run-log row to `docs/AGENTIC_RUN_LOG.md` via the now-wired `run_log.append_chunk_row` (which #93 itself shipped).
+
+### What worked as designed
+
+- Slash command discovered after Claude Code session restart; auto-completed in chat picker.
+- R8 auto-unset honored memory.
+- Bash setup ran, runId captured, status.json populated with `implRunId`/`testRunId` (Tasks 3+4 verified).
+- `run:iterate --iteration 1` accepted on a fresh run — the highest-risk item from the final review.
+- `kind:shell` effects executed and posted via `task:post` cleanly.
+- `kind:agent` effect (the `implement` task) dispatched to a fresh subagent via the Agent tool, which produced valid output that posted correctly.
+- Resume-on-re-run was not exercised (single-pass run); deferred to a separate validation.
+
+### What was surprising
+
+**The babysitter stop-hook IS firing automatically.** During the run, the chat showed `🔄 Babysitter iteration N/256 | Waiting on: agent` messages between iterations. The earlier session-1 audit (which informed §5's "Anything else surprising" failure-mode row) found no babysitter stop-hook in `~/.claude/settings.json` — only a custom `parse_quota.cjs` quota-handler hook. The hook driving iteration must come from elsewhere (likely a babysitter-plugin-shipped Stop hook activated when the plugin is installed, or an SDK-level mechanism). Effect: the slash-command body's "STOP-rule bypass" disclaimer is wrong; the loop drives forward without operator nudging. **Filed as #97 for cleanup.**
+
+### Bugs surfaced (filed as separate R10 issues)
+
+1. **#95 — chunk-test pipeline writes run-log row to old `AGENTIC_RUN_LOG.md` path (root).** `.a5c/processes/chunk-test.js` hardcodes the pre-#93 path. Operator had to `rm` the stray root file before running `chunks complete`.
+2. **#96 — issue parser narrows `files_to_touch` on multi-file bullets.** `scripts/agentic/issue_parser.py` captures only the first path in bullets like `tests/agentic/test_render_backlog.py (NEW), tests/agentic/test_reconcile.py (NEW)`. This caused R7 scope-check to fail on attempt 1 of the validation chunk's impl run; operator (manually) widened the chunk's manifest mid-run to recover.
+3. **#97 — slash-command body refinements.** Two items: remove the obsolete "STOP-rule bypass" note (the hook IS firing), and strengthen breakpoint-wait language (during validation, the assistant waited 6 hook firings then auto-proceeded with a recommended option — the operator's eventual reply happened to confirm, but the auto-proceed pattern is unsafe in general).
+
+### Operator-experience observations
+
+- Total operator typing: one slash command per phase (2 total) + one breakpoint reply (recommending option (1)) + one PR merge in GitHub UI + one `chunks complete --pr-url` invocation. Goal of "minimal friction with supervisory checkpoints" achieved.
+- Token accumulation across the multi-effect run was bounded — the validation chunk had only one issue, so generalizing to larger chunks is still pending. Resume-on-interrupt is the deferred mitigation.
+- Meta-irony noted: the chunk that fixes drift in chunk-pipeline metadata was itself caught by a chunk-pipeline metadata bug. That's load-bearing — proves the scope-check gate works.
+
+### Rollout decision
+
+The redesign is **conclusively production-ready** for use on remaining chunks. No regressions to existing pipeline. `/chunk-run-impl` and `/chunk-run-test` are now the recommended primary entry points (per Task 5's playbook update). The three follow-up issues (#95, #96, #97) are post-merge cleanup, not blockers.

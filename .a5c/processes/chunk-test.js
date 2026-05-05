@@ -295,7 +295,34 @@ export async function process(inputs, ctx) {
   }
 
   let testData = {};
-  if (fixtures.size > 0) {
+
+  // Issue #86: if chunks/<name>/test-data.json already contains every required
+  // fixture key, skip the fixture-interview breakpoint and use the pre-supplied
+  // values directly. This lets `chunks run-test <name>` run headless from any
+  // terminal once the operator has populated test-data.json by hand.
+  let preloadedTestData = null;
+  try {
+    const raw = readFileSync(
+      `${repoRoot}/chunks/${chunkName}/test-data.json`, 'utf8'
+    );
+    preloadedTestData = JSON.parse(raw);
+  } catch (e) {
+    // missing or unreadable — fall through to the interview path.
+  }
+  const allFixtureKeysPreloaded = preloadedTestData &&
+    typeof preloadedTestData === 'object' &&
+    Array.from(fixtures.keys()).every(
+      k => Object.prototype.hasOwnProperty.call(preloadedTestData, k)
+    );
+
+  if (fixtures.size === 0) {
+    // No fixtures required at all — nothing to interview about.
+  } else if (allFixtureKeysPreloaded) {
+    ctx.log(
+      `fixture interview skipped: test-data.json supplies all ${fixtures.size} required key(s)`
+    );
+    testData = preloadedTestData;
+  } else {
     // The repo's existing breakpoint convention is question/title/context with
     // an `approved` + `response` reply. We render the fixture list inside the
     // question text and ask the operator to paste back a JSON object.

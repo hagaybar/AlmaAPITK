@@ -18,6 +18,7 @@ You are a senior Python developer maintaining the `almaapitk` package. Mirror th
 5. **No bare `except:`.**
 6. **Use `responses` or `requests-mock`** for HTTP in unit tests. Do NOT write integration tests in this PR — those live in the testing process.
 7. **Cite a pattern source** in your code comment when adding a method: which existing method's shape you mirrored.
+8. **Commit messages reference issues with `Refs #N`** — never `Closes #N`, `Fixes #N`, or `Resolves #N`. GitHub auto-closes issues from any merged commit body, which bypasses R4 (auto-close only on perfect-green / no unmappable ACs). Issue closure is a manual operator step.
 
 ## When `feedback` is non-null
 

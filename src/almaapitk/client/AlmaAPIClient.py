@@ -6,7 +6,7 @@ This is designed to be 'pluggable' - other classes will use this as their founda
 import os
 import requests
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Iterator
 import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -960,10 +960,147 @@ class AlmaAPIClient:
             params=params, custom_headers=custom_headers,
         )
     
+    def iter_paged(
+        self,
+        endpoint: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        page_size: int = 100,
+        record_key: Optional[str] = None,
+        max_records: Optional[int] = None,
+    ) -> Iterator[Dict[str, Any]]:
+        """Yield records one at a time, fetching pages on demand.
+
+        Walks any Alma "list/search" endpoint that uses the standard
+        ``limit`` / ``offset`` pagination contract and exposes a
+        ``total_record_count`` field plus a record array under a
+        well-known key (``invoice``, ``pol``, ``user``, ``bib``, ...).
+        Centralises the offset bookkeeping that previously lived inline
+        in every domain method that walked paged results, so callers no
+        longer have to re-derive the loop or remember to stop on the
+        ``total_record_count`` boundary.
+
+        The method is a *generator*: pages are fetched on demand, so a
+        caller that breaks out early after the first match never pays
+        for pages it does not need. Callers that want a list use
+        ``list(client.iter_paged(...))``.
+
+        Args:
+            endpoint: API endpoint (e.g., ``'almaws/v1/acq/invoices'``).
+                Must be non-empty.
+            params: Caller-supplied query parameters. Merged with the
+                paginator's ``limit`` / ``offset`` on each request; the
+                paginator's values always win on key collision so the
+                walk cannot be derailed by a stray caller-supplied
+                offset.
+            page_size: Records to request per page. Must be a positive
+                ``int``. Defaults to ``100`` (the most common Alma
+                per-endpoint cap). Some Alma endpoints cap below this;
+                callers walking those should pass an explicit
+                ``page_size`` matching the endpoint's documented limit.
+            record_key: Top-level key in the response body under which
+                the record array lives (e.g., ``'invoice'``,
+                ``'pol'``, ``'user'``, ``'bib'``). When ``None`` (the
+                default), the first page is fetched but no records are
+                yielded — useful only for total-count probes; almost
+                every real caller will pass a string here.
+            max_records: Hard cap on the number of records yielded.
+                ``None`` (the default) means yield until the endpoint
+                is exhausted. Must be ``None`` or a non-negative
+                ``int`` when supplied.
+
+        Yields:
+            Each record dict in turn, in the order Alma returns them.
+
+        Raises:
+            AlmaValidationError: If ``endpoint`` is empty, ``page_size``
+                is non-positive / non-int, or ``max_records`` is
+                negative / non-int.
+            AlmaAPIError: Surfaces verbatim from the underlying
+                ``self.get`` call when a page fetch fails.
+
+        Pattern source: GitHub issue #11 (API: add iter_paged()
+        generator at the client level).
+        """
+        # Input validation. ``bool`` is an ``int`` subclass in Python,
+        # so reject it explicitly for the same reason
+        # ``_validate_retry_kwargs`` does -- callers passing ``True``
+        # almost certainly mean to enable a feature, not to set a
+        # numeric size.
+        if not endpoint:
+            raise AlmaValidationError("endpoint is required")
+        if (
+            isinstance(page_size, bool)
+            or not isinstance(page_size, int)
+            or page_size <= 0
+        ):
+            raise AlmaValidationError(
+                f"page_size must be a positive int, got {page_size!r}"
+            )
+        if max_records is not None:
+            if (
+                isinstance(max_records, bool)
+                or not isinstance(max_records, int)
+                or max_records < 0
+            ):
+                raise AlmaValidationError(
+                    "max_records must be a non-negative int or None, "
+                    f"got {max_records!r}"
+                )
+
+        self.logger.info(
+            "Paginating Alma endpoint",
+            endpoint=endpoint,
+            page_size=page_size,
+            record_key=record_key,
+            max_records=max_records,
+        )
+
+        offset = 0
+        yielded = 0
+        # Snapshot the caller-supplied params once; per-page kwargs are
+        # built by overlaying ``limit``/``offset`` so pagination state
+        # cannot leak back into the caller's dict between iterations.
+        base_params = dict(params or {})
+
+        while True:
+            page_params = {
+                **base_params,
+                "limit": page_size,
+                "offset": offset,
+            }
+            body = self.get(endpoint, params=page_params).json()
+
+            if record_key:
+                items = body.get(record_key, []) or []
+            else:
+                items = []
+
+            for item in items:
+                if max_records is not None and yielded >= max_records:
+                    return
+                yield item
+                yielded += 1
+
+            # ``max_records`` cap may also fire mid-page; check at the
+            # top of the next iteration too so we don't over-fetch.
+            if max_records is not None and yielded >= max_records:
+                return
+
+            total = body.get("total_record_count", 0) or 0
+            offset += page_size
+            # Stop conditions:
+            # 1. We've walked past the reported total_record_count.
+            # 2. The page came back empty (defensive: handles endpoints
+            #    that omit total_record_count or report it as 0 even
+            #    when records are present on the last page).
+            if offset >= total or not items:
+                return
+
     def test_connection(self) -> bool:
         """
         Test if the API connection works.
-        
+
         Returns:
             True if connection successful, False otherwise
         """

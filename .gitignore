@@ -205,3 +205,8 @@ chunks/*/sandbox-test-output/
 chunks/*/test-data.json
 # pr_open's per-chunk sidecar; stdout-of-shell-task workaround (see chunk-test.js).
 chunks/*/_pr_open_result.json
+
+# Reproducible byproducts of scripts/error_codes/fetch_domain_codes.py
+# (fetched Alma swagger specs + extracted error-code reports). Regenerated
+# on every fetch-swagger-codes step in the chunk pipeline.
+scripts/error_codes/swagger_cache/

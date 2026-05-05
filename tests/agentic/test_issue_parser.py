@@ -172,3 +172,79 @@ def test_parse_real_issue_3_arch_format():
     assert parsed["priority"] == "high"
     # **Complexity:** S (≤½ day) → effort="S"
     assert parsed["effort"] == "S"
+
+
+# ---- R10 regression for #96: multi-file bullets in "Files to touch" ----
+
+def test_bullet_lines_comma_separated_paths():
+    """R10 regression for #96.
+
+    Issue #93 had a bullet with two file paths separated by a comma:
+        - `tests/agentic/test_render_backlog.py` (new), `tests/agentic/test_reconcile.py` (new).
+    The parser only captured the first path, dropping the second. This caused
+    R7 scope-check to fail when the implementer agent legitimately touched
+    both files.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = (
+        "- `tests/agentic/test_render_backlog.py` (new), "
+        "`tests/agentic/test_reconcile.py` (new)."
+    )
+    paths = _bullet_lines(section)
+    assert "tests/agentic/test_render_backlog.py" in paths, paths
+    assert "tests/agentic/test_reconcile.py" in paths, paths
+
+
+def test_bullet_lines_rename_arrow():
+    """R10 regression for #96.
+
+    Issue #93 had a bullet documenting a `git mv` with both source and
+    destination paths separated by `→`:
+        - `AGENTIC_RUN_LOG.md` → `docs/AGENTIC_RUN_LOG.md` (git mv).
+    The parser only captured the source path, dropping the destination —
+    the actual moved-file location.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = "- `AGENTIC_RUN_LOG.md` → `docs/AGENTIC_RUN_LOG.md` (git mv)."
+    paths = _bullet_lines(section)
+    assert "AGENTIC_RUN_LOG.md" in paths, paths
+    assert "docs/AGENTIC_RUN_LOG.md" in paths, paths
+
+
+def test_bullet_lines_single_path_with_inline_backtick_prose_unchanged():
+    """Guard against the multi-path fix accidentally widening capture into
+    description prose.
+
+    Bullet:
+        - `scripts/agentic/chunks` — new subcommands `render-backlog`, `reconcile`; ...
+    Only `scripts/agentic/chunks` is the file to touch; the other backticked
+    tokens are description text (subcommand names, function names).
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = (
+        "- `scripts/agentic/chunks` — new subcommands `render-backlog`, "
+        "`reconcile`; wire `complete` to call `run_log.append_chunk_row`."
+    )
+    paths = _bullet_lines(section)
+    assert paths == ["scripts/agentic/chunks"], paths
+
+
+def test_bullet_lines_first_path_then_comment_in_backticks_unchanged():
+    """Another guard for the description-prose case.
+
+    Bullet:
+        - `docs/chunks-backlog.yaml` (new) — translated content of current `docs/CHUNK_BACKLOG.md`.
+    Only `docs/chunks-backlog.yaml` is the file to touch; `docs/CHUNK_BACKLOG.md`
+    is referenced in the description after the em-dash.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = (
+        "- `docs/chunks-backlog.yaml` (new) — translated content "
+        "of current `docs/CHUNK_BACKLOG.md`."
+    )
+    paths = _bullet_lines(section)
+    assert paths == ["docs/chunks-backlog.yaml"], paths

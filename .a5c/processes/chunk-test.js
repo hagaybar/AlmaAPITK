@@ -132,7 +132,7 @@ export const appendRunLogTask = defineTask('append-run-log', (args, taskCtx) => 
   shell: {
     command: `cd "${args.repoRoot}" && python -m scripts.agentic.run_log <<'PAYLOAD_EOF'
 ${JSON.stringify({
-  log_path: `${args.repoRoot}/AGENTIC_RUN_LOG.md`,
+  log_path: `${args.repoRoot}/docs/AGENTIC_RUN_LOG.md`,
   chunk_name: args.chunkName,
   issue_numbers: args.issueNumbers,
   attempts_used: args.attemptsUsed || {},

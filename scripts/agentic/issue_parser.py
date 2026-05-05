@@ -38,15 +38,31 @@ def _section(body: str, header: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+_PATH_AT_START_RE = re.compile(r"^`([^`]+)`")
+_ANNOTATION_RE = re.compile(r"^\s*\([^)]*\)")
+_SEP_RE = re.compile(r"^\s*(?:,|→|and)\s+")
+
+
 def _bullet_lines(section_body: str | None) -> list[str]:
     """Extract list bullets, stripping markdown backticks and trailing parentheticals.
 
     Handles all of:
-        - path                                  -> path
-        - `path`                                -> path
-        - `path` (comment about it)             -> path
-        - `path (comment inside backticks)`     -> path
-        - GET /api/v1/x                          -> GET /api/v1/x
+        - path                                  -> [path]
+        - `path`                                -> [path]
+        - `path` (comment about it)             -> [path]
+        - `path (comment inside backticks)`     -> [path]
+        - `path1`, `path2`                      -> [path1, path2]
+        - `path1` (NEW), `path2` (NEW)          -> [path1, path2]
+        - `path1` → `path2`                     -> [path1, path2]
+        - `path1` and `path2`                   -> [path1, path2]
+        - `path` — description with `code`      -> [path]
+        - GET /api/v1/x                         -> [GET /api/v1/x]
+
+    Multi-path support: when a bullet starts with a backtick-quoted token,
+    consecutive backtick-quoted tokens separated by ``, ``, ``→`` (rename
+    arrow), or ``and`` are all captured as paths. The scan stops at the first
+    non-separator gap (e.g. an em-dash description), so backticked tokens in
+    the description prose are not captured.
     """
     if not section_body:
         return []
@@ -55,12 +71,30 @@ def _bullet_lines(section_body: str | None) -> list[str]:
         if not (line.startswith("- ") or line.startswith("* ")):
             continue
         text = line[2:].strip()
-        # If wrapped in backticks, take only what's inside the first backtick span.
         if text.startswith("`"):
-            end = text.find("`", 1)
-            if end > 0:
-                text = text[1:end]
-        # Strip trailing " (annotation)" annotation, if any.
+            # Walk leading backtick-quoted tokens separated by recognized
+            # separators. Stop at the first gap that isn't a separator-then-
+            # backtick — that's where description prose begins.
+            while True:
+                m = _PATH_AT_START_RE.match(text)
+                if not m:
+                    break
+                path = m.group(1)
+                if path:
+                    out.append(path)
+                text = text[m.end():]
+                # Optional " (annotation)" describing the just-extracted path.
+                ann_m = _ANNOTATION_RE.match(text)
+                if ann_m:
+                    text = text[ann_m.end():]
+                # Optional separator, but only if followed by another path.
+                sep_m = _SEP_RE.match(text)
+                if sep_m and text[sep_m.end():sep_m.end() + 1] == "`":
+                    text = text[sep_m.end():]
+                    continue
+                break
+            continue
+        # Bullet without leading backtick — strip trailing " (annotation)".
         paren_idx = text.find(" (")
         if paren_idx > 0:
             text = text[:paren_idx]

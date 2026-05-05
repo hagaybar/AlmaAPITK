@@ -202,6 +202,11 @@ class AlmaInvalidPolModeError(AlmaAPIError):
 ERROR_CODE_REGISTRY: Dict[str, type] = {
     "402459":   AlmaDuplicateInvoiceError,
     "40166411": AlmaInvalidPolModeError,
+    # Alma returns HTTP 400 + errorCode 401861 ("User with identifier ... was not
+    # found") for a missing user_primary_id — NOT HTTP 404 — so status-fallback
+    # never fires. Map the code explicitly. Discovered via SANDBOX smoke test
+    # t-9-1 (chunk errors-mapping, 2026-05-04).
+    "401861":   AlmaResourceNotFoundError,
 }
 
 

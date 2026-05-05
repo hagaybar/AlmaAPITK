@@ -213,6 +213,30 @@ class TestErrorClassificationByAlmaCode(_AlmaAPIClientErrorTestBase):
         self.assertIsInstance(ctx.exception, AlmaAPIError)
         self.assertEqual(ctx.exception.status_code, 400)
 
+    def test_code_401861_raises_resource_not_found_error(self):
+        """Alma returns HTTP 400 + errorCode 401861 (not HTTP 404) for a missing
+        user_primary_id. The registry maps the code to ``AlmaResourceNotFoundError``
+        so callers can write ``except AlmaResourceNotFoundError`` instead of
+        inspecting the message string. Discovered via SANDBOX smoke (chunk
+        errors-mapping)."""
+        client = AlmaAPIClient('SANDBOX')
+        payload = _alma_error_payload(
+            "401861", "User with identifier xxxxx was not found."
+        )
+        with patch.object(
+            client._session,
+            'request',
+            return_value=_make_mock_error_response(400, json_body=payload),
+        ):
+            with self.assertRaises(AlmaResourceNotFoundError) as ctx:
+                client.get('almaws/v1/users/xxxxx')
+        self.assertIsInstance(ctx.exception, AlmaAPIError)
+        # The response was HTTP 400; subclass dispatch came from the alma_code,
+        # not the status code — so status_code on the raised exception still
+        # reflects the original HTTP value.
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.alma_code, "401861")
+
     def test_400_with_unrecognized_code_raises_bare_alma_api_error(self):
         """A 400 with an unknown Alma code falls through to bare ``AlmaAPIError``."""
         client = AlmaAPIClient('SANDBOX')

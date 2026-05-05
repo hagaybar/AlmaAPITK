@@ -86,25 +86,106 @@ def _safe_response_body(response):
         return None
 
 
+_UNSET = object()  # Sentinel for "body not yet parsed" (issue #16).
+
+
 class AlmaResponse:
-    """Response wrapper to maintain compatibility with existing domain classes."""
-    
+    """Response wrapper to maintain compatibility with existing domain classes.
+
+    The parsed JSON body is cached on first access (issue #16): ``.data``
+    and ``.json()`` and the client's debug-body-logging path all share a
+    single ``response.json()`` call. Repeated access — common in idioms
+    like ``if r.data and r.data.get("foo"):`` — no longer re-parses the
+    body on every read, which is measurable on large analytics payloads.
+    """
+
     def __init__(self, response):
         self._response = response
         self.status_code = response.status_code
         self.success = response.status_code < 400
-        
+        # Sentinel-based cache: ``None`` is a legitimate parsed body
+        # value (e.g. content-type is non-JSON, or the body is empty), so
+        # we cannot use ``None`` itself as the "not yet parsed" marker.
+        self._cached_body: Any = _UNSET
+
+    def _safe_body(self) -> Any:
+        """Best-effort cached body access for non-raising callers.
+
+        Returns the cached parsed body if one is already populated.
+        Otherwise attempts to parse the body via ``self._response.json``
+        and caches the result; on any decode failure returns ``None``
+        without populating the cache, so a later strict ``.json()``
+        call still surfaces the malformed-JSON exception.
+
+        Used by the client's debug-body-logging path (where a malformed
+        body should never crash the request) and by error-field
+        extraction. ``data`` and ``json()`` share the same
+        ``_cached_body`` slot so that on a successful parse all three
+        paths reuse one parsed object (issue #16).
+
+        Returns:
+            Parsed JSON body, or ``None`` when the response is not JSON
+            or cannot be decoded.
+        """
+        if self._cached_body is not _UNSET:
+            return self._cached_body
+        # Reuse the module-level helper so the content-type / decode
+        # logic lives in exactly one place. The helper never raises and
+        # never calls ``response.json()`` for non-JSON content-types,
+        # which keeps this safe for the debug-logging caller.
+        body = _safe_response_body(self._response)
+        # Only cache successful parses. A ``None`` result either means
+        # "not JSON content-type" (cheap to recompute) or "malformed
+        # JSON" (we want a later ``.json()`` to still raise rather than
+        # silently return ``None`` from cache).
+        if body is not None:
+            self._cached_body = body
+        return body
+
     def json(self) -> Dict[str, Any]:
-        """Return JSON data from response."""
-        return self._response.json()
-    
+        """Return the parsed JSON body of the response.
+
+        Cached on first successful parse; subsequent calls return the
+        cached value without touching ``self._response.json()`` again
+        (issue #16). Exception behaviour matches the pre-#16 contract
+        -- callers that previously got a ``ValueError`` on a malformed
+        body still do.
+
+        Returns:
+            Parsed JSON body of the response.
+
+        Raises:
+            ValueError: When the response body is not valid JSON.
+        """
+        if self._cached_body is _UNSET:
+            # ``self._response.json()`` raises ``ValueError`` (or its
+            # ``requests.exceptions.JSONDecodeError`` subclass) on
+            # malformed bodies; let that propagate so existing callers
+            # see the same exception shape they used to.
+            self._cached_body = self._response.json()
+        return self._cached_body
+
     def text(self) -> str:
         """Return text data from response."""
         return self._response.text
-    
+
     @property
     def data(self) -> Dict[str, Any]:
-        """Alias for json() to match expected interface."""
+        """Cached parsed JSON body (alias for ``json()``).
+
+        First access parses; subsequent accesses return the cached
+        object, so idioms like ``if r.data and r.data.get('x'):`` only
+        pay the parse cost once (issue #16). Shares its cache with
+        ``json()`` and the internal ``_safe_body()`` debug-logging
+        path -- ``self._response.json()`` is called at most once per
+        response across all three.
+
+        Returns:
+            Parsed JSON body of the response.
+
+        Raises:
+            ValueError: When the response body is not valid JSON.
+        """
         return self.json()
 
 class AlmaAPIError(Exception):
@@ -557,13 +638,19 @@ class AlmaAPIClient:
         return AlmaAPIError
 
     @staticmethod
-    def _extract_alma_error_fields(response):
+    def _extract_alma_error_fields(response_or_wrapper):
         """Pull ``(error_msg, alma_code, tracking_id)`` from an error response.
 
         Centralises the JSON-body / ``errorList.error[0]`` traversal that
         used to live inline in ``_handle_response``. Splitting it out lets
         ``_handle_response`` stay readable and gives the parsing logic a
         single, unit-testable home.
+
+        Accepts either a raw ``requests.Response`` (legacy direct callers,
+        tests) or an ``AlmaResponse`` wrapper. When an ``AlmaResponse`` is
+        passed, the cached body is reused so ``response.json()`` is not
+        called a second time on the error path -- this preserves the
+        "parse at most once per response" contract from issue #16.
 
         Returns:
             Tuple of ``(error_msg, alma_code, tracking_id)``:
@@ -583,12 +670,20 @@ class AlmaAPIClient:
         body collapses to ``(error_msg-from-text, None, None)`` so that a
         malformed response can never mask the original API error.
         """
+        if isinstance(response_or_wrapper, AlmaResponse):
+            wrapper = response_or_wrapper
+            response = wrapper._response
+            error_data = wrapper._safe_body()
+        else:
+            wrapper = None
+            response = response_or_wrapper
+            error_data = _safe_response_body(response)
+
         error_msg = f"HTTP {response.status_code}"
         alma_code: Optional[str] = None
         tracking_id: Optional[str] = None
         try:
-            if 'application/json' in response.headers.get('content-type', ''):
-                error_data = response.json()
+            if isinstance(error_data, dict):
                 if 'errorList' in error_data and 'error' in error_data['errorList']:
                     errors = error_data['errorList']['error']
                     if isinstance(errors, list) and errors:
@@ -610,23 +705,32 @@ class AlmaAPIClient:
                         if raw_tracking is not None:
                             tracking_id = raw_tracking
             else:
+                # Non-JSON or empty body -- fall back to text.
                 error_msg = response.text[:200] if response.text else error_msg
-        except Exception:
+        except (KeyError, AttributeError, TypeError, IndexError):
             # Defensive: never let response-parsing errors mask the
-            # original API error. Fall back to whatever text we have.
+            # original API error. Narrow-to-traversal errors only --
+            # ``KeyboardInterrupt`` and ``SystemExit`` must still
+            # propagate (issue #16).
             error_msg = response.text[:200] if response.text else error_msg
 
         return error_msg, alma_code, tracking_id
 
-    def _handle_response(self, response):
+    def _handle_response(self, response_or_wrapper):
         """
         Handle response and convert to AlmaResponse for compatibility.
 
+        Accepts either a raw ``requests.Response`` (legacy callers) or an
+        already-built ``AlmaResponse`` (the new ``_request`` path, which
+        creates the wrapper up front so the JSON body is parsed at most
+        once across the success / error / debug-logging paths -- issue
+        #16).
+
         Args:
-            response: requests.Response object
+            response_or_wrapper: ``requests.Response`` or ``AlmaResponse``.
 
         Returns:
-            AlmaResponse object
+            AlmaResponse object.
 
         Raises:
             AlmaAPIError: If the response indicates an error. The actual
@@ -639,13 +743,18 @@ class AlmaAPIClient:
                 payload so log lines and operator hand-offs to Ex Libris
                 support can quote the per-request trackingId (issue #10).
         """
-        alma_response = AlmaResponse(response)
+        if isinstance(response_or_wrapper, AlmaResponse):
+            alma_response = response_or_wrapper
+        else:
+            alma_response = AlmaResponse(response_or_wrapper)
 
         if not alma_response.success:
             error_msg, alma_code, tracking_id = self._extract_alma_error_fields(
-                response
+                alma_response
             )
-            exc_class = self._classify_error(response.status_code, alma_code)
+            exc_class = self._classify_error(
+                alma_response.status_code, alma_code
+            )
             # ``alma_code`` is normalised to "" on the exception (the
             # default in ``AlmaAPIError.__init__``) so log formatters can
             # interpolate it without a None-guard. ``tracking_id`` stays
@@ -653,8 +762,8 @@ class AlmaAPIClient:
             # tracking value to hand to support.
             raise exc_class(
                 error_msg,
-                response.status_code,
-                response,
+                alma_response.status_code,
+                alma_response._response,
                 tracking_id=tracking_id,
                 alma_code=alma_code if alma_code is not None else "",
             )
@@ -700,6 +809,17 @@ class AlmaAPIClient:
 
         Pattern source: GitHub issue #4 (HTTP: consolidate verbs into _request).
         """
+        # Issue #13: refuse to issue HTTP after ``close()`` has run. A
+        # ``None`` session is the documented sentinel for "this client
+        # has been closed"; we surface this as a clear ``AlmaAPIError``
+        # rather than letting an ``AttributeError`` bubble out of the
+        # session call below.
+        if getattr(self, "_session", None) is None:
+            raise AlmaAPIError(
+                "AlmaAPIClient has been closed; construct a new client "
+                "instance to make further API calls."
+            )
+
         url = self._build_url(endpoint)
         headers = self._prepare_headers(content_type)
         if custom_headers:
@@ -744,7 +864,13 @@ class AlmaAPIClient:
         # is DEBUG-only and gated on a successful JSON parse.
         self.logger.log_response(response, duration_ms=duration_ms)
 
-        response_body = _safe_response_body(response)
+        # Build the AlmaResponse up front so the JSON body is parsed at
+        # most once across the debug-logging, success, and error paths
+        # (issue #16). All three paths read through ``_safe_body()``,
+        # which caches on first call.
+        alma_response = AlmaResponse(response)
+
+        response_body = alma_response._safe_body()
         if response_body:
             self.logger.debug(
                 f"{method} response body from {endpoint}",
@@ -753,7 +879,7 @@ class AlmaAPIClient:
                 response_data=response_body,
             )
 
-        return self._handle_response(response)
+        return self._handle_response(alma_response)
 
     def get(self, endpoint: str, params: Optional[Dict] = None,
             custom_headers: Optional[Dict] = None) -> AlmaResponse:
@@ -885,10 +1011,90 @@ class AlmaAPIClient:
     def get_environment(self) -> str:
         """Get current environment."""
         return self.environment
-    
+
     def get_base_url(self) -> str:
         """Get base URL."""
         return self.base_url
+
+    # -------------------------------------------------------------------------
+    # Context-manager / close support (issue #13)
+    #
+    # Pattern source: GitHub issue #13 (API: add context-manager support to
+    # AlmaAPIClient). With #3 in place the client owns a persistent
+    # ``requests.Session`` whose underlying TCP+TLS pool needs explicit
+    # teardown to release file descriptors and close keep-alive
+    # connections. ``__enter__``/``__exit__``/``close`` give callers a
+    # clean ``with``-statement story without changing any of the existing
+    # construction or HTTP-verb semantics.
+    # -------------------------------------------------------------------------
+
+    def __enter__(self) -> "AlmaAPIClient":
+        """Enter the runtime context, returning ``self``.
+
+        Enables the standard ``with AlmaAPIClient(...) as alma:`` idiom.
+        The session is set up eagerly in ``__init__`` (issue #3), so
+        nothing additional needs to happen on entry — this hook exists
+        solely so the matching ``__exit__`` can close the session
+        deterministically.
+
+        Returns:
+            The client instance, ready for use inside the ``with`` block.
+
+        Pattern source: GitHub issue #13.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        """Exit the runtime context and close the underlying session.
+
+        Args:
+            exc_type: Exception class, or ``None`` if the block exited
+                normally.
+            exc: Exception instance, or ``None``.
+            tb: Traceback object, or ``None``.
+
+        Pattern source: GitHub issue #13.
+        """
+        self.close()
+
+    def close(self) -> None:
+        """Close the persistent ``requests.Session`` and release pooled connections.
+
+        Idempotent: calling ``close`` more than once is safe and is a
+        no-op after the first call. After the session is closed, the
+        client transitions to a "closed" state and any subsequent HTTP
+        verb call (``get``/``post``/``put``/``delete``/``_request``) will
+        raise :class:`AlmaAPIError`. Re-creating a session implicitly on
+        next use was deliberately rejected: a closed client signals the
+        caller's intent to release the resource, and silently rebuilding
+        it would mask programmer errors (e.g., reusing a ``with``-block
+        client outside the block).
+
+        If the caller still needs to make calls after closing, they
+        should construct a new ``AlmaAPIClient``.
+
+        Raises:
+            None. The ``requests.Session.close`` call is best-effort: any
+            exception while closing is swallowed and logged at WARNING
+            level so teardown in ``__exit__`` (the typical caller) never
+            masks an in-flight exception from the ``with`` body.
+
+        Pattern source: GitHub issue #13.
+        """
+        session = getattr(self, "_session", None)
+        if session is None:
+            return
+        try:
+            session.close()
+        except Exception as exc:  # noqa: BLE001 — defensive teardown only
+            # Never let a teardown failure mask the user's primary
+            # exception. Log and move on; the session reference is still
+            # cleared so the client lands in the closed state.
+            self.logger.warning(
+                "Error while closing AlmaAPIClient session", error=str(exc)
+            )
+        finally:
+            self._session = None
     
 
 

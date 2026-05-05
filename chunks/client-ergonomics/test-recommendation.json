@@ -1,0 +1,112 @@
+{
+  "chunk": "client-ergonomics",
+  "branch": "chunk/client-ergonomics",
+  "createdAt": "2026-05-05T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 13,
+      "title": "API: add context-manager support to AlmaAPIClient (with-statement)",
+      "classification": "general",
+      "subBranch": "feat/13-api-add-context-manager-suppor",
+      "tests": [
+        {
+          "id": "t-13-1",
+          "kind": "smoke",
+          "scope": "Exercise the with-statement happy path against live SANDBOX. Build an AlmaAPIClient inside a `with` block, perform one real read against an existing user, then verify the session is torn down cleanly on block exit (the documented post-close sentinel: `_session is None`). Covers AC #13.1 (`with AlmaAPIClient(...) as alma:` works) and AC #13.4 (test exercising the with-statement path) end-to-end with a live HTTP call rather than a mocked response.",
+          "endpoints": ["GET /almaws/v1/users/{user_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing user_primary_id in SANDBOX that can be safely fetched read-only. Used purely to drive one real GET inside the `with` block so the context-manager path is exercised against live HTTP. Synthetic placeholder only — never a real operator-supplied identifier.",
+              "example": "tau000000"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.domains.users import Users",
+            "captured_client = None",
+            "captured_response = None",
+            "with AlmaAPIClient(environment='SANDBOX') as alma:\n    captured_client = alma\n    users = Users(alma)\n    captured_response = users.get_user('${existing_user_primary_id}')",
+            "session_after_exit = getattr(captured_client, '_session', 'missing-attr')"
+          ],
+          "passCriteria": [
+            "captured_response is not None",
+            "captured_response.success is True",
+            "captured_response.status_code == 200",
+            "session_after_exit is None"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-13-2",
+          "kind": "smoke",
+          "scope": "Verify that calling any HTTP verb on an AlmaAPIClient instance after `close()` raises a clear AlmaAPIError (the documented behaviour for #13 — pick raise-on-use-after-close). Build the client, make one successful read against SANDBOX to confirm it is wired up correctly, call `close()` twice to confirm idempotency, then attempt another GET and verify the typed error. Covers AC #13.2 (idempotent close) and AC #13.3 (post-close HTTP raises a clear error) under live conditions.",
+          "endpoints": ["GET /almaws/v1/users/{user_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing user_primary_id in SANDBOX that can be safely fetched read-only. Used purely to drive one real GET inside the `with` block so the context-manager path is exercised against live HTTP. Synthetic placeholder only — never a real operator-supplied identifier.",
+              "example": "tau000000"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "from almaapitk.domains.users import Users",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "users = Users(client)",
+            "pre_close_response = users.get_user('${existing_user_primary_id}')",
+            "client.close()",
+            "second_close_raised = None\ntry:\n    client.close()\nexcept Exception as e:\n    second_close_raised = e",
+            "post_close_error = None\ntry:\n    users.get_user('${existing_user_primary_id}')\nexcept AlmaAPIError as e:\n    post_close_error = e"
+          ],
+          "passCriteria": [
+            "pre_close_response is not None",
+            "pre_close_response.success is True",
+            "second_close_raised is None",
+            "getattr(client, '_session', 'missing-attr') is None",
+            "post_close_error is not None",
+            "isinstance(post_close_error, AlmaAPIError) is True",
+            "'closed' in str(post_close_error).lower()"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "`with AlmaAPIClient(...) as alma:` works.": ["t-13-1"],
+        "`alma.close()` is callable directly and is idempotent (calling it twice does not raise).": ["t-13-2"],
+        "Calling any HTTP method after `close()` raises a clear error (or transparently re-creates the session — pick one and document).": ["t-13-2"],
+        "Test exercising the with-statement path.": ["t-13-1"]
+      },
+      "unmappable": []
+    },
+    {
+      "number": 16,
+      "title": "Quality: tighten exception handling and cache AlmaResponse.data",
+      "classification": "general",
+      "subBranch": "feat/16-quality-tighten-exception-hand",
+      "tests": [],
+      "acceptanceMapping": {},
+      "unmappable": [
+        {
+          "ac": "No bare `except:` in `src/almaapitk/client/`.",
+          "reason": "Source-tree invariant — verified by static inspection / a guard test in tests/unit/client/test_alma_response.py (and trivially by `grep -n 'except:' src/almaapitk/client/`). No Alma API call would observe the absence of a bare except clause."
+        },
+        {
+          "ac": "`AlmaResponse._response.json()` is called at most once per response across `.json()`, `.data`, and the debug-body-logging path.",
+          "reason": "Internal call-count invariant on a private attribute. SANDBOX returns identical bytes regardless of how many times the wrapper parses them — observable only by patching `requests.Response.json` with a counter, which is what the unit tests in tests/unit/client/test_alma_response.py already do."
+        },
+        {
+          "ac": "`_safe_response_body` (or equivalent) is the single place that decides whether to call `response.json()`.",
+          "reason": "Module-structure invariant — verified by code review and the unit tests (which assert that `AlmaResponse._safe_body` and the error-extraction path both route through the cached body). Not observable via any SANDBOX endpoint."
+        },
+        {
+          "ac": "A unit test asserts `.data` is parsed exactly once even when accessed multiple times.",
+          "reason": "Explicitly a unit-test deliverable — covered by the new tests in tests/unit/client/test_alma_response.py with a mocked Response whose `.json()` is a counter. SANDBOX cannot observe parse counts on the client-side wrapper."
+        }
+      ]
+    }
+  ]
+}

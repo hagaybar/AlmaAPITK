@@ -1,0 +1,17 @@
+{
+  "chunk": "client-ergonomics",
+  "issues": [
+    13,
+    16
+  ],
+  "stage": "merged",
+  "branch": "chunk/client-ergonomics",
+  "createdAt": "2026-05-05T11:05:08Z",
+  "updatedAt": "2026-05-05T17:59:39Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/100)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KQVX12CPJZGXAR33HZ35779W",
+  "testRunId": "01KQWFJAQ79EDHPKA913QVVV87",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/100"
+}

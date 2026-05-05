@@ -1,0 +1,61 @@
+{
+  "chunk": "client-ergonomics",
+  "issues": [
+    {
+      "number": 13,
+      "title": "API: add context-manager support to AlmaAPIClient (with-statement)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/13",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Low\n\n## Problem\n\nOnce `AlmaAPIClient` holds a persistent `requests.Session` (separate issue), the underlying TCP pool needs explicit teardown to release file descriptors and close keep-alive connections. There is currently no `__enter__/__exit__` or `close()` method.\n\n## Proposal\n\n```python\ndef __enter__(self):\n    return self\n\ndef __exit__(self, exc_type, exc, tb):\n    self.close()\n\ndef close(self):\n    session = getattr(self, \"_session\", None)\n    if session is not None:\n        session.close()\n        self._session = None\n```\n\nUsage:\n\n```python\nwith AlmaAPIClient(\"SANDBOX\") as alma:\n    invoice = alma.get(\"almaws/v1/acq/invoices/123\").json()\n# session closed cleanly here\n```\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #3 \u2014 Persistent requests.Session\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- `with AlmaAPIClient(...) as alma:` works.\n- `alma.close()` is callable directly and is idempotent (calling it twice does not raise).\n- Calling any HTTP method after `close()` raises a clear error (or transparently re-creates the session \u2014 pick one and document).\n- Test exercising the with-statement path.\n\n",
+      "domain": "Architecture",
+      "priority": "low",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_context_manager.py"
+      ],
+      "references": [],
+      "hard_prereqs": [
+        3
+      ],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "`with AlmaAPIClient(...) as alma:` works.",
+        "`alma.close()` is callable directly and is idempotent (calling it twice does not raise).",
+        "Calling any HTTP method after `close()` raises a clear error (or transparently re-creates the session \u2014 pick one and document).",
+        "Test exercising the with-statement path."
+      ]
+    },
+    {
+      "number": 16,
+      "title": "Quality: tighten exception handling and cache AlmaResponse.data",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/16",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Low\n\n## Problems (cumulative correctness fixes)\n\n1. **Bare `except:` clauses** at `src/almaapitk/client/AlmaAPIClient.py:147,187,251,311` mask `KeyboardInterrupt`, `SystemExit`, and any unrelated bugs (typos, import errors). The intent is \"ignore JSON-decode failures.\"\n2. **`AlmaResponse.data` re-parses JSON on every access** (`AlmaAPIClient.py:30-32`). A caller writing `if r.data and r.data.get(\"foo\"):` parses twice; for a large analytics report, that is measurable.\n3. **Repeated `try: response.json() except: None`** in `get/post/put` should be a single helper.\n\n## Proposal\n\n1. Narrow excepts to specific exceptions:\n   ```python\n   except (ValueError, KeyError, json.JSONDecodeError):\n       ...\n   ```\n2. Cache the parsed body on `AlmaResponse`:\n   ```python\n   @property\n   def data(self):\n       if not hasattr(self, \"_cached_body\"):\n           self._cached_body = self._response.json() if self._response.content else None\n       return self._cached_body\n   ```\n3. Extract a helper:\n   ```python\n   def _safe_response_body(response):\n       if \"application/json\" not in response.headers.get(\"content-type\", \"\"):\n           return None\n       try:\n           return response.json()\n       except (ValueError, json.JSONDecodeError):\n           return None\n   ```\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #4 \u2014 Consolidate HTTP verbs into _request() (pairs naturally with verb consolidation)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- No bare `except:` in `src/almaapitk/client/`.\n- `AlmaResponse._response.json()` is called at most once per response across `.json()`, `.data`, and the debug-body-logging path.\n- `_safe_response_body` (or equivalent) is the single place that decides whether to call `response.json()`.\n- A unit test asserts `.data` is parsed exactly once even when accessed multiple times.\n\n",
+      "domain": "Architecture",
+      "priority": "low",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_alma_response.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        4
+      ],
+      "acceptance_criteria": [
+        "No bare `except:` in `src/almaapitk/client/`.",
+        "`AlmaResponse._response.json()` is called at most once per response across `.json()`, `.data`, and the debug-body-logging path.",
+        "`_safe_response_body` (or equivalent) is the single place that decides whether to call `response.json()`.",
+        "A unit test asserts `.data` is parsed exactly once even when accessed multiple times."
+      ]
+    }
+  ]
+}

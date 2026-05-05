@@ -11,3 +11,5 @@ Append-only log of chunk runs. One row per finished chunk.
 | logger-cleanup (off-pipeline) | 2026-05-04 | #14 | n/a | 1 | 0 | 0 | n/a | https://github.com/hagaybar/AlmaAPITK/pull/88 |
 | errors-mapping | 2026-05-04 | #9, #10 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/89 |
 | chunk-pipeline-docs-coupling | 2026-05-05 | #93 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/94 |
+| client-ergonomics | 2026-05-05 | #13, #16 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/100 |
+| client-ergonomics | 2026-05-05 | #13, #16 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/100 |

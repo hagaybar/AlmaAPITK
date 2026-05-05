@@ -1,0 +1,39 @@
+{
+  "chunk": "client-ergonomics",
+  "testRunStartedAt": "2026-05-05T00:00:00+03:00",
+  "testRunFinishedAt": "2026-05-05T00:00:00+03:00",
+  "perTest": [
+    {
+      "id": "t-13-1",
+      "outcome": "passed",
+      "issueNumber": 13,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "pytest reported `test_t_13_1 PASSED` in 0.49s. Exercises AC #13.1 and #13.4: built AlmaAPIClient inside a `with` block against SANDBOX, fetched the supplied test user via Users.get_user, and verified `_session is None` after block exit. All four pass criteria (response not None, success True, status_code 200, session torn down) satisfied."
+    },
+    {
+      "id": "t-13-2",
+      "outcome": "passed",
+      "issueNumber": 13,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "pytest reported `test_t_13_2 PASSED` in 0.49s. Exercises AC #13.2 and #13.3: pre-close GET against the supplied test user succeeded, double `client.close()` did not raise (idempotency), `_session` torn down to None, and a post-close `users.get_user(...)` raised AlmaAPIError whose message contains 'closed'. All seven pass criteria satisfied."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 13,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": true
+    },
+    {
+      "number": 16,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": true
+    }
+  ]
+}

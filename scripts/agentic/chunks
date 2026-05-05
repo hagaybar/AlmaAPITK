@@ -244,35 +244,45 @@ PYEOF
 {"chunkName": "$name", "repoRoot": "$REPO_ROOT"}
 EOF
     if [[ "$headless" -eq 1 ]]; then
-      babysitter run:create \
+      run_create_output="$(babysitter run:create \
         --process-id "chunk-test-$name" \
         --entry "$REPO_ROOT/.a5c/processes/chunk-test.js#process" \
         --inputs "$inputs" \
         --prompt "Run SANDBOX tests for chunk $name" \
-        --json
+        --json)"
     else
-      babysitter run:create \
+      run_create_output="$(babysitter run:create \
         --process-id "chunk-test-$name" \
         --entry "$REPO_ROOT/.a5c/processes/chunk-test.js#process" \
         --inputs "$inputs" \
         --prompt "Run SANDBOX tests for chunk $name" \
         --harness claude-code \
-        --json
+        --json)"
     fi
-    "$PY" - "$CHUNKS_DIR" "$name" "$headless" <<'PYEOF'
+    echo "$run_create_output"
+    run_id="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["runId"])' <<<"$run_create_output")"
+    "$PY" - "$CHUNKS_DIR" "$name" "$headless" "$run_id" <<'PYEOF'
 import sys
 from pathlib import Path
 from scripts.agentic.chunk_status import transition
 headless = sys.argv[3] == "1"
 if headless:
     last_event = "test process started (headless: pre-supplied test-data.json)"
-    next_action = "monitor babysitter run; tests run automatically"
+    next_action = "drive via /chunk-run-test or babysitter run:iterate"
 else:
     last_event = "test process started; awaiting fixture interview"
-    next_action = "answer the data interview when prompted"
+    next_action = "drive via /chunk-run-test in chat to answer fixture interview"
 transition(Path(sys.argv[1]) / sys.argv[2], "test-data-pending",
-           last_event, next_action)
+           last_event, next_action,
+           testRunId=sys.argv[4])
 PYEOF
+    cat >&2 <<EOF
+
+Run created. To drive it from a Claude Code session, type in chat:
+    /chunk-run-test $name
+Driving manually requires babysitter run:iterate calls; see
+docs/CHUNK_PLAYBOOK.md "manual driving fallback".
+EOF
     ;;
 
   abort)

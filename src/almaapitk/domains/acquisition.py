@@ -5,7 +5,7 @@ Handles invoice management operations using the AlmaAPIClient foundation.
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse
+from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse, AlmaValidationError
 from almaapitk.domains.bibs import BibliographicRecords
 from almaapitk.alma_logging import get_logger
 
@@ -1482,41 +1482,75 @@ class Acquisitions:
     def search_invoices(self, query: str, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
         """
         Search invoices with a custom query.
-        
+
+        Pattern source: GitHub issue #11 (API: add iter_paged()
+        generator at the client level) -- proof-point migration #2.
+        The method routes through ``client.iter_paged`` for the
+        common offset=0 case so the page-size, max_records cap, and
+        total_record_count bookkeeping live in one place. The
+        legacy ``offset > 0`` window falls back to a direct one-page
+        GET, matching the ``list_invoices`` migration for symmetry.
+
         Args:
-            query: Search query (e.g., "vendor~VENDOR_CODE AND invoice_status~WAITING_TO_BE_SENT")
-            limit: Maximum number of results to return
-            offset: Starting point for results
-        
+            query: Search query (e.g., ``"vendor~VENDOR_CODE AND
+                invoice_status~WAITING_TO_BE_SENT"``).
+            limit: Maximum number of results to return. Must be in
+                the ``1..100`` range (the Alma per-endpoint limit).
+            offset: Starting point for results.
+
         Returns:
-            Dict containing the search results
+            Dict in the legacy Alma list shape:
+            ``{"invoice": [...], "total_record_count": N}``.
+
+        Raises:
+            AlmaValidationError: If ``query`` is empty or ``limit``
+                is outside the ``1..100`` range.
         """
         if not query:
-            raise ValueError("Search query is required")
-        
+            raise AlmaValidationError("Search query is required")
+
+        if limit > 100:
+            raise AlmaValidationError("Limit cannot exceed 100")
+
         self.logger.info(f"Searching invoices with query: {query}")
-        
-        params = {
-            "q": query,
-            "limit": str(limit),
-            "offset": str(offset)
-        }
-        
+
+        base_params: Dict[str, Any] = {"q": query}
+
         try:
-            endpoint = "almaws/v1/acq/invoices"
-            response = self.client.get(endpoint, params=params)
-            
-            # Raise for HTTP errors
-            if not response.success:
-                raise Exception(f"API request failed with status {response.status_code}")
-            
-            # Parse JSON response
-            search_results = response.json()
-            
-            total_count = search_results.get('total_record_count', 0)
-            self.logger.info(f"✓ Search found {total_count} invoices matching query")
-            return search_results
-            
+            if offset:
+                page_params = {
+                    **base_params,
+                    "limit": str(limit),
+                    "offset": str(offset),
+                }
+                search_results = self.client.get(
+                    "almaws/v1/acq/invoices", params=page_params
+                ).json()
+                total_count = search_results.get("total_record_count", 0)
+                self.logger.info(
+                    f"✓ Search found {total_count} invoices matching query"
+                )
+                return search_results
+
+            invoices = list(
+                self.client.iter_paged(
+                    "almaws/v1/acq/invoices",
+                    params=base_params,
+                    page_size=limit,
+                    record_key="invoice",
+                    max_records=limit,
+                )
+            )
+
+            total_count = len(invoices)
+            self.logger.info(
+                f"✓ Search found {total_count} invoices matching query"
+            )
+            return {
+                "invoice": invoices,
+                "total_record_count": total_count,
+            }
+
         except Exception as e:
             self.logger.exception(f"✗ Invoice search failed: {str(e)}")
             raise

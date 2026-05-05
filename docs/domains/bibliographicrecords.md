@@ -127,58 +127,26 @@ response = bibs.get_record(
 
 ---
 
-#### `search_records(q, limit, offset, order_by, direction)`
+#### Keyword search for bibs is not exposed via this domain
 
-Search bibliographic records using Alma query syntax.
+The previous `search_records()` method was removed in #11 follow-up: the
+underlying `GET /almaws/v1/bibs` endpoint is **identifier-only** (it
+accepts `mms_id`, `ie_id`, `holdings_id`, `representation_id`,
+`nz_mms_id`, `cz_mms_id`, `other_system_id`, `lod_uri`) and rejects any
+free-form `q=` query with `HTTP 400 / errorCode 401873`. The toolkit
+has no REST equivalent for keyword search.
 
-**Signature:**
-```python
-def search_records(self, q: str, limit: int = 10, offset: int = 0,
-                   order_by: str = None, direction: str = "asc") -> AlmaResponse
-```
+**To look up bibs by ID, use:**
+- `bibs.get_record(mms_id, ...)` — single record by MMS
+- `client.get("almaws/v1/bibs", params={"mms_id": "id1,id2,id3"})` —
+  up to 100 records by ID
+- `client.get("almaws/v1/bibs", params={"other_system_id": "(OCoLC)1234"})` —
+  cross-system IDs
 
-**Parameters:**
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `q` | str | Yes | - | Search query (e.g., "title~Harry Potter") |
-| `limit` | int | No | 10 | Number of results (max 100) |
-| `offset` | int | No | 0 | Starting point for pagination |
-| `order_by` | str | No | "mms_id" | Field to sort by |
-| `direction` | str | No | "asc" | Sort direction ("asc" or "desc") |
-
-**Returns:** `AlmaResponse` containing search results
-
-**Example:**
-```python
-# Search by title
-response = bibs.search_records("title~Python Programming", limit=20)
-
-if response.success:
-    results = response.json()
-    for bib in results.get('bib', []):
-        print(f"{bib['mms_id']}: {bib['title']}")
-
-# Search with pagination
-response = bibs.search_records(
-    "author~Smith",
-    limit=50,
-    offset=100,
-    order_by="title",
-    direction="asc"
-)
-```
-
-**Query Syntax Examples:**
-- `title~keyword` - Title contains keyword
-- `author~name` - Author contains name
-- `isbn~1234567890` - ISBN match
-- `mms_id~99123` - MMS ID partial match
-
-**Common Errors:**
-| Error Code | Cause | Solution |
-|------------|-------|----------|
-| 40166411 | Invalid query syntax | Check query format (use `~` for contains) |
-| 400 | Limit exceeds 100 | Reduce limit parameter |
+**For keyword search**, use Alma's SRU endpoint
+(`/view/sru/{institution_code}`) with CQL queries against indexes like
+`alma.title`, `alma.author`, `alma.mms_id`. SRU is not currently
+wrapped by this toolkit.
 
 ---
 

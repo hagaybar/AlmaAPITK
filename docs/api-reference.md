@@ -788,32 +788,15 @@ response = bibs.get_record('991234567890123456')
 bib_data = response.json()
 ```
 
-##### search_records()
+##### Keyword search not available
 
-```python
-def search_records(
-    self,
-    q: str,
-    limit: int = 10,
-    offset: int = 0,
-    order_by: str = None,
-    direction: str = "asc"
-) -> AlmaResponse
-```
-
-Search bibliographic records.
-
-**Parameters:**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `q` | `str` | Required | Search query (e.g., `'title~Harry Potter'`) |
-| `limit` | `int` | `10` | Number of results (max 100) |
-| `offset` | `int` | `0` | Starting point |
-| `order_by` | `str` | `None` | Field to sort by |
-| `direction` | `str` | `'asc'` | Sort direction (`asc`, `desc`) |
-
-**Returns:** `AlmaResponse` containing search results
+`search_records()` was removed in the #11 follow-up. The
+`GET /almaws/v1/bibs` endpoint is identifier-only and never accepted a
+`q=` parameter (rejects with `HTTP 400 / errorCode 401873`). Use
+`get_record(mms_id)` for single lookup or
+`client.get("almaws/v1/bibs", params={"mms_id": "id1,id2,..."})` for
+multi-fetch by ID. For keyword search, Ex Libris directs API consumers
+to the SRU endpoint (`/view/sru/{institution_code}`).
 
 ##### create_record()
 

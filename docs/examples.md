@@ -426,14 +426,13 @@ response = bibs.get_record(
 )
 bib_data = response.json()
 
-# Search for bibliographic records
-search_response = bibs.search_records(
-    q="title~Harry Potter",
-    limit=10,
-    order_by="mms_id",
-    direction="asc"
+# Multi-fetch bibliographic records by MMS ID (the /bibs endpoint is
+# identifier-only — there is no REST keyword search; use SRU for that)
+multi_response = client.get(
+    "almaws/v1/bibs",
+    params={"mms_id": "991234567890123456,991234567890123457"},
 )
-results = search_response.json()
+results = multi_response.json()
 print(f"Found {results.get('total_record_count')} records")
 ```
 

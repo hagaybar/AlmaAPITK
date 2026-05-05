@@ -519,7 +519,7 @@ parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
   fetches. Reach for `list(...)` only when the caller genuinely needs
   the full materialised set. The two existing proof-point migrations
   live in `Acquisitions.list_invoices` and
-  `BibliographicRecords.search_records`.
+  `Acquisitions.search_invoices`.
 - Include progress indicators for operations >100 items
 
 ## Project-Specific Organization Notes

@@ -174,6 +174,7 @@ export const implementTask = defineTask('implement', (args, taskCtx) => ({
         'Implement ONLY what the issue says.',
         'Do not modify any file not in Files to touch.',
         'Add unit tests under tests/unit/domains/ with mocked HTTP (responses or requests-mock).',
+        'When you commit, reference the issue with "Refs #N" — NEVER use "Closes #N", "Fixes #N", or "Resolves #N". GitHub auto-closes from any merged commit body, which would bypass R4 (auto-close only on perfect-green / no unmappable ACs). Issue closure is a manual operator step.',
         'When done, list every file you changed.',
       ],
       outputFormat: 'JSON: { filesChanged: string[], summary: string, testsAdded: string[] }',

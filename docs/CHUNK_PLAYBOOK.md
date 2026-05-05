@@ -42,9 +42,25 @@ If a hard prereq is missing in code, the CLI exits 2 and you must merge that pre
 
 ### 2. Trigger implementation
 
+**Primary path (recommended):** in your Claude Code chat, type:
+
+```
+/chunk-run-impl http-foundation
+```
+
+This invokes the slash command, which runs the bash setup, then drives
+the babysitter `run:iterate` loop directly until completion or a
+breakpoint. Operator only sees breakpoints in chat.
+
+**Fallback path (terminal):** if you're not in Claude Code, run:
+
 ```bash
 scripts/agentic/chunks run-impl http-foundation
 ```
+
+This creates the run but does NOT drive iteration. The run will sit at
+`RUN_CREATED` until something invokes `babysitter run:iterate` against
+the runId (printed in the JSON output).
 
 What this does:
 - Creates the integration branch `chunk/http-foundation` off `main` if it doesn't exist.
@@ -73,9 +89,25 @@ Edit the test-recommendation.json if you want to drop a test or add a fixture. T
 
 When you're ready to put fixtures together:
 
+**Primary path (recommended):** in your Claude Code chat, type:
+
+```
+/chunk-run-test http-foundation
+```
+
+This invokes the slash command, which runs the bash setup, then drives
+the babysitter `run:iterate` loop directly until completion or a
+breakpoint. Operator only sees breakpoints in chat.
+
+**Fallback path (terminal):** if you're not in Claude Code, run:
+
 ```bash
 scripts/agentic/chunks run-test http-foundation
 ```
+
+This creates the run but does NOT drive iteration. The run will sit at
+`RUN_CREATED` until something invokes `babysitter run:iterate` against
+the runId (printed in the JSON output).
 
 What this does:
 - Creates a babysitter run using `.a5c/processes/chunk-test.js`.
@@ -188,3 +220,29 @@ Either provision the fixture in SANDBOX (create a test vendor, etc.) or edit `te
 - `chunks/<name>/` is checked into git per the user-memory rule "always include `.a5c/` artifacts in commits". `sandbox-test-output/` and `sandbox-tests/` are gitignored (raw logs, not historical truth).
 - Prompt templates are versioned (`scripts/agentic/prompts/implement.v1.md`, etc.). When you change one, bump to `v2.md`. Existing chunk artifacts are not re-generated retroactively.
 - The run log (`docs/AGENTIC_RUN_LOG.md`) is your calibration data. After every wave of chunks, look at attempts/passes/review-time and tune the prompt.
+
+## Manual driving fallback
+
+If you've created a chunk run via the bash subcommands but cannot use
+the slash command (e.g., not currently in a Claude Code session),
+drive it manually:
+
+```bash
+RUN_ID=$(jq -r '.implRunId // .testRunId' chunks/<name>/status.json)
+while :; do
+  out=$(babysitter run:iterate ".a5c/runs/$RUN_ID" --json --iteration 1)
+  status=$(echo "$out" | jq -r '.status')
+  case "$status" in
+    completed|failed) echo "$out"; break ;;
+    waiting)
+      # Inspect $out, execute the pending effect, post via task:post,
+      # and re-iterate. Effects with kind=agent or kind=breakpoint
+      # require a Claude session; you cannot drive them from raw bash.
+      echo "$out"; break ;;
+  esac
+done
+```
+
+For chunks that contain only shell effects, this works end to end.
+For chunks with `kind: "agent"` effects (e.g. the `implement` task in
+chunk-impl), use the slash command from a Claude Code session.

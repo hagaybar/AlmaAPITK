@@ -9,3 +9,4 @@ Append-only log of chunk runs. One row per finished chunk.
 | http-timeout-and-region | 2026-05-04 | #6, #7 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/84 |
 | drop-unused-deps (off-pipeline) | 2026-05-04 | #83 | n/a | 1 | 0 | 0 | n/a | https://github.com/hagaybar/AlmaAPITK/pull/87 |
 | logger-cleanup (off-pipeline) | 2026-05-04 | #14 | n/a | 1 | 0 | 0 | n/a | https://github.com/hagaybar/AlmaAPITK/pull/88 |
+| errors-mapping | 2026-05-04 | #9, #10 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/89 |

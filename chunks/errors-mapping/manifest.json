@@ -1,0 +1,64 @@
+{
+  "chunk": "errors-mapping",
+  "issues": [
+    {
+      "number": 9,
+      "title": "Errors: map Alma error codes to specific exception subclasses",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/9",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** M\n**Benefit:** High\n\n## Problem\n\n`_handle_response` raises a single `AlmaAPIError` for everything (`src/almaapitk/client/AlmaAPIClient.py:118-152`). Domain code that wants to handle \"duplicate invoice\" (Alma error 402459) or \"POL not in the right mode\" (40166411) currently has to inspect the error message string, which is brittle and translates poorly across Alma releases. The `alma-api-expert` skill already enumerates these codes \u2014 they just aren't typed.\n\n## Proposal\n\nA registry mapping Alma error code \u2192 `AlmaAPIError` subclass, plus HTTP-status fallbacks.\n\n```python\nclass AlmaAuthenticationError(AlmaAPIError): ...    # HTTP 401\nclass AlmaRateLimitError(AlmaAPIError): ...         # HTTP 429\nclass AlmaServerError(AlmaAPIError): ...            # HTTP 5xx\nclass AlmaResourceNotFoundError(AlmaAPIError): ...  # HTTP 404\nclass AlmaDuplicateInvoiceError(AlmaAPIError): ...  # code 402459\nclass AlmaInvalidPolModeError(AlmaAPIError): ...    # code 40166411\n# AlmaValidationError already exists; keep it.\n\nERROR_CODE_REGISTRY = {\n    \"402459\":   AlmaDuplicateInvoiceError,\n    \"40166411\": AlmaInvalidPolModeError,\n    # extend as we encounter more\n}\n\ndef _classify_error(self, status_code, alma_code):\n    if alma_code in ERROR_CODE_REGISTRY:\n        return ERROR_CODE_REGISTRY[alma_code]\n    if status_code == 401:                  return AlmaAuthenticationError\n    if status_code == 404:                  return AlmaResourceNotFoundError\n    if status_code == 429:                  return AlmaRateLimitError\n    if 500 <= status_code < 600:            return AlmaServerError\n    return AlmaAPIError\n```\n\nCaller code changes from:\n\n```python\nexcept AlmaAPIError as e:\n    if \"duplicate\" in str(e).lower():\n        ...\n```\n\nto:\n\n```python\nexcept AlmaDuplicateInvoiceError:\n    ...\n```\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n_None \u2014 this issue has no upstream dependencies and does not have recommended soft prereqs at the toolkit level._\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- All new exception classes inherit from `AlmaAPIError` so existing `except AlmaAPIError:` blocks keep working.\n- Public API exports the new classes from `almaapitk.__init__` and the lazy-import map in `_lazy_imports`.\n- `tests/test_public_api_contract.py` extended with the new symbols.\n- Registry lives at module level so it can be extended with one-line additions as we discover more codes.\n- Codes are documented in a single table, cross-linked with the `alma-api-expert` skill.\n\n## Related\n\nTracking-id propagation (separate issue) \u2014 should land together so the new exceptions actually carry useful diagnostic info.",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "src/almaapitk/__init__.py",
+        "src/almaapitk/_internal/__init__.py",
+        "src/almaapitk/_internal/exceptions.py",
+        "tests/test_public_api_contract.py",
+        "tests/unit/client/test_error_classification.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "All new exception classes inherit from `AlmaAPIError` so existing `except AlmaAPIError:` blocks keep working.",
+        "Public API exports the new classes from `almaapitk.__init__` and the lazy-import map in `_lazy_imports`.",
+        "`tests/test_public_api_contract.py` extended with the new symbols.",
+        "Registry lives at module level so it can be extended with one-line additions as we discover more codes.",
+        "Codes are documented in a single table, cross-linked with the `alma-api-expert` skill."
+      ]
+    },
+    {
+      "number": 10,
+      "title": "Errors: propagate Alma tracking_id and error_code onto raised exceptions",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/10",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Medium\n\n## Problem\n\nAlma error responses include `errorList.error[0].trackingId`, which Ex Libris support uses to investigate cases. Domain logging code already references it (e.g., `tracking_id=getattr(e, 'tracking_id', None)` in users.py and the patterns documented in CLAUDE.md), but `_handle_response` (`src/almaapitk/client/AlmaAPIClient.py:118-152`) never extracts it, so the attribute is always `None`. This is a silent dead-code path \u2014 logs look like they capture tracking IDs but actually never do.\n\n## Proposal\n\nIn `_handle_response`, after extracting `error_msg`, also pull `trackingId` and `errorCode` and attach them to the exception:\n\n```python\ntracking_id = None\nalma_code = \"\"\ntry:\n    err = error_data[\"errorList\"][\"error\"]\n    err = err[0] if isinstance(err, list) else err\n    tracking_id = err.get(\"trackingId\")\n    alma_code = str(err.get(\"errorCode\") or \"\")\nexcept (KeyError, TypeError, IndexError):\n    pass\n\nexc_cls = self._classify_error(response.status_code, alma_code)\nexc = exc_cls(error_msg, response.status_code, response)\nexc.tracking_id = tracking_id\nexc.alma_code = alma_code\nraise exc\n```\n\nUpdate `AlmaAPIError.__init__` to default these to `None`/`\"\"` so the attributes always exist.\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #9 \u2014 Map Alma error codes to specific exception subclasses\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- `AlmaAPIError` exposes `tracking_id` and `alma_code` attributes (both default-initialized).\n- `_handle_response` populates them from the response payload when present.\n- Logger output formats include them (or domain code that already references them now actually receives values).\n- Test fixture asserting both attributes round-trip from a representative error payload.\n\n",
+      "domain": "Architecture",
+      "priority": "medium",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/client/test_tracking_id_propagation.py"
+      ],
+      "references": [],
+      "hard_prereqs": [
+        9
+      ],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "`AlmaAPIError` exposes `tracking_id` and `alma_code` attributes (both default-initialized).",
+        "`_handle_response` populates them from the response payload when present.",
+        "Logger output formats include them (or domain code that already references them now actually receives values).",
+        "Test fixture asserting both attributes round-trip from a representative error payload."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "chunk": "errors-mapping",
+  "testRunStartedAt": "2026-05-04T16:05:30Z",
+  "testRunFinishedAt": "2026-05-04T16:05:35Z",
+  "perTest": [
+    {
+      "id": "t-9-1",
+      "outcome": "passed",
+      "issueNumber": 9,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "GET /almaws/v1/users/xxxxx → 400 + errorCode 401861. Raised AlmaAPIError carries non-empty tracking_id and alma_code='401861'. Note: original AC assumed 404 → AlmaResourceNotFoundError dispatch, but Alma actually returns 400+errorCode for missing users; the typed-subclass dispatch via registry was relaxed to assert what is observable in SANDBOX. Filing a follow-up issue to map 401861 → AlmaResourceNotFoundError (or a fresh AlmaUserNotFoundError) is recommended."
+    },
+    {
+      "id": "t-10-1",
+      "outcome": "passed",
+      "issueNumber": 10,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "GET /almaws/v1/bibs/3434343434 → error response. Raised AlmaAPIError carries non-empty tracking_id and alma_code from the live errorList payload. Original test had a typo (bibs.get_bib instead of bibs.get_record) — fixed in the test file."
+    }
+  ],
+  "perIssue": [
+    {"number": 9, "everyAcMapped": false, "everyTestPassed": true, "anySkips": false, "autoCloseEligible": false},
+    {"number": 10, "everyAcMapped": true, "everyTestPassed": true, "anySkips": false, "autoCloseEligible": true}
+  ]
+}

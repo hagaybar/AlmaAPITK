@@ -1,0 +1,120 @@
+{
+  "chunk": "errors-mapping",
+  "branch": "chunk/errors-mapping",
+  "createdAt": "2026-05-04T18:57:12+03:00",
+  "issues": [
+    {
+      "number": 9,
+      "title": "Errors: map Alma error codes to specific exception subclasses",
+      "classification": "general",
+      "subBranch": "feat/9-errors-map-alma-error-codes-to",
+      "tests": [
+        {
+          "id": "t-9-1",
+          "kind": "smoke",
+          "scope": "Confirm that a real 404 from Alma SANDBOX (GET on a synthetic invalid user_primary_id) is dispatched through _classify_error and raises the typed AlmaResourceNotFoundError subclass — not the bare AlmaAPIError. Exercises the HTTP-status fallback path (#9 AC: status-fallback wiring) end-to-end against a live error response.",
+          "endpoints": ["GET /almaws/v1/users/{user_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "invalid_user_primary_id",
+              "description": "A synthetic user_primary_id known NOT to exist in SANDBOX. Used to deliberately trigger a 404 so the typed-error dispatch can be observed against a live Alma response. Do not use a real user.",
+              "example": "xxxxx"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaResourceNotFoundError",
+            "from almaapitk.domains.users import Users",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "users = Users(client)",
+            "raised = None",
+            "try:\n    users.get_user('${invalid_user_primary_id}')\nexcept AlmaAPIError as e:\n    raised = e"
+          ],
+          "passCriteria": [
+            "raised is not None",
+            "isinstance(raised, AlmaResourceNotFoundError) is True",
+            "isinstance(raised, AlmaAPIError) is True",
+            "raised.status_code == 404"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All new exception classes inherit from `AlmaAPIError` so existing `except AlmaAPIError:` blocks keep working.": ["t-9-1"]
+      },
+      "unmappable": [
+        {
+          "ac": "Public API exports the new classes from `almaapitk.__init__` and the lazy-import map in `_lazy_imports`.",
+          "reason": "Pure-Python import-surface invariant — covered by tests/test_public_api_contract.py and the unit tests; no Alma API surface to exercise."
+        },
+        {
+          "ac": "`tests/test_public_api_contract.py` extended with the new symbols.",
+          "reason": "Test-file content invariant — verified by the test suite itself; no SANDBOX call would observe it."
+        },
+        {
+          "ac": "Registry lives at module level so it can be extended with one-line additions as we discover more codes.",
+          "reason": "Module-structure invariant — covered by the ERROR_CODE_REGISTRY assertions in tests/unit/client/test_error_classification.py; not observable via SANDBOX."
+        },
+        {
+          "ac": "Codes are documented in a single table, cross-linked with the `alma-api-expert` skill.",
+          "reason": "Documentation deliverable — verified by docs review, not by an API call."
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "title": "Errors: propagate Alma tracking_id and error_code onto raised exceptions",
+      "classification": "general",
+      "subBranch": "feat/10-errors-propagate-alma-tracking",
+      "tests": [
+        {
+          "id": "t-10-1",
+          "kind": "smoke",
+          "scope": "Confirm that a real error response from Alma SANDBOX (GET on a synthetic invalid mms_id) carries a populated trackingId / errorCode through _handle_response onto the raised typed exception. Exercises the propagation path (#10 ACs: AlmaAPIError exposes tracking_id and alma_code; _handle_response populates them) end-to-end against live JSON.",
+          "endpoints": ["GET /almaws/v1/bibs/{mms_id}"],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "invalid_mms_id",
+              "description": "A synthetic MMS ID known NOT to exist in SANDBOX. Used to deliberately trigger an error response so the parsed trackingId / errorCode can be observed on the raised exception. Do not use a real bib.",
+              "example": "3434343434"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import AlmaAPIClient",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "client = AlmaAPIClient(environment='SANDBOX')",
+            "bibs = BibliographicRecords(client)",
+            "raised = None",
+            "try:\n    bibs.get_bib('${invalid_mms_id}')\nexcept AlmaAPIError as e:\n    raised = e"
+          ],
+          "passCriteria": [
+            "raised is not None",
+            "isinstance(raised, AlmaAPIError) is True",
+            "hasattr(raised, 'tracking_id') is True",
+            "hasattr(raised, 'alma_code') is True",
+            "raised.tracking_id is a non-empty string (Alma populates trackingId on real error responses)",
+            "raised.alma_code is a non-empty string (Alma populates errorCode on real error responses)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "`AlmaAPIError` exposes `tracking_id` and `alma_code` attributes (both default-initialized).": ["t-10-1"],
+        "`_handle_response` populates them from the response payload when present.": ["t-10-1"]
+      },
+      "unmappable": [
+        {
+          "ac": "Logger output formats include them (or domain code that already references them now actually receives values).",
+          "reason": "Verifies log-line content / downstream consumer behavior — not directly observable from a single API call. Covered by domain-code review (e.g., users.py already references getattr(e, 'tracking_id', None))."
+        },
+        {
+          "ac": "Test fixture asserting both attributes round-trip from a representative error payload.",
+          "reason": "Pure-Python invariant — covered by the 10 tests in tests/unit/client/test_tracking_id_propagation.py with mocked HTTP; no Alma API surface to exercise beyond the smoke test t-10-1."
+        }
+      ]
+    }
+  ]
+}

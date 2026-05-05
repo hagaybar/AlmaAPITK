@@ -163,9 +163,29 @@ export const generatePytestFilesTask = defineTask('generate-pytest', (args, task
 For each test in the recommendation, generate a pytest file at:
   ${args.repoRoot}/chunks/${args.chunkName}/sandbox-tests/test_<test.id>.py
 
+R9 (PII redaction) — CRITICAL: never bake operator-supplied identifier
+values into the test source. Generated sandbox-test files ARE committed
+to this public repo; test-data.json is gitignored. Inlined fixture
+values would leak operator IDs (user_primary_id, MMS, vendor codes,
+emails, etc.) into the public history. The generated file MUST load
+fixtures at RUNTIME from test-data.json — never substitute values at
+generation time. Use this pattern at the top of every test file:
+
+    import json
+    import pathlib
+    _TEST_DATA = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "test-data.json").read_text()
+    )
+
+Then reference fixtures via _TEST_DATA["<key>"], NOT by inlining
+values. Do not inline. Never inline.
+
 Each pytest file:
   1. Imports AlmaAPIClient and the relevant domain class.
-  2. Substitutes \${var} placeholders in pythonCalls from test-data.json.
+  2. Loads fixtures from test-data.json at RUNTIME via the pattern above;
+     substitutes \${var} placeholders by reading _TEST_DATA["<var>"] in
+     the test function body, never by string-replacing into source.
   3. Runs each pythonCall and asserts every passCriterion.
   4. If stateChanging is true, runs cleanup in a try/finally — failure to clean is a FAIL.
   5. Uses ALMA_SB_API_KEY (never PROD).

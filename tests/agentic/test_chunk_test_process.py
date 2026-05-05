@@ -57,3 +57,44 @@ def test_append_run_log_writes_to_docs_path():
         "appendRunLogTask still references obsolete repo-root path; "
         "#95 regression: must use docs/AGENTIC_RUN_LOG.md"
     )
+
+
+def test_generate_pytest_prompt_requires_runtime_fixture_loading():
+    """R10 regression for #101.
+
+    `generatePytestFilesTask`'s agent prompt must explicitly require
+    loading fixtures from `test-data.json` at RUNTIME, not baking
+    operator-supplied values into the source. Sandbox-test files are
+    committed to the public repo (precedent: commits 9221f66, 32a0435);
+    inlined fixture values are an R9 (PII redaction) violation.
+
+    Surfaced by the chunk-test agent during the `client-ergonomics`
+    run on 2026-05-05: the agent did the right thing only because
+    the operator explicitly instructed it. Default behavior must be
+    runtime loading — the prompt is the only place to put that default.
+    """
+    src = PROCESS.read_text()
+    assert "generatePytestFilesTask" in src
+    # Isolate the generatePytestFilesTask prompt block (everything from
+    # the export statement up to the next exported task).
+    start = src.index("generatePytestFilesTask")
+    end = src.index("runPytestTask", start)
+    prompt_block = src[start:end]
+    lower = prompt_block.lower()
+    # The prompt must reference test-data.json and runtime loading.
+    assert "test-data.json" in prompt_block
+    assert "runtime" in lower, (
+        "generate-pytest prompt must specify runtime fixture loading "
+        "(not generation-time substitution); R9 + #101"
+    )
+    # And must explicitly forbid inlining operator-supplied values.
+    forbids_inlining = (
+        "never bake" in lower
+        or "never inline" in lower
+        or "do not inline" in lower
+        or "must not inline" in lower
+    )
+    assert forbids_inlining, (
+        "generate-pytest prompt must explicitly forbid baking/inlining "
+        "fixture values into source; R9 + #101"
+    )

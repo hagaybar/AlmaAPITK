@@ -1,0 +1,522 @@
+schema_version: 1
+total_chunks: 59
+total_issues: 79
+
+intro: |
+  **Status:** Suggested groupings — revise freely. The chunking is your call; this doc removes the "what do I chunk next" decision fatigue.
+  **Inputs used:** `docs/issue-finalization-report-2026-05-01.md`, `docs/issue-audit-2026-05-01.md`, handbook §10.1 wave structure, CLAUDE.md priority/prereq notes.
+
+how_to_read: |
+  Each chunk shows:
+
+  - **Name** (becomes `chunks/<name>/`)
+  - **Issues** (becomes `--issues` flag)
+  - **Phase** — recommended pickup order (do phase 1 before phase 2, etc.)
+  - **Risk** — low / med / high (drives whether you stay solo at that chunk's breakpoints)
+  - **Prereqs** — issues that should be merged before this chunk runs
+  - **Audit flag** — if the issue carried a Not-aligned or needs-decision flag in the finalization report
+  - **Notes** — anything specific (fixtures, gotchas, why grouped)
+  - **Status** — derived from GitHub state at render time, never stored here
+
+  Single command to start:
+
+  ```bash
+  scripts/agentic/chunks define --name <name> --issues <comma-list>
+  ```
+
+  Skip any chunk freely. Chunks are independent of each other within a phase, except where Prereqs say otherwise.
+
+blocked:
+  - issue: 29
+    title: "Coverage: Configuration: integration profiles CRUD"
+    reason: |
+      Audit conflict on whether DELETE endpoint exists. Resolve by checking the live developer-network page, then either chunk it or close it. Carries `needs-decision` label.
+
+phases:
+  - id: 1
+    title: HTTP foundation (architecture)
+    description: |
+      Lowest-risk, highest-leverage. Every later chunk benefits from these landing first. Pilot phase per handbook §9.
+    chunks:
+      - name: http-session-and-request
+        issues: [3, 4]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          **Recommended pilot.** #4 hard-depends on #3 (consolidated `_request()` requires the session). Touches core client; review carefully. Test fixture: any user_primary_id (read smoke).
+      - name: http-retry
+        issues: [5]
+        risk: med
+        prereqs: [3, 4]
+        audit: clean
+        notes: |
+          Mostly mock-tested; SANDBOX won't reliably emit 429/503. Mark some ACs as `unmappable` and verify in unit tests.
+      - name: http-timeout-and-region
+        issues: [6, 7]
+        risk: low
+        prereqs: [3]
+        audit: "#7 partially aligned (region map: APAC has two endpoints `api-ap`+`api-aps`; China is `.com.cn`)"
+        notes: |
+          #7 audit fix is in the issue body already (rewritten). Both are config knobs.
+      - name: logger-cleanup
+        issues: [14]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Mechanical multi-file. Replaces `print()` with logger. Solo for clean diff inspection.
+
+  - id: 2
+    title: Errors and ergonomics
+    description: |
+      Quality-of-life improvements that change how every later chunk behaves at the edges.
+    chunks:
+      - name: errors-mapping
+        issues: [9, 10]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Closely related: #10 propagates `trackingId`/`errorCode`; #9 maps codes to subclasses. Land together for one cohesive error taxonomy PR. Fixture: a known-bad call (e.g., GET `/users/INVALID`).
+      - name: client-ergonomics
+        issues: [13, 16]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Both narrow internal cleanups (context-manager + exception cleanup + `AlmaResponse.data` caching). Low risk, single small PR.
+      - name: pagination-helper
+        issues: [11]
+        risk: low
+        prereqs: [4]
+        audit: clean
+        notes: |
+          Adds `iter_paged()` public symbol. Fixture: a list endpoint with > limit results (e.g., `users` list).
+
+  - id: 3
+    title: Quality and distribution
+    description: ""
+    chunks:
+      - name: hierarchical-accessors
+        issues: [15]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Adds `client.acq`, `client.bibs`, etc. as lazy properties. **Soft prereq:** new domain bootstraps land first or the accessor map is incomplete. You can also defer this until all domains exist.
+      - name: pypi-publish-ready
+        issues: [1, 17]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Distribution-only: OIDC release flow (#1) + LICENSE file (#17). **Owner-side decision needed first:** MIT vs Apache-2.0 (audit's prioritized next-action #6).
+      - name: logger-noise-fix
+        issues: [2]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Bug fix, not enhancement. Quick. The audit's per-issue note suggested labelling as `bug`.
+
+  - id: 4
+    title: Configuration domain (high priority, post-architecture)
+    description: |
+      The largest cluster. #22 is the foundation; #23 is independent (extends Admin); the rest depend on #22.
+    chunks:
+      - name: config-bootstrap
+        issues: [22]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Foundation. Empty class; almost trivial. **Blocks all of #24–#35.**
+      - name: config-sets
+        issues: [23]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Substantial CRUD + member ops with `op` query param. State-changing — round-trip test with cleanup.
+      - name: config-orgs-and-locations
+        issues: [24, 25]
+        risk: low
+        prereqs: [22]
+        audit: clean
+        notes: |
+          Both organizational structure (libraries, departments, circ-desks, locations). Read-heavy with one PUT. Shared fixture: library code, location code.
+      - name: config-tables
+        issues: [26, 27]
+        risk: low
+        prereqs: [22]
+        audit: "#26 partially aligned (drop undocumented `scope` param)"
+        notes: |
+          Lookup tables: code-tables + mapping-tables. Already rewritten.
+      - name: config-jobs
+        issues: [28]
+        risk: med
+        prereqs: [22]
+        audit: clean
+        notes: |
+          8 endpoints — biggest of Configuration. Solo. Fixture: known job ID; ability to run a benign job for round-trip.
+      - name: config-readonly-profiles
+        issues: [30]
+        risk: low
+        prereqs: [22]
+        audit: clean
+        notes: |
+          Read-only deposit + import profiles. Quick.
+      - name: config-license-terms
+        issues: [31]
+        risk: med
+        prereqs: [22]
+        audit: clean
+        notes: |
+          Full CRUD; round-trip with cleanup.
+      - name: config-hours-and-letters
+        issues: [32, 33]
+        risk: low
+        prereqs: [22]
+        audit: clean
+        notes: |
+          Smaller endpoints; library-tied config.
+      - name: config-reminders-and-workflows
+        issues: [34, 35]
+        risk: low
+        prereqs: [22]
+        audit: clean
+        notes: |
+          Two standalone smaller pieces; group for review economy.
+
+  - id: 5
+    title: Users domain (high priority)
+    description: |
+      Diverse scope. Bootstrap exists already; #36–#45 each add a different user-side capability.
+    chunks:
+      - name: users-list-and-search
+        issues: [36]
+        risk: low
+        prereqs: []
+        audit: "#36 partially aligned (signature narrower than docs)"
+        notes: |
+          Already rewritten with documented optional filters. Read smoke.
+      - name: users-crud
+        issues: [37]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          State-changing (create + delete user). **Use a dedicated test prefix** (e.g., `tau-test-*`) for the user_primary_id so cleanup is guaranteed.
+      - name: users-auth
+        issues: [38]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          POST `/users/{id}` with `op=auth` / `op=refresh`. Sensitive (involves password). Isolate. Use the test user from chunk 21.
+      - name: users-attachments
+        issues: [39]
+        risk: med
+        prereqs: []
+        audit: "#39 partially aligned (multipart vs JSON unclear at impl)"
+        notes: |
+          Open question flagged in body — verify response shape during impl. Round-trip with cleanup.
+      - name: users-loans
+        issues: [40]
+        risk: high
+        prereqs: []
+        audit: "#40 partially aligned (query vs body params, item_pid alternative, user_id_type)"
+        notes: |
+          Already rewritten. Round-trip needs test user + test item barcode.
+      - name: users-requests
+        issues: [41, 42, 43]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Three request types (regular requests, RS, purchase). Same shape; share the test user fixture.
+      - name: users-fines-and-deposits
+        issues: [44, 45]
+        risk: med
+        prereqs: []
+        audit: "#44 partially aligned (op=pay/amount=ALL fix)"
+        notes: |
+          Already rewritten. Action-driven (pay/waive/dispute/restore for #44).
+
+  - id: 6
+    title: Bibs domain (medium priority)
+    description: |
+      Mostly read + tightly bounded CRUD. Two audit Not-aligned cases (#52, #57).
+    chunks:
+      - name: bibs-holdings-and-items
+        issues: [46, 47]
+        risk: med
+        prereqs: []
+        audit: "#46 partially aligned (`bib` not `override_attached_items`); #47 partially aligned (`bib` not `bibs`, missing `override`)"
+        notes: |
+          Already rewritten. Both complete CRUD on tightly related concepts. Test fixture: dedicated test bib MMS.
+      - name: bibs-portfolios-and-ecollections
+        issues: [48, 54]
+        risk: low
+        prereqs: [66]
+        audit: clean
+        notes: |
+          Both bib-level electronic resource access; #48 is CRUD, #54 is read-only.
+      - name: bibs-requests
+        issues: [49, 50]
+        risk: med
+        prereqs: []
+        audit: "#49 partially aligned (missing `user_id`/`user_id_type`/`allow_same_request`)"
+        notes: |
+          Bib-level + item-level requests. Highly parallel.
+      - name: bibs-loans
+        issues: [51]
+        risk: high
+        prereqs: []
+        audit: "#51 partially aligned (query vs body confusion, `op=renew` only)"
+        notes: |
+          Already rewritten. Solo for review.
+      - name: bibs-booking
+        issues: [52]
+        risk: high
+        prereqs: []
+        audit: "#52 NOT ALIGNED (`period` mandatory `int`, missing `period_type`, `consider_dlr`)"
+        notes: |
+          Already rewritten. Verify `period` integer requirement and `consider_dlr` semantics in SANDBOX before final commit (audit's next-action #9).
+      - name: bibs-collections-and-reminders
+        issues: [53, 55]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Both standalone CRUD; group for review economy.
+      - name: bibs-authorities
+        issues: [56]
+        risk: high
+        prereqs: []
+        audit: "#56 partially aligned (`authority_xml` not `marc_xml`; missing `normalization`/`override_warning`/`check_match`/`import_profile`)"
+        notes: |
+          Already rewritten. Authority XML wrapper; not raw MARC. Solo.
+      - name: bibs-record-ops
+        issues: [57]
+        risk: high
+        prereqs: []
+        audit: "#57 NOT ALIGNED (only `op=unlink_from_nz` documented; `suppress_bib`/`unsuppress_bib` removed)"
+        notes: |
+          Already rewritten — the original `suppress` wrappers must NOT be reintroduced. Solo.
+
+  - id: 7
+    title: Acquisitions
+    description: ""
+    chunks:
+      - name: acq-vendors-and-funds
+        issues: [58, 59]
+        risk: med
+        prereqs: []
+        audit: "#58 partially aligned (lowercase status, missing `type` filter); #59 partially aligned (op only `activate`/`deactivate`; transfers via #60)"
+        notes: |
+          Already rewritten. Top-level acquisition entities.
+      - name: acq-fund-transactions
+        issues: [60]
+        risk: high
+        prereqs: [59]
+        audit: clean
+        notes: |
+          State-changing fund operations (allocate/transfer). Round-trip with cleanup. **Reserve a test fund** so production funds aren't touched.
+      - name: acq-pol
+        issues: [61]
+        risk: high
+        prereqs: []
+        audit: "#61 partially aligned (`reason` not `reason_code`; missing `inform_vendor`/`override`/`bib`)"
+        notes: |
+          Already rewritten. Cancel POL is destructive; round-trip with a dedicated test POL.
+      - name: acq-attachments
+        issues: [62]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Invoice attachments. Open question flagged: base64 vs multipart upload semantics (audit's next-action #10) — verify in SANDBOX.
+      - name: acq-licenses
+        issues: [63]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          15 endpoints — biggest single chunk in Acq. Mostly CRUD.
+      - name: acq-lookups
+        issues: [64]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Read-only lookups (currencies + fiscal periods). Quickest in this phase.
+      - name: acq-purchase-requests
+        issues: [65]
+        risk: med
+        prereqs: []
+        audit: "#65 partially aligned (op constrained to `approve`/`reject`; reject needs reason)"
+        notes: |
+          Already rewritten.
+
+  - id: 8
+    title: Electronic
+    description: ""
+    chunks:
+      - name: electronic-bootstrap
+        issues: [66]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Foundation. **Blocks #67, #68, #69.**
+      - name: electronic-coverage
+        issues: [67, 68, 69]
+        risk: med
+        prereqs: [66]
+        audit: "#69 partially aligned (`limit` default 10 not 100; no `q` param)"
+        notes: |
+          Already rewritten. e-collections + e-services + portfolios share fixtures and patterns. **All three together** is fine — same shape; one PR is enough.
+
+  - id: 9
+    title: TaskLists
+    description: |
+      Three of four tickets in this phase are previously-flagged. Take care.
+    chunks:
+      - name: tasklists-bootstrap
+        issues: [70]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Foundation. **Blocks #71, #72, #73.**
+      - name: tasklists-requested-resources
+        issues: [71]
+        risk: high
+        prereqs: [70]
+        audit: "#71 partially aligned (`library`+`circ_desk` mandatory; only `op=mark_reported`; dropped invented `request_ids`)"
+        notes: |
+          Already rewritten.
+      - name: tasklists-lending-requests
+        issues: [72]
+        risk: high
+        prereqs: [70]
+        audit: "#72 NOT ALIGNED (proposed ship/receive don't map to that endpoint; only `op=mark_reported`)"
+        notes: |
+          Already rewritten. Audit's next-action #2 calls for a separate partner-side follow-up ticket — don't try to add ship/receive helpers here.
+      - name: tasklists-printouts
+        issues: [73]
+        risk: high
+        prereqs: [70]
+        audit: "#73 partially aligned (no `POST /printouts/create`; documented `op=mark_as_printed`/`mark_as_canceled` only)"
+        notes: |
+          Already rewritten. `create_printout` was removed.
+
+  - id: 10
+    title: ResourceSharing
+    description: ""
+    chunks:
+      - name: rs-partners
+        issues: [74]
+        risk: med
+        prereqs: []
+        audit: "#74 partially aligned (no `q`/`type_filter`; documented filter is `status`)"
+        notes: |
+          Already rewritten.
+      - name: rs-directory-members
+        issues: [78]
+        risk: high
+        prereqs: []
+        audit: "#78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented)"
+        notes: |
+          Already rewritten — bodyless POST. Solo.
+
+  - id: 11
+    title: Courses
+    description: ""
+    chunks:
+      - name: courses-bootstrap
+        issues: [75]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Foundation. **Blocks #76, #77.**
+      - name: courses-crud-enrollment
+        issues: [76]
+        risk: high
+        prereqs: [75]
+        audit: "#76 NOT ALIGNED (POST is op-driven via query params: `op` + `user_ids`/`list_ids`, NOT a JSON body)"
+        notes: |
+          Already rewritten. Method signature is now `enroll_users_in_course(user_ids)` and `associate_reading_lists(list_ids)`.
+      - name: courses-reading-lists
+        issues: [77]
+        risk: med
+        prereqs: [75]
+        audit: "#77 partially aligned (citation file removal needs `op`; tags are objects not strings)"
+        notes: |
+          Already rewritten.
+
+  - id: 12
+    title: Analytics
+    description: ""
+    chunks:
+      - name: analytics-paths
+        issues: [79]
+        risk: low
+        prereqs: []
+        audit: "#79 partially aligned (root `/paths` endpoint — `{path}` is optional)"
+        notes: |
+          Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand.
+
+  - id: 13
+    title: Advanced architecture (deferred until coverage stabilizes)
+    description: |
+      The handbook recommends doing these in wave 7, after most of the high-priority coverage has merged. Each is non-trivial; some change patterns.
+    chunks:
+      - name: rate-limiting
+        issues: [8]
+        risk: high
+        prereqs: [3, 4, 5]
+        audit: clean
+        notes: |
+          Rolling-window throttler. Hard to validate in SANDBOX.
+      - name: async-bulk
+        issues: [18]
+        risk: high
+        prereqs: [3, 4]
+        audit: clean
+        notes: |
+          Sibling async client + `bulk_call`. Big surface; mostly mock-tested.
+      - name: marc-layer
+        issues: [19]
+        risk: high
+        prereqs: [46]
+        audit: clean
+        notes: |
+          Optional `pymarc` integration; needs careful design review.
+      - name: openapi-validation
+        issues: [20]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          Optional opt-in validator vendoring Ex Libris specs. Defer until specs are stable.
+      - name: batch-runner
+        issues: [21]
+        risk: high
+        prereqs: [18]
+        audit: clean
+        notes: |
+          DataFrame batch orchestrator built on #18 async.
+      - name: pydantic-models
+        issues: [12]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          Schema-derived models. Defer to last; benefits most from real fixtures.
+
+footer: |
+  > **Note:** the deferred chunks (phase 13) are aspirational. They're listed for completeness so #8/#12/#18–#21 don't get forgotten. You may decide some of them are not worth the effort given the toolkit's actual usage patterns.

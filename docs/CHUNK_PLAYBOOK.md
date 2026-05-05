@@ -215,6 +215,37 @@ Hard breakpoint. Note the entity that wasn't cleaned (POL, invoice, user attachm
 
 Either provision the fixture in SANDBOX (create a test vendor, etc.) or edit `test-recommendation.json` to drop the test that needs it. Re-run `chunks run-test`.
 
+## Test fixture naming convention
+
+`test-recommendation.json` references SANDBOX fixtures via `${var}` substitutions, and the test interview prompts the operator for each one (the values land in `chunks/<name>/test-data.json`, which is gitignored per R9). Use these standard names so fixtures stay reusable across chunks and the operator isn't asked for the same value under three different keys.
+
+| Variable | Object | Notes |
+|---|---|---|
+| `test_user_id` | active SANDBOX user (primary_id) | safe-to-touch sentinel; reused for read smokes and as the loanee/requester for state-changing tests |
+| `test_user_id_with_loans` | user with at least one open loan | only when the test exercises loans/returns |
+| `test_user_id_with_fines` | user with at least one outstanding fine | for fines/dispute/pay tests |
+| `invalid_user_primary_id` | a string guaranteed to 404 | for error-mapping tests |
+| `test_bib_mms_id` | a stable test bib record | for holdings/items/portfolios/booking tests |
+| `invalid_mms_id` | a string guaranteed to 404 | for error-mapping tests |
+| `test_holding_id` / `test_item_pid` / `test_item_barcode` | holdings/items under `test_bib_mms_id` | for item-level tests |
+| `test_set_id_bib` | a BIB_MMS set with > 5 members | for sets read/iterate tests |
+| `test_set_id_user` | a USER set with > 5 members | for sets read/iterate tests |
+| `test_pol_id` | a non-cancelled, non-closed POL | for receiving/cancel/update tests; create a dedicated test POL so prod orders aren't touched |
+| `test_invoice_id` | an in-review invoice | for invoice CRUD/approve tests |
+| `test_vendor_code` / `test_fund_code` / `test_library_code` / `test_location_code` | acquisitions/config codes | for vendor/fund/library/location tests; reserve a sentinel "TEST_*" code where possible |
+| `test_partner_code` | a resource-sharing partner | for RS partner tests |
+| `test_course_code` | a course | for courses + reading-list tests |
+| `test_report_path` | a known analytics report path | analytics is PROD-only — the chunk that uses this needs the prod-key relaxation per CLAUDE.md memory |
+
+**Rules:**
+1. **Read-only first.** Pick a "boring" fixture for the read smoke; only escalate to a state-changing fixture (a user with loans, an in-review invoice) if the test actually mutates it.
+2. **Sentinels over real data.** Where SANDBOX allows it (vendor codes, fund codes, set names), prefix with `TEST_` so accidental fallout is obvious and recoverable.
+3. **Never inline values.** Always use `${var}` in `pythonCalls` / `passCriteria`. Real identifiers belong only in the local `test-data.json`, never in committed files (R9).
+4. **Add a key only when a test references it.** Don't pre-populate the catalog. Future chunks will append to their own `test-data.json` as their `needsHumanInput[]` demands.
+5. **Reuse before inventing.** If a chunk needs "an active user," use `test_user_id`. If you need a *user with a specific property* the existing keys don't cover, append a new descriptive variant (e.g., `test_user_id_with_attachments`) — don't recycle the generic one with a new meaning.
+
+When a chunk's tests need fixtures the operator hasn't supplied yet, the test interview surfaces them as `needsHumanInput[]` at the breakpoint. The operator either provides values inline or aborts, fills in `chunks/<name>/test-data.json` by hand, and re-runs.
+
 ## Notes
 
 - `chunks/<name>/` is checked into git per the user-memory rule "always include `.a5c/` artifacts in commits". `sandbox-test-output/` and `sandbox-tests/` are gitignored (raw logs, not historical truth).

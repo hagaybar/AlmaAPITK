@@ -30,6 +30,24 @@ Skip any chunk freely. Chunks are independent of each other within a phase, exce
 
 ---
 
+## Completed chunks
+
+Cross-reference: `AGENTIC_RUN_LOG.md` (one row per merged chunk) is the source of truth.
+
+| Chunk | Issues | PR | Merged |
+|---|---|---|---|
+| `http-session-and-request` | #3, #4 | [#81](https://github.com/hagaybar/AlmaAPITK/pull/81) | 2026-05-04 |
+| `http-retry` | #5 | [#82](https://github.com/hagaybar/AlmaAPITK/pull/82) | 2026-05-04 |
+| `http-timeout-and-region` | #6, #7 | [#84](https://github.com/hagaybar/AlmaAPITK/pull/84) | 2026-05-04 |
+| `logger-cleanup` (off-pipeline) | #14 | [#88](https://github.com/hagaybar/AlmaAPITK/pull/88) | 2026-05-04 |
+| `errors-mapping` | #9, #10 | [#89](https://github.com/hagaybar/AlmaAPITK/pull/89) | 2026-05-05 |
+
+**Off-pipeline cleanup also merged** (not originally chunked): #1 (PyPI OIDC, closed without PR), #83 (drop unused deps / CVE-2023-36464, PR #87), #85/#86 (chunk-pipeline correctness, PR #91), #90 (swagger-driven error-code harvest, PR #92).
+
+**Phase 1 is complete.** Phase 2 has chunks 6 and 7 still open.
+
+---
+
 ## ⚠️ Blocked — resolve before chunking
 
 | Issue | Blocker |
@@ -44,10 +62,10 @@ Lowest-risk, highest-leverage. Every later chunk benefits from these landing fir
 
 | # | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|
-| 1 | `http-session-and-request` | #3, #4 | med | none | clean | **Recommended pilot.** #4 hard-depends on #3 (consolidated `_request()` requires the session). Touches core client; review carefully. Test fixture: any user_primary_id (read smoke). |
-| 2 | `http-retry` | #5 | med | #3, #4 | clean | Mostly mock-tested; SANDBOX won't reliably emit 429/503. Mark some ACs as `unmappable` and verify in unit tests. |
-| 3 | `http-timeout-and-region` | #6, #7 | low | #3 | #7 partially aligned (region map: APAC has two endpoints `api-ap`+`api-aps`; China is `.com.cn`) | #7 audit fix is in the issue body already (rewritten). Both are config knobs. |
-| 4 | `logger-cleanup` | #14 | low | none | clean | Mechanical multi-file. Replaces `print()` with logger. Solo for clean diff inspection. |
+| 1 | `http-session-and-request` ✓ MERGED | #3, #4 | med | none | clean | **Recommended pilot.** #4 hard-depends on #3 (consolidated `_request()` requires the session). Touches core client; review carefully. Test fixture: any user_primary_id (read smoke). |
+| 2 | `http-retry` ✓ MERGED | #5 | med | #3, #4 | clean | Mostly mock-tested; SANDBOX won't reliably emit 429/503. Mark some ACs as `unmappable` and verify in unit tests. |
+| 3 | `http-timeout-and-region` ✓ MERGED | #6, #7 | low | #3 | #7 partially aligned (region map: APAC has two endpoints `api-ap`+`api-aps`; China is `.com.cn`) | #7 audit fix is in the issue body already (rewritten). Both are config knobs. |
+| 4 | `logger-cleanup` ✓ MERGED (off-pipeline, PR #88) | #14 | low | none | clean | Mechanical multi-file. Replaces `print()` with logger. Solo for clean diff inspection. |
 
 ## Phase 2 — Errors and ergonomics
 
@@ -55,7 +73,7 @@ Quality-of-life improvements that change how every later chunk behaves at the ed
 
 | # | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|
-| 5 | `errors-mapping` | #9, #10 | low | none | clean | Closely related: #10 propagates `trackingId`/`errorCode`; #9 maps codes to subclasses. Land together for one cohesive error taxonomy PR. Fixture: a known-bad call (e.g., GET `/users/INVALID`). |
+| 5 | `errors-mapping` ✓ MERGED | #9, #10 | low | none | clean | Closely related: #10 propagates `trackingId`/`errorCode`; #9 maps codes to subclasses. Land together for one cohesive error taxonomy PR. Fixture: a known-bad call (e.g., GET `/users/INVALID`). |
 | 6 | `client-ergonomics` | #13, #16 | low | none | clean | Both narrow internal cleanups (context-manager + exception cleanup + `AlmaResponse.data` caching). Low risk, single small PR. |
 | 7 | `pagination-helper` | #11 | low | #4 | clean | Adds `iter_paged()` public symbol. Fixture: a list endpoint with > limit results (e.g., `users` list). |
 
@@ -64,7 +82,7 @@ Quality-of-life improvements that change how every later chunk behaves at the ed
 | # | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|
 | 8 | `hierarchical-accessors` | #15 | low | none (soft: bootstraps #22, #66, #70, #75) | clean | Adds `client.acq`, `client.bibs`, etc. as lazy properties. **Soft prereq:** new domain bootstraps land first or the accessor map is incomplete. You can also defer this until all domains exist. |
-| 9 | `pypi-publish-ready` | #1, #17 | low | none | clean | Distribution-only: OIDC release flow + LICENSE file. **Owner-side decision needed first:** MIT vs Apache-2.0 (audit's prioritized next-action #6). |
+| 9 | `pypi-publish-ready` (partial — only #17 left) | ~~#1~~, #17 | low | none | clean | Distribution-only: ~~OIDC release flow~~ (#1 closed 2026-05-04) + LICENSE file (#17 still open). **Owner-side decision needed first:** MIT vs Apache-2.0 (audit's prioritized next-action #6). |
 | 10 | `logger-noise-fix` | #2 | low | none | clean | Bug fix, not enhancement. Quick. The audit's per-issue note suggested labelling as `bug`. |
 
 ## Phase 4 — Configuration domain (high priority, post-architecture)
@@ -205,9 +223,9 @@ The handbook recommends doing these in wave 7, after most of the high-priority c
 
 ## Suggested initial run
 
-1. **Pilot chunk** — `http-session-and-request` (#3, #4). Calibrate prompts, measure review time, learn what the agent gets wrong. Per handbook §9.
-2. After pilot, **complete Phase 1** (chunks 2, 3, 4) to get a clean HTTP foundation.
-3. **Phase 2 + 3** — small, low-risk; build operator confidence.
+1. ~~**Pilot chunk** — `http-session-and-request` (#3, #4).~~ ✓ Done 2026-05-04 (PR #81).
+2. ~~**Complete Phase 1** (chunks 2, 3, 4).~~ ✓ Done — Phase 1 fully merged.
+3. **Phase 2 + 3** — chunk 5 (`errors-mapping`) merged 2026-05-05; remaining: chunks 6 (`client-ergonomics` #13/#16), 7 (`pagination-helper` #11), 8 (`hierarchical-accessors` #15), 9 (`pypi-publish-ready` only #17 left), 10 (`logger-noise-fix` #2).
 4. **Resolve #29** before starting Phase 4 (Configuration).
 5. **Phase 4** — `config-bootstrap` first (chunk 11), then the dependents in any order.
 6. From there, pick chunks based on which Alma domains you want to work in next; the phases are mostly independent after #22/#66/#70/#75 land.

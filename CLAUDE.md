@@ -491,7 +491,35 @@ parser.add_argument("--live", action="store_true", help="Disable dry-run mode")
 
 ### Alma API Response Handling
 - Use `AlmaResponse` wrapper for consistent handling
-- Handle pagination using `_fetch_all_pages()` pattern (see python-dev-expert templates)
+- **Walk paged Alma endpoints with `client.iter_paged(...)`** — the
+  shared paginator on `AlmaAPIClient` (issue #11). It yields one
+  record at a time, fetches pages on demand, honours a `max_records`
+  cap, and centralises the `limit` / `offset` / `total_record_count`
+  bookkeeping so domain code does not have to re-derive the loop:
+
+  ```python
+  # Stream invoices for a vendor
+  for invoice in client.iter_paged(
+      "almaws/v1/acq/invoices",
+      params={"q": "vendor~ACME"},
+      record_key="invoice",
+      page_size=100,
+      max_records=500,  # optional hard cap
+  ):
+      ...
+
+  # Materialise as a list when you really need one
+  invoices = list(client.iter_paged(
+      "almaws/v1/acq/invoices", record_key="invoice", max_records=10
+  ))
+  ```
+
+  Generator semantics are load-bearing: callers that break out early
+  (e.g., looking for the first match) skip the remaining page
+  fetches. Reach for `list(...)` only when the caller genuinely needs
+  the full materialised set. The two existing proof-point migrations
+  live in `Acquisitions.list_invoices` and
+  `BibliographicRecords.search_records`.
 - Include progress indicators for operations >100 items
 
 ## Project-Specific Organization Notes

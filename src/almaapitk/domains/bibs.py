@@ -72,40 +72,90 @@ class BibliographicRecords:
         self.logger.info(f"Retrieved bib record {mms_id}")
         return response
     
-    def search_records(self, q: str, limit: int = 10, offset: int = 0, 
-                      order_by: str = None, direction: str = "asc") -> AlmaResponse:
+    def search_records(self, q: str, limit: int = 10, offset: int = 0,
+                      order_by: str = None, direction: str = "asc") -> List[Dict[str, Any]]:
         """
         Search bibliographic records.
-        
+
+        Pattern source: GitHub issue #11 (API: add iter_paged()
+        generator at the client level) -- proof-point migration #2.
+        The method is now a thin wrapper over ``client.iter_paged``,
+        so the caller-supplied ``limit`` is honoured by the
+        ``max_records`` cap rather than by clamping the per-page
+        ``limit`` query string alone. The historical 100-record per
+        page Alma cap is still respected by setting ``page_size`` to
+        ``min(limit, 100)``.
+
+        Return shape change: pre-#11 the method returned an
+        ``AlmaResponse`` so the caller had to do
+        ``response.json()["bib"]`` themselves. The new return is the
+        already-extracted list of bib record dicts -- no in-tree
+        callers exercise the old shape, and the new contract aligns
+        with the issue's "thin wrapper, list(iter_paged(...))"
+        guidance.
+
         Args:
-            q: Search query (e.g., "title~Harry Potter")
-            limit: Number of results to return (max 100)
-            offset: Starting point for results
-            order_by: Field to sort by
-            direction: Sort direction (asc, desc)
-        
+            q: Search query (e.g., "title~Harry Potter").
+            limit: Hard cap on the number of bib records returned.
+                Must be ``> 0`` and ``<= 100`` (the Alma per-endpoint
+                limit). Defaults to ``10``.
+            offset: Starting point for results. Honoured only when
+                non-zero by falling back to a direct one-page fetch
+                (``iter_paged`` always starts at offset 0 by design).
+            order_by: Field to sort by. Defaults to ``"mms_id"``.
+            direction: Sort direction (``"asc"`` or ``"desc"``).
+
         Returns:
-            AlmaResponse containing search results
+            List of bib record dictionaries, in the order Alma
+            returned them. Empty list when the search has no hits.
+
+        Raises:
+            AlmaValidationError: If ``q`` is empty or ``limit`` is
+                outside the ``1..100`` range.
         """
         if not q:
             raise AlmaValidationError("Search query is required")
-        
+
         if limit > 100:
             raise AlmaValidationError("Limit cannot exceed 100")
-        
-        params = {
+
+        base_params: Dict[str, Any] = {
             "q": q,
-            "limit": str(limit),
-            "offset": str(offset),
             "order_by": order_by or "mms_id",
-            "direction": direction
+            "direction": direction,
         }
-        
-        endpoint = "almaws/v1/bibs"
-        response = self.client.get(endpoint, params=params)
-        
-        self.logger.info(f"Searched bibs with query: {q}, found {limit} results")
-        return response
+
+        if offset:
+            # Deep-paging fall-through: ``iter_paged`` always starts at
+            # offset 0, so honour an explicit non-zero starting offset
+            # via a single direct GET. This matches the ``list_invoices``
+            # migration in acquisition.py for consistency.
+            page_params = {
+                **base_params,
+                "limit": str(limit),
+                "offset": str(offset),
+            }
+            body = self.client.get("almaws/v1/bibs", params=page_params).json()
+            bibs = body.get("bib", []) or []
+            self.logger.info(
+                f"Searched bibs with query: {q}, returned {len(bibs)} results"
+            )
+            return bibs
+
+        bibs = list(
+            self.client.iter_paged(
+                "almaws/v1/bibs",
+                params=base_params,
+                page_size=limit,
+                record_key="bib",
+                max_records=limit,
+            )
+        )
+
+        self.logger.info(
+            f"Searched bibs with query: {q}, returned {len(bibs)} results"
+        )
+        return bibs
     
     def create_record(self, marc_xml: str, validate: bool = True, 
                      override_warning: bool = False) -> AlmaResponse:

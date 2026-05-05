@@ -561,6 +561,32 @@ SANDBOX tests *manually* between waves. Establish a clean baseline:
 - Reserve a dedicated vendor or fund for test invoices/POLs so the agent's
   test data doesn't pollute real workflows.
 
+### 11.4 — Driving chunk runs
+
+Chunk runs are created by `scripts/agentic/chunks run-impl <name>`
+(impl phase) or `scripts/agentic/chunks run-test <name>` (SANDBOX-test
+phase). The bash entries call `babysitter run:create` and exit; they
+do NOT drive `run:iterate`. Driving is done via two project-level
+slash commands:
+
+- `/chunk-run-impl <name>` — saved prompt that loops on `run:iterate`,
+  executes shell effects via Bash, delegates `kind:agent` effects to
+  fresh subagents via the Agent tool, and surfaces breakpoints in
+  chat. Runs entirely in one Claude Code turn.
+- `/chunk-run-test <name>` — symmetric for the test phase. The
+  fixture-interview breakpoint is surfaced in chat; the operator
+  replies with values for each fixture key.
+
+Both slash commands resume an existing run if `chunks/<name>/status.json`
+already has an `implRunId` / `testRunId` set, by reading the journal
+under `.a5c/runs/<runId>/`. Re-typing the slash command after an
+interrupt is idempotent.
+
+The `babysit` skill's "STOP between iterations" rule is intentionally
+bypassed because no babysitter-specific Claude Code stop-hook is
+configured in this repo. Agent isolation is preserved by spawning
+fresh subagents for `kind:agent` effects.
+
 ---
 
 ## 12. Cost & budget controls

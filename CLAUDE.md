@@ -11,6 +11,8 @@ This project's primary mode of work is the **chunk-driven implementation pipelin
 3. **If no chunks are active**, mention the recommended next pickup from `docs/CHUNK_BACKLOG.md` — the lowest-numbered phase whose hard prereqs are merged in `main`, and within it the first chunk that isn't already done. Cross-reference recent rows in `docs/AGENTIC_RUN_LOG.md` to know what's already shipped.
 4. **Then await the user's instruction.** Do NOT auto-trigger any chunk action; the pipeline is human-paced (R3).
 
+**Drift check:** `docs/CHUNK_BACKLOG.md` is now a generated artifact (source: `docs/chunks-backlog.yaml`). If you suspect the backlog or run-log is out of sync with GitHub, run `scripts/agentic/chunks reconcile`. To rebuild the markdown after editing the YAML, run `scripts/agentic/chunks render-backlog`. CI gates with `chunks render-backlog --check`.
+
 This implements the operator-UX dashboard from spec §8.5. The user has explicitly opted into chunk-driven work — don't propose alternative workflows unless they ask.
 
 **CLI cheat sheet** (`scripts/agentic/chunks <subcommand>`):
@@ -18,10 +20,16 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 - `status <name>` — full status block for one chunk
 - `next` — recommended next actions across all chunks
 - `define --name N --issues 3,4` — create a new chunk
-- `run-impl <name>` — trigger per-chunk implementation babysitter run
-- `run-test <name>` — trigger generic interactive testing process
+- `run-impl <name>` — bash entry that creates an impl babysitter run (does NOT drive iteration; type `/chunk-run-impl <name>` in chat for the driven path)
+- `run-test <name>` — bash entry that creates a test babysitter run (does NOT drive iteration; type `/chunk-run-test <name>` in chat for the driven path)
 - `abort <name>` — mark chunk aborted; leave branches in place
-- `complete <name> [--pr-url U]` — mark chunk merged; close lifecycle (run after manual PR merge)
+- `complete <name> [--pr-url U]` — mark chunk merged; close lifecycle (run after manual PR merge); auto-appends a row to `docs/AGENTIC_RUN_LOG.md`
+- `render-backlog [--check]` — rebuild `docs/CHUNK_BACKLOG.md` from `docs/chunks-backlog.yaml` + GitHub state; `--check` exits 1 on drift (CI gate)
+- `reconcile` — diff backlog and run-log against GitHub; non-zero exit on drift
+
+**Slash commands** (chat-driven, recommended):
+- `/chunk-run-impl <name>` — drive the impl pipeline for a chunk to completion or breakpoint
+- `/chunk-run-test <name>` — drive the SANDBOX-test pipeline for a chunk to completion or breakpoint
 
 **Operator playbook:** `docs/CHUNK_PLAYBOOK.md` — full lifecycle walkthrough, R1–R8 cheat sheet, failure recipes.
 

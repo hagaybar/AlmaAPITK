@@ -34,6 +34,8 @@ Subcommands:
   run-test <name>               trigger the generic chunk-test process
   abort <name>                  mark chunk aborted; leave branches in place
   complete <name> [--pr-url U]  mark chunk merged; record PR URL; close lifecycle
+  render-backlog [--check]      rebuild docs/CHUNK_BACKLOG.md from YAML + GitHub
+  reconcile                     diff docs vs GitHub state; non-zero on drift
   regression-smoke              re-run every chunk's sandbox smoke tests against HEAD
   help                          show this message
 
@@ -177,21 +179,31 @@ PYEOF
     cat > "$inputs" <<EOF
 {"chunkName": "$name", "repoRoot": "$REPO_ROOT", "maxAttempts": 3}
 EOF
-    babysitter run:create \
+    run_create_output="$(babysitter run:create \
       --process-id "chunk-impl-$name" \
       --entry "$REPO_ROOT/.a5c/processes/chunk-template-impl.js#process" \
       --inputs "$inputs" \
       --prompt "Implement chunk $name on integration branch" \
       --harness claude-code \
-      --json
-    "$PY" - "$CHUNKS_DIR" "$name" <<'PYEOF'
+      --json)"
+    echo "$run_create_output"
+    run_id="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["runId"])' <<<"$run_create_output")"
+    "$PY" - "$CHUNKS_DIR" "$name" "$run_id" <<'PYEOF'
 import sys
 from pathlib import Path
 from scripts.agentic.chunk_status import transition
 transition(Path(sys.argv[1]) / sys.argv[2], "impl-running",
            "implementation babysitter run created",
-           "monitor babysitter run; resume CLI when done")
+           "drive via /chunk-run-impl in chat, or babysitter run:iterate manually",
+           implRunId=sys.argv[3])
 PYEOF
+    cat >&2 <<EOF
+
+Run created. To drive it from a Claude Code session, type in chat:
+    /chunk-run-impl $name
+Driving manually requires babysitter run:iterate calls; see
+docs/CHUNK_PLAYBOOK.md "manual driving fallback".
+EOF
     ;;
 
   run-test)
@@ -234,35 +246,45 @@ PYEOF
 {"chunkName": "$name", "repoRoot": "$REPO_ROOT"}
 EOF
     if [[ "$headless" -eq 1 ]]; then
-      babysitter run:create \
+      run_create_output="$(babysitter run:create \
         --process-id "chunk-test-$name" \
         --entry "$REPO_ROOT/.a5c/processes/chunk-test.js#process" \
         --inputs "$inputs" \
         --prompt "Run SANDBOX tests for chunk $name" \
-        --json
+        --json)"
     else
-      babysitter run:create \
+      run_create_output="$(babysitter run:create \
         --process-id "chunk-test-$name" \
         --entry "$REPO_ROOT/.a5c/processes/chunk-test.js#process" \
         --inputs "$inputs" \
         --prompt "Run SANDBOX tests for chunk $name" \
         --harness claude-code \
-        --json
+        --json)"
     fi
-    "$PY" - "$CHUNKS_DIR" "$name" "$headless" <<'PYEOF'
+    echo "$run_create_output"
+    run_id="$("$PY" -c 'import json,sys; print(json.load(sys.stdin)["runId"])' <<<"$run_create_output")"
+    "$PY" - "$CHUNKS_DIR" "$name" "$headless" "$run_id" <<'PYEOF'
 import sys
 from pathlib import Path
 from scripts.agentic.chunk_status import transition
 headless = sys.argv[3] == "1"
 if headless:
     last_event = "test process started (headless: pre-supplied test-data.json)"
-    next_action = "monitor babysitter run; tests run automatically"
+    next_action = "drive via /chunk-run-test or babysitter run:iterate"
 else:
     last_event = "test process started; awaiting fixture interview"
-    next_action = "answer the data interview when prompted"
+    next_action = "drive via /chunk-run-test in chat to answer fixture interview"
 transition(Path(sys.argv[1]) / sys.argv[2], "test-data-pending",
-           last_event, next_action)
+           last_event, next_action,
+           testRunId=sys.argv[4])
 PYEOF
+    cat >&2 <<EOF
+
+Run created. To drive it from a Claude Code session, type in chat:
+    /chunk-run-test $name
+Driving manually requires babysitter run:iterate calls; see
+docs/CHUNK_PLAYBOOK.md "manual driving fallback".
+EOF
     ;;
 
   abort)
@@ -290,21 +312,94 @@ PYEOF
         *) echo "unknown flag: $1" >&2; exit 2;;
       esac
     done
-    "$PY" - "$CHUNKS_DIR" "$name" "$pr_url" <<'PYEOF'
+    "$PY" - "$CHUNKS_DIR" "$REPO_ROOT" "$name" "$pr_url" <<'PYEOF'
+import json
 import sys
 from pathlib import Path
 from scripts.agentic.chunk_status import transition
+from scripts.agentic.run_log import append_chunk_row
+
 chunks_dir = Path(sys.argv[1])
-name = sys.argv[2]
-pr_url = sys.argv[3] if len(sys.argv) > 3 else ""
+repo_root = Path(sys.argv[2])
+name = sys.argv[3]
+pr_url = sys.argv[4] if len(sys.argv) > 4 else ""
 chunk_dir = chunks_dir / name
+
+# Update lifecycle status first.
 extra = {"prUrl": pr_url} if pr_url else {}
 transition(chunk_dir, new_stage="merged",
            last_event=f"PR merged" + (f" ({pr_url})" if pr_url else ""),
            next_action="soak before prod release; promotion is manual (R1)",
            **extra)
+
+# Issue #93: auto-write a run-log row using whatever artifacts we have on
+# disk. Failures here must NOT undo the lifecycle transition above; warn and
+# move on so the operator can hand-fix the run-log if needed.
+manifest_path = chunk_dir / "manifest.json"
+status_path = chunk_dir / "status.json"
+test_results_path = chunk_dir / "test-results.json"
+pr_open_path = chunk_dir / "_pr_open_result.json"
+log_path = repo_root / "docs" / "AGENTIC_RUN_LOG.md"
+log_path.parent.mkdir(parents=True, exist_ok=True)
+
+issue_numbers: list[int] = []
+if manifest_path.exists():
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        for issue in manifest.get("issues", []) or []:
+            n = issue.get("number") if isinstance(issue, dict) else issue
+            if n is not None:
+                issue_numbers.append(int(n))
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"warning: could not parse manifest.json: {exc}", file=sys.stderr)
+
+attempts_used: dict[int, int] = {}
+test_outcomes = {"passed": 0, "failed": 0, "skipped": 0}
+if test_results_path.exists():
+    try:
+        results = json.loads(test_results_path.read_text())
+        for k in ("passed", "failed", "skipped"):
+            if k in results:
+                test_outcomes[k] = int(results[k])
+        for n, a in (results.get("attempts_used") or {}).items():
+            attempts_used[int(n)] = int(a)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"warning: could not parse test-results.json: {exc}", file=sys.stderr)
+
+resolved_pr_url = pr_url
+if not resolved_pr_url and pr_open_path.exists():
+    try:
+        pr_payload = json.loads(pr_open_path.read_text())
+        resolved_pr_url = pr_payload.get("url") or pr_payload.get("prUrl") or ""
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"warning: could not parse _pr_open_result.json: {exc}", file=sys.stderr)
+
+try:
+    append_chunk_row(
+        log_path=log_path,
+        chunk_name=name,
+        issue_numbers=issue_numbers,
+        attempts_used=attempts_used,
+        test_outcomes=test_outcomes,
+        time_total_seconds=0,
+        pr_url=resolved_pr_url,
+    )
+    print(f"appended run-log row to {log_path}")
+except OSError as exc:
+    print(f"warning: could not append run-log row: {exc}", file=sys.stderr)
+
 print(f"chunk '{name}' marked merged" + (f" with PR {pr_url}" if pr_url else ""))
 PYEOF
+    ;;
+
+  render-backlog)
+    cd "$REPO_ROOT"
+    "$PY" -m scripts.agentic.render_backlog "$@"
+    ;;
+
+  reconcile)
+    cd "$REPO_ROOT"
+    "$PY" -m scripts.agentic.reconcile "$@"
     ;;
 
   regression-smoke)

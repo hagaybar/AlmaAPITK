@@ -1,0 +1,16 @@
+{
+  "chunk": "chunk-pipeline-docs-coupling",
+  "testRunStartedAt": "2026-05-05T10:13:17Z",
+  "testRunFinishedAt": "2026-05-05T10:14:42Z",
+  "perTest": [],
+  "perIssue": [
+    {
+      "number": 93,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false,
+      "note": "Infrastructure-only ticket (chunks CLI, YAML render, reconciler, run-log auto-write, file move). All 7 acceptance criteria are listed in test-recommendation.json#unmappable[] with concrete reasons pointing at the existing unit tests under tests/agentic/. Per spec §6.2 / R4, presence of unmappable[] entries disqualifies auto-close — issue closure is a manual operator step."
+    }
+  ]
+}

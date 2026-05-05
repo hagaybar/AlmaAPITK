@@ -1,0 +1,51 @@
+{
+  "chunk": "chunk-pipeline-docs-coupling",
+  "issues": [
+    {
+      "number": 93,
+      "title": "chunk pipeline: couple docs to GitHub state to prevent backlog/run-log drift",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/93",
+      "labels": [
+        "enhancement"
+      ],
+      "body_raw": "**Complexity:** M\n**Benefit:** High\n\n## Background\n\nChunk-pipeline state lives in two hand-edited markdown files that drift from GitHub reality:\n\n- `docs/CHUNK_BACKLOG.md` \u2014 forward-looking plan (chunks, phases, prereqs).\n- `AGENTIC_RUN_LOG.md` \u2014 backward-looking ledger (one row per merged chunk).\n\nGitHub itself (issues + PRs + labels) is the actual source of truth for \"open / closed / merged\", but neither file reflects GitHub state automatically.\n\n### Drift observed on 2026-05-05\n\n`docs/CHUNK_BACKLOG.md` listed #1, #14 as open and chunks 1\u20133 + 5 as todo. Reality: all merged days earlier (#81, #82, #84, #88, #89). Required a hand-edit (commit `58963df`) to reconcile.\n\n### Additional findings while auditing\n\n- `scripts/agentic/run_log.py` exposes `append_chunk_row()`, but **no chunks-CLI subcommand calls it**. All rows in `AGENTIC_RUN_LOG.md` were typed by hand.\n- `AGENTIC_RUN_LOG.md` is at the repo root; spec \u00a78 step 5 and handbook \u00a711.2 specify `docs/AGENTIC_RUN_LOG.md`. Path drift, not a code bug.\n- Off-pipeline issue closures (#1, #83, #85, #86, #90) never propagated into the backlog because nothing checks GitHub.\n\n## Proposal\n\nMake GitHub the source of truth; the markdown files become rebuilt artifacts. Four parts (full design in `docs/superpowers/specs/2026-05-05-chunk-docs-github-coupling-design.md`):\n\n1. **YAML-as-source for the backlog.** Move chunk metadata (name, issues, phase, prereqs, notes) into `docs/chunks-backlog.yaml`. Status is **never** stored \u2014 GitHub already knows.\n2. **`scripts/agentic/chunks render-backlog`** \u2014 joins the YAML with `gh issue list/view` + `gh pr list` and rewrites `docs/CHUNK_BACKLOG.md` with a populated Status column. `--check` mode for CI.\n3. **Auto-write `AGENTIC_RUN_LOG.md`.** Wire `chunks complete <name>` to call the existing `run_log.append_chunk_row()`. Move the file to `docs/AGENTIC_RUN_LOG.md` (where the spec already locates it).\n4. **`scripts/agentic/chunks reconcile`** \u2014 diffs the markdown vs GitHub state and exits non-zero on drift. Suitable for manual hygiene checks and CI gates.\n\n## Operator workflow after this lands\n\n- Issue closes (any path) \u2192 next `chunks render-backlog` run produces a fresh `CHUNK_BACKLOG.md`. No hand-edit.\n- Chunk merges \u2192 `chunks complete <name> --pr-url <url>` writes the run-log row automatically.\n- CI runs `chunks reconcile` \u2192 blocks PRs that introduce drift.\n\n## Files to touch\n\n- `docs/chunks-backlog.yaml` (new) \u2014 translated content of current `docs/CHUNK_BACKLOG.md`.\n- `scripts/agentic/chunks` \u2014 new subcommands `render-backlog`, `reconcile`; wire `complete` to call `run_log.append_chunk_row`.\n- `scripts/agentic/templates/chunks-backlog.md.j2` (new) \u2014 render template.\n- `scripts/agentic/run_log.py` \u2014 already has `append_chunk_row`; no code change expected.\n- `AGENTIC_RUN_LOG.md` \u2192 `docs/AGENTIC_RUN_LOG.md` (git mv).\n- `tests/agentic/test_render_backlog.py` (new), `tests/agentic/test_reconcile.py` (new).\n- `CLAUDE.md` \u2014 session-start protocol note about `chunks reconcile`.\n\n## Acceptance criteria\n\n- [ ] `docs/chunks-backlog.yaml` exists with the current backlog content translated.\n- [ ] `chunks render-backlog` produces output byte-identical (modulo a timestamp line) to a hand-curated reference for the current state.\n- [ ] `chunks render-backlog --check` exits 1 when stale, 0 when fresh.\n- [ ] `chunks complete <name> --pr-url <url>` appends a row to `docs/AGENTIC_RUN_LOG.md` using `run_log.append_chunk_row`.\n- [ ] `AGENTIC_RUN_LOG.md` (root) moved to `docs/AGENTIC_RUN_LOG.md` via `git mv`.\n- [ ] `chunks reconcile` reports drift correctly and exits accordingly.\n- [ ] Unit tests under `tests/agentic/` cover renderer output, `--check` exit codes, and a synthesized drift case.\n\n## Out of scope\n\n- GitHub Projects integration (revisit later if YAML approach proves brittle).\n- Pushing per-chunk `status.json` back to GitHub labels/comments.\n- Reconciling the three overlapping planning docs (handbook / playbook / spec).\n\n## Notes\n\n- Open question logged in the spec: keep `docs/CHUNK_BACKLOG.md` as a committed generated artifact (noisy diffs but readable on GitHub web) vs git-ignore it (clean history but no web view). Tentative: keep it, gate via `--check` in CI.\n- `gh` call budget: use one bulk `gh issue list` rather than per-issue `gh issue view` to avoid rate-limit waste.\n- This is itself a chunk-pipeline correctness ticket and follows the precedent of #85, #86, #90.\n\n## References\n\n- Design spec: `docs/superpowers/specs/2026-05-05-chunk-docs-github-coupling-design.md`\n- `docs/superpowers/specs/2026-05-03-chunk-driven-implementation-design.md` \u00a78 step 5\n- `docs/AGENTIC_ORCHESTRATION_HANDBOOK.md` \u00a711.2\n- `scripts/agentic/run_log.py` (existing writer)\n- Commit `58963df` (manual reconciliation that motivated this)",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "docs/chunks-backlog.yaml",
+        "scripts/agentic/chunks",
+        "scripts/agentic/render_backlog.py",
+        "scripts/agentic/reconcile.py",
+        "scripts/agentic/templates/chunks-backlog.md.j2",
+        "scripts/agentic/run_log.py",
+        "AGENTIC_RUN_LOG.md",
+        "docs/AGENTIC_RUN_LOG.md",
+        "docs/CHUNK_BACKLOG.md",
+        "tests/agentic/test_render_backlog.py",
+        "tests/agentic/test_reconcile.py",
+        "tests/agentic/test_chunks_complete_runlog.py",
+        "CLAUDE.md"
+      ],
+      "references": [
+        "Design spec: `docs/superpowers/specs/2026-05-05-chunk-docs-github-coupling-design.md`",
+        "docs/superpowers/specs/2026-05-03-chunk-driven-implementation-design.md",
+        "docs/AGENTIC_ORCHESTRATION_HANDBOOK.md",
+        "scripts/agentic/run_log.py",
+        "Commit `58963df`"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "`docs/chunks-backlog.yaml` exists with the current backlog content translated.",
+        "`chunks render-backlog` produces output byte-identical (modulo a timestamp line) to a hand-curated reference for the current state.",
+        "`chunks render-backlog --check` exits 1 when stale, 0 when fresh.",
+        "`chunks complete <name> --pr-url <url>` appends a row to `docs/AGENTIC_RUN_LOG.md` using `run_log.append_chunk_row`.",
+        "`AGENTIC_RUN_LOG.md` (root) moved to `docs/AGENTIC_RUN_LOG.md` via `git mv`.",
+        "`chunks reconcile` reports drift correctly and exits accordingly.",
+        "Unit tests under `tests/agentic/` cover renderer output, `--check` exit codes, and a synthesized drift case."
+      ]
+    }
+  ]
+}

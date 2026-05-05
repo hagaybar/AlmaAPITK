@@ -1,0 +1,16 @@
+{
+  "chunk": "chunk-pipeline-docs-coupling",
+  "issues": [
+    93
+  ],
+  "stage": "merged",
+  "branch": "chunk/chunk-pipeline-docs-coupling",
+  "createdAt": "2026-05-05T09:21:41Z",
+  "updatedAt": "2026-05-05T10:28:03Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/94)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KQVQ97EG0DBAP6GATJGEGD52",
+  "testRunId": "01KQVT1948T2SR6X7C25XZVG4B",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/94"
+}

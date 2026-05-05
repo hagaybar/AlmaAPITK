@@ -1,0 +1,53 @@
+{
+  "chunk": "chunk-pipeline-docs-coupling",
+  "branch": "chunk/chunk-pipeline-docs-coupling",
+  "createdAt": "2026-05-05T00:00:00Z",
+  "issues": [
+    {
+      "number": 93,
+      "title": "chunk pipeline: couple docs to GitHub state to prevent backlog/run-log drift",
+      "classification": "general",
+      "subBranch": "chunk/chunk-pipeline-docs-coupling",
+      "tests": [],
+      "acceptanceMapping": {
+        "`docs/chunks-backlog.yaml` exists with the current backlog content translated.": [],
+        "`chunks render-backlog` produces output byte-identical (modulo a timestamp line) to a hand-curated reference for the current state.": [],
+        "`chunks render-backlog --check` exits 1 when stale, 0 when fresh.": [],
+        "`chunks complete <name> --pr-url <url>` appends a row to `docs/AGENTIC_RUN_LOG.md` using `run_log.append_chunk_row`.": [],
+        "`AGENTIC_RUN_LOG.md` (root) moved to `docs/AGENTIC_RUN_LOG.md` via `git mv`.": [],
+        "`chunks reconcile` reports drift correctly and exits accordingly.": [],
+        "Unit tests under `tests/agentic/` cover renderer output, `--check` exit codes, and a synthesized drift case.": []
+      },
+      "unmappable": [
+        {
+          "ac": "`docs/chunks-backlog.yaml` exists with the current backlog content translated.",
+          "reason": "Infrastructure-only AC (no Alma API surface). Verified at the filesystem/loader level by `tests/agentic/test_render_backlog.py::test_yaml_loader_real_backlog_loads` and `test_yaml_loader_parses_minimal_schema`, which load the committed `docs/chunks-backlog.yaml`. Not exercisable against SANDBOX."
+        },
+        {
+          "ac": "`chunks render-backlog` produces output byte-identical (modulo a timestamp line) to a hand-curated reference for the current state.",
+          "reason": "Pure renderer-output concern; no SANDBOX call possible. Covered by `tests/agentic/test_render_backlog.py::test_render_real_backlog_against_known_state`, `test_render_includes_status_column`, and `test_diff_against_disk_ignores_timestamp_line` (which encode the timestamp-line carve-out)."
+        },
+        {
+          "ac": "`chunks render-backlog --check` exits 1 when stale, 0 when fresh.",
+          "reason": "CLI exit-code behavior; no Alma endpoint involved. Covered by `tests/agentic/test_render_backlog.py::test_check_returns_zero_when_fresh` and `test_check_returns_one_when_stale`. Cannot be exercised via SANDBOX."
+        },
+        {
+          "ac": "`chunks complete <name> --pr-url <url>` appends a row to `docs/AGENTIC_RUN_LOG.md` using `run_log.append_chunk_row`.",
+          "reason": "Local CLI side-effect on a tracked markdown file; no Alma endpoint. Covered by `tests/agentic/test_chunks_complete_runlog.py::test_complete_appends_runlog_row`, `test_complete_marks_status_merged`, and `test_complete_handles_missing_test_results`. Not exercisable against SANDBOX."
+        },
+        {
+          "ac": "`AGENTIC_RUN_LOG.md` (root) moved to `docs/AGENTIC_RUN_LOG.md` via `git mv`.",
+          "reason": "Filesystem/git-history fact, verifiable by `git log --follow docs/AGENTIC_RUN_LOG.md` and by absence of a root-level `AGENTIC_RUN_LOG.md` on the chunk branch (confirmed in the diff: rename `AGENTIC_RUN_LOG.md => docs/AGENTIC_RUN_LOG.md`). Not a SANDBOX concern."
+        },
+        {
+          "ac": "`chunks reconcile` reports drift correctly and exits accordingly.",
+          "reason": "CLI behavior comparing local markdown vs GitHub state; the relevant integration is mocked at the `gh` boundary in unit tests. Covered by `tests/agentic/test_reconcile.py::test_reconcile_clean_when_md_matches_state`, `test_reconcile_flags_stale_backlog`, `test_run_log_coverage_flags_missing_chunk_row`, `test_run_log_coverage_clean_when_chunk_row_present`, `test_check_run_log_coverage_returns_orphans`, `test_check_run_log_coverage_skips_off_pipeline_logged_orphans`, `test_report_clean_text`, and `test_report_drift_text_lists_specifics`. No Alma SANDBOX angle."
+        },
+        {
+          "ac": "Unit tests under `tests/agentic/` cover renderer output, `--check` exit codes, and a synthesized drift case.",
+          "reason": "This AC is itself a meta-claim about the existence and coverage of unit tests; satisfied by the presence of `tests/agentic/test_render_backlog.py` (renderer + `--check` codes), `tests/agentic/test_reconcile.py` (synthesized drift), and `tests/agentic/test_chunks_complete_runlog.py` (run-log auto-write). Verified by running `pytest tests/agentic/ -v` locally, not by any SANDBOX call."
+        }
+      ]
+    }
+  ]
+}

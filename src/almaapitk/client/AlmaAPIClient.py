@@ -700,6 +700,17 @@ class AlmaAPIClient:
 
         Pattern source: GitHub issue #4 (HTTP: consolidate verbs into _request).
         """
+        # Issue #13: refuse to issue HTTP after ``close()`` has run. A
+        # ``None`` session is the documented sentinel for "this client
+        # has been closed"; we surface this as a clear ``AlmaAPIError``
+        # rather than letting an ``AttributeError`` bubble out of the
+        # session call below.
+        if getattr(self, "_session", None) is None:
+            raise AlmaAPIError(
+                "AlmaAPIClient has been closed; construct a new client "
+                "instance to make further API calls."
+            )
+
         url = self._build_url(endpoint)
         headers = self._prepare_headers(content_type)
         if custom_headers:
@@ -885,10 +896,90 @@ class AlmaAPIClient:
     def get_environment(self) -> str:
         """Get current environment."""
         return self.environment
-    
+
     def get_base_url(self) -> str:
         """Get base URL."""
         return self.base_url
+
+    # -------------------------------------------------------------------------
+    # Context-manager / close support (issue #13)
+    #
+    # Pattern source: GitHub issue #13 (API: add context-manager support to
+    # AlmaAPIClient). With #3 in place the client owns a persistent
+    # ``requests.Session`` whose underlying TCP+TLS pool needs explicit
+    # teardown to release file descriptors and close keep-alive
+    # connections. ``__enter__``/``__exit__``/``close`` give callers a
+    # clean ``with``-statement story without changing any of the existing
+    # construction or HTTP-verb semantics.
+    # -------------------------------------------------------------------------
+
+    def __enter__(self) -> "AlmaAPIClient":
+        """Enter the runtime context, returning ``self``.
+
+        Enables the standard ``with AlmaAPIClient(...) as alma:`` idiom.
+        The session is set up eagerly in ``__init__`` (issue #3), so
+        nothing additional needs to happen on entry — this hook exists
+        solely so the matching ``__exit__`` can close the session
+        deterministically.
+
+        Returns:
+            The client instance, ready for use inside the ``with`` block.
+
+        Pattern source: GitHub issue #13.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        """Exit the runtime context and close the underlying session.
+
+        Args:
+            exc_type: Exception class, or ``None`` if the block exited
+                normally.
+            exc: Exception instance, or ``None``.
+            tb: Traceback object, or ``None``.
+
+        Pattern source: GitHub issue #13.
+        """
+        self.close()
+
+    def close(self) -> None:
+        """Close the persistent ``requests.Session`` and release pooled connections.
+
+        Idempotent: calling ``close`` more than once is safe and is a
+        no-op after the first call. After the session is closed, the
+        client transitions to a "closed" state and any subsequent HTTP
+        verb call (``get``/``post``/``put``/``delete``/``_request``) will
+        raise :class:`AlmaAPIError`. Re-creating a session implicitly on
+        next use was deliberately rejected: a closed client signals the
+        caller's intent to release the resource, and silently rebuilding
+        it would mask programmer errors (e.g., reusing a ``with``-block
+        client outside the block).
+
+        If the caller still needs to make calls after closing, they
+        should construct a new ``AlmaAPIClient``.
+
+        Raises:
+            None. The ``requests.Session.close`` call is best-effort: any
+            exception while closing is swallowed and logged at WARNING
+            level so teardown in ``__exit__`` (the typical caller) never
+            masks an in-flight exception from the ``with`` body.
+
+        Pattern source: GitHub issue #13.
+        """
+        session = getattr(self, "_session", None)
+        if session is None:
+            return
+        try:
+            session.close()
+        except Exception as exc:  # noqa: BLE001 — defensive teardown only
+            # Never let a teardown failure mask the user's primary
+            # exception. Log and move on; the session reference is still
+            # cleared so the client lands in the closed state.
+            self.logger.warning(
+                "Error while closing AlmaAPIClient session", error=str(exc)
+            )
+        finally:
+            self._session = None
     
 
 

@@ -108,7 +108,7 @@ PYEOF
     "$PY" - "$CHUNKS_DIR" "$name" "$issues_csv" <<'PYEOF'
 import json, shutil, subprocess, sys
 from pathlib import Path
-from scripts.agentic.chunk_status import init_status
+from scripts.agentic.chunk_status import init_status, compute_empty_scope_warning
 from scripts.agentic.issue_parser import parse_issue
 
 chunks_dir = Path(sys.argv[1])
@@ -162,6 +162,13 @@ except Exception:
 print(f"defined chunk '{name}' with issues {issue_numbers}")
 print(f"manifest: {chunk_dir / 'manifest.json'}")
 print(f"status:   {chunk_dir / 'status.json'}")
+# Issue #99 Layer 1: surface empty files_to_touch loudly so the operator
+# fixes the metadata BEFORE invoking run-impl, which would otherwise
+# loop on R7 scope-check failures.
+warning = compute_empty_scope_warning(manifest, name)
+if warning:
+    print("", file=sys.stderr)
+    print(warning, file=sys.stderr)
 print(f"next:     chunks run-impl {name}")
 PYEOF
     ;;

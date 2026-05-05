@@ -101,3 +101,33 @@ def list_all(chunks_root: Path) -> list[dict[str, Any]]:
             out.append(json.loads(sf.read_text()))
     out.sort(key=lambda s: s.get("updatedAt", ""), reverse=True)
     return out
+
+
+def compute_empty_scope_warning(manifest: dict, chunk_name: str) -> str | None:
+    """Return a stderr-bound warning string when any issue in `manifest` has
+    an empty ``files_to_touch`` list, else ``None``.
+
+    Surfaced by ``chunks define`` so the operator catches a metadata bug
+    that would otherwise stall the impl run on R7 scope-check (issue #99).
+    The R7 gate uses ``files_to_touch`` as an allowlist; an empty list
+    rejects every change the agent makes. Architectural issues filed
+    before the structured template (#3-#21) commonly omit the section.
+    """
+    empty_issues = [
+        issue["number"]
+        for issue in manifest.get("issues", [])
+        if not (issue.get("files_to_touch") or [])
+    ]
+    if not empty_issues:
+        return None
+    nums = ", ".join(f"#{n}" for n in empty_issues)
+    return (
+        f"WARNING: empty files_to_touch for: {nums}\n"
+        f"  scope-check (R7) will fail every implement attempt.\n"
+        f"  Resolve BEFORE run-impl by EITHER:\n"
+        f"    (a) amending the issue body to add a '## Files to touch'\n"
+        f"        section listing the paths the impl will touch, then\n"
+        f"        re-run `chunks define`,\n"
+        f"    (b) editing chunks/{chunk_name}/manifest.json directly to\n"
+        f"        add files_to_touch arrays for the affected issues."
+    )

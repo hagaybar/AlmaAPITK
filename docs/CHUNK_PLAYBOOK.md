@@ -20,7 +20,7 @@ The agent then asks what you want to do (drill into one, define a new one, no-op
 | R4 | Auto-close only when every AC has a passing SANDBOX test. |
 | R5 | Every state-changing test has a cleanup. Cleanup failure is a hard stop. |
 | R6 | 3-attempt cap on implementation refinement. After that, you decide. |
-| R7 | Agents don't edit files outside the issue's Files-to-touch list. |
+| R7 | (Phase 1 of the guardrails registry, 2026-05-06) Replaced by the deny-paths gate (guardrails.json `enforced.deny_paths`). `Files to touch` is now informational guidance to the implement agent; out-of-scope edits are caught by review, not by a hard gate. |
 | R8 | Orchestration env is SANDBOX-only. `ALMA_PROD_API_KEY` must not be set. |
 
 ## End-to-end walkthrough
@@ -68,7 +68,7 @@ What this does:
 - Updates status to `impl-running`.
 
 The babysitter run will:
-- For each issue, create `feat/<N>-<slug>`, run the implementation agent (max 3 attempts), run static-gates → scope-check (R7) → unit tests → contract tests, then merge into the integration branch with `--no-ff`.
+- For each issue, create `feat/<N>-<slug>`, run the implementation agent (max 3 attempts), run static-gates → deny-paths (R7, guardrails.json) → unit tests → contract tests, then merge into the integration branch with `--no-ff`.
 - After all issues, generate `chunks/http-foundation/test-recommendation.json`.
 - Set status to `impl-done`.
 

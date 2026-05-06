@@ -1,0 +1,1870 @@
+{
+  "issueNumber": 22,
+  "domains": [
+    "conf"
+  ],
+  "reports": [
+    {
+      "domain": "conf",
+      "swaggerUrl": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/conf.json",
+      "fetchedAt": "2026-05-06T13:43:09+00:00",
+      "codeCount": 105,
+      "codes": [
+        {
+          "code": "60105",
+          "message": "JSON is not supported for this API.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "JSON is not supported for this API."
+            }
+          ]
+        },
+        {
+          "code": "60106",
+          "message": "Invalid query format.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Invalid query format."
+            }
+          ]
+        },
+        {
+          "code": "60107",
+          "message": "Invalid set ID.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set ID."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "The set ID provided for the Institution Zone set is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set ID."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set ID."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set ID."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets/{set_id}/members",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set ID."
+            }
+          ]
+        },
+        {
+          "code": "60108",
+          "message": "Invalid set member.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets/{set_id}/members",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set member."
+            }
+          ]
+        },
+        {
+          "code": "60110",
+          "message": "Invalid set member details.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets/{set_id}/members",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set member details."
+            }
+          ]
+        },
+        {
+          "code": "60111",
+          "message": "Invalid operation.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid operation."
+            }
+          ]
+        },
+        {
+          "code": "60112",
+          "message": "Invalid set type.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid set type."
+            }
+          ]
+        },
+        {
+          "code": "60113",
+          "message": "Input set with no members.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input set with no members."
+            }
+          ]
+        },
+        {
+          "code": "60114",
+          "message": "Input set with no member ID.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input set with no member ID."
+            }
+          ]
+        },
+        {
+          "code": "60115",
+          "message": "A member ID is already in the set.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "A member ID is already in the set."
+            }
+          ]
+        },
+        {
+          "code": "60116",
+          "message": "A member ID is not valid for the content.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "A member ID is not valid for the content."
+            }
+          ]
+        },
+        {
+          "code": "60117",
+          "message": "Input set member ID is not in set.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input set member ID is not in set."
+            }
+          ]
+        },
+        {
+          "code": "60118",
+          "message": "Input set member list exceeds limit.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input set member list exceeds limit."
+            }
+          ]
+        },
+        {
+          "code": "60119",
+          "message": "Input set with duplicate member.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input set with duplicate member."
+            }
+          ]
+        },
+        {
+          "code": "60120",
+          "message": "A member ID is not valid for the content and identifier.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "A member ID is not valid for the content and identifier."
+            }
+          ]
+        },
+        {
+          "code": "60176",
+          "message": "A member ID which is represented by an id_type identifier is already in the set.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "A member ID which is represented by an id_type identifier is already in the set."
+            }
+          ]
+        },
+        {
+          "code": "60177",
+          "message": "Reminder ID is not valid.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60178",
+          "message": "Reminder Type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60179",
+          "message": "Reminder Status is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Status is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Status is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60180",
+          "message": "Reminder not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder not created."
+            }
+          ]
+        },
+        {
+          "code": "60181",
+          "message": "Reminder not updated.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Reminder not updated."
+            }
+          ]
+        },
+        {
+          "code": "60182",
+          "message": "Reminder Entity ID is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Entity ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60183",
+          "message": "Reminder Entity Type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Entity Type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60184",
+          "message": "Reminder Entity Id is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Entity Id is required."
+            }
+          ]
+        },
+        {
+          "code": "60185",
+          "message": "Reminder Date is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Reminder Date is required."
+            }
+          ]
+        },
+        {
+          "code": "60190",
+          "message": "License licensor not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "License licensor not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License licensor not valid."
+            }
+          ]
+        },
+        {
+          "code": "60195",
+          "message": "License term codes not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "License term codes not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License term codes not valid."
+            }
+          ]
+        },
+        {
+          "code": "60196",
+          "message": "License not created.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "License not created."
+            }
+          ]
+        },
+        {
+          "code": "60198",
+          "message": "License code not unique.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License code not unique."
+            }
+          ]
+        },
+        {
+          "code": "60200",
+          "message": "License could not be deleted.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License could not be deleted."
+            }
+          ]
+        },
+        {
+          "code": "60202",
+          "message": "License not updated.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License not updated."
+            }
+          ]
+        },
+        {
+          "code": "60204",
+          "message": "Set combine operator not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Set combine operator not valid."
+            }
+          ]
+        },
+        {
+          "code": "60205",
+          "message": "Combining sets are not the same type.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Combining sets are not the same type."
+            }
+          ]
+        },
+        {
+          "code": "60206",
+          "message": "Sets combine operation failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Sets combine operation failed."
+            }
+          ]
+        },
+        {
+          "code": "60209",
+          "message": "Set private value not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Set private value not valid."
+            }
+          ]
+        },
+        {
+          "code": "60210",
+          "message": "Set status not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Set status not valid."
+            }
+          ]
+        },
+        {
+          "code": "60297",
+          "message": "Location type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Location type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Location type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60298",
+          "message": "Remote storage code is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Remote storage code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Remote storage code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60299",
+          "message": "Fulfillment unit is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment unit is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment unit is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60300",
+          "message": "Accession placement is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Accession placement is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Accession placement is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60301",
+          "message": "Call number type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Call number type is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Call number type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60302",
+          "message": "Update of location failed.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Update of location failed."
+            }
+          ]
+        },
+        {
+          "code": "60304",
+          "message": "Invalid profile ID.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/integration-profiles",
+              "httpStatus": "400",
+              "messageVariant": "Invalid profile ID."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/integration-profiles/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid profile ID."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/integration-profiles/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid profile ID."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/integration-profiles/{id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid profile ID."
+            }
+          ]
+        },
+        {
+          "code": "60311",
+          "message": "Combining sets are not the same origin.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Combining sets are not the same origin."
+            }
+          ]
+        },
+        {
+          "code": "60332",
+          "message": "This service will only work for the job category and type of USERS/SIS.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+              "httpStatus": "400",
+              "messageVariant": "This service will only work for the job category and type of USERS/SIS."
+            }
+          ]
+        },
+        {
+          "code": "60333",
+          "message": "Error retrieving events.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+              "httpStatus": "400",
+              "messageVariant": "Error retrieving events."
+            }
+          ]
+        },
+        {
+          "code": "60334",
+          "message": "Failed to create a set in Network.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create a set in Network."
+            }
+          ]
+        },
+        {
+          "code": "60335",
+          "message": "The From Institution Zone is not allowed for institution not in Network.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "The From Institution Zone is not allowed for institution not in Network."
+            }
+          ]
+        },
+        {
+          "code": "60336",
+          "message": "The set type is not allowed for creation as network set.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "The set type is not allowed for creation as network set."
+            }
+          ]
+        },
+        {
+          "code": "60343",
+          "message": "The update failed.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "The update failed."
+            }
+          ]
+        },
+        {
+          "code": "60344",
+          "message": "Problem retrieving letter data.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/letters",
+              "httpStatus": "400",
+              "messageVariant": "Problem retrieving letter data."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "Problem retrieving letter data."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "Problem retrieving letter data."
+            }
+          ]
+        },
+        {
+          "code": "60347",
+          "message": "Job overlapps with running job - cannot execute.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Job overlapps with running job - cannot execute."
+            }
+          ]
+        },
+        {
+          "code": "90100",
+          "message": "Code table name is empty.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Code table name is empty."
+            }
+          ]
+        },
+        {
+          "code": "90101",
+          "message": "Table does not exist.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Table does not exist."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Table does not exist."
+            }
+          ]
+        },
+        {
+          "code": "90102",
+          "message": "Requested table is hidden.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table is hidden."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table is hidden."
+            }
+          ]
+        },
+        {
+          "code": "90121",
+          "message": "Requested table scope is not legal.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table scope is not legal."
+            }
+          ]
+        },
+        {
+          "code": "90122",
+          "message": "Multiple default codes.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Multiple default codes."
+            }
+          ]
+        },
+        {
+          "code": "90123",
+          "message": "Requested table is not customizable",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table is not customizable"
+            }
+          ]
+        },
+        {
+          "code": "90125",
+          "message": "Requested table is not customizable",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table is not customizable"
+            }
+          ]
+        },
+        {
+          "code": "90126",
+          "message": "Mapping table name is empty.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Mapping table name is empty."
+            }
+          ]
+        },
+        {
+          "code": "90127",
+          "message": "Requested table scope is not legal.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Requested table scope is not legal."
+            }
+          ]
+        },
+        {
+          "code": "401664",
+          "message": "Parameter value missing or invalid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value missing or invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            }
+          ]
+        },
+        {
+          "code": "401871",
+          "message": "Failed to find the Profile ID.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/md-import-profiles/{profile_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Profile ID."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/md-import-profiles/{profile_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find the Profile ID."
+            }
+          ]
+        },
+        {
+          "code": "402119",
+          "message": "General error.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/code-tables",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/departments",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/general",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/letters",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/circ-desks/",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/libraries/{libraryCode}/open-hours",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/mapping-tables",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/md-import-profiles",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/utilities/fee-transactions",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/workflows/{workflow_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            }
+          ]
+        },
+        {
+          "code": "402123",
+          "message": "Invalid parameter value.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/md-import-profiles",
+              "httpStatus": "400",
+              "messageVariant": "Invalid parameter value."
+            }
+          ]
+        },
+        {
+          "code": "402215",
+          "message": "Invalid job id format.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/download",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id format."
+            }
+          ]
+        },
+        {
+          "code": "402216",
+          "message": "Invalid job id.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/download",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job id."
+            }
+          ]
+        },
+        {
+          "code": "402217",
+          "message": "Invalid date format.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances",
+              "httpStatus": "400",
+              "messageVariant": "Invalid date format."
+            }
+          ]
+        },
+        {
+          "code": "402218",
+          "message": "Invalid job instance id.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job instance id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/download",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job instance id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job instance id."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job instance id."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Invalid job instance id."
+            }
+          ]
+        },
+        {
+          "code": "402219",
+          "message": "Failed to retrieve jobs list.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve jobs list."
+            }
+          ]
+        },
+        {
+          "code": "402220",
+          "message": "Operation was not provided.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Operation was not provided."
+            }
+          ]
+        },
+        {
+          "code": "402221",
+          "message": "Operation is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Operation is not supported."
+            }
+          ]
+        },
+        {
+          "code": "402223",
+          "message": "Execution threshold reached.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Execution threshold reached."
+            }
+          ]
+        },
+        {
+          "code": "402226",
+          "message": "An internal error occured.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "An internal error occured."
+            }
+          ]
+        },
+        {
+          "code": "402228",
+          "message": "Mandatory parameter is missing from input.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory parameter is missing from input."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory parameter is missing from input."
+            }
+          ]
+        },
+        {
+          "code": "402229",
+          "message": "Mandatory parameter value is empty.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory parameter value is empty."
+            }
+          ]
+        },
+        {
+          "code": "402231",
+          "message": "Job in consisted of more than one task - executing such job is currently not supported via the API.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Job in consisted of more than one task - executing such job is currently not supported via the API."
+            }
+          ]
+        },
+        {
+          "code": "402248",
+          "message": "Cannot submit scheduled job.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot submit scheduled job."
+            }
+          ]
+        },
+        {
+          "code": "402249",
+          "message": "Invalid scheduled job category.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid scheduled job category."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/jobs/{job_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid scheduled job category."
+            }
+          ]
+        },
+        {
+          "code": "402261",
+          "message": "Invalid Set object.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid Set object."
+            }
+          ]
+        },
+        {
+          "code": "402262",
+          "message": "Set type is invalid. Only",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Set type is invalid. Only"
+            }
+          ]
+        },
+        {
+          "code": "402263",
+          "message": "The set name already exists. Please choose a different name.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "The set name already exists. Please choose a different name."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "The set name already exists. Please choose a different name."
+            }
+          ]
+        },
+        {
+          "code": "402264",
+          "message": "Set ID is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Set ID is invalid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid Set ID."
+            }
+          ]
+        },
+        {
+          "code": "402265",
+          "message": "Failed to create a set.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create a set."
+            }
+          ]
+        },
+        {
+          "code": "402266",
+          "message": "Population value is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Population value is invalid."
+            }
+          ]
+        },
+        {
+          "code": "402267",
+          "message": "Job instance type for the provided job_instance_id is not MD_IMPORT - the operation is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Job instance type for the provided job_instance_id is not MD_IMPORT - the operation is not supported."
+            }
+          ]
+        },
+        {
+          "code": "402269",
+          "message": "Invalid query content type in query string.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid query content type in query string."
+            }
+          ]
+        },
+        {
+          "code": "402270",
+          "message": "Failed parsing quer.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed parsing quer."
+            }
+          ]
+        },
+        {
+          "code": "402282",
+          "message": "Delete of Set Failed.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Delete of Set Failed."
+            }
+          ]
+        },
+        {
+          "code": "402469",
+          "message": "The library code is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/printers",
+              "httpStatus": "400",
+              "messageVariant": "The library code is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402899",
+          "message": "Invalid Printer ID.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/printers/{printer_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid Printer ID."
+            }
+          ]
+        },
+        {
+          "code": "403400",
+          "message": "License with code not found.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License with code not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License with code not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "License with code not found."
+            }
+          ]
+        },
+        {
+          "code": "403401",
+          "message": "Failed to retrieve license.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve license."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to retrieve license."
+            }
+          ]
+        },
+        {
+          "code": "450001",
+          "message": "Workflow not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/workflows/{workflow_id}",
+              "httpStatus": "400",
+              "messageVariant": "Workflow not found."
+            }
+          ]
+        },
+        {
+          "code": "450002",
+          "message": "Workflow inactive.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/workflows/{workflow_id}",
+              "httpStatus": "400",
+              "messageVariant": "Workflow inactive."
+            }
+          ]
+        },
+        {
+          "code": "450003",
+          "message": "Workflow missing trigger node.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/workflows/{workflow_id}",
+              "httpStatus": "400",
+              "messageVariant": "Workflow missing trigger node."
+            }
+          ]
+        },
+        {
+          "code": "450004",
+          "message": "Workflow missing trigger configuration.  In test mode, this could mean the node is not listening for events.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/workflows/{workflow_id}",
+              "httpStatus": "400",
+              "messageVariant": "Workflow missing trigger configuration.  In test mode, this could mean the node is not listening for events."
+            }
+          ]
+        },
+        {
+          "code": "500021",
+          "message": "Mandatory field is missing.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/license-terms",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field is missing."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/license-terms/{license_term_code}",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field is missing."
+            }
+          ]
+        },
+        {
+          "code": "500127",
+          "message": "",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": ""
+            }
+          ]
+        },
+        {
+          "code": "40166404",
+          "message": "Invalid type.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/integration-profiles",
+              "httpStatus": "400",
+              "messageVariant": "Invalid type."
+            }
+          ]
+        },
+        {
+          "code": "40166408",
+          "message": "Failed updating set.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed updating set."
+            }
+          ]
+        },
+        {
+          "code": "40166410",
+          "message": "Parameter value invalid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/integration-profiles",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs",
+              "httpStatus": "400",
+              "messageVariant": "Invalid category."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs",
+              "httpStatus": "400",
+              "messageVariant": "Invalid type."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances",
+              "httpStatus": "400",
+              "messageVariant": "Invalid status."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+              "httpStatus": "400",
+              "messageVariant": "Population value is invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/printers",
+              "httpStatus": "400",
+              "messageVariant": "Invalid parameter."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/reminders",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/reminders/{reminder_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/sets",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/conf/sets/{set_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid parameter identifier type."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/utilities/fee-transactions",
+              "httpStatus": "400",
+              "messageVariant": "An error has occurred in setting circ library or circ desk."
+            }
+          ]
+        },
+        {
+          "code": "40166411",
+          "message": "Failed to find scope.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/code-tables",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find scope."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/code-tables/{codeTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "Letter code is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/letters/{letterCode}",
+              "httpStatus": "400",
+              "messageVariant": "Letter code or other parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/mapping-tables",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find scope."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/mapping-tables/{mappingTableName}",
+              "httpStatus": "400",
+              "messageVariant": "Param value is invalid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value invalid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/utilities/fee-transactions",
+              "httpStatus": "400",
+              "messageVariant": "An error has occurred in setting from and/or to dates."
+            }
+          ]
+        },
+        {
+          "code": "40166413",
+          "message": "Parameter value is mandatory.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is mandatory."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is mandatory."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/conf/relations",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is mandatory."
+            }
+          ]
+        },
+        {
+          "code": "40166419",
+          "message": "An error has occurred in setting transaction type.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/conf/utilities/fee-transactions",
+              "httpStatus": "400",
+              "messageVariant": "An error has occurred in setting transaction type."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

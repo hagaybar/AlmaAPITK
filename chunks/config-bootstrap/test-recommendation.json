@@ -1,0 +1,59 @@
+{
+  "chunk": "config-bootstrap",
+  "issues": [22],
+  "summary": "Foundation-only chunk (issue #22) — adds Configuration class skeleton with __init__, get_environment, test_connection. No Alma API endpoints wired. SANDBOX exercise reduces to a single smoke test that imports Configuration, instantiates it against a SANDBOX client, and verifies the connection check + environment introspection. The remaining ACs are doc/static-import in nature and are already covered by unit tests + smoke_import.py.",
+  "tests": [
+    {
+      "id": "T1-config-smoke",
+      "kind": "smoke",
+      "description": "Import Configuration from the public API, instantiate it with a SANDBOX AlmaAPIClient, and verify get_environment() returns 'SANDBOX' and test_connection() returns True against the live SANDBOX tenant.",
+      "endpoints": [
+        "GET /almaws/v1/conf/test (via AlmaAPIClient.test_connection — no Configuration-specific endpoint touched)"
+      ],
+      "stateChanging": false,
+      "needsHumanInput": [],
+      "pythonCalls": [
+        "from almaapitk import AlmaAPIClient, Configuration",
+        "client = AlmaAPIClient('SANDBOX')",
+        "config = Configuration(client)",
+        "env = config.get_environment()",
+        "ok = config.test_connection()"
+      ],
+      "passCriteria": [
+        "`from almaapitk import Configuration` succeeds (lazy import wired).",
+        "`Configuration(client)` instantiates without raising.",
+        "`config.get_environment()` returns the string 'SANDBOX'.",
+        "`config.test_connection()` returns True against the live SANDBOX tenant."
+      ],
+      "cleanup": null
+    }
+  ],
+  "acceptanceMapping": [
+    {
+      "ac": "New file `src/almaapitk/domains/configuration.py` exists with `Configuration` class.",
+      "tests": ["T1-config-smoke"]
+    },
+    {
+      "ac": "`from almaapitk import Configuration` works (lazy import wired).",
+      "tests": ["T1-config-smoke"]
+    }
+  ],
+  "unmappable": [
+    {
+      "ac": "`scripts/smoke_import.py` passes.",
+      "reason": "Verified by the smoke_import.py script itself in CI / pre-merge gate; not a SANDBOX-live exercise. Already executed during the impl pipeline."
+    },
+    {
+      "ac": "`tests/test_public_api_contract.py` asserts the new `Configuration` symbol.",
+      "reason": "Verified by the unit/contract test suite (pytest), which runs offline and is already part of the impl gate. No live SANDBOX call needed."
+    },
+    {
+      "ac": "`CLAUDE.md` 'Domain Classes' table updated to list the new domain.",
+      "reason": "Documentation-only AC; verified by reading the diff. No runtime behavior to exercise against SANDBOX."
+    },
+    {
+      "ac": "No actual API methods implemented in this issue — those land in sibling tickets.",
+      "reason": "Negative AC — verified by inspecting the diff (only __init__, get_environment, test_connection were added). No SANDBOX call can prove the absence of methods; this is enforced by code review and the unit test that snapshots the public surface of the Configuration class."
+    }
+  ]
+}

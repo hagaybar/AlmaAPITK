@@ -1,0 +1,52 @@
+{
+  "chunk": "config-bootstrap",
+  "issues": [
+    {
+      "number": 22,
+      "title": "Coverage: Configuration: bootstrap Configuration domain class",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/22",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** M (1\u20133 days)\n**Foundation:** YES \u2014 blocks issues 3-14\n\n## API endpoints touched\n- `(no endpoints in this issue \u2014 foundation only)`\n\n## Methods to add\n```python\nclass Configuration:\n    def __init__(self, client: AlmaAPIClient): ...\n    def get_environment(self) -> str: ...\n    def test_connection(self) -> bool: ...\n```\n\n## Files to touch\n- `src/almaapitk/domains/configuration.py (NEW)`\n- `src/almaapitk/__init__.py (add to __all__ + lazy import map)`\n- `src/almaapitk/_internal/__init__.py (re-export)`\n- `tests/test_public_api_contract.py (assert new symbol exists)`\n- `tests/unit/domains/test_configuration.py (NEW)`\n- `CLAUDE.md (update Domain Classes table)`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n- `CLAUDE.md` \u2014 domain-class pattern (Client-Domain pattern) \u2014 section 'Domain Classes (`src/almaapitk/domains/`)'\n- `src/almaapitk/client/AlmaAPIClient.py` \u2014 HTTP verbs (`client.get/post/put/delete`)\n- `src/almaapitk/alma_logging/` \u2014 `get_logger(...)` (NEVER use print)\n- `src/almaapitk/__init__.py` \u2014 add to `__all__` and `_lazy_imports` if exposing new public symbols\n- `tests/test_public_api_contract.py` \u2014 extend if new public symbols are added\n- Mirror existing pattern from `src/almaapitk/domains/admin.py` (small, well-bounded existing domain)\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #4 \u2014 Consolidate HTTP verbs into _request() (ensures the new domain class uses the consolidated _request() once landed)\n- #14 \u2014 Replace print() with logger; remove safe_request() (ensures no print() in the new domain)\n- #16 \u2014 Tighten exception handling and cache AlmaResponse.data (narrow except + cached AlmaResponse for the new domain's methods)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- New file `src/almaapitk/domains/configuration.py` exists with `Configuration` class.\n- `from almaapitk import Configuration` works (lazy import wired).\n- `scripts/smoke_import.py` passes.\n- `tests/test_public_api_contract.py` asserts the new `Configuration` symbol.\n- `CLAUDE.md` 'Domain Classes' table updated to list the new domain.\n- No actual API methods implemented in this issue \u2014 those land in sibling tickets.\n\n## Notes for the implementing agent\n- This is a foundation-only ticket. The goal is to establish the class skeleton, public-API plumbing, and tests so that the sibling coverage tickets (issues 3-14) can each ship one focused PR.\n- Pattern source: `src/almaapitk/domains/admin.py` (compact, follows the project conventions).\n- Do NOT implement API methods in this PR \u2014 they belong to the sibling tickets. Only `__init__`, `get_environment`, `test_connection`.\n- Wire the lazy import in `src/almaapitk/__init__.py` exactly like the other domains (see `_lazy_imports` dict).\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [
+        "(no endpoints in this issue \u2014 foundation only)"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/configuration.py",
+        "src/almaapitk/__init__.py",
+        "src/almaapitk/_internal/__init__.py",
+        "tests/test_public_api_contract.py",
+        "tests/unit/domains/test_configuration.py",
+        "CLAUDE.md"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/",
+        "CLAUDE.md",
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "src/almaapitk/alma_logging/",
+        "src/almaapitk/__init__.py",
+        "tests/test_public_api_contract.py",
+        "Mirror existing pattern from `src/almaapitk/domains/admin.py`"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        4,
+        14,
+        16
+      ],
+      "acceptance_criteria": [
+        "New file `src/almaapitk/domains/configuration.py` exists with `Configuration` class.",
+        "`from almaapitk import Configuration` works (lazy import wired).",
+        "`scripts/smoke_import.py` passes.",
+        "`tests/test_public_api_contract.py` asserts the new `Configuration` symbol.",
+        "`CLAUDE.md` 'Domain Classes' table updated to list the new domain.",
+        "No actual API methods implemented in this issue \u2014 those land in sibling tickets."
+      ]
+    }
+  ]
+}

@@ -174,6 +174,21 @@ class TestPublicAPIContract(unittest.TestCase):
         self.assertIsNotNone(ResourceSharing)
         self.assertTrue(callable(ResourceSharing))
 
+    def test_configuration_importable(self):
+        """Test that Configuration domain class is importable from almaapitk (issue #22)."""
+        from almaapitk import Configuration
+        self.assertIsNotNone(Configuration)
+        self.assertTrue(callable(Configuration))
+
+    def test_configuration_in_all(self):
+        """Test that Configuration is in __all__ (issue #22)."""
+        import almaapitk
+        self.assertIn(
+            'Configuration',
+            almaapitk.__all__,
+            "Expected domain symbol 'Configuration' to be in __all__",
+        )
+
     def test_stdlib_logging_not_shadowed(self):
         """Test that stdlib logging is not shadowed by internal modules."""
         import logging

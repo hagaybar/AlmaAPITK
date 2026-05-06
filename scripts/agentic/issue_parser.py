@@ -41,6 +41,10 @@ def _section(body: str, header: str) -> str | None:
 _PATH_AT_START_RE = re.compile(r"^`([^`]+)`")
 _ANNOTATION_RE = re.compile(r"^\s*\([^)]*\)")
 _SEP_RE = re.compile(r"^\s*(?:,|→|and)\s+")
+# Trailing " (annotation)" embedded INSIDE the backticks. Requires a leading
+# whitespace before the open paren so a fully-parenthesized token like
+# "(no endpoints — foundation only)" is preserved as-is.
+_INNER_ANNOTATION_RE = re.compile(r"\s+\([^)]*\)\s*$")
 
 
 def _bullet_lines(section_body: str | None) -> list[str]:
@@ -79,7 +83,7 @@ def _bullet_lines(section_body: str | None) -> list[str]:
                 m = _PATH_AT_START_RE.match(text)
                 if not m:
                     break
-                path = m.group(1)
+                path = _INNER_ANNOTATION_RE.sub("", m.group(1))
                 if path:
                     out.append(path)
                 text = text[m.end():]

@@ -248,3 +248,71 @@ def test_bullet_lines_first_path_then_comment_in_backticks_unchanged():
     )
     paths = _bullet_lines(section)
     assert paths == ["docs/chunks-backlog.yaml"], paths
+
+
+def test_bullet_lines_strips_annotation_inside_backticks():
+    """R10 regression for chunk config-bootstrap (issue #22).
+
+    Foundation tickets put the annotation INSIDE the backticks instead of
+    after the closing backtick:
+
+        - `src/almaapitk/domains/configuration.py (NEW)`
+
+    The parser previously captured the entire backtick content, leaving
+    the annotation embedded in the path string. Scope-check (R7) then
+    compared `"src/.../configuration.py (NEW)"` against the bare diff
+    path `"src/.../configuration.py"` via set membership and flagged
+    every file out-of-scope, even legitimately-touched ones.
+
+    The fix is to strip a trailing ` (annotation)` suffix from inside
+    the backticks, normalizing both formats to the same bare path.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = (
+        "- `src/almaapitk/domains/configuration.py (NEW)`\n"
+        "- `src/almaapitk/__init__.py (add to __all__ + lazy import map)`\n"
+        "- `src/almaapitk/_internal/__init__.py (re-export)`\n"
+        "- `tests/test_public_api_contract.py (assert new symbol exists)`"
+    )
+    paths = _bullet_lines(section)
+    assert paths == [
+        "src/almaapitk/domains/configuration.py",
+        "src/almaapitk/__init__.py",
+        "src/almaapitk/_internal/__init__.py",
+        "tests/test_public_api_contract.py",
+    ], paths
+
+
+def test_bullet_lines_strips_inside_annotation_with_external_annotation():
+    """Defense-in-depth: a bullet that has BOTH inside-backtick and
+    outside-backtick annotations should still normalize to the bare path.
+
+    Bullet:
+        - `path/to/file.py (NEW)` (also wired into __init__)
+
+    Both annotations are descriptive; only the path is the file to touch.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = "- `path/to/file.py (NEW)` (also wired into __init__)"
+    paths = _bullet_lines(section)
+    assert paths == ["path/to/file.py"], paths
+
+
+def test_bullet_lines_no_strip_when_paren_token_is_whole_content():
+    """Guard the strip from eating legitimate parenthesized content.
+
+    The 'API endpoints touched' section in foundation tickets sometimes has:
+        - `(no endpoints in this issue — foundation only)`
+
+    The entire backtick content is one parenthesized note (no leading
+    whitespace before the open paren). Stripping must not match here —
+    the result should preserve the parenthesized text as-is so callers
+    can recognize the sentinel.
+    """
+    from scripts.agentic.issue_parser import _bullet_lines
+
+    section = "- `(no endpoints in this issue — foundation only)`"
+    paths = _bullet_lines(section)
+    assert paths == ["(no endpoints in this issue — foundation only)"], paths

@@ -4,6 +4,7 @@ A foundational class that serves as the base for all Alma API interactions.
 This is designed to be 'pluggable' - other classes will use this as their foundation.
 """
 import os
+import sys
 import requests
 import json
 from typing import Optional, Dict, Any, Iterator

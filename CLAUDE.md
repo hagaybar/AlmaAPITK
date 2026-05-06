@@ -200,6 +200,7 @@ The primary deliverable - a clean, importable Python package.
 | **Admin** | `admin.py` | Sets management (BIB_MMS, USER) |
 | **Analytics** | `analytics.py` | Analytics reports (headers, rows with pagination) |
 | **BibliographicRecords** | `bibs.py` | Bib records, holdings, items, scan-in |
+| **Configuration** | `configuration.py` | Configuration API foundation skeleton (issue #22; concrete methods land in sibling tickets 24-35) |
 | **ResourceSharing** | `resource_sharing.py` | Lending/borrowing via Partners API |
 | **Users** | `users.py` | User management, email updates |
 

@@ -30,6 +30,7 @@ from .domains import (
     Acquisitions,
     ResourceSharing,
     Analytics,
+    Configuration,
 )
 
 __all__ = [
@@ -52,4 +53,5 @@ __all__ = [
     "Acquisitions",
     "ResourceSharing",
     "Analytics",
+    "Configuration",
 ]

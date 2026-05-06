@@ -11,6 +11,7 @@ Domain classes provide high-level API wrappers for specific Alma functional area
 - Acquisitions: Invoice management and POL operations
 - ResourceSharing: Lending/borrowing requests via Partners API
 - Analytics: Analytics reports and data retrieval
+- Configuration: Configuration API surface (foundation skeleton, issue #22)
 """
 from almaapitk.domains.admin import Admin
 from almaapitk.domains.users import Users
@@ -18,6 +19,7 @@ from almaapitk.domains.bibs import BibliographicRecords
 from almaapitk.domains.acquisition import Acquisitions
 from almaapitk.domains.resource_sharing import ResourceSharing
 from almaapitk.domains.analytics import Analytics
+from almaapitk.domains.configuration import Configuration
 
 __all__ = [
     "Admin",
@@ -26,4 +28,5 @@ __all__ = [
     "Acquisitions",
     "ResourceSharing",
     "Analytics",
+    "Configuration",
 ]

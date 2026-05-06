@@ -1,4 +1,12 @@
-"""Compare a branch's diff to an issue's Files-to-touch list (spec R7).
+"""Compare a branch's diff to an issue's Files-to-touch list (legacy R7).
+
+DEPRECATED (2026-05-06): Phase 1 of the guardrails registry replaced this
+allow-list scope-check with a deny-list `deny-paths` gate (see
+`scripts.agentic.guardrails` and
+`docs/superpowers/plans/2026-05-06-guardrails-registry-phase-1.md`).
+This module is retained for back-compat with any out-of-tree scripts that
+still import it; the chunk-impl process no longer calls it. Removal is
+planned for Phase 5.
 
 Supports two invocation modes:
 1. Pure-data: pass diff_files + files_to_touch as Python lists.

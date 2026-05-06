@@ -15,3 +15,4 @@ Append-only log of chunk runs. One row per finished chunk.
 | client-ergonomics | 2026-05-05 | #13, #16 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/100 |
 | pagination-helper | 2026-05-05 | #11 |  | 3 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/104 |
 | config-bootstrap | 2026-05-06 | #22 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/107 |
+| logger-noise-fix (off-pipeline) | 2026-05-06 | #2 | n/a | 1 | 0 | 0 | n/a | https://github.com/hagaybar/AlmaAPITK/pull/108 |

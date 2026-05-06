@@ -80,12 +80,13 @@ class JSONFormatter(logging.Formatter):
         if hasattr(record, 'environment'):
             log_data['environment'] = record.environment
 
-        # Extract all custom attributes (anything not in standard LogRecord)
+        # Extract all custom attributes (anything not in standard LogRecord).
+        # `taskName` was added in Python 3.12 — must be filtered (issue #2).
         standard_attrs = {
             'name', 'msg', 'args', 'created', 'filename', 'funcName', 'levelname',
             'levelno', 'lineno', 'module', 'msecs', 'message', 'pathname', 'process',
-            'processName', 'relativeCreated', 'thread', 'threadName', 'exc_info',
-            'exc_text', 'stack_info', 'getMessage', 'domain', 'environment'
+            'processName', 'relativeCreated', 'thread', 'threadName', 'taskName',
+            'exc_info', 'exc_text', 'stack_info', 'getMessage', 'domain', 'environment'
         }
 
         custom_fields = {}
@@ -166,12 +167,13 @@ class TextFormatter(logging.Formatter):
         # Add message
         parts.append(record.getMessage())
 
-        # Extract custom fields for display
+        # Extract custom fields for display.
+        # `taskName` was added in Python 3.12 — must be filtered (issue #2).
         standard_attrs = {
             'name', 'msg', 'args', 'created', 'filename', 'funcName', 'levelname',
             'levelno', 'lineno', 'module', 'msecs', 'message', 'pathname', 'process',
-            'processName', 'relativeCreated', 'thread', 'threadName', 'exc_info',
-            'exc_text', 'stack_info', 'getMessage', 'domain', 'environment'
+            'processName', 'relativeCreated', 'thread', 'threadName', 'taskName',
+            'exc_info', 'exc_text', 'stack_info', 'getMessage', 'domain', 'environment'
         }
 
         custom_fields = []

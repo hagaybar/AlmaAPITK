@@ -40,12 +40,14 @@ Homepage = "https://github.com/hagaybar/AlmaAPITK"
 Repository = "https://github.com/hagaybar/AlmaAPITK"
 Documentation = "https://github.com/hagaybar/AlmaAPITK#readme"
 Issues = "https://github.com/hagaybar/AlmaAPITK/issues"
+Changelog = "https://github.com/hagaybar/AlmaAPITK/blob/main/CHANGELOG.md"
 
 [tool.poetry]
 packages = [{ include = "almaapitk", from = "src" }]
 include = [
     { path = "README.md", format = "sdist" },
     { path = "LICENSE", format = "sdist" },
+    { path = "CHANGELOG.md", format = "sdist" },
     { path = "docs/releases/0.3.1.md", format = "sdist" },
 ]
 exclude = [

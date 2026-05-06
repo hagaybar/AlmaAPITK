@@ -41,7 +41,7 @@ poetry run python scripts/smoke_import.py
 // the new acceptance criterion ("swagger error codes accounted for") is
 // then a degraded best-effort instead of a hard block.
 //
-// The shell pattern mirrors `scopeCheckTask`: stage the issue context to a
+// The shell pattern mirrors `denyPathsTask`: stage the issue context to a
 // temp JSON file, then run a single-quoted Python heredoc that reads the
 // staged file. This keeps the JS template literal simple and avoids
 // quoting cliffs.
@@ -122,31 +122,23 @@ export const staticGatesTask = defineTask('static-gates', (args, taskCtx) => ({
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
 }));
 
-export const scopeCheckTask = defineTask('scope-check', (args, taskCtx) => {
-  // Write the files-to-touch list to a temp JSON file and pipe a payload
-  // into `scope_check.py`'s CLI so we don't have to embed JSON inside a
-  // `python -c "..."` shell-double-quoted string (where embedded `"` would
-  // terminate the outer quote and break the shell).
-  const filesPath = `${args.repoRoot}/chunks/${args.chunkName}/_files_to_touch_${args.issueNumber}.json`;
+export const denyPathsTask = defineTask('deny-paths', (args, taskCtx) => {
+  // Phase 1 of the guardrails registry: instead of an allow-list scope-check,
+  // we run a tiny deny-list against the diff. The deny-list lives in
+  // guardrails.json (enforced.deny_paths). See
+  // docs/superpowers/plans/2026-05-06-guardrails-registry-phase-1.md.
   return {
     kind: 'shell',
-    title: 'Scope-check (R7): every changed file is in Files-to-touch',
+    title: 'Deny-paths gate (guardrails.json enforced.deny_paths)',
     shell: {
       command: `set -e
-mkdir -p "$(dirname "${filesPath}")"
-cat > "${filesPath}" <<'JSON_EOF'
-${JSON.stringify(args.filesToTouch, null, 2)}
-JSON_EOF
 cd "${args.repoRoot}"
 DIFF_FILES_JSON="$(git diff --name-only chunk/${args.chunkName}...HEAD | python -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')"
-FILES_TO_TOUCH_JSON="$(cat "${filesPath}")"
 set +e
-python -m scripts.agentic.scope_check <<PAYLOAD_EOF
-{"diff_files": $DIFF_FILES_JSON, "files_to_touch": $FILES_TO_TOUCH_JSON}
+python -m scripts.agentic.guardrails deny-paths --registry guardrails.json <<PAYLOAD_EOF
+{"diff_files": $DIFF_FILES_JSON}
 PAYLOAD_EOF
-RC=$?
-rm -f "${filesPath}"
-exit $RC
+exit $?
 `,
       timeout: 30000,
     },
@@ -339,11 +331,7 @@ export async function process(inputs, ctx) {
       // gate failure that should drive the next refinement attempt.
       const gateChain = [
         ['static', staticGatesTask, { repoRoot, chunkName }],
-        ['scope', scopeCheckTask, {
-          repoRoot, chunkName,
-          issueNumber: issue.number,
-          filesToTouch: issue.files_to_touch,
-        }],
+        ['deny-paths', denyPathsTask, { repoRoot, chunkName }],
         ['unit', unitTestsTask, { repoRoot }],
         ['contract', contractTestTask, { repoRoot }],
       ];

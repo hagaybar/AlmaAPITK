@@ -35,6 +35,8 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 
 **Hard rule R8:** the chunks CLI refuses to run if `ALMA_PROD_API_KEY` is set in the environment. If `chunks list` exits with that error, the operator's shell has the prod key set; instruct them to `unset ALMA_PROD_API_KEY` and retry.
 
+**R7 (deny-paths):** As of 2026-05-06 (Phase 1 of the guardrails registry), R7 is enforced by `guardrails.json` `enforced.deny_paths` rather than a per-issue allow-list. The current deny-list is small (`.github/`, `secrets/`); broader scope discipline lives in the implement agent's prompt and (Phase 4) in the post-implement critique pass. See `docs/superpowers/plans/2026-05-06-guardrails-registry-phase-1.md`.
+
 **Hard rule R9 — never put actual identifiers in publicly-visible content.** This is a public PyPI repo. Never include real operator-supplied identifiers (user_primary_id, MMS ID, vendor code, POL ID, institution code, email addresses, etc.) in:
 - Committed files (especially `test-data.json` — gitignored for this reason)
 - Commit messages

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "enforced": {
+    "deny_paths": [
+      ".github/",
+      "secrets/"
+    ]
+  },
+  "instructed": {
+    "implement": [],
+    "critique": []
+  }
+}

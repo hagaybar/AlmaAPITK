@@ -2,7 +2,8 @@
 Configuration Domain Class for Alma API
 Foundation skeleton for the Configuration API surface (issue #22), extended
 with organizational-structure read methods (issue #24), locations CRUD
-(issue #25), and code-tables list/get/replace (issue #26).
+(issue #25), code-tables list/get/replace (issue #26), and mapping-tables
+list/get/replace (issue #27).
 
 Issue #22 established the Configuration domain class with the minimal
 plumbing required by sibling tickets — environment introspection and a
@@ -16,8 +17,14 @@ update / delete).
 
 Issue #26 adds code-tables coverage: list institution-wide code tables,
 fetch a single table (with rows), and replace an entire table via PUT.
-Concrete API methods for the remaining sibling tickets (calendars, etc.)
-land in those tickets and intentionally do NOT live here.
+
+Issue #27 adds mapping-tables coverage: list institution-wide mapping
+tables, fetch a single table (with rows), and replace an entire table
+via PUT. Mapping tables are structurally identical to code tables at the
+API surface — they differ only in semantic intent (mapping tables map a
+key to a value, code tables enumerate codes). Concrete API methods for
+the remaining sibling tickets (calendars, etc.) land in those tickets
+and intentionally do NOT live here.
 """
 from typing import Any, Dict, List
 
@@ -980,6 +987,195 @@ class Configuration:
             self.logger.error(
                 f"✗ Failed to update code table {name}",
                 code_table_name=name,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    # =========================================================================
+    # Mapping tables (issue #27)
+    #
+    # Identical shape to the code-tables block above (issue #26) — the Alma
+    # API surface is structurally the same; mapping tables and code tables
+    # differ only in semantic intent (mapping tables map a key to a value,
+    # code tables enumerate codes). The collection endpoint takes NO ``scope``
+    # parameter; same audit guidance as #26 applies — do not add one.
+    # =========================================================================
+
+    def list_mapping_tables(self) -> List[Dict[str, Any]]:
+        """List all mapping tables configured in the Alma institution.
+
+        Calls ``GET /almaws/v1/conf/mapping-tables`` and unwraps the Alma
+        response envelope
+        (``{"mapping_table": [...], "total_record_count": N}``) into a
+        flat list. The endpoint takes no ``scope`` filter — mirroring
+        :meth:`list_code_tables`, this method intentionally exposes no
+        filter parameters.
+
+        Returns:
+            List of mapping-table summary dicts (typically containing
+            ``name``, ``description``, ``sub_system``, etc.). Returns an
+            empty list when the institution has no mapping tables (or
+            when the response envelope is missing the ``mapping_table``
+            key).
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_code_tables (issue #26, above).
+        self.logger.info(
+            f"Listing mapping tables ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/mapping-tables",
+                params={"limit": "100", "offset": "0"},
+            )
+            payload = response.json() or {}
+            mapping_tables = payload.get("mapping_table") or []
+            if isinstance(mapping_tables, dict):
+                # Single-record responses can come back as a dict; normalise.
+                mapping_tables = [mapping_tables]
+            self.logger.info(
+                f"✓ Retrieved {len(mapping_tables)} mapping tables"
+            )
+            return mapping_tables
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to list mapping tables",
+                extra={
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def get_mapping_table(self, mapping_table_name: str) -> Dict[str, Any]:
+        """Get a single mapping table including all of its rows.
+
+        Calls ``GET /almaws/v1/conf/mapping-tables/{mappingTableName}``.
+        The full mapping-table object is returned unwrapped — including
+        the ``row`` collection that holds the table's individual entries
+        — so callers can mutate rows in place and pass the dict back to
+        :meth:`update_mapping_table`.
+
+        Args:
+            mapping_table_name: The Alma mapping-table name.
+
+        Returns:
+            The full mapping-table object as returned by Alma. Includes
+            metadata (``name``, ``description``, ``sub_system``, etc.)
+            and the ``row`` array of entries.
+
+        Raises:
+            AlmaValidationError: If ``mapping_table_name`` is empty or
+                not a string.
+            AlmaAPIError: If the API request fails (including 400 with
+                Alma error code ``90101`` "Table does not exist." for
+                an unknown table name).
+        """
+        # Pattern source: Configuration.get_code_table (issue #26, above).
+        name = self._validate_code(mapping_table_name, "mapping_table_name")
+        self.logger.info(
+            f"Getting mapping table: {name} ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                f"almaws/v1/conf/mapping-tables/{name}"
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"✓ Retrieved mapping table {name}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to get mapping table {name}",
+                extra={
+                    "mapping_table_name": name,
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def update_mapping_table(
+        self,
+        mapping_table_name: str,
+        mapping_table_data: Dict[str, Any],
+    ) -> AlmaResponse:
+        """Replace an entire mapping table.
+
+        Wraps ``PUT /almaws/v1/conf/mapping-tables/{mappingTableName}``.
+        **The PUT replaces the entire table — it is NOT a partial
+        update.** Alma requires the complete mapping-table object on the
+        wire, including every row that should remain in the table.
+        Mapping tables can be large; callers typically read the table
+        with :meth:`get_mapping_table`, mutate the dict (add / remove /
+        edit ``row`` entries), then pass the whole thing back here. Rows
+        omitted from the request body are dropped from the table.
+
+        Args:
+            mapping_table_name: The Alma mapping-table name.
+            mapping_table_data: Full mapping-table object payload. Must
+                be a non-empty dict.
+
+        Returns:
+            AlmaResponse wrapping the updated mapping-table object.
+
+        Raises:
+            AlmaValidationError: If ``mapping_table_name`` is empty / not
+                a string, or ``mapping_table_data`` is empty / not a
+                dict.
+            AlmaAPIError: On API failure. Notable Alma error codes for
+                this endpoint include ``90101`` ("Table does not
+                exist."), ``90102`` ("Requested table is hidden."),
+                ``90121`` / ``90127`` ("Requested table scope is not
+                legal."), ``90123`` ("Requested table is not
+                customizable"), and ``90126`` ("Mapping table name is
+                empty.").
+
+        Example:
+            >>> table = config.get_mapping_table("RecallDueDate")
+            >>> # Mutate rows in place — e.g. flip a row's enabled flag.
+            >>> for row in table.get("row", []):
+            ...     if row.get("column0") == "STAFF":
+            ...         row["enabled"] = {"value": "false"}
+            >>> response = config.update_mapping_table(
+            ...     "RecallDueDate", table
+            ... )
+        """
+        # Pattern source: Configuration.update_code_table (issue #26, above).
+        name = self._validate_code(mapping_table_name, "mapping_table_name")
+        if not isinstance(mapping_table_data, dict) or not mapping_table_data:
+            raise AlmaValidationError(
+                "mapping_table_data must be a non-empty dict"
+            )
+
+        self.logger.info(
+            f"Updating mapping table: {name}",
+            mapping_table_name=name,
+        )
+
+        try:
+            response = self.client.put(
+                f"almaws/v1/conf/mapping-tables/{name}",
+                data=mapping_table_data,
+            )
+            self.logger.info(
+                f"✓ Updated mapping table: {name}",
+                mapping_table_name=name,
+            )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to update mapping table {name}",
+                mapping_table_name=name,
                 error_code=e.status_code,
                 alma_code=getattr(e, "alma_code", ""),
                 tracking_id=getattr(e, "tracking_id", None),

@@ -2,8 +2,9 @@
 Configuration Domain Class for Alma API
 Foundation skeleton for the Configuration API surface (issue #22), extended
 with organizational-structure read methods (issue #24), locations CRUD
-(issue #25), code-tables list/get/replace (issue #26), and mapping-tables
-list/get/replace (issue #27).
+(issue #25), code-tables list/get/replace (issue #26), mapping-tables
+list/get/replace (issue #27), and deposit / metadata-import profile read
+methods (issue #30).
 
 Issue #22 established the Configuration domain class with the minimal
 plumbing required by sibling tickets — environment introspection and a
@@ -22,9 +23,13 @@ Issue #27 adds mapping-tables coverage: list institution-wide mapping
 tables, fetch a single table (with rows), and replace an entire table
 via PUT. Mapping tables are structurally identical to code tables at the
 API surface — they differ only in semantic intent (mapping tables map a
-key to a value, code tables enumerate codes). Concrete API methods for
-the remaining sibling tickets (calendars, etc.) land in those tickets
-and intentionally do NOT live here.
+key to a value, code tables enumerate codes).
+
+Issue #30 adds read-only coverage for deposit profiles and metadata
+import (md-import) profiles: list / get on each. All four endpoints are
+plain GETs and mirror the libraries read shape from issue #24. Concrete
+API methods for the remaining sibling tickets (calendars, etc.) land in
+those tickets and intentionally do NOT live here.
 """
 from typing import Any, Dict, List
 
@@ -1192,5 +1197,202 @@ class Configuration:
                 alma_code=getattr(e, "alma_code", ""),
                 tracking_id=getattr(e, "tracking_id", None),
                 error_message=str(e),
+            )
+            raise
+
+    # =========================================================================
+    # Deposit profiles + metadata-import profiles (issue #30)
+    #
+    # All four endpoints are plain GETs. The list shapes mirror
+    # ``Configuration.list_libraries`` (issue #24): single GET, unwrap the
+    # Alma envelope, normalise dict→list, propagate AlmaAPIError with full
+    # context. The get shapes mirror ``Configuration.get_library``
+    # (issue #24): validate the id, GET, return the unwrapped dict, propagate
+    # AlmaAPIError. Issue #30 is read-only — no mutators belong here.
+    # =========================================================================
+
+    def list_deposit_profiles(self) -> List[Dict[str, Any]]:
+        """List all deposit profiles configured in the Alma institution.
+
+        Calls ``GET /almaws/v1/conf/deposit-profiles`` and unwraps the
+        Alma response envelope
+        (``{"deposit_profile": [...], "total_record_count": N}``) into a
+        flat list. Deposit profiles are typically few — a single call
+        with a generous page size is sufficient.
+
+        Returns:
+            List of deposit-profile dicts as returned by Alma. Returns an
+            empty list when the institution has no deposit profiles
+            configured (or when the response envelope is missing the
+            ``deposit_profile`` key).
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_libraries (issue #24, above).
+        self.logger.info(
+            f"Listing deposit profiles ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/deposit-profiles",
+                params={"limit": "100", "offset": "0"},
+            )
+            payload = response.json() or {}
+            deposit_profiles = payload.get("deposit_profile") or []
+            if isinstance(deposit_profiles, dict):
+                # Single-record responses can come back as a dict; normalise.
+                deposit_profiles = [deposit_profiles]
+            self.logger.info(
+                f"✓ Retrieved {len(deposit_profiles)} deposit profiles"
+            )
+            return deposit_profiles
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to list deposit profiles",
+                extra={
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def get_deposit_profile(
+        self, deposit_profile_id: str
+    ) -> Dict[str, Any]:
+        """Get configuration details for a single deposit profile.
+
+        Calls ``GET /almaws/v1/conf/deposit-profiles/{deposit_profile_id}``.
+
+        Args:
+            deposit_profile_id: The Alma deposit-profile identifier.
+
+        Returns:
+            The deposit-profile configuration dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``deposit_profile_id`` is empty or
+                not a string.
+            AlmaAPIError: If the API request fails (including 4xx when
+                the profile id does not exist).
+        """
+        # Pattern source: Configuration.get_library (issue #24, above).
+        profile_id = self._validate_code(
+            deposit_profile_id, "deposit_profile_id"
+        )
+        self.logger.info(
+            f"Getting deposit profile: {profile_id} ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                f"almaws/v1/conf/deposit-profiles/{profile_id}"
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"✓ Retrieved deposit profile {profile_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to get deposit profile {profile_id}",
+                extra={
+                    "deposit_profile_id": profile_id,
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def list_import_profiles(self) -> List[Dict[str, Any]]:
+        """List all metadata-import profiles configured in the institution.
+
+        Calls ``GET /almaws/v1/conf/md-import-profiles`` and unwraps the
+        Alma response envelope
+        (``{"import_profile": [...], "total_record_count": N}``) into a
+        flat list. The Alma developer-network docs use ``import_profile``
+        as the singular envelope key for this endpoint; the older
+        ``md_import_profile`` form has not been observed on the wire.
+
+        Returns:
+            List of import-profile dicts as returned by Alma. Returns an
+            empty list when the institution has no import profiles
+            configured (or when the response envelope is missing the
+            ``import_profile`` key).
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_libraries (issue #24, above).
+        self.logger.info(
+            f"Listing import profiles ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/md-import-profiles",
+                params={"limit": "100", "offset": "0"},
+            )
+            payload = response.json() or {}
+            import_profiles = payload.get("import_profile") or []
+            if isinstance(import_profiles, dict):
+                # Single-record responses can come back as a dict; normalise.
+                import_profiles = [import_profiles]
+            self.logger.info(
+                f"✓ Retrieved {len(import_profiles)} import profiles"
+            )
+            return import_profiles
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to list import profiles",
+                extra={
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def get_import_profile(self, profile_id: str) -> Dict[str, Any]:
+        """Get configuration details for a single metadata-import profile.
+
+        Calls ``GET /almaws/v1/conf/md-import-profiles/{profile_id}``.
+
+        Args:
+            profile_id: The Alma metadata-import-profile identifier.
+
+        Returns:
+            The import-profile configuration dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``profile_id`` is empty or not a
+                string.
+            AlmaAPIError: If the API request fails. Notable Alma error
+                code for this endpoint: ``401871`` ("Failed to find the
+                Profile ID.") for an unknown profile id.
+        """
+        # Pattern source: Configuration.get_library (issue #24, above).
+        pid = self._validate_code(profile_id, "profile_id")
+        self.logger.info(
+            f"Getting import profile: {pid} ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                f"almaws/v1/conf/md-import-profiles/{pid}"
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"✓ Retrieved import profile {pid}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to get import profile {pid}",
+                extra={
+                    "profile_id": pid,
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
             )
             raise

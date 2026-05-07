@@ -1,5 +1,5 @@
 """
-Unit tests for the Configuration domain class (issues #22, #24, #25).
+Unit tests for the Configuration domain class (issues #22, #24, #25, #26).
 
 Tests cover:
 - Initialization (client, environment, logger setup)
@@ -10,6 +10,7 @@ Tests cover:
 - list_circ_desks() / get_circ_desk() (issue #24)
 - list_locations() / get_location() / create_location() /
   update_location() / delete_location() (issue #25)
+- list_code_tables() / get_code_table() / update_code_table() (issue #26)
 
 These tests use mocked AlmaAPIClient instances to test the Configuration
 domain in isolation. Pattern source mirrors
@@ -1254,3 +1255,418 @@ class TestDeleteLocation:
 
         with pytest.raises(AlmaAPIError):
             config.delete_location("MAIN", "STACKS")
+
+
+# ---------------------------------------------------------------------------
+# Issue #26: Code tables (list / get / update)
+# ---------------------------------------------------------------------------
+
+
+class TestListCodeTables:
+    """Tests for ``Configuration.list_code_tables`` (issue #26)."""
+
+    def test_list_code_tables_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "code_table": [
+                    {
+                        "name": "AcqInvoiceLineType",
+                        "description": "Invoice line types",
+                    },
+                    {
+                        "name": "VendorReferenceNumberType",
+                        "description": "Vendor reference number types",
+                    },
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_code_tables()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/code-tables"
+        # Single round-trip with generous page size; no scope filter.
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["name"] == "AcqInvoiceLineType"
+
+    def test_list_code_tables_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``code_table`` key → empty list, not None."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_code_tables() == []
+
+    def test_list_code_tables_handles_single_dict_response(self):
+        """A single code-table returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "code_table": {
+                    "name": "OnlyTable",
+                    "description": "The only table",
+                },
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_code_tables()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["name"] == "OnlyTable"
+
+    def test_list_code_tables_does_not_send_scope_param(self):
+        """Audit-flagged: the endpoint takes NO ``scope`` parameter.
+
+        The AC explicitly forbids exposing a scope filter. This test
+        guards against a future regression where someone re-adds it.
+        """
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"code_table": []})
+        config = Configuration(mock_client)
+
+        config.list_code_tables()
+
+        params = mock_client.calls["get"][0]["params"] or {}
+        assert "scope" not in params
+
+    def test_list_code_tables_signature_takes_no_args(self):
+        """list_code_tables takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_code_tables)
+        # Only ``self`` is allowed; no scope, no filter, no kwargs.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_code_tables_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_code_tables()
+
+
+class TestGetCodeTable:
+    """Tests for ``Configuration.get_code_table`` (issue #26)."""
+
+    def test_get_code_table_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "name": "AcqInvoiceLineType",
+                "description": "Invoice line types",
+                "row": [
+                    {
+                        "code": "REGULAR",
+                        "description": "Regular line",
+                        "enabled": {"value": "true"},
+                    },
+                    {
+                        "code": "ADJUSTMENT",
+                        "description": "Adjustment line",
+                        "enabled": {"value": "true"},
+                    },
+                ],
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_code_table("AcqInvoiceLineType")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/code-tables/AcqInvoiceLineType"
+        )
+        assert isinstance(result, dict)
+        assert result["name"] == "AcqInvoiceLineType"
+        # The full code-table object is returned unwrapped, including rows.
+        assert isinstance(result["row"], list)
+        assert len(result["row"]) == 2
+        assert result["row"][0]["code"] == "REGULAR"
+
+    def test_get_code_table_returns_unwrapped_dict_with_rows(self):
+        """``get_code_table`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "name": "VendorReferenceNumberType",
+                "row": [{"code": "VRN", "description": "VRN"}],
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_code_table("VendorReferenceNumberType")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "code_table" not in result
+        assert "total_record_count" not in result
+        # Direct access to the row collection works.
+        assert result["row"][0]["code"] == "VRN"
+
+    def test_get_code_table_strips_whitespace(self):
+        """Validator trims whitespace from the name before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"name": "AcqInvoiceLineType"}
+        )
+        config = Configuration(mock_client)
+
+        config.get_code_table("  AcqInvoiceLineType  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/code-tables/AcqInvoiceLineType"
+        )
+
+    def test_get_code_table_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_code_table("")
+
+    def test_get_code_table_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_code_table("   ")
+
+    def test_get_code_table_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_code_table(123)  # type: ignore[arg-type]
+
+    def test_get_code_table_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_code_table(None)  # type: ignore[arg-type]
+
+    def test_get_code_table_propagates_api_error(self):
+        """Alma 90101 (table does not exist) propagates as AlmaAPIError."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Table does not exist.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.get_code_table("NoSuchTable")
+
+
+class TestUpdateCodeTable:
+    """Tests for ``Configuration.update_code_table`` (issue #26)."""
+
+    @staticmethod
+    def _valid_payload() -> Dict[str, Any]:
+        # PUT replaces the entire table — payload mirrors what
+        # ``get_code_table`` returns, including the full ``row`` list.
+        return {
+            "name": "AcqInvoiceLineType",
+            "description": "Invoice line types",
+            "row": [
+                {
+                    "code": "REGULAR",
+                    "description": "Regular line",
+                    "enabled": {"value": "true"},
+                },
+                {
+                    "code": "ADJUSTMENT",
+                    "description": "Adjustment line",
+                    "enabled": {"value": "false"},
+                },
+            ],
+        }
+
+    def test_update_code_table_calls_correct_endpoint_and_returns_response(
+        self,
+    ):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={
+                "name": "AcqInvoiceLineType",
+                "description": "Invoice line types",
+                "row": [
+                    {"code": "REGULAR", "enabled": {"value": "true"}},
+                    {"code": "ADJUSTMENT", "enabled": {"value": "false"}},
+                ],
+            }
+        )
+        config = Configuration(mock_client)
+
+        response = config.update_code_table(
+            "AcqInvoiceLineType", self._valid_payload()
+        )
+
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/conf/code-tables/AcqInvoiceLineType"
+        )
+        # Body forwarded verbatim — full table object on the wire.
+        assert call["data"] == self._valid_payload()
+        assert response is mock_client.put_response
+        assert response.data["name"] == "AcqInvoiceLineType"
+
+    def test_update_code_table_strips_whitespace_in_name(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"name": "AcqInvoiceLineType"}
+        )
+        config = Configuration(mock_client)
+
+        config.update_code_table(
+            "  AcqInvoiceLineType  ", self._valid_payload()
+        )
+
+        assert (
+            mock_client.calls["put"][0]["endpoint"]
+            == "almaws/v1/conf/code-tables/AcqInvoiceLineType"
+        )
+
+    def test_update_code_table_rejects_empty_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table("", self._valid_payload())
+
+    def test_update_code_table_rejects_whitespace_only_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table("   ", self._valid_payload())
+
+    def test_update_code_table_rejects_non_string_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table(
+                123, self._valid_payload()  # type: ignore[arg-type]
+            )
+
+    def test_update_code_table_rejects_empty_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table("AcqInvoiceLineType", {})
+
+    def test_update_code_table_rejects_non_dict_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table(
+                "AcqInvoiceLineType",
+                "not a dict",  # type: ignore[arg-type]
+            )
+
+    def test_update_code_table_rejects_none_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_code_table(
+                "AcqInvoiceLineType", None  # type: ignore[arg-type]
+            )
+
+    def test_update_code_table_propagates_api_error(self):
+        """Alma 90123 (table not customizable) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Requested table is not customizable", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.update_code_table(
+                "AcqInvoiceLineType", self._valid_payload()
+            )
+
+        assert "not customizable" in str(exc_info.value)
+
+    def test_update_code_table_propagates_generic_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.update_code_table(
+                "AcqInvoiceLineType", self._valid_payload()
+            )

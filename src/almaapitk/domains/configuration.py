@@ -1,8 +1,8 @@
 """
 Configuration Domain Class for Alma API
 Foundation skeleton for the Configuration API surface (issue #22), extended
-with organizational-structure read methods (issue #24) and locations CRUD
-(issue #25).
+with organizational-structure read methods (issue #24), locations CRUD
+(issue #25), and code-tables list/get/replace (issue #26).
 
 Issue #22 established the Configuration domain class with the minimal
 plumbing required by sibling tickets — environment introspection and a
@@ -12,9 +12,12 @@ Issue #24 adds five read-only organizational-structure endpoints
 (libraries, departments, circulation desks).
 
 Issue #25 adds full CRUD for per-library locations (list / get / create /
-update / delete). Concrete API methods for the remaining sibling tickets
-(code tables, calendars, etc.) land in those tickets and intentionally do
-NOT live here.
+update / delete).
+
+Issue #26 adds code-tables coverage: list institution-wide code tables,
+fetch a single table (with rows), and replace an entire table via PUT.
+Concrete API methods for the remaining sibling tickets (calendars, etc.)
+land in those tickets and intentionally do NOT live here.
 """
 from typing import Any, Dict, List
 
@@ -785,6 +788,198 @@ class Configuration:
                 f"{lib_code}",
                 library_code=lib_code,
                 location_code=loc_code,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    # =========================================================================
+    # Code tables (issue #26)
+    #
+    # Read methods mirror ``Configuration.list_libraries`` /
+    # ``Configuration.get_library`` (issue #24): single GET, unwrap the Alma
+    # envelope (``{"code_table": [...], "total_record_count": N}`` for the
+    # collection endpoint), normalise dict→list, propagate AlmaAPIError with
+    # full context. The PUT mirrors ``Configuration.update_location``
+    # (issue #25): validate-up-top, log entry, ``self.client.put``, log
+    # success-with-name / error-with-context, return ``AlmaResponse`` or
+    # re-raise. The collection endpoint takes NO ``scope`` parameter — the
+    # Alma docs do not advertise one and an audit flagged it as
+    # undocumented; do not add it here.
+    # =========================================================================
+
+    def list_code_tables(self) -> List[Dict[str, Any]]:
+        """List all code tables configured in the Alma institution.
+
+        Calls ``GET /almaws/v1/conf/code-tables`` and unwraps the Alma
+        response envelope (``{"code_table": [...], "total_record_count": N}``)
+        into a flat list. The endpoint takes no ``scope`` filter — the
+        Alma documentation does not advertise one and an audit flagged
+        it as undocumented, so this method intentionally exposes no
+        filter parameters.
+
+        Returns:
+            List of code-table summary dicts (typically containing
+            ``name``, ``description``, ``sub_system``, etc.). Returns an
+            empty list when the institution has no code tables (or when
+            the response envelope is missing the ``code_table`` key).
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_libraries (issue #24, above).
+        self.logger.info(
+            f"Listing code tables ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/code-tables",
+                params={"limit": "100", "offset": "0"},
+            )
+            payload = response.json() or {}
+            code_tables = payload.get("code_table") or []
+            if isinstance(code_tables, dict):
+                # Single-record responses can come back as a dict; normalise.
+                code_tables = [code_tables]
+            self.logger.info(
+                f"✓ Retrieved {len(code_tables)} code tables"
+            )
+            return code_tables
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to list code tables",
+                extra={
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def get_code_table(self, code_table_name: str) -> Dict[str, Any]:
+        """Get a single code table including all of its rows.
+
+        Calls ``GET /almaws/v1/conf/code-tables/{codeTableName}``. The
+        full code-table object is returned unwrapped — including the
+        ``row`` collection that holds the table's individual entries —
+        so callers can mutate rows in place and pass the dict back to
+        :meth:`update_code_table`.
+
+        Args:
+            code_table_name: The Alma code-table name (e.g.
+                ``"AcqInvoiceLineType"``).
+
+        Returns:
+            The full code-table object as returned by Alma. Includes
+            metadata (``name``, ``description``, ``sub_system``, etc.)
+            and the ``row`` array of entries.
+
+        Raises:
+            AlmaValidationError: If ``code_table_name`` is empty or not
+                a string.
+            AlmaAPIError: If the API request fails (including 400 with
+                Alma error code ``90101`` "Table does not exist." for
+                an unknown table name).
+        """
+        # Pattern source: Configuration.get_library (issue #24, above).
+        name = self._validate_code(code_table_name, "code_table_name")
+        self.logger.info(
+            f"Getting code table: {name} ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                f"almaws/v1/conf/code-tables/{name}"
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"✓ Retrieved code table {name}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to get code table {name}",
+                extra={
+                    "code_table_name": name,
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def update_code_table(
+        self, code_table_name: str, code_table_data: Dict[str, Any]
+    ) -> AlmaResponse:
+        """Replace an entire code table.
+
+        Wraps ``PUT /almaws/v1/conf/code-tables/{codeTableName}``. **The
+        PUT replaces the entire table — it is NOT a partial update.**
+        Alma requires the complete code-table object on the wire,
+        including every row that should remain in the table. Callers
+        typically read the table with :meth:`get_code_table`, mutate
+        the dict (add / remove / edit ``row`` entries), then pass the
+        whole thing back here. Rows omitted from the request body are
+        dropped from the table.
+
+        Args:
+            code_table_name: The Alma code-table name (e.g.
+                ``"AcqInvoiceLineType"``).
+            code_table_data: Full code-table object payload. Must be a
+                non-empty dict.
+
+        Returns:
+            AlmaResponse wrapping the updated code-table object.
+
+        Raises:
+            AlmaValidationError: If ``code_table_name`` is empty / not a
+                string, or ``code_table_data`` is empty / not a dict.
+            AlmaAPIError: On API failure. Notable Alma error codes for
+                this endpoint include ``90100`` ("Code table name is
+                empty."), ``90101`` ("Table does not exist."),
+                ``90102`` ("Requested table is hidden."), ``90121``
+                ("Requested table scope is not legal."), ``90122``
+                ("Multiple default codes."), and ``90123`` ("Requested
+                table is not customizable").
+
+        Example:
+            >>> table = config.get_code_table("AcqInvoiceLineType")
+            >>> # Mutate rows in place — e.g. flip a row's enabled flag.
+            >>> for row in table.get("row", []):
+            ...     if row.get("code") == "REGULAR":
+            ...         row["enabled"] = {"value": "false"}
+            >>> response = config.update_code_table(
+            ...     "AcqInvoiceLineType", table
+            ... )
+        """
+        # Pattern source: Configuration.update_location (issue #25, above).
+        name = self._validate_code(code_table_name, "code_table_name")
+        if not isinstance(code_table_data, dict) or not code_table_data:
+            raise AlmaValidationError(
+                "code_table_data must be a non-empty dict"
+            )
+
+        self.logger.info(
+            f"Updating code table: {name}",
+            code_table_name=name,
+        )
+
+        try:
+            response = self.client.put(
+                f"almaws/v1/conf/code-tables/{name}",
+                data=code_table_data,
+            )
+            self.logger.info(
+                f"✓ Updated code table: {name}",
+                code_table_name=name,
+            )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to update code table {name}",
+                code_table_name=name,
                 error_code=e.status_code,
                 alma_code=getattr(e, "alma_code", ""),
                 tracking_id=getattr(e, "tracking_id", None),

@@ -562,7 +562,7 @@ class Admin:
     def test_connection(self) -> bool:
         """
         Test if the admin/configuration endpoints are accessible.
-        
+
         Returns:
             True if connection successful, False otherwise
         """
@@ -570,17 +570,416 @@ class Admin:
             # Try to list a small number of sets as a connection test
             response = self.client.get("almaws/v1/conf/sets", params={"limit": "1"})
             success = response.status_code == 200
-            
+
             if success:
                 self.logger.info(f"✓ Admin API connection successful ({self.environment})")
             else:
                 self.logger.error(f"✗ Admin API connection failed: {response.status_code}")
-            
+
             return success
-            
+
         except Exception as e:
             self.logger.error(f"✗ Admin API connection error: {e}")
             return False
+
+    # =========================================================================
+    # Set CRUD + member-management methods (issue #23)
+    #
+    # Pattern source: read pattern mirrors ``Admin.list_sets`` (line 439);
+    # write pattern mirrors ``Acquisitions.create_invoice_simple`` -- input
+    # validation up top, ``self.client.<verb>`` for HTTP, structured
+    # logging at entry / success / error, AlmaAPIError surfaced verbatim
+    # with full context. The member-management endpoint matches the Alma
+    # developer-network spec: ``POST /almaws/v1/conf/sets/{set_id}`` with
+    # an ``op`` query parameter (``add_members`` / ``delete_members``)
+    # and a body shaped as ``{"members": {"member": [{"id": ...}, ...]}}``.
+    # =========================================================================
+
+    def create_set(self, set_data: Dict[str, Any]) -> AlmaResponse:
+        """Create a new itemized or logical set.
+
+        Wraps ``POST /almaws/v1/conf/sets``. ``set_data`` must include at
+        minimum the ``name`` and ``type`` fields Alma requires; the rest
+        of the payload (description, content type, status, query, etc.)
+        is passed through verbatim so callers can build any set Alma
+        accepts without having to wait for explicit kwargs.
+
+        Args:
+            set_data: Set object payload. Required keys:
+
+                - ``name`` (str): The set name shown in Alma.
+                - ``type`` (dict): The set type, e.g.
+                  ``{"value": "ITEMIZED"}`` or ``{"value": "LOGICAL"}``.
+
+                Almost every real call also wants ``content`` (the
+                content type, e.g. ``{"value": "BIB_MMS"}`` or
+                ``{"value": "USER"}``) — but Alma's own validation owns
+                that, so it is documented but not enforced here.
+
+        Returns:
+            AlmaResponse wrapping the create response. The created set's
+            ``id`` lives at ``response.data["id"]``.
+
+        Raises:
+            AlmaValidationError: If ``set_data`` is empty / not a dict,
+                or if ``name`` / ``type`` are missing.
+            AlmaAPIError: On API failure (typed subclass when the Alma
+                error code or HTTP status maps to one — see
+                ``AlmaAPIClient._classify_error``).
+
+        Example:
+            >>> response = admin.create_set({
+            ...     "name": "My BIB set",
+            ...     "type": {"value": "ITEMIZED"},
+            ...     "content": {"value": "BIB_MMS"},
+            ... })
+            >>> set_id = response.data["id"]
+        """
+        self._validate_set_data_for_create(set_data)
+        set_name = set_data.get("name")
+
+        # ``type`` and ``content`` may be either a bare string or the
+        # canonical ``{"value": "..."}`` dict shape -- normalise here
+        # for the log record only; the body sent to Alma is forwarded
+        # verbatim.
+        raw_type = set_data.get("type")
+        type_value = (
+            raw_type.get("value") if isinstance(raw_type, dict) else raw_type
+        )
+        raw_content = set_data.get("content")
+        content_value = (
+            raw_content.get("value")
+            if isinstance(raw_content, dict)
+            else raw_content
+        )
+
+        self.logger.info(
+            f"Creating set: {set_name}",
+            set_name=set_name,
+            set_type=type_value,
+            content_type=content_value,
+        )
+
+        try:
+            response = self.client.post("almaws/v1/conf/sets", data=set_data)
+            created_id = None
+            try:
+                created_id = response.data.get("id")
+            except (ValueError, AttributeError):
+                # Body may not be JSON / dict; the response itself is
+                # still a valid AlmaResponse and we should hand it back.
+                created_id = None
+
+            if created_id:
+                self.logger.info(
+                    f"✓ Created set: {set_name} (id={created_id})",
+                    set_id=created_id,
+                    set_name=set_name,
+                )
+            else:
+                self.logger.info(
+                    f"✓ Created set: {set_name}",
+                    set_name=set_name,
+                )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to create set: {set_name}",
+                set_name=set_name,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    def update_set(self, set_id: str, set_data: Dict[str, Any]) -> AlmaResponse:
+        """Update an existing set's metadata.
+
+        Wraps ``PUT /almaws/v1/conf/sets/{set_id}``. Alma expects a
+        complete set object (see ``get_set_info`` for the shape Alma
+        returns); callers typically read the current set, mutate the
+        fields they want to change, and pass the whole dict here.
+
+        Args:
+            set_id: The Alma set identifier to update.
+            set_data: Full set object payload. Must be a non-empty dict.
+
+        Returns:
+            AlmaResponse wrapping the updated set object.
+
+        Raises:
+            AlmaValidationError: If ``set_id`` is empty or ``set_data``
+                is empty / not a dict.
+            AlmaAPIError: On API failure.
+
+        Example:
+            >>> info = admin.get_set_info(set_id)
+            >>> info["description"] = "Updated description"
+            >>> response = admin.update_set(set_id, info)
+        """
+        if not set_id:
+            raise AlmaValidationError("Set ID is required")
+        if not isinstance(set_data, dict) or not set_data:
+            raise AlmaValidationError(
+                "set_data must be a non-empty dict"
+            )
+
+        self.logger.info(
+            f"Updating set: {set_id}",
+            set_id=set_id,
+            set_name=set_data.get("name"),
+        )
+
+        try:
+            response = self.client.put(
+                f"almaws/v1/conf/sets/{set_id}", data=set_data
+            )
+            self.logger.info(
+                f"✓ Updated set: {set_id}",
+                set_id=set_id,
+            )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to update set: {set_id}",
+                set_id=set_id,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    def delete_set(self, set_id: str) -> AlmaResponse:
+        """Delete a set.
+
+        Wraps ``DELETE /almaws/v1/conf/sets/{set_id}``. Removes the set
+        record from Alma; the underlying member records (bibs, users,
+        etc.) are untouched.
+
+        Args:
+            set_id: The Alma set identifier to delete.
+
+        Returns:
+            AlmaResponse wrapping the delete response. Alma typically
+            returns an empty body on a successful delete.
+
+        Raises:
+            AlmaValidationError: If ``set_id`` is empty.
+            AlmaAPIError: On API failure.
+        """
+        if not set_id:
+            raise AlmaValidationError("Set ID is required")
+
+        self.logger.info(
+            f"Deleting set: {set_id}",
+            set_id=set_id,
+        )
+
+        try:
+            response = self.client.delete(f"almaws/v1/conf/sets/{set_id}")
+            self.logger.info(
+                f"✓ Deleted set: {set_id}",
+                set_id=set_id,
+            )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to delete set: {set_id}",
+                set_id=set_id,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    def add_members_to_set(
+        self, set_id: str, member_ids: List[str]
+    ) -> AlmaResponse:
+        """Add members to an existing set.
+
+        Wraps ``POST /almaws/v1/conf/sets/{set_id}?op=add_members``. The
+        body shape Alma expects is ``{"members": {"member": [{"id":
+        "<member_id>"}, ...]}}``.
+
+        Member-content validation: a ``BIB_MMS`` set takes MMS IDs and
+        a ``USER`` set takes user primary IDs. Caller-side ID-shape
+        validation is intentionally NOT performed here — Alma owns that
+        rule and will reject mismatched IDs server-side with a typed
+        error code (``60116`` / ``60120``).
+
+        Args:
+            set_id: The Alma set identifier to extend.
+            member_ids: Non-empty list of member IDs to add. Each entry
+                must be a non-empty string.
+
+        Returns:
+            AlmaResponse wrapping the updated set object.
+
+        Raises:
+            AlmaValidationError: If ``set_id`` is empty, ``member_ids``
+                is empty / not a list, or any entry is empty / not a
+                string.
+            AlmaAPIError: On API failure.
+        """
+        return self._manage_set_members(set_id, member_ids, op="add_members")
+
+    def remove_members_from_set(
+        self, set_id: str, member_ids: List[str]
+    ) -> AlmaResponse:
+        """Remove members from an existing set.
+
+        Wraps ``POST /almaws/v1/conf/sets/{set_id}?op=delete_members``.
+        Body shape matches ``add_members_to_set``: ``{"members":
+        {"member": [{"id": "<member_id>"}, ...]}}``.
+
+        Args:
+            set_id: The Alma set identifier to shrink.
+            member_ids: Non-empty list of member IDs to remove. Each
+                entry must be a non-empty string.
+
+        Returns:
+            AlmaResponse wrapping the updated set object.
+
+        Raises:
+            AlmaValidationError: If ``set_id`` is empty, ``member_ids``
+                is empty / not a list, or any entry is empty / not a
+                string.
+            AlmaAPIError: On API failure.
+        """
+        return self._manage_set_members(
+            set_id, member_ids, op="delete_members"
+        )
+
+    # ----- internal helpers for the set CRUD methods (issue #23) -------------
+
+    @staticmethod
+    def _validate_set_data_for_create(set_data: Any) -> None:
+        """Validate the ``set_data`` argument to ``create_set``.
+
+        Args:
+            set_data: Candidate payload for ``create_set``.
+
+        Raises:
+            AlmaValidationError: If ``set_data`` is not a non-empty
+                dict, or if the required ``name``/``type`` keys are
+                missing.
+        """
+        if not isinstance(set_data, dict) or not set_data:
+            raise AlmaValidationError(
+                "set_data must be a non-empty dict"
+            )
+        name = set_data.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise AlmaValidationError(
+                "set_data['name'] is required and must be a non-empty string"
+            )
+        # ``type`` may be either the bare string code or the canonical
+        # ``{"value": "ITEMIZED"}`` shape Alma returns on reads. Accept
+        # both -- callers using the shape returned by ``get_set_info``
+        # should not have to reshape it before sending it back.
+        set_type = set_data.get("type")
+        if isinstance(set_type, dict):
+            type_value = set_type.get("value")
+            if not isinstance(type_value, str) or not type_value.strip():
+                raise AlmaValidationError(
+                    "set_data['type']['value'] is required and must be a "
+                    "non-empty string (e.g. 'ITEMIZED' or 'LOGICAL')"
+                )
+        elif isinstance(set_type, str):
+            if not set_type.strip():
+                raise AlmaValidationError(
+                    "set_data['type'] must be a non-empty string"
+                )
+        else:
+            raise AlmaValidationError(
+                "set_data['type'] is required (string or "
+                "{'value': '<TYPE>'} dict)"
+            )
+
+    def _manage_set_members(
+        self, set_id: str, member_ids: List[str], op: str
+    ) -> AlmaResponse:
+        """Shared add/remove-members implementation.
+
+        Centralises validation, body construction, logging, and error
+        handling for ``add_members_to_set`` / ``remove_members_from_set``
+        so the two public wrappers differ only by the ``op`` value sent
+        on the query string.
+
+        Args:
+            set_id: Target set identifier.
+            member_ids: Members to add/remove (non-empty list of
+                non-empty strings).
+            op: Either ``"add_members"`` or ``"delete_members"`` — the
+                value Alma's ``op`` query parameter expects.
+
+        Returns:
+            AlmaResponse wrapping the API response.
+
+        Raises:
+            AlmaValidationError: For any input violation.
+            AlmaAPIError: On API failure.
+        """
+        if not set_id:
+            raise AlmaValidationError("Set ID is required")
+        if not isinstance(member_ids, list) or not member_ids:
+            raise AlmaValidationError(
+                "member_ids must be a non-empty list of strings"
+            )
+        for index, mid in enumerate(member_ids):
+            if not isinstance(mid, str) or not mid.strip():
+                raise AlmaValidationError(
+                    f"member_ids[{index}] must be a non-empty string"
+                )
+
+        # Body shape per Alma developer-network sets API:
+        # {"members": {"member": [{"id": "<id>"}, ...]}}
+        body = {
+            "members": {
+                "member": [{"id": mid} for mid in member_ids]
+            }
+        }
+
+        action = "Adding" if op == "add_members" else "Removing"
+        self.logger.info(
+            f"{action} {len(member_ids)} member(s) {('to' if op == 'add_members' else 'from')} set {set_id}",
+            set_id=set_id,
+            op=op,
+            member_count=len(member_ids),
+        )
+
+        try:
+            response = self.client.post(
+                f"almaws/v1/conf/sets/{set_id}",
+                data=body,
+                params={"op": op},
+            )
+            self.logger.info(
+                f"✓ {action} {len(member_ids)} member(s): set {set_id}",
+                set_id=set_id,
+                op=op,
+                member_count=len(member_ids),
+            )
+            return response
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to {op.replace('_', ' ')} on set {set_id}",
+                set_id=set_id,
+                op=op,
+                member_count=len(member_ids),
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
 
 
 # Usage examples and integration for the email update project

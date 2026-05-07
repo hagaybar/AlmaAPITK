@@ -1,0 +1,232 @@
+{
+  "chunk": "config-tables",
+  "branch": "chunk/config-tables",
+  "createdAt": "2026-05-07T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 26,
+      "title": "Coverage: Configuration: code tables (list, get, update)",
+      "classification": "general",
+      "subBranch": "feat/26-coverage-configuration-code-ta",
+      "tests": [
+        {
+          "id": "t-26-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only code-table methods shipped in issue #26 against live SANDBOX. Calls list_code_tables() and asserts it returns a List (the Alma envelope {'code_table': [...], 'total_record_count': N} is unwrapped); the call is also implicitly an assertion that the wrapper does NOT send a 'scope' query parameter (the audit-flagged undocumented filter) — list_code_tables() takes no positional args and the wrapper only sends limit/offset. Then calls get_code_table(${existing_code_table_name}) for a known institution-wide code table and asserts the returned dict echoes the requested name (Alma returns the table's metadata + 'row' collection unwrapped). No state is mutated and no tables are created — this is a pure read smoke. Covers issue #26 ACs about each read method being exercised against SANDBOX, the AlmaAPIError happy-path, and the 'list_code_tables() takes no scope parameter' invariant. The PUT path (update_code_table) is intentionally NOT exercised here — see unmappable[] for reasoning.",
+          "endpoints": [
+            "GET /almaws/v1/conf/code-tables",
+            "GET /almaws/v1/conf/code-tables/{codeTableName}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_code_table_name",
+              "description": "An existing institution-wide Alma code-table name in SANDBOX (e.g., a stable system table like a language-code table or invoice-line-type table). Used ONLY for the get_code_table() read smoke — the table is not mutated. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real code-table name into this file.",
+              "example": "LANGUAGE_CODE_TABLE"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "code_tables = config.list_code_tables()",
+            "code_table = config.get_code_table('${existing_code_table_name}')"
+          ],
+          "passCriteria": [
+            "isinstance(code_tables, list)",
+            "isinstance(code_table, dict) and len(code_table) > 0",
+            "(code_table.get('name') == '${existing_code_table_name}') or (isinstance(code_table.get('name'), dict) and code_table.get('name', {}).get('value') == '${existing_code_table_name}') or any(str(v) == '${existing_code_table_name}' for v in code_table.values() if isinstance(v, str))"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-26-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #26 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through get_code_table('') / get_code_table('   ') / get_code_table(None) / get_code_table(123), and the update_code_table guards: update_code_table('', {...}) / update_code_table(None, {...}) for the name guard, and update_code_table('NAME', None) / update_code_table('NAME', {}) / update_code_table('NAME', 'not-a-dict') for the body guard ('code_table_data must be a non-empty dict'). list_code_tables() takes no arguments so has no validation surface — it is not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #26 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.get_code_table('')\nexcept AlmaValidationError as e:\n    errors['get_empty'] = e",
+            "try:\n    config.get_code_table('   ')\nexcept AlmaValidationError as e:\n    errors['get_whitespace'] = e",
+            "try:\n    config.get_code_table(None)\nexcept AlmaValidationError as e:\n    errors['get_none'] = e",
+            "try:\n    config.get_code_table(123)\nexcept AlmaValidationError as e:\n    errors['get_nonstring'] = e",
+            "try:\n    config.update_code_table('', {'name': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_empty_name'] = e",
+            "try:\n    config.update_code_table(None, {'name': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_none_name'] = e",
+            "try:\n    config.update_code_table('NAME', None)\nexcept AlmaValidationError as e:\n    errors['update_none_body'] = e",
+            "try:\n    config.update_code_table('NAME', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    config.update_code_table('NAME', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['update_nondict_body'] = e"
+          ],
+          "passCriteria": [
+            "'get_empty' in errors and isinstance(errors['get_empty'], AlmaValidationError)",
+            "'get_whitespace' in errors and isinstance(errors['get_whitespace'], AlmaValidationError)",
+            "'get_none' in errors and isinstance(errors['get_none'], AlmaValidationError)",
+            "'get_nonstring' in errors and isinstance(errors['get_nonstring'], AlmaValidationError)",
+            "'update_empty_name' in errors and isinstance(errors['update_empty_name'], AlmaValidationError)",
+            "'update_none_name' in errors and isinstance(errors['update_none_name'], AlmaValidationError)",
+            "'update_none_body' in errors and isinstance(errors['update_none_body'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'update_nondict_body' in errors and isinstance(errors['update_nondict_body'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-26-1"
+        ],
+        "`list_code_tables()` takes no `scope` parameter (or any other undocumented filter).": [
+          "t-26-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-26-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-26-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-26-1 only succeeds if list_code_tables/get_code_table are importable and bound on Configuration; update_code_table is exercised by t-26-2 via its validation guards), so the AC is partially mapped to t-26-1 / t-26-2; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "`list_code_tables()` takes no `scope` parameter (or any other undocumented filter).",
+          "reason": "The 'no scope parameter at the call site' facet is a static-source invariant on the method signature, verifiable by inspecting src/almaapitk/domains/configuration.py (and unit-test test_list_code_tables_does_not_send_scope_param under tests/unit/domains/test_configuration.py asserts no 'scope' key appears on the wire with mocked HTTP). The runtime behaviour facet IS partially observable in t-26-1 — the wrapper successfully calls GET /almaws/v1/conf/code-tables without a 'scope' arg, which only succeeds because no such parameter is exposed. This entry documents the residual static-source / mocked-HTTP facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-26-1 for the read methods (list_code_tables / get_code_table). The integration-test facet for update_code_table is intentionally NOT exercised — the PUT replaces the entire institution-wide code table; SANDBOX is shared institutional config and we will not mutate institutional code tables in automated runs. The PUT path is exercised in unit tests (mocked HTTP) only; this entry documents both the unit-test residual AND the deliberate gap in SANDBOX coverage for the PUT method."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-26-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (400 with Alma code 90101 'Table does not exist.', 90100 'Code table name is empty.', 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #26 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    },
+    {
+      "number": 27,
+      "title": "Coverage: Configuration: mapping tables (list, get, update)",
+      "classification": "general",
+      "subBranch": "feat/27-coverage-configuration-mapping",
+      "tests": [
+        {
+          "id": "t-27-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only mapping-table methods shipped in issue #27 against live SANDBOX. Calls list_mapping_tables() and asserts it returns a List (the Alma envelope {'mapping_table': [...], 'total_record_count': N} is unwrapped), then calls get_mapping_table(${existing_mapping_table_name}) for a known institution-wide mapping table and asserts the returned dict echoes the requested name (Alma returns the table's metadata + 'row' collection unwrapped). The mapping-tables surface is structurally identical to code-tables — same envelope shape, same 'no scope' invariant — so this test mirrors t-26-1. No state is mutated and no tables are created — this is a pure read smoke. Covers issue #27 ACs about each read method being exercised against SANDBOX and the AlmaAPIError happy-path. The PUT path (update_mapping_table) is intentionally NOT exercised here — see unmappable[] for reasoning.",
+          "endpoints": [
+            "GET /almaws/v1/conf/mapping-tables",
+            "GET /almaws/v1/conf/mapping-tables/{mappingTableName}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_mapping_table_name",
+              "description": "An existing institution-wide Alma mapping-table name in SANDBOX (e.g., a stable system mapping table that maps a key to a value). Used ONLY for the get_mapping_table() read smoke — the table is not mutated. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real mapping-table name into this file.",
+              "example": "LIBRARY_NAMES_MAPPING"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "mapping_tables = config.list_mapping_tables()",
+            "mapping_table = config.get_mapping_table('${existing_mapping_table_name}')"
+          ],
+          "passCriteria": [
+            "isinstance(mapping_tables, list)",
+            "isinstance(mapping_table, dict) and len(mapping_table) > 0",
+            "(mapping_table.get('name') == '${existing_mapping_table_name}') or (isinstance(mapping_table.get('name'), dict) and mapping_table.get('name', {}).get('value') == '${existing_mapping_table_name}') or any(str(v) == '${existing_mapping_table_name}' for v in mapping_table.values() if isinstance(v, str))"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-27-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #27 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through get_mapping_table('') / get_mapping_table('   ') / get_mapping_table(None) / get_mapping_table(123), and the update_mapping_table guards: update_mapping_table('', {...}) / update_mapping_table(None, {...}) for the name guard, and update_mapping_table('NAME', None) / update_mapping_table('NAME', {}) / update_mapping_table('NAME', 'not-a-dict') for the body guard ('mapping_table_data must be a non-empty dict'). list_mapping_tables() takes no arguments so has no validation surface — it is not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #27 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.get_mapping_table('')\nexcept AlmaValidationError as e:\n    errors['get_empty'] = e",
+            "try:\n    config.get_mapping_table('   ')\nexcept AlmaValidationError as e:\n    errors['get_whitespace'] = e",
+            "try:\n    config.get_mapping_table(None)\nexcept AlmaValidationError as e:\n    errors['get_none'] = e",
+            "try:\n    config.get_mapping_table(123)\nexcept AlmaValidationError as e:\n    errors['get_nonstring'] = e",
+            "try:\n    config.update_mapping_table('', {'name': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_empty_name'] = e",
+            "try:\n    config.update_mapping_table(None, {'name': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_none_name'] = e",
+            "try:\n    config.update_mapping_table('NAME', None)\nexcept AlmaValidationError as e:\n    errors['update_none_body'] = e",
+            "try:\n    config.update_mapping_table('NAME', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    config.update_mapping_table('NAME', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['update_nondict_body'] = e"
+          ],
+          "passCriteria": [
+            "'get_empty' in errors and isinstance(errors['get_empty'], AlmaValidationError)",
+            "'get_whitespace' in errors and isinstance(errors['get_whitespace'], AlmaValidationError)",
+            "'get_none' in errors and isinstance(errors['get_none'], AlmaValidationError)",
+            "'get_nonstring' in errors and isinstance(errors['get_nonstring'], AlmaValidationError)",
+            "'update_empty_name' in errors and isinstance(errors['update_empty_name'], AlmaValidationError)",
+            "'update_none_name' in errors and isinstance(errors['update_none_name'], AlmaValidationError)",
+            "'update_none_body' in errors and isinstance(errors['update_none_body'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'update_nondict_body' in errors and isinstance(errors['update_nondict_body'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-27-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-27-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-27-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-27-1 only succeeds if list_mapping_tables/get_mapping_table are importable and bound on Configuration; update_mapping_table is exercised by t-27-2 via its validation guards), so the AC is partially mapped to t-27-1 / t-27-2; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-27-1 for the read methods (list_mapping_tables / get_mapping_table). The integration-test facet for update_mapping_table is intentionally NOT exercised — the PUT replaces the entire institution-wide mapping table; SANDBOX is shared institutional config and we will not mutate institutional mapping tables in automated runs. The PUT path is exercised in unit tests (mocked HTTP) only; this entry documents both the unit-test residual AND the deliberate gap in SANDBOX coverage for the PUT method."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-27-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 / 400 with Alma error codes for unknown mapping-table name, 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #27 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

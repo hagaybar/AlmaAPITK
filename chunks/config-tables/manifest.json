@@ -1,0 +1,88 @@
+{
+  "chunk": "config-tables",
+  "issues": [
+    {
+      "number": 26,
+      "title": "Coverage: Configuration: code tables (list, get, update)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/26",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## Background\n\nAdd support for the Alma Configuration API code-tables endpoints. Code tables are institution-wide config (rare updates, admin-only); the PUT replaces the entire table, so the typical workflow is pull \u2192 mutate \u2192 push.\n\n## Relevant Alma API documentation\n\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n- Endpoints touched:\n  - `GET /almaws/v1/conf/code-tables`\n  - `GET /almaws/v1/conf/code-tables/{codeTableName}`\n  - `PUT /almaws/v1/conf/code-tables/{codeTableName}`\n\n**Audit finding (2026-05-01):** Alma docs do NOT document a `scope` query parameter on `GET /almaws/v1/conf/code-tables`. The original signature `list_code_tables(self, scope: str = None)` was inferred \u2014 it should either be dropped or documented as a documented filter is found.\n\n## Current wrapper behavior\n\n- No code-tables support in `Configuration` domain class.\n\n## Expected wrapper behavior\n\n```python\ndef list_code_tables(self) -> List[Dict[str, Any]]\ndef get_code_table(self, code_table_name: str) -> Dict[str, Any]\ndef update_code_table(self, code_table_name: str, code_table_data: Dict[str, Any]) -> AlmaResponse\n```\n\nIf a future API revision adds a documented filter for `list_code_tables`, expose it then via `**kwargs` pass-through. Do NOT ship the undocumented `scope` parameter.\n\n## Implementation notes\n\n- Files to touch:\n  - `src/almaapitk/domains/configuration.py`\n  - `tests/unit/domains/test_configuration.py`\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Code tables are institution-wide config; updates are usually rare and require admin permissions in Alma.\n- The PUT replaces the entire table \u2014 pull, mutate, push.\n- Add a helper `update_code_table_row(table, code, description)` later if user demand justifies it (out of scope for this issue).\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #22 \u2014 Configuration domain class bootstrap\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n\n- [ ] All listed methods implemented on the existing domain class with type hints and docstrings.\n- [ ] `list_code_tables()` takes no `scope` parameter (or any other undocumented filter).\n- [ ] Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- [ ] Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- [ ] All operations logged through `alma_logging` (no `print`).\n- [ ] `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- [ ] If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Open questions\n\n- If at implementation time the docs do list a query filter (e.g. `scope`/`type`/`area`) on `GET /code-tables`, expose it as a typed kwarg. Otherwise ship without filters.\n\n## Audit notes (2026-05-01)\n\n- Audit flagged that the proposed `scope` query parameter is not documented on the list endpoint. AC now explicitly forbids shipping it without doc evidence.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [],
+      "references": [],
+      "hard_prereqs": [
+        22
+      ],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "`list_code_tables()` takes no `scope` parameter (or any other undocumented filter).",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    },
+    {
+      "number": 27,
+      "title": "Coverage: Configuration: mapping tables (list, get, update)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/27",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## API endpoints touched\n- `GET /almaws/v1/conf/mapping-tables`\n- `GET /almaws/v1/conf/mapping-tables/{mappingTableName}`\n- `PUT /almaws/v1/conf/mapping-tables/{mappingTableName}`\n\n## Methods to add\n```python\ndef list_mapping_tables(self) -> List[Dict[str, Any]]\ndef get_mapping_table(self, mapping_table_name: str) -> Dict[str, Any]\ndef update_mapping_table(self, mapping_table_name: str, mapping_table_data: Dict[str, Any]) -> AlmaResponse\n```\n\n## Files to touch\n- `src/almaapitk/domains/configuration.py`\n- `tests/unit/domains/test_configuration.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #22 \u2014 Configuration domain class bootstrap\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- Identical shape to code tables (#5) \u2014 copy that implementation pattern.\n- Mapping tables can grow large; ensure the PUT roundtrip handles them.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [
+        "GET /almaws/v1/conf/mapping-tables",
+        "GET /almaws/v1/conf/mapping-tables/{mappingTableName}",
+        "PUT /almaws/v1/conf/mapping-tables/{mappingTableName}"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/configuration.py",
+        "tests/unit/domains/test_configuration.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules"
+      ],
+      "hard_prereqs": [
+        22
+      ],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    }
+  ]
+}

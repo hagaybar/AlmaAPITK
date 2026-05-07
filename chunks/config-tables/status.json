@@ -1,0 +1,17 @@
+{
+  "chunk": "config-tables",
+  "issues": [
+    26,
+    27
+  ],
+  "stage": "merged",
+  "branch": "chunk/config-tables",
+  "createdAt": "2026-05-07T14:29:42Z",
+  "updatedAt": "2026-05-07T16:29:23Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/113)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KR1DGBTVAJQHRMVBDVN7MH5M",
+  "testRunId": "01KR1F6NRN3VFYWPSDEK36V7HV",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/113"
+}

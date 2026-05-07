@@ -1,0 +1,55 @@
+{
+  "chunk": "config-tables",
+  "testRunStartedAt": "2026-05-07T00:00:00+03:00",
+  "testRunFinishedAt": "2026-05-07T00:00:14+03:00",
+  "perTest": [
+    {
+      "id": "t-26-1",
+      "outcome": "passed",
+      "issueNumber": 26,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "chunks/config-tables/sandbox-tests/test_t-26-1.py::test_t_26_1 PASSED in 1.02s — list_code_tables() returned a List (envelope unwrapped, no 'scope' query param sent) and get_code_table(<existing_code_table_name>) returned a dict whose name echoed the requested table."
+    },
+    {
+      "id": "t-26-2",
+      "outcome": "passed",
+      "issueNumber": 26,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "chunks/config-tables/sandbox-tests/test_t-26-2.py::test_t_26_2 PASSED in 0.06s — every input-validation guard on get_code_table()/update_code_table() raised AlmaValidationError before any HTTP call (empty/whitespace/None/non-string name; None/empty/non-dict body)."
+    },
+    {
+      "id": "t-27-1",
+      "outcome": "passed",
+      "issueNumber": 27,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "chunks/config-tables/sandbox-tests/test_t-27-1.py::test_t_27_1 PASSED in 12.24s — list_mapping_tables() returned a List (envelope unwrapped) and get_mapping_table(<existing_mapping_table_name>) returned a dict whose name echoed the requested table."
+    },
+    {
+      "id": "t-27-2",
+      "outcome": "passed",
+      "issueNumber": 27,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "chunks/config-tables/sandbox-tests/test_t-27-2.py::test_t_27_2 PASSED in 0.06s — every input-validation guard on get_mapping_table()/update_mapping_table() raised AlmaValidationError before any HTTP call (empty/whitespace/None/non-string name; None/empty/non-dict body)."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 26,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 27,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

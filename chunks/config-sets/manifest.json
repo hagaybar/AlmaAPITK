@@ -1,0 +1,56 @@
+{
+  "chunk": "config-sets",
+  "issues": [
+    {
+      "number": 23,
+      "title": "Coverage: Configuration: Sets full CRUD + member management",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/23",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## API endpoints touched\n- `POST /almaws/v1/conf/sets \u2014 Create set`\n- `PUT /almaws/v1/conf/sets/{set_id} \u2014 Update set`\n- `DELETE /almaws/v1/conf/sets/{set_id} \u2014 Delete set`\n- `POST /almaws/v1/conf/sets/{set_id} \u2014 Manage set members (add/remove with op param)`\n\n## Methods to add\n```python\ndef create_set(self, set_data: Dict[str, Any]) -> AlmaResponse\ndef update_set(self, set_id: str, set_data: Dict[str, Any]) -> AlmaResponse\ndef delete_set(self, set_id: str) -> AlmaResponse\ndef add_members_to_set(self, set_id: str, member_ids: List[str]) -> AlmaResponse\ndef remove_members_from_set(self, set_id: str, member_ids: List[str]) -> AlmaResponse\n```\n\n## Files to touch\n- `src/almaapitk/domains/admin.py (extend the existing Admin class)`\n- `tests/unit/domains/test_admin.py (add unit tests)`\n- `tests/integration/test_admin_sets.py (add integration tests)`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules\n- Use the `python-dev-expert` skill for code patterns (pagination, error handling, type hints)\n- `src/almaapitk/client/AlmaAPIClient.py` \u2014 HTTP verbs (`client.get/post/put/delete`)\n- Existing pattern: `Admin.list_sets` (`src/almaapitk/domains/admin.py:439`)\n\n## DO NOT re-implement\nThese methods already exist \u2014 extend, don't duplicate:\n- `Admin.list_sets` \u2014 `src/almaapitk/domains/admin.py:439`\n- `Admin.get_set_info` \u2014 `src/almaapitk/domains/admin.py:313`\n- `Admin.get_set_members` \u2014 `src/almaapitk/domains/admin.py:39`\n- `Admin.get_user_set_members`, `get_bib_set_members` \u2014 :107, :123\n- `Admin.validate_user_set` \u2014 :141\n- `Admin.get_set_metadata_and_member_count` \u2014 :353\n\nExtend the existing `Admin` class. Do NOT move set methods to `Configuration` \u2014 that would break the `Admin` public API.\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n- Member-management endpoint uses the correct `op` query parameter (`add_members` / `delete_members`).\n- Round-trip test (create \u2192 update \u2192 add members \u2192 remove members \u2192 delete) against SANDBOX.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- `manage set members` uses POST `/conf/sets/{set_id}` with a query parameter `op` and a body containing the member IDs. Format details: see `alma-api-expert` skill.\n- Sets have a content type (`BIB_MMS`, `USER`, `IEP`, etc.). Validate input matches.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [
+        "POST /almaws/v1/conf/sets \u2014 Create set",
+        "PUT /almaws/v1/conf/sets/{set_id} \u2014 Update set",
+        "DELETE /almaws/v1/conf/sets/{set_id} \u2014 Delete set",
+        "POST /almaws/v1/conf/sets/{set_id} \u2014 Manage set members"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/admin.py",
+        "tests/unit/domains/test_admin.py",
+        "tests/integration/test_admin_sets.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules",
+        "Use the `python-dev-expert` skill for code patterns",
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "Existing pattern: `Admin.list_sets`"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+        "Member-management endpoint uses the correct `op` query parameter (`add_members` / `delete_members`).",
+        "Round-trip test (create \u2192 update \u2192 add members \u2192 remove members \u2192 delete) against SANDBOX."
+      ]
+    }
+  ]
+}

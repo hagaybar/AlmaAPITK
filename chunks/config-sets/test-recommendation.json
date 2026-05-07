@@ -1,0 +1,151 @@
+{
+  "chunk": "config-sets",
+  "branch": "chunk/config-sets",
+  "createdAt": "2026-05-07T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 23,
+      "title": "Coverage: Configuration: Sets full CRUD + member management",
+      "classification": "general",
+      "subBranch": "feat/23-coverage-configuration-sets-fu",
+      "tests": [
+        {
+          "id": "t-23-1",
+          "kind": "round-trip",
+          "scope": "Drive the full set CRUD + member-management round-trip end-to-end against live SANDBOX. Create a fresh ITEMIZED BIB_MMS set with a UUID-suffixed name (so concurrent runs do not collide), update its description (PUT), add an existing SANDBOX bib MMS as a member (POST with op=add_members), confirm the member count rose, remove the member (POST with op=delete_members), confirm the count fell, then delete the set (DELETE). Covers issue #23 ACs: #2 (integration test against SANDBOX), #7 (op query parameter is sent correctly for both add and delete), and #8 (the documented round-trip flow). Reads the surviving set with the existing Admin.get_set_info / get_set_metadata_and_member_count helpers between mutations to assert each step landed.",
+          "endpoints": [
+            "POST /almaws/v1/conf/sets",
+            "PUT /almaws/v1/conf/sets/{set_id}",
+            "POST /almaws/v1/conf/sets/{set_id}",
+            "DELETE /almaws/v1/conf/sets/{set_id}",
+            "GET /almaws/v1/conf/sets/{set_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_bib_mms_id",
+              "description": "An existing bibliographic record MMS ID in SANDBOX that can be safely added/removed as a member of a temporary BIB_MMS set. The set itself is created and torn down inside the test; the underlying bib record is never modified. Synthetic placeholder only — never a real operator-supplied identifier.",
+              "example": "9912345678901234"
+            }
+          ],
+          "pythonCalls": [
+            "import uuid",
+            "from almaapitk.domains.admin import Admin",
+            "admin = Admin(client)",
+            "set_name = f'almaapitk-chunk23-{uuid.uuid4().hex[:8]}'",
+            "create_payload = {'name': set_name, 'description': 'almaapitk chunk-23 round-trip set (auto-cleanup)', 'type': {'value': 'ITEMIZED'}, 'content': {'value': 'BIB_MMS'}, 'private': {'value': 'false'}, 'status': {'value': 'ACTIVE'}}",
+            "create_response = admin.create_set(create_payload)",
+            "created_set_id = create_response.data.get('id') if hasattr(create_response, 'data') else None",
+            "update_payload = dict(create_payload)\nupdate_payload['description'] = 'almaapitk chunk-23 round-trip set (updated)'\nupdate_payload['id'] = created_set_id",
+            "update_response = admin.update_set(created_set_id, update_payload)",
+            "post_update_info = admin.get_set_info(created_set_id)",
+            "add_response = admin.add_members_to_set(created_set_id, ['${existing_bib_mms_id}'])",
+            "post_add_info = admin.get_set_info(created_set_id)",
+            "post_add_member_count = int((post_add_info or {}).get('number_of_members', {}).get('value', 0)) if isinstance((post_add_info or {}).get('number_of_members'), dict) else int((post_add_info or {}).get('number_of_members', 0) or 0)",
+            "remove_response = admin.remove_members_from_set(created_set_id, ['${existing_bib_mms_id}'])",
+            "post_remove_info = admin.get_set_info(created_set_id)",
+            "post_remove_member_count = int((post_remove_info or {}).get('number_of_members', {}).get('value', 0)) if isinstance((post_remove_info or {}).get('number_of_members'), dict) else int((post_remove_info or {}).get('number_of_members', 0) or 0)",
+            "delete_response = admin.delete_set(created_set_id)",
+            "post_delete_error = None\ntry:\n    admin.get_set_info(created_set_id)\nexcept Exception as e:\n    post_delete_error = e"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(created_set_id, str) and len(created_set_id) > 0",
+            "getattr(update_response, 'success', False) is True",
+            "isinstance(post_update_info, dict) and (post_update_info.get('description') == 'almaapitk chunk-23 round-trip set (updated)' or 'updated' in str(post_update_info.get('description', '')).lower())",
+            "getattr(add_response, 'success', False) is True",
+            "post_add_member_count >= 1",
+            "getattr(remove_response, 'success', False) is True",
+            "post_remove_member_count == 0",
+            "getattr(delete_response, 'success', False) is True",
+            "post_delete_error is not None"
+          ],
+          "cleanup": [
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "if 'created_set_id' in dir() and created_set_id:\n    try:\n        admin.delete_set(created_set_id)\n    except AlmaAPIError:\n        # Set already deleted by the happy path or never created -- safe to ignore.\n        pass\n    except Exception:\n        pass"
+          ]
+        },
+        {
+          "id": "t-23-2",
+          "kind": "smoke",
+          "scope": "Confirm the new write methods raise AlmaValidationError on malformed inputs BEFORE any HTTP call is issued. Exercises the input-validation guards added in this chunk: create_set rejects an empty/non-dict payload and a payload missing 'name' or 'type'; update_set rejects empty set_id and empty body; delete_set rejects empty set_id; add_members_to_set / remove_members_from_set reject empty member_ids and non-string entries. Covers issue #23 AC #3 (validation errors raise AlmaValidationError) for the live runtime — these are pure Python guards, but exercising them through the live client object proves the guards are wired in the build the operator will actually use. No SANDBOX state is mutated.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.admin import Admin",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "admin = Admin(client)",
+            "errors = {}",
+            "try:\n    admin.create_set({})\nexcept AlmaValidationError as e:\n    errors['create_empty'] = e",
+            "try:\n    admin.create_set({'type': {'value': 'ITEMIZED'}})\nexcept AlmaValidationError as e:\n    errors['create_no_name'] = e",
+            "try:\n    admin.create_set({'name': 'x'})\nexcept AlmaValidationError as e:\n    errors['create_no_type'] = e",
+            "try:\n    admin.update_set('', {'name': 'x'})\nexcept AlmaValidationError as e:\n    errors['update_empty_id'] = e",
+            "try:\n    admin.update_set('abc', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    admin.delete_set('')\nexcept AlmaValidationError as e:\n    errors['delete_empty_id'] = e",
+            "try:\n    admin.add_members_to_set('abc', [])\nexcept AlmaValidationError as e:\n    errors['add_empty_members'] = e",
+            "try:\n    admin.add_members_to_set('abc', [''])\nexcept AlmaValidationError as e:\n    errors['add_blank_member'] = e",
+            "try:\n    admin.remove_members_from_set('abc', [])\nexcept AlmaValidationError as e:\n    errors['remove_empty_members'] = e",
+            "try:\n    admin.remove_members_from_set('', ['9911'])\nexcept AlmaValidationError as e:\n    errors['remove_empty_id'] = e"
+          ],
+          "passCriteria": [
+            "'create_empty' in errors and isinstance(errors['create_empty'], AlmaValidationError)",
+            "'create_no_name' in errors and isinstance(errors['create_no_name'], AlmaValidationError)",
+            "'create_no_type' in errors and isinstance(errors['create_no_type'], AlmaValidationError)",
+            "'update_empty_id' in errors and isinstance(errors['update_empty_id'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'delete_empty_id' in errors and isinstance(errors['delete_empty_id'], AlmaValidationError)",
+            "'add_empty_members' in errors and isinstance(errors['add_empty_members'], AlmaValidationError)",
+            "'add_blank_member' in errors and isinstance(errors['add_blank_member'], AlmaValidationError)",
+            "'remove_empty_members' in errors and isinstance(errors['remove_empty_members'], AlmaValidationError)",
+            "'remove_empty_id' in errors and isinstance(errors['remove_empty_id'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-23-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-23-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-23-2"
+        ],
+        "Member-management endpoint uses the correct `op` query parameter (`add_members` / `delete_members`).": [
+          "t-23-1"
+        ],
+        "Round-trip test (create → update → add members → remove members → delete) against SANDBOX.": [
+          "t-23-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by the public-API contract test under tests/test_public_api_contract.py. The 'methods exist on the existing Admin class' facet IS observable at runtime (the round-trip in t-23-1 only succeeds if create_set/update_set/add_members_to_set/remove_members_from_set/delete_set are all importable and bound on Admin), so the AC is partially mapped to t-23-1; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_admin.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-23-1 (the round-trip touches every new method against live SANDBOX); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-23-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent set, 400 on bad payload, 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_admin.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #23 extends the existing Admin class (already exported) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

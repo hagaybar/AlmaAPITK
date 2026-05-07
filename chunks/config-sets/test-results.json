@@ -1,0 +1,32 @@
+{
+  "chunk": "config-sets",
+  "testRunStartedAt": "2026-05-07T08:22:23Z",
+  "testRunFinishedAt": "2026-05-07T08:22:23Z",
+  "perTest": [
+    {
+      "id": "t-23-1",
+      "outcome": "passed",
+      "issueNumber": 23,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "chunks/config-sets/sandbox-tests/test_t-23-1.py::test_t_23_1 PASSED [100%] -- 1 passed in 1.51s"
+    },
+    {
+      "id": "t-23-2",
+      "outcome": "passed",
+      "issueNumber": 23,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "chunks/config-sets/sandbox-tests/test_t-23-2.py::test_t_23_2 PASSED [100%] -- 1 passed in 0.06s"
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 23,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

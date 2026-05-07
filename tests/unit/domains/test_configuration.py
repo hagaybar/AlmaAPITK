@@ -1,6 +1,6 @@
 """
 Unit tests for the Configuration domain class
-(issues #22, #24, #25, #26, #27, #30).
+(issues #22, #24, #25, #26, #27, #30, #33).
 
 Tests cover:
 - Initialization (client, environment, logger setup)
@@ -16,6 +16,8 @@ Tests cover:
   (issue #27)
 - list_deposit_profiles() / get_deposit_profile() /
   list_import_profiles() / get_import_profile() (issue #30)
+- list_letters() / get_letter() / update_letter() /
+  list_printers() / get_printer() (issue #33)
 
 These tests use mocked AlmaAPIClient instances to test the Configuration
 domain in isolation. Pattern source mirrors
@@ -2484,3 +2486,591 @@ class TestGetImportProfile:
             config.get_import_profile("999999")
 
         assert "Profile ID" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# Issue #33: Letters (list / get / update) + Printers (list / get)
+# ---------------------------------------------------------------------------
+
+
+class TestListLetters:
+    """Tests for ``Configuration.list_letters`` (issue #33)."""
+
+    def test_list_letters_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "letter": [
+                    {
+                        "code": "OverdueAndLostLoanLetter",
+                        "letter_name": "Overdue and Lost Loan Letter",
+                        "enabled": {"value": "true"},
+                    },
+                    {
+                        "code": "FulHoldShelfLetter",
+                        "letter_name": "Hold Shelf Letter",
+                        "enabled": {"value": "true"},
+                    },
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_letters()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/letters"
+        # Single round-trip with generous page size.
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["code"] == "OverdueAndLostLoanLetter"
+        assert result[1]["code"] == "FulHoldShelfLetter"
+
+    def test_list_letters_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``letter`` key → empty list, not None."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_letters() == []
+
+    def test_list_letters_handles_single_dict_response(self):
+        """A single letter returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "letter": {
+                    "code": "OnlyLetter",
+                    "letter_name": "Only Letter",
+                },
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_letters()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["code"] == "OnlyLetter"
+
+    def test_list_letters_signature_takes_no_args(self):
+        """list_letters takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_letters)
+        # Only ``self`` is allowed.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_letters_propagates_api_error(self):
+        """Alma 60344 (Problem retrieving letter data) propagates."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Problem retrieving letter data.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_letters()
+
+
+class TestGetLetter:
+    """Tests for ``Configuration.get_letter`` (issue #33)."""
+
+    def test_get_letter_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "code": "OverdueAndLostLoanLetter",
+                "letter_name": "Overdue and Lost Loan Letter",
+                "description": "Sent on overdue / lost loans.",
+                "enabled": {"value": "true"},
+                "subject": "Your loan is overdue",
+                "body": "<xsl:stylesheet>...</xsl:stylesheet>",
+                "letter_template_xsl": "<xsl:stylesheet>...</xsl:stylesheet>",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_letter("OverdueAndLostLoanLetter")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/letters/OverdueAndLostLoanLetter"
+        )
+        assert isinstance(result, dict)
+        assert result["code"] == "OverdueAndLostLoanLetter"
+        # Sub-objects surfaced verbatim.
+        assert result["subject"] == "Your loan is overdue"
+        assert "letter_template_xsl" in result
+
+    def test_get_letter_returns_unwrapped_dict(self):
+        """``get_letter`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "code": "FulHoldShelfLetter",
+                "letter_name": "Hold Shelf Letter",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_letter("FulHoldShelfLetter")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "letter" not in result
+        assert "total_record_count" not in result
+
+    def test_get_letter_strips_whitespace(self):
+        """Validator trims whitespace from the code before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"code": "OverdueAndLostLoanLetter"}
+        )
+        config = Configuration(mock_client)
+
+        config.get_letter("  OverdueAndLostLoanLetter  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/letters/OverdueAndLostLoanLetter"
+        )
+
+    def test_get_letter_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_letter("")
+
+    def test_get_letter_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_letter("   ")
+
+    def test_get_letter_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_letter(123)  # type: ignore[arg-type]
+
+    def test_get_letter_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_letter(None)  # type: ignore[arg-type]
+
+    def test_get_letter_propagates_api_error(self):
+        """Alma 40166411 (Letter code is not valid) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Letter code is not valid.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.get_letter("NoSuchLetter")
+
+        assert "Letter code" in str(exc_info.value)
+
+
+class TestUpdateLetter:
+    """Tests for ``Configuration.update_letter`` (issue #33)."""
+
+    @staticmethod
+    def _valid_payload() -> Dict[str, Any]:
+        # PUT replaces the entire letter — payload mirrors what
+        # ``get_letter`` returns, including subject + XSL body.
+        return {
+            "code": "OverdueAndLostLoanLetter",
+            "letter_name": "Overdue and Lost Loan Letter",
+            "description": "Sent on overdue / lost loans.",
+            "enabled": {"value": "true"},
+            "subject": "Your loan is overdue",
+            "body": "<xsl:stylesheet>...</xsl:stylesheet>",
+            "letter_template_xsl": "<xsl:stylesheet>...</xsl:stylesheet>",
+        }
+
+    def test_update_letter_calls_correct_endpoint_and_returns_response(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={
+                "code": "OverdueAndLostLoanLetter",
+                "letter_name": "Overdue and Lost Loan Letter",
+                "subject": "Your loan is overdue",
+            }
+        )
+        config = Configuration(mock_client)
+
+        response = config.update_letter(
+            "OverdueAndLostLoanLetter", self._valid_payload()
+        )
+
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/conf/letters/OverdueAndLostLoanLetter"
+        )
+        # Body forwarded verbatim — full letter object on the wire.
+        assert call["data"] == self._valid_payload()
+        assert response is mock_client.put_response
+        assert response.data["code"] == "OverdueAndLostLoanLetter"
+
+    def test_update_letter_strips_whitespace_in_code(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"code": "OverdueAndLostLoanLetter"}
+        )
+        config = Configuration(mock_client)
+
+        config.update_letter(
+            "  OverdueAndLostLoanLetter  ", self._valid_payload()
+        )
+
+        assert (
+            mock_client.calls["put"][0]["endpoint"]
+            == "almaws/v1/conf/letters/OverdueAndLostLoanLetter"
+        )
+
+    def test_update_letter_rejects_empty_code(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter("", self._valid_payload())
+
+    def test_update_letter_rejects_whitespace_only_code(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter("   ", self._valid_payload())
+
+    def test_update_letter_rejects_non_string_code(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter(
+                123, self._valid_payload()  # type: ignore[arg-type]
+            )
+
+    def test_update_letter_rejects_empty_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter("OverdueAndLostLoanLetter", {})
+
+    def test_update_letter_rejects_non_dict_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter(
+                "OverdueAndLostLoanLetter",
+                "not a dict",  # type: ignore[arg-type]
+            )
+
+    def test_update_letter_rejects_none_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_letter(
+                "OverdueAndLostLoanLetter",
+                None,  # type: ignore[arg-type]
+            )
+
+    def test_update_letter_propagates_api_error(self):
+        """Alma 60343 (The update failed) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "The update failed.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.update_letter(
+                "OverdueAndLostLoanLetter", self._valid_payload()
+            )
+
+        assert "update failed" in str(exc_info.value)
+
+    def test_update_letter_propagates_generic_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.update_letter(
+                "OverdueAndLostLoanLetter", self._valid_payload()
+            )
+
+
+class TestListPrinters:
+    """Tests for ``Configuration.list_printers`` (issue #33)."""
+
+    def test_list_printers_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "printer": [
+                    {
+                        "id": "1234",
+                        "name": "Main Desk Printer",
+                        "code": "MAIN_DESK",
+                    },
+                    {
+                        "id": "5678",
+                        "name": "Annex Printer",
+                        "code": "ANNEX",
+                    },
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_printers()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/printers"
+        # Single round-trip with generous page size.
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "1234"
+        assert result[1]["name"] == "Annex Printer"
+
+    def test_list_printers_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``printer`` key → empty list, not None."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_printers() == []
+
+    def test_list_printers_handles_single_dict_response(self):
+        """A single printer returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "printer": {"id": "ONLY", "name": "Only Printer"},
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_printers()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "ONLY"
+
+    def test_list_printers_signature_takes_no_args(self):
+        """list_printers takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_printers)
+        # Only ``self`` is allowed.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_printers_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_printers()
+
+
+class TestGetPrinter:
+    """Tests for ``Configuration.get_printer`` (issue #33)."""
+
+    def test_get_printer_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "1234",
+                "name": "Main Desk Printer",
+                "code": "MAIN_DESK",
+                "description": "Front desk printer",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_printer("1234")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/printers/1234"
+        )
+        assert isinstance(result, dict)
+        assert result["id"] == "1234"
+        assert result["name"] == "Main Desk Printer"
+
+    def test_get_printer_returns_unwrapped_dict(self):
+        """``get_printer`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"id": "1234", "name": "Main Desk Printer"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_printer("1234")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "printer" not in result
+        assert "total_record_count" not in result
+
+    def test_get_printer_strips_whitespace(self):
+        """Validator trims whitespace from the id before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "1234"})
+        config = Configuration(mock_client)
+
+        config.get_printer("  1234  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/printers/1234"
+        )
+
+    def test_get_printer_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_printer("")
+
+    def test_get_printer_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_printer("   ")
+
+    def test_get_printer_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_printer(1234)  # type: ignore[arg-type]
+
+    def test_get_printer_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_printer(None)  # type: ignore[arg-type]
+
+    def test_get_printer_propagates_api_error(self):
+        """Alma 402899 (Invalid Printer ID) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Invalid Printer ID.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.get_printer("NOPE")
+
+        assert "Printer ID" in str(exc_info.value)

@@ -1,5 +1,6 @@
 """
-Unit tests for the Configuration domain class (issues #22, #24, #25, #26, #27).
+Unit tests for the Configuration domain class
+(issues #22, #24, #25, #26, #27, #30).
 
 Tests cover:
 - Initialization (client, environment, logger setup)
@@ -13,6 +14,8 @@ Tests cover:
 - list_code_tables() / get_code_table() / update_code_table() (issue #26)
 - list_mapping_tables() / get_mapping_table() / update_mapping_table()
   (issue #27)
+- list_deposit_profiles() / get_deposit_profile() /
+  list_import_profiles() / get_import_profile() (issue #30)
 
 These tests use mocked AlmaAPIClient instances to test the Configuration
 domain in isolation. Pattern source mirrors
@@ -2089,3 +2092,395 @@ class TestUpdateMappingTable:
             config.update_mapping_table(
                 "RecallDueDate", self._valid_payload()
             )
+
+
+# ---------------------------------------------------------------------------
+# Issue #30: Deposit profiles + metadata-import profiles (read-only)
+# ---------------------------------------------------------------------------
+
+
+class TestListDepositProfiles:
+    """Tests for ``Configuration.list_deposit_profiles`` (issue #30)."""
+
+    def test_list_deposit_profiles_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "deposit_profile": [
+                    {"id": "1234", "name": "Default Deposit"},
+                    {"id": "5678", "name": "Thesis Deposit"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_deposit_profiles()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/deposit-profiles"
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "1234"
+        assert result[1]["name"] == "Thesis Deposit"
+
+    def test_list_deposit_profiles_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``deposit_profile`` key → empty list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_deposit_profiles() == []
+
+    def test_list_deposit_profiles_handles_single_dict_response(self):
+        """A single deposit profile returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "deposit_profile": {"id": "ONLY", "name": "Only Profile"},
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_deposit_profiles()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "ONLY"
+
+    def test_list_deposit_profiles_signature_takes_no_args(self):
+        """list_deposit_profiles takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_deposit_profiles)
+        # Only ``self`` is allowed.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_deposit_profiles_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_deposit_profiles()
+
+
+class TestGetDepositProfile:
+    """Tests for ``Configuration.get_deposit_profile`` (issue #30)."""
+
+    def test_get_deposit_profile_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "1234",
+                "name": "Default Deposit",
+                "description": "Default deposit profile",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_deposit_profile("1234")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/deposit-profiles/1234"
+        )
+        assert isinstance(result, dict)
+        assert result["id"] == "1234"
+        assert result["name"] == "Default Deposit"
+
+    def test_get_deposit_profile_returns_unwrapped_dict(self):
+        """``get_deposit_profile`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"id": "1234", "name": "Default Deposit"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_deposit_profile("1234")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "deposit_profile" not in result
+        assert "total_record_count" not in result
+
+    def test_get_deposit_profile_strips_whitespace(self):
+        """Validator trims whitespace from the id before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "1234"})
+        config = Configuration(mock_client)
+
+        config.get_deposit_profile("  1234  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/deposit-profiles/1234"
+        )
+
+    def test_get_deposit_profile_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_deposit_profile("")
+
+    def test_get_deposit_profile_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_deposit_profile("   ")
+
+    def test_get_deposit_profile_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_deposit_profile(1234)  # type: ignore[arg-type]
+
+    def test_get_deposit_profile_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_deposit_profile(None)  # type: ignore[arg-type]
+
+    def test_get_deposit_profile_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "not found", status_code=404
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.get_deposit_profile("NOPE")
+
+
+class TestListImportProfiles:
+    """Tests for ``Configuration.list_import_profiles`` (issue #30)."""
+
+    def test_list_import_profiles_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "import_profile": [
+                    {"id": "100", "name": "MARC Import"},
+                    {"id": "200", "name": "Dublin Core Import"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_import_profiles()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/md-import-profiles"
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "100"
+        assert result[1]["name"] == "Dublin Core Import"
+
+    def test_list_import_profiles_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``import_profile`` key → empty list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_import_profiles() == []
+
+    def test_list_import_profiles_handles_single_dict_response(self):
+        """A single import profile returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "import_profile": {"id": "100", "name": "Only Profile"},
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_import_profiles()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "100"
+
+    def test_list_import_profiles_signature_takes_no_args(self):
+        """list_import_profiles takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_import_profiles)
+        # Only ``self`` is allowed.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_import_profiles_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_import_profiles()
+
+
+class TestGetImportProfile:
+    """Tests for ``Configuration.get_import_profile`` (issue #30)."""
+
+    def test_get_import_profile_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "100",
+                "name": "MARC Import",
+                "description": "Standard MARC import",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_import_profile("100")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/md-import-profiles/100"
+        )
+        assert isinstance(result, dict)
+        assert result["id"] == "100"
+        assert result["name"] == "MARC Import"
+
+    def test_get_import_profile_returns_unwrapped_dict(self):
+        """``get_import_profile`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"id": "100", "name": "MARC Import"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_import_profile("100")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "import_profile" not in result
+        assert "total_record_count" not in result
+
+    def test_get_import_profile_strips_whitespace(self):
+        """Validator trims whitespace from the id before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "100"})
+        config = Configuration(mock_client)
+
+        config.get_import_profile("  100  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/md-import-profiles/100"
+        )
+
+    def test_get_import_profile_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_import_profile("")
+
+    def test_get_import_profile_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_import_profile("   ")
+
+    def test_get_import_profile_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_import_profile(100)  # type: ignore[arg-type]
+
+    def test_get_import_profile_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_import_profile(None)  # type: ignore[arg-type]
+
+    def test_get_import_profile_propagates_api_error(self):
+        """Alma 401871 (Failed to find Profile ID) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Failed to find the Profile ID.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.get_import_profile("999999")
+
+        assert "Profile ID" in str(exc_info.value)

@@ -881,7 +881,13 @@ class Configuration:
         Returns:
             The full code-table object as returned by Alma. Includes
             metadata (``name``, ``description``, ``sub_system``, etc.)
-            and the ``row`` array of entries.
+            and a top-level ``row`` array of entries.
+
+            **Response-shape note:** the entries live at the top-level
+            ``row`` key (singular), NOT wrapped in ``rows.row``. Access
+            via ``table["row"]``. This differs from some other Alma
+            list endpoints (where the wrapper is ``{"rows": {"row":
+            [...]}}``) — verified live against SANDBOX 2026-05-07.
 
         Raises:
             AlmaValidationError: If ``code_table_name`` is empty or not
@@ -1068,7 +1074,13 @@ class Configuration:
         Returns:
             The full mapping-table object as returned by Alma. Includes
             metadata (``name``, ``description``, ``sub_system``, etc.)
-            and the ``row`` array of entries.
+            and a top-level ``row`` array of entries.
+
+            **Response-shape note:** the entries live at the top-level
+            ``row`` key (singular), NOT wrapped in ``rows.row``. Access
+            via ``table["row"]``. This mirrors :meth:`get_code_table`
+            and differs from some other Alma list endpoints whose
+            wrapper is ``{"rows": {"row": [...]}}``.
 
         Raises:
             AlmaValidationError: If ``mapping_table_name`` is empty or

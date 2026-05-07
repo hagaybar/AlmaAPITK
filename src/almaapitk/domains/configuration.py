@@ -1534,6 +1534,18 @@ class Configuration:
     ) -> AlmaResponse:
         """Replace an entire letter template.
 
+        .. warning::
+            **Known limitation as of 2026-05-07:** the live Alma
+            letters PUT endpoint requires an XML request body and
+            rejects JSON with HTTP 400 + Alma error code ``60105``
+            ("JSON is not supported for this API."). This method
+            sends JSON like the rest of the toolkit, so calls against
+            live Alma will fail. The implementation is correct for a
+            JSON-accepting endpoint and is exercised by the unit-test
+            suite (mocked HTTP); XML body support is tracked as a
+            follow-up issue. Until that ships, treat this method as
+            non-functional against live Alma.
+
         Wraps ``PUT /almaws/v1/conf/letters/{letterCode}``. **The PUT
         replaces the entire letter — it is NOT a partial update.** Alma
         requires the complete letter object on the wire (subject, body,

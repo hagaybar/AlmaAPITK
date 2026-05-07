@@ -200,8 +200,25 @@ Each pytest file:
      When in doubt, prefer asserting on .data of the AlmaResponse
      returned by the operation under test — that IS the raw Alma
      payload.
-  5. If stateChanging is true, runs cleanup in a try/finally — failure to clean is a FAIL.
-  6. Uses ALMA_SB_API_KEY (never PROD).
+  5. GET-to-PUT asymmetry: when constructing an update payload for a
+     PUT operation, DO NOT echo a prior GET response into the update.
+     Alma frequently returns enum-style fields on GET as
+     {"value": "X", "desc": "..."} dicts, but its PUT validator
+     rejects that shape and demands a bare string. Worked example
+     (issue #25): GET /conf/libraries/{lib}/locations/{code} returns
+     accession_placement as {"value": "852h", "desc": "..."}; round-
+     tripping that dict back into PUT raises Alma error 60300
+     ("The accession placement is not valid: [852h,852j,852p,none]").
+     Safer pattern: build the update payload from the original
+     create_payload (or a hand-built minimal dict), then mutate just
+     the fields the test wants to change (e.g. name). create_payload
+     already passed Alma's validator on POST, so it will pass on PUT.
+     Only echo a GET response into a PUT body if the test explicitly
+     needs to assert "no fields were lost across the round-trip" —
+     and even then, expect to strip enum-dict fields back to bare
+     strings first.
+  6. If stateChanging is true, runs cleanup in a try/finally — failure to clean is a FAIL.
+  7. Uses ALMA_SB_API_KEY (never PROD).
 
 Return JSON: { "filesWritten": [...], "tests": [{id, path, stateChanging, hasCleanup}] }`,
       outputFormat: 'JSON',

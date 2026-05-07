@@ -187,8 +187,21 @@ Each pytest file:
      substitutes \${var} placeholders by reading _TEST_DATA["<var>"] in
      the test function body, never by string-replacing into source.
   3. Runs each pythonCall and asserts every passCriterion.
-  4. If stateChanging is true, runs cleanup in a try/finally — failure to clean is a FAIL.
-  5. Uses ALMA_SB_API_KEY (never PROD).
+  4. Domain helpers that return a Dict (not AlmaResponse) — e.g.
+     Admin.get_set_info, Admin.get_set_metadata_and_member_count,
+     Acquisitions.get_invoice — usually return a NORMALISED summary,
+     not the raw Alma response. Before asserting on a returned field,
+     read the helper's source under src/almaapitk/domains/ (or its
+     docstring) and use the actual key name in the summary, NOT the
+     raw Alma key. Worked example (issue #23): Admin.get_set_info
+     exposes the member count at "total_members"; Alma's raw response
+     uses "number_of_members": {"value": <n>}. Asserting on
+     "number_of_members" against the helper's return silently reads 0.
+     When in doubt, prefer asserting on .data of the AlmaResponse
+     returned by the operation under test — that IS the raw Alma
+     payload.
+  5. If stateChanging is true, runs cleanup in a try/finally — failure to clean is a FAIL.
+  6. Uses ALMA_SB_API_KEY (never PROD).
 
 Return JSON: { "filesWritten": [...], "tests": [{id, path, stateChanging, hasCleanup}] }`,
       outputFormat: 'JSON',

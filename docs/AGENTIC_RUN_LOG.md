@@ -19,3 +19,5 @@ Append-only log of chunk runs. One row per finished chunk.
 | changelog-and-pypi-metadata (off-pipeline) | 2026-05-06 | #17 | n/a | 1 | 0 | 0 | n/a | https://github.com/hagaybar/AlmaAPITK/pull/109 |
 | config-sets | 2026-05-07 | #23 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/110 |
 | config-sets | 2026-05-07 | #23 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/110 |
+| config-orgs-and-locations | 2026-05-07 | #24, #25 |  | 4 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/112 |
+| config-orgs-and-locations | 2026-05-07 | #24, #25 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/112 |

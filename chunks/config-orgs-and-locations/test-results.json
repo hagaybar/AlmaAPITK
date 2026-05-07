@@ -1,0 +1,55 @@
+{
+  "chunk": "config-orgs-and-locations",
+  "testRunStartedAt": "2026-05-07T14:02:51Z",
+  "testRunFinishedAt": "2026-05-07T14:02:51Z",
+  "perTest": [
+    {
+      "id": "t-24-1",
+      "outcome": "passed",
+      "issueNumber": 24,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "1 passed in 3.35s — chunks/config-orgs-and-locations/sandbox-tests/test_t-24-1.py::test_t_24_1 PASSED"
+    },
+    {
+      "id": "t-24-2",
+      "outcome": "passed",
+      "issueNumber": 24,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "1 passed in 0.06s — chunks/config-orgs-and-locations/sandbox-tests/test_t-24-2.py::test_t_24_2 PASSED"
+    },
+    {
+      "id": "t-25-1",
+      "outcome": "passed",
+      "issueNumber": 25,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "1 passed in 1.20s — chunks/config-orgs-and-locations/sandbox-tests/test_t-25-1.py::test_t_25_1 PASSED. Round-trip create/read/list/update/delete completed; happy-path delete succeeded (post-delete get_location raised AlmaAPIError as required) and the try/finally cleanup re-delete ran without surfacing an error."
+    },
+    {
+      "id": "t-25-2",
+      "outcome": "passed",
+      "issueNumber": 25,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "1 passed in 0.06s — chunks/config-orgs-and-locations/sandbox-tests/test_t-25-2.py::test_t_25_2 PASSED"
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 24,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 25,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

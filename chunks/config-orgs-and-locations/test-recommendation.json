@@ -1,0 +1,291 @@
+{
+  "chunk": "config-orgs-and-locations",
+  "branch": "chunk/config-orgs-and-locations",
+  "createdAt": "2026-05-07T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 24,
+      "title": "Coverage: Configuration: organization units (libraries, departments, circ desks)",
+      "classification": "general",
+      "subBranch": "feat/24-coverage-configuration-organiz",
+      "tests": [
+        {
+          "id": "t-24-1",
+          "kind": "smoke",
+          "scope": "Exercise every read-only org-unit method shipped in issue #24 against live SANDBOX. Calls list_libraries() and list_departments() to confirm both return List[Dict] envelopes successfully unwrapped from Alma's response shape; calls get_library(${existing_library_code}) to confirm a known library code round-trips and the returned dict echoes the requested code; calls list_circ_desks(${target_library_code}) to confirm the per-library circ-desk listing returns a List[Dict]; and calls get_circ_desk(${target_library_code}, ${existing_circ_desk_code}) to confirm the per-library/per-desk lookup round-trips. Two library fixture keys: existing_library_code is used for the get_library smoke (operator may scope reads to a different library than the one used for circ-desk / locations work); target_library_code is the library that hosts the circ desk and (later) the round-trip create/update/delete in t-25-1. No state is mutated and no new entities are created — this is a pure read smoke. Covers issue #24 ACs about each method being exercised against SANDBOX and the AlmaAPIError happy-path.",
+          "endpoints": [
+            "GET /almaws/v1/conf/libraries",
+            "GET /almaws/v1/conf/libraries/{libraryCode}",
+            "GET /almaws/v1/conf/departments",
+            "GET /almaws/v1/conf/libraries/{libraryCode}/circ-desks",
+            "GET /almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_library_code",
+              "description": "An existing Alma library code in SANDBOX. Used ONLY for the get_library() read smoke. May be the same as target_library_code, or a different library if the operator wants reads scoped to one library and circ-desk / location work scoped to another. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "MAIN"
+            },
+            {
+              "key": "target_library_code",
+              "description": "An existing Alma library code in SANDBOX that hosts the circ desk under existing_circ_desk_code AND where the operator authorizes test locations to be created and deleted. Used by list_circ_desks / get_circ_desk in this test, and by the round-trip create/update/delete in t-25-1. Synthetic placeholder only — never write a real library code into this file.",
+              "example": "TEST_LIB"
+            },
+            {
+              "key": "existing_circ_desk_code",
+              "description": "An existing circulation-desk code under target_library_code in SANDBOX. Used by get_circ_desk to confirm the per-library/per-desk lookup round-trips. Synthetic placeholder only — never write a real circ-desk code into this file.",
+              "example": "MAIN_DESK"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "libraries = config.list_libraries()",
+            "departments = config.list_departments()",
+            "library = config.get_library('${existing_library_code}')",
+            "circ_desks = config.list_circ_desks('${target_library_code}')",
+            "circ_desk = config.get_circ_desk('${target_library_code}', '${existing_circ_desk_code}')"
+          ],
+          "passCriteria": [
+            "isinstance(libraries, list)",
+            "isinstance(departments, list)",
+            "isinstance(library, dict) and len(library) > 0",
+            "(library.get('code') == '${existing_library_code}') or (isinstance(library.get('code'), dict) and library.get('code', {}).get('value') == '${existing_library_code}') or any(str(v) == '${existing_library_code}' for v in library.values() if isinstance(v, str))",
+            "isinstance(circ_desks, list)",
+            "isinstance(circ_desk, dict) and len(circ_desk) > 0",
+            "(circ_desk.get('code') == '${existing_circ_desk_code}') or (isinstance(circ_desk.get('code'), dict) and circ_desk.get('code', {}).get('value') == '${existing_circ_desk_code}') or any(str(v) == '${existing_circ_desk_code}' for v in circ_desk.values() if isinstance(v, str))"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-24-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #24 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through every public entry point: get_library('') / get_library(None) / get_library(123); list_circ_desks('') / list_circ_desks(None); get_circ_desk('', 'x') / get_circ_desk('LIB', '') / get_circ_desk(None, None). list_libraries() and list_departments() take no arguments so have no validation surface — they are not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #24 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.get_library('')\nexcept AlmaValidationError as e:\n    errors['get_library_empty'] = e",
+            "try:\n    config.get_library('   ')\nexcept AlmaValidationError as e:\n    errors['get_library_whitespace'] = e",
+            "try:\n    config.get_library(None)\nexcept AlmaValidationError as e:\n    errors['get_library_none'] = e",
+            "try:\n    config.get_library(123)\nexcept AlmaValidationError as e:\n    errors['get_library_nonstring'] = e",
+            "try:\n    config.list_circ_desks('')\nexcept AlmaValidationError as e:\n    errors['list_circ_desks_empty'] = e",
+            "try:\n    config.list_circ_desks(None)\nexcept AlmaValidationError as e:\n    errors['list_circ_desks_none'] = e",
+            "try:\n    config.get_circ_desk('', 'x')\nexcept AlmaValidationError as e:\n    errors['get_circ_desk_empty_lib'] = e",
+            "try:\n    config.get_circ_desk('LIB', '')\nexcept AlmaValidationError as e:\n    errors['get_circ_desk_empty_desk'] = e",
+            "try:\n    config.get_circ_desk(None, None)\nexcept AlmaValidationError as e:\n    errors['get_circ_desk_both_none'] = e"
+          ],
+          "passCriteria": [
+            "'get_library_empty' in errors and isinstance(errors['get_library_empty'], AlmaValidationError)",
+            "'get_library_whitespace' in errors and isinstance(errors['get_library_whitespace'], AlmaValidationError)",
+            "'get_library_none' in errors and isinstance(errors['get_library_none'], AlmaValidationError)",
+            "'get_library_nonstring' in errors and isinstance(errors['get_library_nonstring'], AlmaValidationError)",
+            "'list_circ_desks_empty' in errors and isinstance(errors['list_circ_desks_empty'], AlmaValidationError)",
+            "'list_circ_desks_none' in errors and isinstance(errors['list_circ_desks_none'], AlmaValidationError)",
+            "'get_circ_desk_empty_lib' in errors and isinstance(errors['get_circ_desk_empty_lib'], AlmaValidationError)",
+            "'get_circ_desk_empty_desk' in errors and isinstance(errors['get_circ_desk_empty_desk'], AlmaValidationError)",
+            "'get_circ_desk_both_none' in errors and isinstance(errors['get_circ_desk_both_none'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-24-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-24-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-24-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-24-1 only succeeds if list_libraries/get_library/list_departments/list_circ_desks/get_circ_desk are all importable and bound on Configuration), so the AC is partially mapped to t-24-1; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-24-1 (every new method touches live SANDBOX); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-24-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent library/circ desk, 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #24 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    },
+    {
+      "number": 25,
+      "title": "Coverage: Configuration: locations CRUD",
+      "classification": "general",
+      "subBranch": "feat/25-coverage-configuration-locatio",
+      "tests": [
+        {
+          "id": "t-25-1",
+          "kind": "round-trip",
+          "scope": "Drive the full locations CRUD round-trip end-to-end against live SANDBOX. Generates a fresh location code with a UUID suffix (so concurrent runs do not collide), creates a new location inside ${target_library_code} via create_location() with a minimal valid payload (code/name/type), reads it back via get_location() and asserts the round-trip; lists via list_locations() and asserts the new code is present; mutates the name and pushes via update_location(), then reads again and asserts the rename landed; finally deletes via delete_location() and asserts a follow-up get_location() raises AlmaAPIError (the 4xx for 'no longer exists'). Cleanup runs delete_location in a try/finally so a partially-created location is always torn down even on assertion failure. target_library_code is the same key supplied for t-24-1 — the library where the operator has authorized test mutations. Covers issue #25 ACs about each CRUD method being exercised against SANDBOX, validation guards firing for required fields (because a successful create only happens if the validator accepts the payload), and the round-trip flow itself.",
+          "endpoints": [
+            "POST /almaws/v1/conf/libraries/{libraryCode}/locations",
+            "GET /almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+            "GET /almaws/v1/conf/libraries/{libraryCode}/locations",
+            "PUT /almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+            "DELETE /almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "target_library_code",
+              "description": "An existing Alma library code in SANDBOX where the operator authorizes test locations to be created and deleted. Same key supplied for t-24-1. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "TEST_LIB"
+            }
+          ],
+          "pythonCalls": [
+            "import uuid",
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "config = Configuration(client)",
+            "new_location_code = f'TKLOC{uuid.uuid4().hex[:8].upper()}'",
+            "create_payload = {\n    'code': new_location_code,\n    'name': f'almaapitk chunk-25 round-trip location {new_location_code}',\n    'type': {'value': 'OPEN'},\n    'external_name': f'almaapitk chunk-25 location {new_location_code}',\n    'description': 'almaapitk chunk-25 round-trip location (auto-cleanup)',\n}",
+            "create_response = config.create_location('${target_library_code}', create_payload)",
+            "post_create_get = config.get_location('${target_library_code}', new_location_code)",
+            "post_create_listing = config.list_locations('${target_library_code}')",
+            "found_in_listing = False\nfor loc in (post_create_listing or []):\n    raw = loc.get('code') if isinstance(loc, dict) else None\n    if isinstance(raw, dict):\n        raw = raw.get('value')\n    if isinstance(raw, str) and raw == new_location_code:\n        found_in_listing = True\n        break",
+            "update_payload = dict(post_create_get) if isinstance(post_create_get, dict) else dict(create_payload)\nupdate_payload['name'] = f'almaapitk chunk-25 location {new_location_code} (renamed)'",
+            "update_response = config.update_location('${target_library_code}', new_location_code, update_payload)",
+            "post_update_get = config.get_location('${target_library_code}', new_location_code)",
+            "post_update_name = post_update_get.get('name') if isinstance(post_update_get, dict) else None",
+            "delete_response = config.delete_location('${target_library_code}', new_location_code)",
+            "post_delete_error = None\ntry:\n    config.get_location('${target_library_code}', new_location_code)\nexcept AlmaAPIError as e:\n    post_delete_error = e"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(post_create_get, dict) and len(post_create_get) > 0",
+            "(post_create_get.get('code') == new_location_code) or (isinstance(post_create_get.get('code'), dict) and post_create_get.get('code', {}).get('value') == new_location_code)",
+            "isinstance(post_create_listing, list)",
+            "found_in_listing is True",
+            "getattr(update_response, 'success', False) is True",
+            "isinstance(post_update_name, str) and 'renamed' in post_update_name.lower()",
+            "getattr(delete_response, 'success', False) is True",
+            "post_delete_error is not None and isinstance(post_delete_error, AlmaAPIError)"
+          ],
+          "cleanup": [
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "if 'new_location_code' in dir() and new_location_code:\n    try:\n        config.delete_location('${target_library_code}', new_location_code)\n    except AlmaAPIError:\n        # Location already deleted by the happy path or never created -- safe to ignore.\n        pass\n    except Exception:\n        pass"
+          ]
+        },
+        {
+          "id": "t-25-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #25 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code on the path-parameter side of every CRUD method (list_locations(''), get_location('', 'X'), get_location('LIB', ''), update_location('', 'X', {...}), update_location('LIB', '', {...}), delete_location('', 'X'), delete_location('LIB', '')) and Configuration._validate_location_data_for_create plus the update_location body guard on the payload side (create_location('LIB', None) / create_location('LIB', {}) / create_location with missing 'code', missing 'name', missing 'type', empty 'type' value; update_location with empty body). Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers issue #25 AC 'Location creation validates required fields (code, name, type) before sending to API.' and the AlmaValidationError half of 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.list_locations('')\nexcept AlmaValidationError as e:\n    errors['list_empty_lib'] = e",
+            "try:\n    config.get_location('', 'X')\nexcept AlmaValidationError as e:\n    errors['get_empty_lib'] = e",
+            "try:\n    config.get_location('LIB', '')\nexcept AlmaValidationError as e:\n    errors['get_empty_loc'] = e",
+            "try:\n    config.create_location('', {'code': 'X', 'name': 'Y', 'type': {'value': 'OPEN'}})\nexcept AlmaValidationError as e:\n    errors['create_empty_lib'] = e",
+            "try:\n    config.create_location('LIB', None)\nexcept AlmaValidationError as e:\n    errors['create_none_payload'] = e",
+            "try:\n    config.create_location('LIB', {})\nexcept AlmaValidationError as e:\n    errors['create_empty_payload'] = e",
+            "try:\n    config.create_location('LIB', {'name': 'Y', 'type': {'value': 'OPEN'}})\nexcept AlmaValidationError as e:\n    errors['create_no_code'] = e",
+            "try:\n    config.create_location('LIB', {'code': 'X', 'type': {'value': 'OPEN'}})\nexcept AlmaValidationError as e:\n    errors['create_no_name'] = e",
+            "try:\n    config.create_location('LIB', {'code': 'X', 'name': 'Y'})\nexcept AlmaValidationError as e:\n    errors['create_no_type'] = e",
+            "try:\n    config.create_location('LIB', {'code': 'X', 'name': 'Y', 'type': {'value': ''}})\nexcept AlmaValidationError as e:\n    errors['create_empty_type_value'] = e",
+            "try:\n    config.create_location('LIB', {'code': '', 'name': 'Y', 'type': {'value': 'OPEN'}})\nexcept AlmaValidationError as e:\n    errors['create_empty_code'] = e",
+            "try:\n    config.create_location('LIB', {'code': 'X', 'name': '', 'type': {'value': 'OPEN'}})\nexcept AlmaValidationError as e:\n    errors['create_empty_name'] = e",
+            "try:\n    config.update_location('', 'X', {'name': 'Y'})\nexcept AlmaValidationError as e:\n    errors['update_empty_lib'] = e",
+            "try:\n    config.update_location('LIB', '', {'name': 'Y'})\nexcept AlmaValidationError as e:\n    errors['update_empty_loc'] = e",
+            "try:\n    config.update_location('LIB', 'X', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    config.update_location('LIB', 'X', None)\nexcept AlmaValidationError as e:\n    errors['update_none_body'] = e",
+            "try:\n    config.delete_location('', 'X')\nexcept AlmaValidationError as e:\n    errors['delete_empty_lib'] = e",
+            "try:\n    config.delete_location('LIB', '')\nexcept AlmaValidationError as e:\n    errors['delete_empty_loc'] = e"
+          ],
+          "passCriteria": [
+            "'list_empty_lib' in errors and isinstance(errors['list_empty_lib'], AlmaValidationError)",
+            "'get_empty_lib' in errors and isinstance(errors['get_empty_lib'], AlmaValidationError)",
+            "'get_empty_loc' in errors and isinstance(errors['get_empty_loc'], AlmaValidationError)",
+            "'create_empty_lib' in errors and isinstance(errors['create_empty_lib'], AlmaValidationError)",
+            "'create_none_payload' in errors and isinstance(errors['create_none_payload'], AlmaValidationError)",
+            "'create_empty_payload' in errors and isinstance(errors['create_empty_payload'], AlmaValidationError)",
+            "'create_no_code' in errors and isinstance(errors['create_no_code'], AlmaValidationError)",
+            "'create_no_name' in errors and isinstance(errors['create_no_name'], AlmaValidationError)",
+            "'create_no_type' in errors and isinstance(errors['create_no_type'], AlmaValidationError)",
+            "'create_empty_type_value' in errors and isinstance(errors['create_empty_type_value'], AlmaValidationError)",
+            "'create_empty_code' in errors and isinstance(errors['create_empty_code'], AlmaValidationError)",
+            "'create_empty_name' in errors and isinstance(errors['create_empty_name'], AlmaValidationError)",
+            "'update_empty_lib' in errors and isinstance(errors['update_empty_lib'], AlmaValidationError)",
+            "'update_empty_loc' in errors and isinstance(errors['update_empty_loc'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'update_none_body' in errors and isinstance(errors['update_none_body'], AlmaValidationError)",
+            "'delete_empty_lib' in errors and isinstance(errors['delete_empty_lib'], AlmaValidationError)",
+            "'delete_empty_loc' in errors and isinstance(errors['delete_empty_loc'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-25-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-25-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-25-1",
+          "t-25-2"
+        ],
+        "Location creation validates required fields (code, name, type) before sending to API.": [
+          "t-25-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-25-1 only succeeds if list_locations/get_location/create_location/update_location/delete_location are all importable and bound on Configuration), so the AC is partially mapped to t-25-1; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-25-1 (the round-trip touches every new method against live SANDBOX); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-25-2; the API-error half is partially mapped to t-25-1 (the post-delete get_location is asserted to raise AlmaAPIError, exercising the API-error propagation path on a deterministic 4xx). The remaining API-error subclass mapping (e.g. AlmaRateLimitError, AlmaAuthenticationError) is environment-dependent and cannot be provoked deterministically against SANDBOX; existing unit tests in tests/unit/domains/test_configuration.py cover these with mocked HTTP. This entry documents the residual unit-only facet for the typed-subclass cases."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #25 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

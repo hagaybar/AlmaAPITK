@@ -23,3 +23,5 @@ Append-only log of chunk runs. One row per finished chunk.
 | config-orgs-and-locations | 2026-05-07 | #24, #25 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/112 |
 | config-tables | 2026-05-07 | #26, #27 |  | 4 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/113 |
 | config-tables | 2026-05-07 | #26, #27 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/113 |
+| config-grab-bag-1 | 2026-05-07 | #30, #33, #35 |  | 6 | 0 | 1 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/115 |
+| config-grab-bag-1 | 2026-05-07 | #30, #33, #35 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/115 |

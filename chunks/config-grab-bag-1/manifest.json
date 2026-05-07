@@ -1,0 +1,142 @@
+{
+  "chunk": "config-grab-bag-1",
+  "issues": [
+    {
+      "number": 30,
+      "title": "Coverage: Configuration: deposit profiles + import profiles (read-only)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/30",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** S (\u2264\u00bd day)\n\n## API endpoints touched\n- `GET /almaws/v1/conf/deposit-profiles`\n- `GET /almaws/v1/conf/deposit-profiles/{deposit_profile_id}`\n- `GET /almaws/v1/conf/md-import-profiles`\n- `GET /almaws/v1/conf/md-import-profiles/{profile_id}`\n\n## Methods to add\n```python\ndef list_deposit_profiles(self) -> List[Dict[str, Any]]\ndef get_deposit_profile(self, deposit_profile_id: str) -> Dict[str, Any]\ndef list_import_profiles(self) -> List[Dict[str, Any]]\ndef get_import_profile(self, profile_id: str) -> Dict[str, Any]\n```\n\n## Files to touch\n- `src/almaapitk/domains/configuration.py`\n- `tests/unit/domains/test_configuration.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #22 \u2014 Configuration domain class bootstrap\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- POST /md-import-profiles/{profile_id} is deprecated per Alma docs \u2014 do not implement.\n- These are simple read-only lookups, mostly used to discover IDs for use elsewhere.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [
+        "GET /almaws/v1/conf/deposit-profiles",
+        "GET /almaws/v1/conf/deposit-profiles/{deposit_profile_id}",
+        "GET /almaws/v1/conf/md-import-profiles",
+        "GET /almaws/v1/conf/md-import-profiles/{profile_id}"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/configuration.py",
+        "tests/unit/domains/test_configuration.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/"
+      ],
+      "hard_prereqs": [
+        22
+      ],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    },
+    {
+      "number": 33,
+      "title": "Coverage: Configuration: letters + printers (read + letter update)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/33",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** S (\u2264\u00bd day)\n\n## API endpoints touched\n- `GET /almaws/v1/conf/letters`\n- `GET /almaws/v1/conf/letters/{letterCode}`\n- `PUT /almaws/v1/conf/letters/{letterCode}`\n- `GET /almaws/v1/conf/printers`\n- `GET /almaws/v1/conf/printers/{printer_id}`\n\n## Methods to add\n```python\ndef list_letters(self) -> List[Dict[str, Any]]\ndef get_letter(self, letter_code: str) -> Dict[str, Any]\ndef update_letter(self, letter_code: str, letter_data: Dict[str, Any]) -> AlmaResponse\ndef list_printers(self) -> List[Dict[str, Any]]\ndef get_printer(self, printer_id: str) -> Dict[str, Any]\n```\n\n## Files to touch\n- `src/almaapitk/domains/configuration.py`\n- `tests/unit/domains/test_configuration.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #22 \u2014 Configuration domain class bootstrap\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- Letters CRUD is partial: only GET and PUT exist (no POST/DELETE). Letter codes are predefined by Alma.\n- Printers are read-only.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [
+        "GET /almaws/v1/conf/letters",
+        "GET /almaws/v1/conf/letters/{letterCode}",
+        "PUT /almaws/v1/conf/letters/{letterCode}",
+        "GET /almaws/v1/conf/printers",
+        "GET /almaws/v1/conf/printers/{printer_id}"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/configuration.py",
+        "tests/unit/domains/test_configuration.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/"
+      ],
+      "hard_prereqs": [
+        22
+      ],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    },
+    {
+      "number": 35,
+      "title": "Coverage: Configuration: workflows runner + utilities",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/35",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Configuration\n**Priority:** High\n**Effort:** S (\u2264\u00bd day)\n\n## API endpoints touched\n- `POST /almaws/v1/conf/workflows/{workflow_id}`\n- `GET /almaws/v1/conf/utilities/fee-transactions`\n- `GET /almaws/v1/conf/general`\n\n## Methods to add\n```python\ndef run_workflow(self, workflow_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]\ndef get_fee_transactions_report(self, **filters) -> List[Dict[str, Any]]\ndef get_general_configuration(self) -> Dict[str, Any]\n```\n\n## Files to touch\n- `src/almaapitk/domains/configuration.py`\n- `tests/unit/domains/test_configuration.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Hard blockers \u2014 must merge before this issue is ready to start:**\n- #22 \u2014 Configuration domain class bootstrap\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- Workflow runner is for institution-defined workflows (not Alma's built-in jobs \u2014 those are issue #7).\n- Fee-transactions report supports filters (date range, library, etc.) \u2014 pass through as kwargs.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Configuration",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [
+        "POST /almaws/v1/conf/workflows/{workflow_id}",
+        "GET /almaws/v1/conf/utilities/fee-transactions",
+        "GET /almaws/v1/conf/general"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/configuration.py",
+        "tests/unit/domains/test_configuration.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/conf/"
+      ],
+      "hard_prereqs": [
+        22
+      ],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    }
+  ]
+}

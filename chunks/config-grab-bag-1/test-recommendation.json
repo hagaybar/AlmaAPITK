@@ -1,0 +1,366 @@
+{
+  "chunk": "config-grab-bag-1",
+  "branch": "chunk/config-grab-bag-1",
+  "createdAt": "2026-05-07T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 30,
+      "title": "Coverage: Configuration: deposit profiles + import profiles (read-only)",
+      "classification": "general",
+      "subBranch": "feat/30-coverage-configuration-deposit",
+      "tests": [
+        {
+          "id": "t-30-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only methods shipped in issue #30 that have an operator-supplied fixture available. Calls list_deposit_profiles() and list_import_profiles() to confirm both return List[Dict] envelopes successfully unwrapped from Alma's response shape; calls get_import_profile(${existing_import_profile_id}) to confirm a known import-profile id round-trips and the returned dict is non-empty. NOTE: get_deposit_profile() is NOT exercised against SANDBOX here — the operator deferred deposit-profile testing because no deposit_profile_id fixture is currently available (deferred to a later run). list_deposit_profiles() is still called to confirm the list endpoint at least responds. No state is mutated.",
+          "endpoints": [
+            "GET /almaws/v1/conf/deposit-profiles",
+            "GET /almaws/v1/conf/md-import-profiles",
+            "GET /almaws/v1/conf/md-import-profiles/{profile_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_import_profile_id",
+              "description": "An existing Alma metadata-import-profile id in SANDBOX. Used ONLY for the get_import_profile() read smoke — the profile is not mutated. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real import-profile id into this file.",
+              "example": "<import_profile_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "deposit_profiles = config.list_deposit_profiles()",
+            "import_profiles = config.list_import_profiles()",
+            "import_profile = config.get_import_profile('${existing_import_profile_id}')"
+          ],
+          "passCriteria": [
+            "isinstance(deposit_profiles, list)",
+            "isinstance(import_profiles, list)",
+            "isinstance(import_profile, dict) and len(import_profile) > 0"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-30-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #30 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through every public entry point that takes an id: get_deposit_profile('') / get_deposit_profile('   ') / get_deposit_profile(None) / get_deposit_profile(123); get_import_profile('') / get_import_profile('   ') / get_import_profile(None) / get_import_profile(123). list_deposit_profiles() and list_import_profiles() take no arguments so have no validation surface — they are not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #30 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.get_deposit_profile('')\nexcept AlmaValidationError as e:\n    errors['get_deposit_empty'] = e",
+            "try:\n    config.get_deposit_profile('   ')\nexcept AlmaValidationError as e:\n    errors['get_deposit_whitespace'] = e",
+            "try:\n    config.get_deposit_profile(None)\nexcept AlmaValidationError as e:\n    errors['get_deposit_none'] = e",
+            "try:\n    config.get_deposit_profile(123)\nexcept AlmaValidationError as e:\n    errors['get_deposit_nonstring'] = e",
+            "try:\n    config.get_import_profile('')\nexcept AlmaValidationError as e:\n    errors['get_import_empty'] = e",
+            "try:\n    config.get_import_profile('   ')\nexcept AlmaValidationError as e:\n    errors['get_import_whitespace'] = e",
+            "try:\n    config.get_import_profile(None)\nexcept AlmaValidationError as e:\n    errors['get_import_none'] = e",
+            "try:\n    config.get_import_profile(123)\nexcept AlmaValidationError as e:\n    errors['get_import_nonstring'] = e"
+          ],
+          "passCriteria": [
+            "'get_deposit_empty' in errors and isinstance(errors['get_deposit_empty'], AlmaValidationError)",
+            "'get_deposit_whitespace' in errors and isinstance(errors['get_deposit_whitespace'], AlmaValidationError)",
+            "'get_deposit_none' in errors and isinstance(errors['get_deposit_none'], AlmaValidationError)",
+            "'get_deposit_nonstring' in errors and isinstance(errors['get_deposit_nonstring'], AlmaValidationError)",
+            "'get_import_empty' in errors and isinstance(errors['get_import_empty'], AlmaValidationError)",
+            "'get_import_whitespace' in errors and isinstance(errors['get_import_whitespace'], AlmaValidationError)",
+            "'get_import_none' in errors and isinstance(errors['get_import_none'], AlmaValidationError)",
+            "'get_import_nonstring' in errors and isinstance(errors['get_import_nonstring'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-30-1"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-30-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-30-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-30-1 only succeeds if list_deposit_profiles/get_deposit_profile/list_import_profiles/get_import_profile are all importable and bound on Configuration), so the AC is partially mapped to t-30-1; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-30-1 (every new method touches live SANDBOX); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-30-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent deposit/import profile id, 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #30 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    },
+    {
+      "number": 33,
+      "title": "Coverage: Configuration: letters + printers (read + letter update)",
+      "classification": "general",
+      "subBranch": "feat/33-coverage-configuration-letters",
+      "tests": [
+        {
+          "id": "t-33-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only letter and printer methods shipped in issue #33 that have an operator-supplied fixture available. Calls list_letters() and list_printers() to confirm both return List[Dict] envelopes successfully unwrapped from Alma's response shape; calls get_letter(${disabled_letter_code}) on the operator-designated DISABLED letter (the same fixture used by t-33-3 for its round-trip mutation) to confirm a known letter code round-trips and the returned dict is non-empty. NOTE: get_printer() is NOT exercised against SANDBOX here — the operator deferred printer testing because no printer_id fixture is currently available. list_printers() is still called to confirm the list endpoint at least responds. The PUT path (update_letter) is exercised end-to-end by t-33-3.",
+          "endpoints": [
+            "GET /almaws/v1/conf/letters",
+            "GET /almaws/v1/conf/letters/{letterCode}",
+            "GET /almaws/v1/conf/printers"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "disabled_letter_code",
+              "description": "An existing Alma letter code in SANDBOX that is currently DISABLED in the operator's configuration and has been authorized by the operator for safe round-trip mutation. Used by get_letter() in this test (read-only here) and by t-33-3 (round-trip update + restore). The letter is disabled, so even if the round-trip restore fails, no user-facing letter is sent with mutated content. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real letter code into this file.",
+              "example": "<DISABLED_LETTER_CODE>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "letters = config.list_letters()",
+            "letter = config.get_letter('${disabled_letter_code}')",
+            "printers = config.list_printers()"
+          ],
+          "passCriteria": [
+            "isinstance(letters, list)",
+            "isinstance(letter, dict) and len(letter) > 0",
+            "isinstance(printers, list)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-33-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #33 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through get_letter('') / get_letter('   ') / get_letter(None) / get_letter(123); the update_letter path-parameter guard via update_letter('', {...}) / update_letter(None, {...}) AND the update_letter body guard via update_letter('CODE', None) / update_letter('CODE', {}) / update_letter('CODE', 'not-a-dict'); and get_printer('') / get_printer('   ') / get_printer(None) / get_printer(123). list_letters() and list_printers() take no arguments so have no validation surface — they are not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #33 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.get_letter('')\nexcept AlmaValidationError as e:\n    errors['get_letter_empty'] = e",
+            "try:\n    config.get_letter('   ')\nexcept AlmaValidationError as e:\n    errors['get_letter_whitespace'] = e",
+            "try:\n    config.get_letter(None)\nexcept AlmaValidationError as e:\n    errors['get_letter_none'] = e",
+            "try:\n    config.get_letter(123)\nexcept AlmaValidationError as e:\n    errors['get_letter_nonstring'] = e",
+            "try:\n    config.update_letter('', {'description': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_letter_empty_code'] = e",
+            "try:\n    config.update_letter(None, {'description': 'X'})\nexcept AlmaValidationError as e:\n    errors['update_letter_none_code'] = e",
+            "try:\n    config.update_letter('CODE', None)\nexcept AlmaValidationError as e:\n    errors['update_letter_none_body'] = e",
+            "try:\n    config.update_letter('CODE', {})\nexcept AlmaValidationError as e:\n    errors['update_letter_empty_body'] = e",
+            "try:\n    config.update_letter('CODE', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['update_letter_nondict_body'] = e",
+            "try:\n    config.get_printer('')\nexcept AlmaValidationError as e:\n    errors['get_printer_empty'] = e",
+            "try:\n    config.get_printer('   ')\nexcept AlmaValidationError as e:\n    errors['get_printer_whitespace'] = e",
+            "try:\n    config.get_printer(None)\nexcept AlmaValidationError as e:\n    errors['get_printer_none'] = e",
+            "try:\n    config.get_printer(123)\nexcept AlmaValidationError as e:\n    errors['get_printer_nonstring'] = e"
+          ],
+          "passCriteria": [
+            "'get_letter_empty' in errors and isinstance(errors['get_letter_empty'], AlmaValidationError)",
+            "'get_letter_whitespace' in errors and isinstance(errors['get_letter_whitespace'], AlmaValidationError)",
+            "'get_letter_none' in errors and isinstance(errors['get_letter_none'], AlmaValidationError)",
+            "'get_letter_nonstring' in errors and isinstance(errors['get_letter_nonstring'], AlmaValidationError)",
+            "'update_letter_empty_code' in errors and isinstance(errors['update_letter_empty_code'], AlmaValidationError)",
+            "'update_letter_none_code' in errors and isinstance(errors['update_letter_none_code'], AlmaValidationError)",
+            "'update_letter_none_body' in errors and isinstance(errors['update_letter_none_body'], AlmaValidationError)",
+            "'update_letter_empty_body' in errors and isinstance(errors['update_letter_empty_body'], AlmaValidationError)",
+            "'update_letter_nondict_body' in errors and isinstance(errors['update_letter_nondict_body'], AlmaValidationError)",
+            "'get_printer_empty' in errors and isinstance(errors['get_printer_empty'], AlmaValidationError)",
+            "'get_printer_whitespace' in errors and isinstance(errors['get_printer_whitespace'], AlmaValidationError)",
+            "'get_printer_none' in errors and isinstance(errors['get_printer_none'], AlmaValidationError)",
+            "'get_printer_nonstring' in errors and isinstance(errors['get_printer_nonstring'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-33-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live update_letter round-trip against the DISABLED letter ${disabled_letter_code}. Reads the original letter payload, builds a mutated copy that touches ONLY the description field (with a UUID-suffixed test marker so concurrent runs do not collide), pushes the mutation via update_letter, reads the letter back and asserts the description now contains the marker, then restores the original payload via update_letter. The full body lives inside a try block; the finally block ALWAYS attempts a restore via update_letter(${disabled_letter_code}, original) if the original was successfully read in step 1, wrapped in its own try/except so a restore failure during finally still surfaces the original failure — but the test ITSELF fails (re-raise) if the finally restore raises, because a permanent mutation of the disabled letter is unacceptable. The mutation is intentionally limited to 'description': subject, body, and every other user-visible field are untouched. The letter is disabled, so even in the worst case (all restores fail) no end user receives a letter with mutated content. Covers issue #33 AC about update_letter being exercised against SANDBOX, the AlmaResponse return-value contract on PUT, and the round-trip read-after-write semantics.",
+          "endpoints": [
+            "GET /almaws/v1/conf/letters/{letterCode}",
+            "PUT /almaws/v1/conf/letters/{letterCode}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "disabled_letter_code",
+              "description": "An existing Alma letter code in SANDBOX that is currently DISABLED in the operator's configuration and has been authorized by the operator for safe round-trip mutation. Used by get_letter() in t-33-1 (read-only) and by THIS test (round-trip update + restore). The letter is disabled, so even if the round-trip restore fails, no user-facing letter is sent with mutated content. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real letter code into this file.",
+              "example": "<DISABLED_LETTER_CODE>"
+            }
+          ],
+          "pythonCalls": [
+            "import uuid",
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "config = Configuration(client)",
+            "test_marker = f'AlmaAPITK round-trip {uuid.uuid4().hex[:8]}'",
+            "original = None\nupdate_response = None\npost_update_get = None\npost_update_description = None\nrestore_response = None\nrestore_failure = None\ntry:\n    original = config.get_letter('${disabled_letter_code}')\n    if not isinstance(original, dict) or len(original) == 0:\n        raise AssertionError('original letter payload was not a non-empty dict; cannot proceed with round-trip')\n    mutated = dict(original)\n    mutated['description'] = test_marker\n    update_response = config.update_letter('${disabled_letter_code}', mutated)\n    post_update_get = config.get_letter('${disabled_letter_code}')\n    post_update_description = post_update_get.get('description') if isinstance(post_update_get, dict) else None\n    restore_response = config.update_letter('${disabled_letter_code}', original)\nfinally:\n    if original is not None:\n        try:\n            config.update_letter('${disabled_letter_code}', original)\n        except Exception as restore_exc:\n            restore_failure = restore_exc\n            raise"
+          ],
+          "passCriteria": [
+            "original is not None and isinstance(original, dict) and len(original) > 0",
+            "update_response is not None and getattr(update_response, 'success', False) is True",
+            "isinstance(post_update_description, str) and test_marker in post_update_description",
+            "restore_response is not None and getattr(restore_response, 'success', False) is True",
+            "restore_failure is None"
+          ],
+          "cleanup": [
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "if 'original' in dir() and original is not None:\n    try:\n        config.update_letter('${disabled_letter_code}', original)\n    except AlmaAPIError:\n        # Restore is idempotent on Alma's side — identical PUTs are accepted.\n        # If the happy-path restore already landed, this re-restore is a no-op.\n        pass\n    except Exception:\n        pass"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-33-1",
+          "t-33-3"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-33-1",
+          "t-33-3"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-33-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-33-1 only succeeds if list_letters/get_letter/list_printers/get_printer are importable and bound on Configuration; update_letter is exercised end-to-end by t-33-3), so the AC is partially mapped to t-33-1 / t-33-3; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-33-1 (read methods) and t-33-3 (update_letter end-to-end); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-33-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent letter/printer, 401 on bad auth) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #33 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    },
+    {
+      "number": 35,
+      "title": "Coverage: Configuration: workflows runner + utilities",
+      "classification": "general",
+      "subBranch": "feat/35-coverage-configuration-workflo",
+      "tests": [
+        {
+          "id": "t-35-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only utility methods shipped in issue #35 against live SANDBOX. Calls get_general_configuration() (no params) to confirm the GET /almaws/v1/conf/general endpoint round-trips and returns a non-empty Dict[str, Any] of institution settings; calls get_fee_transactions_report() with no filters (all kwargs are optional) to confirm GET /almaws/v1/conf/utilities/fee-transactions round-trips and returns a List[Dict] envelope successfully unwrapped from Alma's response shape. No state is mutated and no workflows are executed — this is a pure read smoke. Covers issue #35 ACs about each read method being exercised against SANDBOX and the AlmaAPIError happy-path. The POST path (run_workflow) is intentionally NOT exercised here — see unmappable[] for reasoning.",
+          "endpoints": [
+            "GET /almaws/v1/conf/general",
+            "GET /almaws/v1/conf/utilities/fee-transactions"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "config = Configuration(client)",
+            "general_config = config.get_general_configuration()",
+            "fee_transactions = config.get_fee_transactions_report()"
+          ],
+          "passCriteria": [
+            "isinstance(general_config, dict) and len(general_config) > 0",
+            "isinstance(fee_transactions, list)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-35-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #35 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises Configuration._validate_code through run_workflow('') / run_workflow('   ') / run_workflow(None) / run_workflow(123) — empty, whitespace-only, None, and non-string workflow_id values. get_general_configuration() and get_fee_transactions_report() take no required arguments so have no validation surface — they are not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated and no workflows are executed. Covers the AlmaValidationError half of issue #35 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.configuration import Configuration",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "config = Configuration(client)",
+            "errors = {}",
+            "try:\n    config.run_workflow('')\nexcept AlmaValidationError as e:\n    errors['run_workflow_empty'] = e",
+            "try:\n    config.run_workflow('   ')\nexcept AlmaValidationError as e:\n    errors['run_workflow_whitespace'] = e",
+            "try:\n    config.run_workflow(None)\nexcept AlmaValidationError as e:\n    errors['run_workflow_none'] = e",
+            "try:\n    config.run_workflow(123)\nexcept AlmaValidationError as e:\n    errors['run_workflow_nonstring'] = e"
+          ],
+          "passCriteria": [
+            "'run_workflow_empty' in errors and isinstance(errors['run_workflow_empty'], AlmaValidationError)",
+            "'run_workflow_whitespace' in errors and isinstance(errors['run_workflow_whitespace'], AlmaValidationError)",
+            "'run_workflow_none' in errors and isinstance(errors['run_workflow_none'], AlmaValidationError)",
+            "'run_workflow_nonstring' in errors and isinstance(errors['run_workflow_nonstring'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-35-1",
+          "t-35-2"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-35-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-35-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Configuration class' facet IS observable at runtime (t-35-1 only succeeds if get_general_configuration / get_fee_transactions_report are importable and bound on Configuration; run_workflow is exercised by t-35-2 via its validation guards), so the AC is partially mapped to t-35-1 / t-35-2; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_configuration.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-35-1 for the read methods (get_general_configuration / get_fee_transactions_report). The integration-test facet for run_workflow is intentionally NOT exercised against SANDBOX — operator declined to authorize live workflow execution against SANDBOX. Workflow side effects depend entirely on the workflow's configuration; no known-safe workflow_id has been designated. The POST wire-up is exercised in unit tests (mocked HTTP) only; this entry documents both the unit-test residual AND the deliberate gap in SANDBOX coverage for run_workflow."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-35-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent workflow_id, 401 on bad auth, 400 on malformed fee-transactions filters) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_configuration.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #35 extends the existing Configuration class (already exported via the issue #22 bootstrap) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

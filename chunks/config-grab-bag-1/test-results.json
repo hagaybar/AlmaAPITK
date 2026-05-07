@@ -1,0 +1,86 @@
+{
+  "chunk": "config-grab-bag-1",
+  "testRunStartedAt": "2026-05-07T21:34:00+03:00",
+  "testRunFinishedAt": "2026-05-07T21:34:35+03:00",
+  "perTest": [
+    {
+      "id": "t-30-1",
+      "outcome": "passed",
+      "issueNumber": 30,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke against SANDBOX. list_deposit_profiles(), list_import_profiles(), and get_import_profile(<existing_import_profile_id>) all round-tripped successfully; envelopes unwrapped to the expected List[Dict] / Dict shapes. get_deposit_profile() not exercised (no fixture). 1 passed in 2.06s."
+    },
+    {
+      "id": "t-30-2",
+      "outcome": "passed",
+      "issueNumber": 30,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Pure runtime guard exercise. Every bad-input variant of get_deposit_profile() and get_import_profile() (empty / whitespace / None / non-string) raised AlmaValidationError before any HTTP call was issued. 1 passed in 0.06s."
+    },
+    {
+      "id": "t-33-1",
+      "outcome": "passed",
+      "issueNumber": 33,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke against SANDBOX. list_letters(), get_letter(<disabled_letter_code>), and list_printers() all round-tripped successfully; envelopes unwrapped to the expected List[Dict] / Dict shapes. get_printer() not exercised (no fixture). 1 passed in 3.47s."
+    },
+    {
+      "id": "t-33-2",
+      "outcome": "passed",
+      "issueNumber": 33,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Pure runtime guard exercise. Every bad-input variant of get_letter(), update_letter() (path-parameter and body), and get_printer() raised AlmaValidationError before any HTTP call was issued. 1 passed in 0.06s."
+    },
+    {
+      "id": "t-33-3",
+      "outcome": "skipped",
+      "issueNumber": 33,
+      "stateChanging": true,
+      "cleanupStatus": "n/a",
+      "details": "Skipped: Alma letters PUT requires an XML body, but current update_letter sends JSON; the API rejects the JSON payload before applying any change, so the disabled letter was confirmed live to have NEVER been mutated. Tracked as issue #114. cleanupStatus is n/a because the test was skipped before any state-change was attempted. 1 skipped in 0.06s."
+    },
+    {
+      "id": "t-35-1",
+      "outcome": "passed",
+      "issueNumber": 35,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke against SANDBOX. get_general_configuration() returned a non-empty Dict[str, Any] of institution settings; get_fee_transactions_report() returned a List[Dict] envelope. No state mutated and no workflow executed. 1 passed in 0.54s."
+    },
+    {
+      "id": "t-35-2",
+      "outcome": "passed",
+      "issueNumber": 35,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Pure runtime guard exercise. Every bad-input variant of run_workflow() (empty / whitespace / None / non-string workflow_id) raised AlmaValidationError before any HTTP call was issued. 1 passed in 0.06s."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 30,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 33,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": true,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 35,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

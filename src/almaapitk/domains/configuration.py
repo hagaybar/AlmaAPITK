@@ -4,8 +4,9 @@ Foundation skeleton for the Configuration API surface (issue #22), extended
 with organizational-structure read methods (issue #24), locations CRUD
 (issue #25), code-tables list/get/replace (issue #26), mapping-tables
 list/get/replace (issue #27), deposit / metadata-import profile read
-methods (issue #30), and letters + printers read coverage plus letter
-update (issue #33).
+methods (issue #30), letters + printers read coverage plus letter
+update (issue #33), and the workflow-runner / fee-transactions /
+general-configuration utility endpoints (issue #35).
 
 Issue #22 established the Configuration domain class with the minimal
 plumbing required by sibling tickets — environment introspection and a
@@ -33,10 +34,17 @@ plain GETs and mirror the libraries read shape from issue #24.
 Issue #33 adds letters list/get/update plus printers list/get. The PUT
 on /almaws/v1/conf/letters/{letterCode} replaces the entire letter
 template (subject + XSL body) — Alma does not support partial updates.
+
+Issue #35 adds the workflow runner (POST /conf/workflows/{workflow_id})
+and two utility GETs: fee-transactions report
+(/conf/utilities/fee-transactions) and general institutional
+configuration (/conf/general). The workflow runner has real side
+effects — callers must restrict it to known-safe workflow ids.
+
 Concrete API methods for the remaining sibling tickets (calendars, etc.)
 land in those tickets and intentionally do NOT live here.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from almaapitk.client.AlmaAPIClient import (
     AlmaAPIClient,
@@ -1680,6 +1688,225 @@ class Configuration:
                 f"✗ Failed to get printer {pid}",
                 extra={
                     "printer_id": pid,
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    # =========================================================================
+    # Workflows runner + utilities (issue #35)
+    #
+    # Three small endpoints round out the Configuration grab-bag:
+    #
+    #   POST /almaws/v1/conf/workflows/{workflow_id}
+    #     -- triggers a configured workflow. Side effects depend entirely
+    #        on the workflow's configuration; callers must restrict
+    #        themselves to known-safe workflow ids.
+    #
+    #   GET  /almaws/v1/conf/utilities/fee-transactions
+    #     -- fee-transactions report. Filter set is operator-supplied
+    #        (status, library, from_date, to_date, ...). Envelope key is
+    #        ``fee_transaction``.
+    #
+    #   GET  /almaws/v1/conf/general
+    #     -- general institutional configuration. Returned unwrapped.
+    #
+    # Pattern sources called out per-method below.
+    # =========================================================================
+
+    def run_workflow(
+        self,
+        workflow_id: str,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Execute a configured Alma workflow.
+
+        Wraps ``POST /almaws/v1/conf/workflows/{workflow_id}``.
+
+        **WARNING:** This method actually triggers an Alma workflow.
+        Side effects depend entirely on the workflow's configuration —
+        a workflow can mutate records, send notifications, kick off
+        long-running jobs, etc. Test against a known-safe ``workflow_id``
+        only; never bind this method to untrusted input.
+
+        Args:
+            workflow_id: The Alma workflow identifier to execute.
+            parameters: Optional workflow-specific parameter payload.
+                When provided, sent as the JSON request body. When
+                ``None``, no body is sent — Alma accepts a parameterless
+                workflow trigger.
+
+        Returns:
+            The parsed response dict from Alma. Alma typically returns a
+            workflow-instance object containing at least an instance id
+            and a status code; the exact shape varies per workflow.
+
+        Raises:
+            AlmaValidationError: If ``workflow_id`` is empty or not a
+                string.
+            AlmaAPIError: On API failure. Notable Alma error codes for
+                this endpoint include ``450001`` ("Workflow not
+                found."), ``450002`` ("Workflow inactive."), ``450003``
+                ("Workflow missing trigger node."), and ``450004``
+                ("Workflow missing trigger configuration.").
+
+        Example:
+            >>> result = config.run_workflow(
+            ...     "MY_SAFE_TEST_WORKFLOW",
+            ...     {"input_param": "value"},
+            ... )
+            >>> instance_id = result.get("id")
+        """
+        # Pattern source: Configuration.update_letter (issue #33, above) for
+        # the validate -> log entry -> client.<verb> -> log success -> on
+        # AlmaAPIError, log + re-raise shape; Configuration.get_library
+        # (issue #24) for unwrapping the response body via response.json().
+        wf_id = self._validate_code(workflow_id, "workflow_id")
+
+        self.logger.info(
+            f"Running workflow: {wf_id} ({self.environment})",
+            workflow_id=wf_id,
+            has_parameters=parameters is not None,
+        )
+
+        try:
+            response = self.client.post(
+                f"almaws/v1/conf/workflows/{wf_id}",
+                data=parameters,
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"✓ Ran workflow: {wf_id}",
+                workflow_id=wf_id,
+            )
+            return data
+
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"✗ Failed to run workflow {wf_id}",
+                workflow_id=wf_id,
+                error_code=e.status_code,
+                alma_code=getattr(e, "alma_code", ""),
+                tracking_id=getattr(e, "tracking_id", None),
+                error_message=str(e),
+            )
+            raise
+
+    def get_fee_transactions_report(
+        self, **filters: Any
+    ) -> List[Dict[str, Any]]:
+        """Fetch the Alma fee-transactions report.
+
+        Wraps ``GET /almaws/v1/conf/utilities/fee-transactions`` and
+        unwraps the Alma response envelope
+        (``{"fee_transaction": [...], "total_record_count": N}``) into a
+        flat list. The endpoint accepts a flexible set of filters
+        (``status``, ``library``, ``from_date``, ``to_date``,
+        ``transaction_type``, etc.); rather than enumerate them in the
+        signature this method forwards arbitrary keyword args verbatim
+        as query parameters so callers can drive any filter Alma
+        accepts.
+
+        Args:
+            **filters: Arbitrary query-parameter filters forwarded to
+                Alma. Common filters per the Alma docs:
+
+                - ``status`` (str): transaction status filter.
+                - ``library`` (str): library code to scope the report.
+                - ``from_date`` (str): inclusive lower bound (YYYY-MM-DD).
+                - ``to_date`` (str): inclusive upper bound (YYYY-MM-DD).
+                - ``transaction_type`` (str): transaction-type filter.
+
+        Returns:
+            List of fee-transaction dicts as returned by Alma. Returns
+            an empty list when no matching transactions are found (or
+            when the response envelope is missing the
+            ``fee_transaction`` key).
+
+        Raises:
+            AlmaAPIError: If the API request fails. Notable Alma error
+                codes for this endpoint include ``401652`` ("An error
+                has occurred in setting circ library or circ desk."),
+                ``40166410`` ("An error has occurred in setting from
+                and/or to dates."), and ``40166413`` ("An error has
+                occurred in setting transaction type.").
+
+        Example:
+            >>> txs = config.get_fee_transactions_report(
+            ...     library="MAIN",
+            ...     from_date="2026-01-01",
+            ...     to_date="2026-01-31",
+            ... )
+        """
+        # Pattern source: Configuration.list_libraries (issue #24, above) for
+        # the GET-then-unwrap-envelope-into-list shape; the **filters
+        # forwarding mirrors Acquisitions.search_invoices kwargs handling.
+        self.logger.info(
+            f"Fetching fee-transactions report ({self.environment})",
+            filters=dict(filters) if filters else None,
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/utilities/fee-transactions",
+                params=dict(filters) if filters else None,
+            )
+            payload = response.json() or {}
+            transactions = payload.get("fee_transaction") or []
+            if isinstance(transactions, dict):
+                # Single-record responses can come back as a dict; normalise.
+                transactions = [transactions]
+            self.logger.info(
+                f"✓ Retrieved {len(transactions)} fee transactions"
+            )
+            return transactions
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to fetch fee-transactions report",
+                extra={
+                    "alma_code": getattr(e, "alma_code", ""),
+                    "tracking_id": getattr(e, "tracking_id", None),
+                    "status_code": getattr(e, "status_code", None),
+                },
+            )
+            raise
+
+    def get_general_configuration(self) -> Dict[str, Any]:
+        """Get the institution's general configuration.
+
+        Calls ``GET /almaws/v1/conf/general`` and returns the unwrapped
+        institutional-configuration dict (Alma surfaces fields like
+        ``institution``, ``default_language``, ``default_currency``,
+        ``timezone``, etc. directly at the top level of the response —
+        there is no envelope wrapper).
+
+        Returns:
+            The general-configuration dict as returned by Alma. Returns
+            an empty dict if Alma returns an empty body.
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.get_library (issue #24, above) — but
+        # without the path-param validation, since this endpoint takes no
+        # arguments.
+        self.logger.info(
+            f"Getting general configuration ({self.environment})"
+        )
+        try:
+            response = self.client.get(
+                "almaws/v1/conf/general"
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                "✓ Retrieved general configuration"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                "✗ Failed to get general configuration",
+                extra={
                     "alma_code": getattr(e, "alma_code", ""),
                     "tracking_id": getattr(e, "tracking_id", None),
                     "status_code": getattr(e, "status_code", None),

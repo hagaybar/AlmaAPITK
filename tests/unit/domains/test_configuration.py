@@ -3074,3 +3074,380 @@ class TestGetPrinter:
             config.get_printer("NOPE")
 
         assert "Printer ID" in str(exc_info.value)
+
+
+class TestRunWorkflow:
+    """Tests for ``Configuration.run_workflow`` (issue #35)."""
+
+    def test_run_workflow_with_parameters_sends_body(self):
+        """Parameters dict is forwarded as the JSON request body."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "INSTANCE_42", "status": "RUNNING"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.run_workflow(
+            "MY_SAFE_TEST_WORKFLOW", {"input_param": "value"}
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/conf/workflows/MY_SAFE_TEST_WORKFLOW"
+        )
+        # Parameters forwarded verbatim as the request body.
+        assert call["data"] == {"input_param": "value"}
+        assert isinstance(result, dict)
+        assert result["id"] == "INSTANCE_42"
+        assert result["status"] == "RUNNING"
+
+    def test_run_workflow_without_parameters_sends_no_body(self):
+        """parameters=None means data=None on the wire (no body)."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "INSTANCE_43", "status": "QUEUED"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.run_workflow("MY_SAFE_TEST_WORKFLOW")
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/conf/workflows/MY_SAFE_TEST_WORKFLOW"
+        )
+        # No body forwarded when parameters is None.
+        assert call["data"] is None
+        assert result["id"] == "INSTANCE_43"
+
+    def test_run_workflow_returns_unwrapped_dict(self):
+        """``run_workflow`` returns the parsed body dict (no envelope)."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "INSTANCE_99", "status": "COMPLETED"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.run_workflow("WF")
+
+        assert isinstance(result, dict)
+        assert result == {"id": "INSTANCE_99", "status": "COMPLETED"}
+
+    def test_run_workflow_handles_empty_body(self):
+        """Empty/None response body normalises to an empty dict."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        config = Configuration(mock_client)
+
+        result = config.run_workflow("WF")
+
+        assert result == {}
+
+    def test_run_workflow_strips_whitespace_in_id(self):
+        """Validator trims whitespace from the workflow id."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "X"})
+        config = Configuration(mock_client)
+
+        config.run_workflow("  MY_WF  ")
+
+        assert (
+            mock_client.calls["post"][0]["endpoint"]
+            == "almaws/v1/conf/workflows/MY_WF"
+        )
+
+    def test_run_workflow_rejects_empty_id(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.run_workflow("")
+
+    def test_run_workflow_rejects_whitespace_only_id(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.run_workflow("   ")
+
+    def test_run_workflow_rejects_non_string_id(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.run_workflow(1234)  # type: ignore[arg-type]
+
+    def test_run_workflow_rejects_none_id(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.run_workflow(None)  # type: ignore[arg-type]
+
+    def test_run_workflow_propagates_workflow_not_found(self):
+        """Alma 450001 (Workflow not found) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Workflow not found.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.run_workflow("DOES_NOT_EXIST")
+
+        assert "Workflow not found" in str(exc_info.value)
+
+    def test_run_workflow_propagates_generic_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.run_workflow("WF")
+
+
+class TestGetFeeTransactionsReport:
+    """Tests for ``Configuration.get_fee_transactions_report`` (issue #35)."""
+
+    def test_get_fee_transactions_report_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "fee_transaction": [
+                    {"id": "T1", "amount": 5.00, "status": "ACTIVE"},
+                    {"id": "T2", "amount": 10.00, "status": "CLOSED"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_fee_transactions_report()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/utilities/fee-transactions"
+        # No filters means no params.
+        assert call["params"] is None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "T1"
+        assert result[1]["status"] == "CLOSED"
+
+    def test_get_fee_transactions_report_forwards_filters_as_params(self):
+        """Arbitrary **filters kwargs flow through to the query string."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "fee_transaction": [
+                    {"id": "T1", "library": "MAIN"},
+                ],
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_fee_transactions_report(
+            status="ACTIVE",
+            library="MAIN",
+            from_date="2026-01-01",
+            to_date="2026-01-31",
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "status": "ACTIVE",
+            "library": "MAIN",
+            "from_date": "2026-01-01",
+            "to_date": "2026-01-31",
+        }
+        assert len(result) == 1
+        assert result[0]["library"] == "MAIN"
+
+    def test_get_fee_transactions_report_returns_empty_on_missing_key(self):
+        """Envelope without ``fee_transaction`` key → empty list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.get_fee_transactions_report() == []
+
+    def test_get_fee_transactions_report_handles_single_dict_response(self):
+        """A single transaction returned as a dict is normalised to a list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "fee_transaction": {"id": "T1", "amount": 5.00},
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_fee_transactions_report()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "T1"
+
+    def test_get_fee_transactions_report_unwraps_envelope(self):
+        """Top-level envelope keys must not appear in the unwrapped list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "fee_transaction": [{"id": "T1"}],
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_fee_transactions_report()
+
+        assert isinstance(result, list)
+        # No envelope keys appear inside the unwrapped list items.
+        assert "total_record_count" not in result[0]
+        assert "fee_transaction" not in result[0]
+
+    def test_get_fee_transactions_report_propagates_api_error(self):
+        """Alma 401652 (circ library/desk error) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "An error has occurred in setting circ library or circ desk.",
+            status_code=400,
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.get_fee_transactions_report(library="BAD")
+
+        assert "circ library" in str(exc_info.value)
+
+
+class TestGetGeneralConfiguration:
+    """Tests for ``Configuration.get_general_configuration`` (issue #35)."""
+
+    def test_get_general_configuration_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "institution": {
+                    "value": "01TAU_INST",
+                    "desc": "Tel Aviv University",
+                },
+                "default_language": {"value": "en"},
+                "default_currency": {"value": "USD"},
+                "timezone": "Asia/Jerusalem",
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_general_configuration()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/general"
+        # Endpoint takes no path params and no query filters.
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["institution"]["value"] == "01TAU_INST"
+        assert result["timezone"] == "Asia/Jerusalem"
+
+    def test_get_general_configuration_returns_unwrapped_dict(self):
+        """No top-level envelope wrapper — body is returned verbatim."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"timezone": "Asia/Jerusalem"}
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_general_configuration()
+
+        assert isinstance(result, dict)
+        assert result == {"timezone": "Asia/Jerusalem"}
+
+    def test_get_general_configuration_handles_empty_body(self):
+        """An empty Alma body normalises to an empty dict (not None)."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        config = Configuration(mock_client)
+
+        result = config.get_general_configuration()
+
+        assert isinstance(result, dict)
+        assert result == {}
+
+    def test_get_general_configuration_signature_takes_no_args(self):
+        """get_general_configuration takes no positional / keyword args."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.get_general_configuration)
+        # Only ``self`` is allowed.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_get_general_configuration_propagates_api_error(self):
+        """Alma 400 ("General Error - ...") propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "General Error - An error has occurred while processing the "
+            "request.",
+            status_code=400,
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.get_general_configuration()
+
+        assert "General Error" in str(exc_info.value)

@@ -1,5 +1,5 @@
 """
-Unit tests for the Configuration domain class (issues #22, #24, #25, #26).
+Unit tests for the Configuration domain class (issues #22, #24, #25, #26, #27).
 
 Tests cover:
 - Initialization (client, environment, logger setup)
@@ -11,6 +11,8 @@ Tests cover:
 - list_locations() / get_location() / create_location() /
   update_location() / delete_location() (issue #25)
 - list_code_tables() / get_code_table() / update_code_table() (issue #26)
+- list_mapping_tables() / get_mapping_table() / update_mapping_table()
+  (issue #27)
 
 These tests use mocked AlmaAPIClient instances to test the Configuration
 domain in isolation. Pattern source mirrors
@@ -1669,4 +1671,421 @@ class TestUpdateCodeTable:
         with pytest.raises(AlmaAPIError):
             config.update_code_table(
                 "AcqInvoiceLineType", self._valid_payload()
+            )
+
+
+# ---------------------------------------------------------------------------
+# Issue #27: Mapping tables (list / get / update)
+# ---------------------------------------------------------------------------
+
+
+class TestListMappingTables:
+    """Tests for ``Configuration.list_mapping_tables`` (issue #27)."""
+
+    def test_list_mapping_tables_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "mapping_table": [
+                    {
+                        "name": "RecallDueDate",
+                        "description": "Recall due-date overrides",
+                    },
+                    {
+                        "name": "FineFeeTransactionType",
+                        "description": "Fine/fee transaction types",
+                    },
+                ],
+                "total_record_count": 2,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_mapping_tables()
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/conf/mapping-tables"
+        # Single round-trip with generous page size; no scope filter.
+        assert call["params"] == {"limit": "100", "offset": "0"}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["name"] == "RecallDueDate"
+
+    def test_list_mapping_tables_returns_empty_list_on_missing_key(self):
+        """Alma envelope without ``mapping_table`` key → empty list."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        config = Configuration(mock_client)
+
+        assert config.list_mapping_tables() == []
+
+    def test_list_mapping_tables_handles_single_dict_response(self):
+        """A single mapping-table returned as dict (not list) is normalised."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "mapping_table": {
+                    "name": "OnlyTable",
+                    "description": "The only mapping table",
+                },
+                "total_record_count": 1,
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.list_mapping_tables()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["name"] == "OnlyTable"
+
+    def test_list_mapping_tables_does_not_send_scope_param(self):
+        """Audit-flagged: the endpoint takes NO ``scope`` parameter.
+
+        Mirrors the equivalent guard on ``list_code_tables`` (#26). The
+        AC explicitly forbids exposing a scope filter.
+        """
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"mapping_table": []}
+        )
+        config = Configuration(mock_client)
+
+        config.list_mapping_tables()
+
+        params = mock_client.calls["get"][0]["params"] or {}
+        assert "scope" not in params
+
+    def test_list_mapping_tables_signature_takes_no_args(self):
+        """list_mapping_tables takes no positional / keyword args (AC)."""
+        import inspect
+        from almaapitk.domains.configuration import Configuration
+
+        sig = inspect.signature(Configuration.list_mapping_tables)
+        # Only ``self`` is allowed; no scope, no filter, no kwargs.
+        assert list(sig.parameters.keys()) == ["self"]
+
+    def test_list_mapping_tables_propagates_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.list_mapping_tables()
+
+
+class TestGetMappingTable:
+    """Tests for ``Configuration.get_mapping_table`` (issue #27)."""
+
+    def test_get_mapping_table_calls_correct_endpoint(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "name": "RecallDueDate",
+                "description": "Recall due-date overrides",
+                "row": [
+                    {
+                        "column0": "STAFF",
+                        "column1": "7",
+                        "enabled": {"value": "true"},
+                    },
+                    {
+                        "column0": "STUDENT",
+                        "column1": "14",
+                        "enabled": {"value": "true"},
+                    },
+                ],
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_mapping_table("RecallDueDate")
+
+        assert len(mock_client.calls["get"]) == 1
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/mapping-tables/RecallDueDate"
+        )
+        assert isinstance(result, dict)
+        assert result["name"] == "RecallDueDate"
+        # Full mapping-table object returned unwrapped, including rows.
+        assert isinstance(result["row"], list)
+        assert len(result["row"]) == 2
+        assert result["row"][0]["column0"] == "STAFF"
+
+    def test_get_mapping_table_returns_unwrapped_dict_with_rows(self):
+        """``get_mapping_table`` returns the raw object, not an envelope."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "name": "FineFeeTransactionType",
+                "row": [{"column0": "PAYMENT", "column1": "Payment"}],
+            }
+        )
+        config = Configuration(mock_client)
+
+        result = config.get_mapping_table("FineFeeTransactionType")
+
+        assert isinstance(result, dict)
+        # No envelope keys at the top level.
+        assert "mapping_table" not in result
+        assert "total_record_count" not in result
+        # Direct access to the row collection works.
+        assert result["row"][0]["column0"] == "PAYMENT"
+
+    def test_get_mapping_table_strips_whitespace(self):
+        """Validator trims whitespace from the name before building URL."""
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"name": "RecallDueDate"}
+        )
+        config = Configuration(mock_client)
+
+        config.get_mapping_table("  RecallDueDate  ")
+
+        assert (
+            mock_client.calls["get"][0]["endpoint"]
+            == "almaws/v1/conf/mapping-tables/RecallDueDate"
+        )
+
+    def test_get_mapping_table_rejects_empty_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_mapping_table("")
+
+    def test_get_mapping_table_rejects_whitespace_only(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_mapping_table("   ")
+
+    def test_get_mapping_table_rejects_non_string(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_mapping_table(123)  # type: ignore[arg-type]
+
+    def test_get_mapping_table_rejects_none(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.get_mapping_table(None)  # type: ignore[arg-type]
+
+    def test_get_mapping_table_propagates_api_error(self):
+        """Alma 90101 (table does not exist) propagates as AlmaAPIError."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Table does not exist.", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.get_mapping_table("NoSuchTable")
+
+
+class TestUpdateMappingTable:
+    """Tests for ``Configuration.update_mapping_table`` (issue #27)."""
+
+    @staticmethod
+    def _valid_payload() -> Dict[str, Any]:
+        # PUT replaces the entire table — payload mirrors what
+        # ``get_mapping_table`` returns, including the full ``row`` list.
+        return {
+            "name": "RecallDueDate",
+            "description": "Recall due-date overrides",
+            "row": [
+                {
+                    "column0": "STAFF",
+                    "column1": "7",
+                    "enabled": {"value": "true"},
+                },
+                {
+                    "column0": "STUDENT",
+                    "column1": "14",
+                    "enabled": {"value": "false"},
+                },
+            ],
+        }
+
+    def test_update_mapping_table_calls_correct_endpoint_and_returns_response(
+        self,
+    ):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={
+                "name": "RecallDueDate",
+                "description": "Recall due-date overrides",
+                "row": [
+                    {"column0": "STAFF", "enabled": {"value": "true"}},
+                    {"column0": "STUDENT", "enabled": {"value": "false"}},
+                ],
+            }
+        )
+        config = Configuration(mock_client)
+
+        response = config.update_mapping_table(
+            "RecallDueDate", self._valid_payload()
+        )
+
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/conf/mapping-tables/RecallDueDate"
+        )
+        # Body forwarded verbatim — full table object on the wire.
+        assert call["data"] == self._valid_payload()
+        assert response is mock_client.put_response
+        assert response.data["name"] == "RecallDueDate"
+
+    def test_update_mapping_table_strips_whitespace_in_name(self):
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"name": "RecallDueDate"}
+        )
+        config = Configuration(mock_client)
+
+        config.update_mapping_table(
+            "  RecallDueDate  ", self._valid_payload()
+        )
+
+        assert (
+            mock_client.calls["put"][0]["endpoint"]
+            == "almaws/v1/conf/mapping-tables/RecallDueDate"
+        )
+
+    def test_update_mapping_table_rejects_empty_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table("", self._valid_payload())
+
+    def test_update_mapping_table_rejects_whitespace_only_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table("   ", self._valid_payload())
+
+    def test_update_mapping_table_rejects_non_string_name(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table(
+                123, self._valid_payload()  # type: ignore[arg-type]
+            )
+
+    def test_update_mapping_table_rejects_empty_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table("RecallDueDate", {})
+
+    def test_update_mapping_table_rejects_non_dict_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table(
+                "RecallDueDate",
+                "not a dict",  # type: ignore[arg-type]
+            )
+
+    def test_update_mapping_table_rejects_none_payload(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaValidationError
+
+        config = Configuration(MockAlmaAPIClient())
+
+        with pytest.raises(AlmaValidationError):
+            config.update_mapping_table(
+                "RecallDueDate", None  # type: ignore[arg-type]
+            )
+
+    def test_update_mapping_table_propagates_api_error(self):
+        """Alma 90123 (table not customizable) propagates verbatim."""
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Requested table is not customizable", status_code=400
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            config.update_mapping_table(
+                "RecallDueDate", self._valid_payload()
+            )
+
+        assert "not customizable" in str(exc_info.value)
+
+    def test_update_mapping_table_propagates_generic_api_error(self):
+        from almaapitk.domains.configuration import Configuration
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "boom", status_code=500
+        )
+        config = Configuration(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            config.update_mapping_table(
+                "RecallDueDate", self._valid_payload()
             )

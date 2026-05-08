@@ -1166,6 +1166,262 @@ class Users:
             )
             raise
 
+    # ------------------------------------------------------------------
+    # User deposits (issue #45)
+    # ------------------------------------------------------------------
+    #
+    # The deposits endpoints expose three reads (list/get/create) and one
+    # op-driven post (perform-action via ``op`` query param). The op-driven
+    # post mirrors exactly the shape established by the fines/fees op-posts
+    # (issue #44) — ``op`` and any caller-supplied scalars travel as query
+    # parameters; the request body is empty. The wrapper does NOT enumerate
+    # which ``op`` values are valid (Alma docs cite ``pay`` / ``refund`` /
+    # ``dispute`` / ``restore`` but a future Alma release may add more);
+    # we just validate non-empty and let Alma reject invalid ops with its
+    # own error response.
+    #
+    # Read patterns mirror ``list_user_attachments`` / ``get_user_attachment``
+    # (issue #39) and ``list_user_fees`` / ``get_user_fee`` (issue #44).
+
+    def list_user_deposits(self, user_id: str) -> List[Dict[str, Any]]:
+        """List a user's deposits.
+
+        Calls ``GET /almaws/v1/users/{user_id}/deposits`` and unwraps the
+        Alma response envelope (``{"deposit": [...], "total_record_count":
+        N}``) into a flat list.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+
+        Returns:
+            List of deposit dicts as returned by Alma. Returns an empty
+            list when the user has no deposits (or when the response
+            envelope is missing the ``deposit`` key).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: list_user_attachments (issue #39) for the
+        # "single GET, unwrap envelope, return list" idiom plus
+        # single-record-as-dict normalisation.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        endpoint = f"almaws/v1/users/{clean_id}/deposits"
+        self.logger.info(
+            f"Listing deposits for user {clean_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            payload = response.json() or {}
+            deposits = payload.get("deposit") or []
+            if isinstance(deposits, dict):
+                # Single-record responses can come back as a dict; normalise.
+                deposits = [deposits]
+            self.logger.info(
+                f"Retrieved {len(deposits)} deposits for user {clean_id}"
+            )
+            return deposits
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing deposits for user {clean_id}: {e}"
+            )
+            raise
+
+    def create_user_deposit(
+        self,
+        user_id: str,
+        deposit_data: Dict[str, Any],
+    ) -> AlmaResponse:
+        """Create a new deposit on a user record.
+
+        Calls ``POST /almaws/v1/users/{user_id}/deposits`` with the
+        operator-supplied ``deposit_data`` dict as the JSON body. The
+        body is passed through verbatim — the caller is responsible for
+        supplying the Alma-required fields (see Alma's ``X parameter is
+        not valid.`` / ``Input parameter X (Y) is not numeric.`` /
+        ``General Error - An error has occurred while creating the
+        deposit.`` validation errors).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            deposit_data: Deposit body as a non-empty dict. Passed
+                through to Alma verbatim.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response. The created
+            deposit's identifier lives at ``response.data["id"]``.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty/not a string,
+                or if ``deposit_data`` is empty or not a dict.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: create_user_fee (issue #44) for the
+        # "validate, log entry without body, POST verbatim, log success
+        # with the new id" discipline.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(deposit_data, dict) or not deposit_data:
+            raise AlmaValidationError(
+                "deposit_data must be a non-empty dictionary"
+            )
+        clean_id = user_id.strip()
+
+        endpoint = f"almaws/v1/users/{clean_id}/deposits"
+        self.logger.info(
+            f"Creating deposit for user {clean_id}"
+        )
+        try:
+            response = self.client.post(endpoint, data=deposit_data)
+            deposit_id: Any = None
+            try:
+                deposit_id = (response.data or {}).get("id")
+            except (ValueError, AttributeError):
+                deposit_id = None
+            self.logger.info(
+                f"Created deposit for user {clean_id} "
+                f"(deposit_id={deposit_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating deposit for user {clean_id}: {e}"
+            )
+            raise
+
+    def get_user_deposit(
+        self,
+        user_id: str,
+        deposit_id: str,
+    ) -> Dict[str, Any]:
+        """Retrieve a single deposit's details.
+
+        Calls ``GET /almaws/v1/users/{user_id}/deposits/{deposit_id}``
+        and returns the unwrapped deposit dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            deposit_id: Deposit identifier as returned by
+                :meth:`list_user_deposits` (key ``id`` on each entry).
+                Must be a non-empty string.
+
+        Returns:
+            The deposit dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``deposit_id`` is
+                empty or not a string.
+            AlmaAPIError: If the API request fails (including 404 when
+                the user or deposit does not exist).
+        """
+        # Pattern source: get_user_attachment (issue #39) / get_user_fee
+        # (issue #44) — same "validate two ids, GET, return dict" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(deposit_id, str) or not deposit_id.strip():
+            raise AlmaValidationError("Deposit ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_deposit_id = deposit_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/deposits/{clean_deposit_id}"
+        )
+        self.logger.info(
+            f"Retrieving deposit {clean_deposit_id} for user "
+            f"{clean_user_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved deposit {clean_deposit_id} for user "
+                f"{clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving deposit {clean_deposit_id} for "
+                f"user {clean_user_id}: {e}"
+            )
+            raise
+
+    def perform_user_deposit_action(
+        self,
+        user_id: str,
+        deposit_id: str,
+        op: str,
+    ) -> AlmaResponse:
+        """Perform an action on a single deposit.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/deposits/{deposit_id}?op=<op>``
+        with an empty request body. The ``op`` query parameter selects
+        the deposit action — Alma's documented values include ``"pay"``,
+        ``"refund"``, ``"dispute"``, and ``"restore"``, but the wrapper
+        does NOT enumerate / restrict the set: invalid ops are rejected
+        by Alma with its own error response (a future Alma release may
+        add new ops, and the wrapper should not be the bottleneck).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            deposit_id: Deposit identifier. Must be a non-empty string.
+            op: Action to perform. Must be a non-empty string. Common
+                values per Alma docs are ``"pay"``, ``"refund"``,
+                ``"dispute"``, ``"restore"`` — not validated client-side.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If ``user_id``, ``deposit_id``, or
+                ``op`` is empty/not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: restore_user_fee (issue #44) — same op-driven
+        # POST shape (op as query param, empty body). The wrapper is
+        # deliberately op-agnostic; per the issue ticket "let Alma
+        # reject invalid ops with its own error".
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(deposit_id, str) or not deposit_id.strip():
+            raise AlmaValidationError("Deposit ID cannot be empty")
+        if not isinstance(op, str) or not op.strip():
+            raise AlmaValidationError("op must be a non-empty string")
+        clean_user_id = user_id.strip()
+        clean_deposit_id = deposit_id.strip()
+        clean_op = op.strip()
+
+        params: Dict[str, Any] = {"op": clean_op}
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/deposits/{clean_deposit_id}"
+        )
+        self.logger.info(
+            f"Performing deposit action for user {clean_user_id} "
+            f"(deposit_id={clean_deposit_id!r}, op={clean_op!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Performed deposit action for user {clean_user_id} "
+                f"(deposit_id={clean_deposit_id!r}, op={clean_op!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error performing deposit action for user "
+                f"{clean_user_id} (deposit_id={clean_deposit_id!r}, "
+                f"op={clean_op!r}): {e}"
+            )
+            raise
+
     def update_user(self, user_id: str, user_data: Dict[str, Any]) -> AlmaResponse:
         """
         Update a user record.

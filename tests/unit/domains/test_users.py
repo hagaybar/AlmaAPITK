@@ -1,5 +1,5 @@
 """
-Unit tests for the Users domain class — issue #36 / #39 coverage:
+Unit tests for the Users domain class — issue #36 / #39 / #44 / #45 coverage:
 
 - ``Users.list_users`` — list/search via ``GET /almaws/v1/users``
 - ``Users.search_users`` — convenience wrapper requiring ``q``
@@ -12,6 +12,12 @@ Unit tests for the Users domain class — issue #36 / #39 coverage:
   (issue #39)
 - ``Users.upload_user_attachment`` — upload an attachment via
   ``POST /almaws/v1/users/{user_id}/attachments`` (issue #39)
+- ``Users.{list,create,get}_user_fee`` and op-driven posts
+  (``pay_all_user_fees`` / ``pay_user_fee`` / ``waive_user_fee`` /
+  ``dispute_user_fee`` / ``restore_user_fee``) — fines/fees coverage
+  (issue #44)
+- ``Users.{list,create,get}_user_deposit`` and
+  ``perform_user_deposit_action`` — deposits coverage (issue #45)
 
 Tests use a mocked AlmaAPIClient stand-in (no real HTTP) following the
 mock-shape established in ``tests/unit/domains/test_configuration.py``.
@@ -1905,6 +1911,413 @@ class TestRestoreUserFee:
 
         with pytest.raises(AlmaAPIError):
             users.restore_user_fee("u1", "fee-1")
+
+
+# ---------------------------------------------------------------------------
+# list_user_deposits  (issue #45)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserDeposits:
+    """Tests for ``Users.list_user_deposits`` (issue #45)."""
+
+    def test_list_user_deposits_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "deposit": [
+                    {"id": "dep-1", "amount": "10.00"},
+                    {"id": "dep-2", "amount": "20.00"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_deposits("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits"
+        # No params expected for list.
+        assert call["params"] is None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "dep-1"
+
+    def test_list_user_deposits_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"deposit": []})
+        users = Users(mock_client)
+
+        users.list_user_deposits("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits"
+
+    def test_list_user_deposits_returns_empty_list_on_missing_key(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_deposits("u1")
+
+        assert result == []
+
+    def test_list_user_deposits_handles_single_dict_response(self):
+        """A single deposit returned as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"deposit": {"id": "only-dep"}, "total_record_count": 1}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_deposits("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "only-dep"
+
+    def test_list_user_deposits_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_deposits("")
+
+    def test_list_user_deposits_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_deposits(None)  # type: ignore[arg-type]
+
+    def test_list_user_deposits_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Failed to get deposits.", status_code=400
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.list_user_deposits("u1")
+
+
+# ---------------------------------------------------------------------------
+# create_user_deposit  (issue #45)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserDeposit:
+    """Tests for ``Users.create_user_deposit`` (issue #45)."""
+
+    def test_create_user_deposit_posts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        deposit_body = {
+            "amount": "50.00",
+            "currency": {"value": "USD"},
+            "type": {"value": "CASH"},
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "dep-99", "amount": "50.00"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user_deposit("u1", deposit_body)
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits"
+        # JSON body, not multipart.
+        assert call["content_type"] is None
+        # Body is the operator-supplied dict verbatim.
+        assert call["data"] == deposit_body
+        # No query params on creation.
+        assert call["params"] is None
+        assert response.data["id"] == "dep-99"
+
+    def test_create_user_deposit_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "dep-1"})
+        users = Users(mock_client)
+
+        users.create_user_deposit("  u1  ", {"amount": "5.00"})
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits"
+
+    def test_create_user_deposit_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_deposit("", {"amount": "5.00"})
+
+    def test_create_user_deposit_raises_on_empty_deposit_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_deposit("u1", {})
+
+    def test_create_user_deposit_raises_on_non_dict_deposit_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_deposit("u1", "not-a-dict")  # type: ignore[arg-type]
+
+    def test_create_user_deposit_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "X parameter is not valid.", status_code=400
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.create_user_deposit("u1", {"amount": "5.00"})
+
+
+# ---------------------------------------------------------------------------
+# get_user_deposit  (issue #45)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserDeposit:
+    """Tests for ``Users.get_user_deposit`` (issue #45)."""
+
+    def test_get_user_deposit_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "dep-1",
+                "amount": "25.00",
+                "currency": {"value": "USD"},
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_deposit("u1", "dep-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits/dep-1"
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["id"] == "dep-1"
+
+    def test_get_user_deposit_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "dep-1"})
+        users = Users(mock_client)
+
+        users.get_user_deposit("  u1  ", "  dep-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits/dep-1"
+
+    def test_get_user_deposit_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_deposit("", "dep-1")
+
+    def test_get_user_deposit_raises_on_empty_deposit_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_deposit("u1", "")
+
+    def test_get_user_deposit_raises_on_non_string_ids(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_deposit(None, "dep-1")  # type: ignore[arg-type]
+        with pytest.raises(AlmaValidationError):
+            users.get_user_deposit("u1", None)  # type: ignore[arg-type]
+
+    def test_get_user_deposit_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Failed to get deposit.", status_code=400
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.get_user_deposit("u1", "dep-1")
+
+
+# ---------------------------------------------------------------------------
+# perform_user_deposit_action  (issue #45)
+# ---------------------------------------------------------------------------
+
+
+class TestPerformUserDepositAction:
+    """Tests for ``Users.perform_user_deposit_action`` (issue #45)."""
+
+    def test_perform_user_deposit_action_sends_op_as_param(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        response = users.perform_user_deposit_action("u1", "dep-1", "pay")
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits/dep-1"
+        # op travels as query param, body is empty.
+        assert call["data"] is None
+        assert call["params"] == {"op": "pay"}
+        assert response.data == {"status": "ok"}
+
+    def test_perform_user_deposit_action_accepts_arbitrary_op(self):
+        """Wrapper does NOT restrict op values; arbitrary strings reach Alma."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        # Use an op that's neither pay/refund/dispute/restore — wrapper
+        # should still forward it.
+        users.perform_user_deposit_action("u1", "dep-1", "future_op_x")
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {"op": "future_op_x"}
+
+    def test_perform_user_deposit_action_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.perform_user_deposit_action("  u1  ", "  dep-1  ", "  refund  ")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/deposits/dep-1"
+        assert call["params"] == {"op": "refund"}
+
+    def test_perform_user_deposit_action_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_deposit_action("", "dep-1", "pay")
+
+    def test_perform_user_deposit_action_raises_on_empty_deposit_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_deposit_action("u1", "", "pay")
+
+    def test_perform_user_deposit_action_raises_on_empty_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_deposit_action("u1", "dep-1", "")
+
+    def test_perform_user_deposit_action_raises_on_whitespace_only_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_deposit_action("u1", "dep-1", "   ")
+
+    def test_perform_user_deposit_action_raises_on_non_string_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_deposit_action("u1", "dep-1", None)  # type: ignore[arg-type]
+
+    def test_perform_user_deposit_action_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "General Error - An error has occurred while updating the deposit.",
+            status_code=400,
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.perform_user_deposit_action("u1", "dep-1", "pay")
 
 
 # ---------------------------------------------------------------------------

@@ -4,12 +4,14 @@ Aligned with AlmaAPIClient integration patterns and focused on email update work
 for users expired 2+ years from Alma sets.
 """
 
+import base64
 import logging
 import os
 import re
 import sys
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # Import the working AlmaAPIClient and its response/error classes
@@ -292,6 +294,283 @@ class Users:
         except AlmaAPIError as e:
             self.logger.error(
                 f"API error retrieving personal data for user {clean_id}: {e}"
+            )
+            raise
+
+    # ------------------------------------------------------------------
+    # User attachments (issue #39)
+    # ------------------------------------------------------------------
+    #
+    # The user-attachments endpoints expose three operations: list, get,
+    # and upload. Alma documents (and the public Swagger) does NOT expose
+    # a DELETE endpoint, and live SANDBOX probing on 2026-05-08 confirmed
+    # that ``DELETE /almaws/v1/users/{id}/attachments/{att_id}`` is not
+    # routed (alma_code 401861, "User with identifier ... not found"
+    # because the router collapses the path into a malformed user
+    # lookup). No ``delete_user_attachment`` is provided.
+    #
+    # Upload is JSON+base64 (verified live 2026-05-08), NOT multipart.
+    # The request body's ``type`` field is a plain string ("GENERAL"),
+    # NOT the ``{"value": "GENERAL"}`` wrapper Alma uses elsewhere — that
+    # wrapper produces 400 ("Cannot deserialize value of type
+    # java.lang.String from Object value"). File contents and the base64
+    # payload are NEVER logged (matches the GDPR-discipline established
+    # by ``get_user_personal_data`` above).
+    #
+    # Read patterns mirror ``Configuration.list_libraries`` /
+    # ``Configuration.get_library`` (issue #24): single GET, unwrap the
+    # Alma envelope, return list/dict.
+
+    def list_user_attachments(self, user_id: str) -> List[Dict[str, Any]]:
+        """List all attachments for a user.
+
+        Calls ``GET /almaws/v1/users/{user_id}/attachments`` and unwraps
+        the Alma response envelope into a flat list. The envelope key
+        observed in live SANDBOX is ``user_attachment``; fall back to
+        ``attachment`` defensively in case the endpoint reverts to the
+        legacy shape on a future Alma release.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+
+        Returns:
+            List of attachment dicts as returned by Alma. Returns an
+            empty list when the user has no attachments (or when the
+            response envelope is missing both candidate keys).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_libraries (configuration.py
+        # line 218, issue #24) for the "single GET, unwrap envelope,
+        # return list" idiom. ``user_id`` validation mirrors
+        # ``get_user_personal_data`` (above).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        endpoint = f"almaws/v1/users/{clean_id}/attachments"
+        self.logger.info(
+            f"Listing attachments for user {clean_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            payload = response.json() or {}
+            # The live response envelope is ``user_attachment``; some
+            # legacy / undocumented variants use plain ``attachment``.
+            attachments = (
+                payload.get("user_attachment")
+                or payload.get("attachment")
+                or []
+            )
+            if isinstance(attachments, dict):
+                # Single-record responses can come back as a dict; normalise.
+                attachments = [attachments]
+            self.logger.info(
+                f"Retrieved {len(attachments)} attachments for user {clean_id}"
+            )
+            return attachments
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing attachments for user {clean_id}: {e}"
+            )
+            raise
+
+    def get_user_attachment(
+        self,
+        user_id: str,
+        attachment_id: str,
+        expand: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Retrieve a single attachment's metadata (and optionally content).
+
+        Calls ``GET /almaws/v1/users/{user_id}/attachments/{attachment_id}``.
+        The ``expand`` query parameter is forwarded only when non-``None``
+        and supports Alma's documented values ``"content"`` (returns the
+        base64-encoded file inline) and ``"content_no_encoding"`` (returns
+        raw content).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            attachment_id: Attachment identifier as returned by
+                :meth:`list_user_attachments` (key ``id`` on each entry).
+                Must be a non-empty string.
+            expand: Optional Alma ``expand`` directive. Pass
+                ``"content"`` to receive the file bytes inline (the
+                ``content`` key in the response will hold the base64
+                payload), ``"content_no_encoding"`` for unencoded
+                bytes, or ``None`` for metadata only. Defaults to
+                ``None``.
+
+        Returns:
+            The attachment dict as returned by Alma. Callers that
+            requested ``expand="content"`` are responsible for
+            base64-decoding ``result["content"]`` themselves.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``attachment_id`` is
+                empty or not a string.
+            AlmaAPIError: If the API request fails (including 404 when
+                the user or attachment does not exist).
+        """
+        # Pattern source: Configuration.get_library (configuration.py
+        # line 270, issue #24) — validate, log entry, GET, log success,
+        # propagate API errors.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(attachment_id, str) or not attachment_id.strip():
+            raise AlmaValidationError("Attachment ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_attachment_id = attachment_id.strip()
+
+        params: Dict[str, Any] = {}
+        if expand is not None:
+            params["expand"] = expand
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/attachments/"
+            f"{clean_attachment_id}"
+        )
+        self.logger.info(
+            f"Retrieving attachment {clean_attachment_id} for user "
+            f"{clean_user_id} (expand={expand!r})"
+        )
+        try:
+            response = self.client.get(
+                endpoint, params=params if params else None
+            )
+            data: Dict[str, Any] = response.json() or {}
+            # Never log the body — when expand="content" the response
+            # carries the file payload itself.
+            self.logger.info(
+                f"Retrieved attachment {clean_attachment_id} for user "
+                f"{clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving attachment {clean_attachment_id} "
+                f"for user {clean_user_id}: {e}"
+            )
+            raise
+
+    def upload_user_attachment(
+        self,
+        user_id: str,
+        file_path: str,
+        attachment_data: Optional[Dict[str, Any]] = None,
+    ) -> AlmaResponse:
+        """Upload a new attachment to a user record.
+
+        Calls ``POST /almaws/v1/users/{user_id}/attachments`` with a
+        JSON body containing the file's base64-encoded contents. The
+        body shape was verified against live SANDBOX on 2026-05-08:
+
+        .. code-block:: json
+
+            {
+              "type": "GENERAL",
+              "note": "<description>",
+              "file_name": "<filename>",
+              "content": "<base64-encoded file bytes>"
+            }
+
+        Notably, ``type`` is a **plain string**, not the
+        ``{"value": "GENERAL"}`` wrapper Alma uses elsewhere — the
+        wrapped form returns 400 ("Cannot deserialize value of type
+        java.lang.String from Object value"). The file's bytes and the
+        base64 payload are never logged; only ``user_id``, ``file_name``,
+        and ``size_bytes`` reach the audit trail.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            file_path: Filesystem path to the file to upload. Must be a
+                non-empty string and must point to an existing file.
+            attachment_data: Optional override dict for the request
+                body. When supplied it is shallow-copied; ``file_name``
+                defaults to the basename of ``file_path`` (when not
+                already set), ``content`` is overridden with the
+                base64-encoded file bytes, and ``type`` defaults to
+                ``"GENERAL"`` when not already set. Useful for
+                supplying ``note`` / ``description`` fields without
+                rebuilding the body shape.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response. The created
+            attachment's identifier lives at ``response.data["id"]``.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``file_path`` is
+                empty / not a string, or if ``file_path`` does not point
+                to an existing file.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: get_user_personal_data (above) for the
+        # "validate inputs, log without leaking sensitive content"
+        # discipline; Configuration.list_libraries for the
+        # AlmaResponse handoff pattern.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(file_path, str) or not file_path.strip():
+            raise AlmaValidationError(
+                "file_path is required and must be a non-empty string"
+            )
+
+        clean_user_id = user_id.strip()
+        path = Path(file_path)
+        if not path.is_file():
+            raise AlmaValidationError(
+                f"file_path does not point to an existing file: {file_path}"
+            )
+
+        # Read file bytes and base64-encode. The encoded payload is
+        # passed to Alma as a UTF-8 string — never logged.
+        file_bytes = path.read_bytes()
+        size_bytes = len(file_bytes)
+        encoded = base64.b64encode(file_bytes).decode("ascii")
+
+        # Build the JSON body. Shallow-copy any caller-supplied dict so
+        # we never mutate the operator's data.
+        body: Dict[str, Any] = (
+            dict(attachment_data) if attachment_data else {}
+        )
+        body.setdefault("type", "GENERAL")
+        body.setdefault("file_name", path.name)
+        # Always override content with the freshly-read base64 payload
+        # so a caller-supplied stale ``content`` cannot win.
+        body["content"] = encoded
+
+        endpoint = f"almaws/v1/users/{clean_user_id}/attachments"
+        # Audit-log: identifier + filename + size only. NEVER the body
+        # or the base64 payload.
+        self.logger.info(
+            f"Uploading attachment for user {clean_user_id} "
+            f"(file_name={body['file_name']!r}, size_bytes={size_bytes})"
+        )
+        try:
+            response = self.client.post(endpoint, data=body)
+            attachment_id: Any = None
+            try:
+                attachment_id = (response.data or {}).get("id")
+            except (ValueError, AttributeError):
+                # Non-JSON / unparseable body — surface the AlmaResponse
+                # to the caller anyway; the error path below logs only
+                # the status code, not any body content.
+                attachment_id = None
+            self.logger.info(
+                f"Uploaded attachment for user {clean_user_id} "
+                f"(attachment_id={attachment_id!r}, "
+                f"file_name={body['file_name']!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error uploading attachment for user "
+                f"{clean_user_id} (file_name={body['file_name']!r}): {e}"
             )
             raise
 

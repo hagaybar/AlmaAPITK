@@ -1,10 +1,17 @@
 """
-Unit tests for the Users domain class — issue #36 coverage:
+Unit tests for the Users domain class — issue #36 / #39 coverage:
 
 - ``Users.list_users`` — list/search via ``GET /almaws/v1/users``
 - ``Users.search_users`` — convenience wrapper requiring ``q``
 - ``Users.get_user_personal_data`` — GDPR export via
   ``GET /almaws/v1/users/{user_id}/personal-data``
+- ``Users.list_user_attachments`` — list attachments via
+  ``GET /almaws/v1/users/{user_id}/attachments`` (issue #39)
+- ``Users.get_user_attachment`` — retrieve a single attachment via
+  ``GET /almaws/v1/users/{user_id}/attachments/{attachment_id}``
+  (issue #39)
+- ``Users.upload_user_attachment`` — upload an attachment via
+  ``POST /almaws/v1/users/{user_id}/attachments`` (issue #39)
 
 Tests use a mocked AlmaAPIClient stand-in (no real HTTP) following the
 mock-shape established in ``tests/unit/domains/test_configuration.py``.
@@ -57,8 +64,9 @@ class MockAlmaAPIClient:
         self.environment = environment
         self.logger = MagicMock()
         self.get_response: MockAlmaResponse = MockAlmaResponse()
+        self.post_response: MockAlmaResponse = MockAlmaResponse()
         self.next_exception: Optional[Exception] = None
-        self.calls = {"get": []}
+        self.calls = {"get": [], "post": []}
 
     def get_environment(self) -> str:
         return self.environment
@@ -76,6 +84,27 @@ class MockAlmaAPIClient:
             exc, self.next_exception = self.next_exception, None
             raise exc
         return self.get_response
+
+    def post(
+        self,
+        endpoint: str,
+        data: Any = None,
+        params: Optional[Dict[str, Any]] = None,
+        content_type: Optional[str] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
+    ) -> MockAlmaResponse:
+        self.calls["post"].append(
+            {
+                "endpoint": endpoint,
+                "data": data,
+                "params": params,
+                "content_type": content_type,
+            }
+        )
+        if self.next_exception is not None:
+            exc, self.next_exception = self.next_exception, None
+            raise exc
+        return self.post_response
 
 
 # ---------------------------------------------------------------------------
@@ -483,6 +512,514 @@ class TestGetUserPersonalData:
             for needle in sensitive_strings:
                 assert needle not in msg, (
                     f"Sensitive value {needle!r} leaked into log: {msg!r}"
+                )
+
+
+# ---------------------------------------------------------------------------
+# list_user_attachments  (issue #39)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserAttachments:
+    """Tests for ``Users.list_user_attachments`` (issue #39)."""
+
+    def test_list_user_attachments_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_attachment": [
+                    {"id": "att-1", "file_name": "a.pdf"},
+                    {"id": "att-2", "file_name": "b.pdf"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_attachments("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/attachments"
+        # No params on the list endpoint.
+        assert call["params"] is None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "att-1"
+
+    def test_list_user_attachments_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_attachment": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_attachments("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/attachments"
+
+    def test_list_user_attachments_falls_back_to_attachment_key(self):
+        """Defensive: handle the legacy ``attachment`` envelope key."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"attachment": [{"id": "att-1"}]}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_attachments("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "att-1"
+
+    def test_list_user_attachments_returns_empty_list_on_missing_key(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_attachments("u1")
+
+        assert result == []
+
+    def test_list_user_attachments_handles_single_dict_response(self):
+        """A single attachment as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_attachment": {"id": "only-att"}}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_attachments("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "only-att"
+
+    def test_list_user_attachments_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_attachments("")
+
+    def test_list_user_attachments_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_attachments(None)  # type: ignore[arg-type]
+
+    def test_list_user_attachments_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.list_user_attachments("u1")
+
+
+# ---------------------------------------------------------------------------
+# get_user_attachment  (issue #39)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserAttachment:
+    """Tests for ``Users.get_user_attachment`` (issue #39)."""
+
+    def test_get_user_attachment_without_expand(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "att-1",
+                "file_name": "a.pdf",
+                "type": "GENERAL",
+                "size": 1024,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_attachment("u1", "att-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/users/u1/attachments/att-1"
+        )
+        # No ``expand`` supplied → params is None (not {"expand": None}).
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["id"] == "att-1"
+        assert result["file_name"] == "a.pdf"
+
+    def test_get_user_attachment_with_expand_content(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "att-1",
+                "file_name": "a.pdf",
+                # Pretend Alma echoes the base64 payload back here.
+                "content": "aGVsbG8=",
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_attachment(
+            "u1", "att-1", expand="content"
+        )
+
+        call = mock_client.calls["get"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/users/u1/attachments/att-1"
+        )
+        assert call["params"] == {"expand": "content"}
+        # The method must NOT base64-decode for the caller — leave it
+        # as-is so callers control decoding.
+        assert result["content"] == "aGVsbG8="
+
+    def test_get_user_attachment_with_expand_content_no_encoding(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"id": "att-1"}
+        )
+        users = Users(mock_client)
+
+        users.get_user_attachment(
+            "u1", "att-1", expand="content_no_encoding"
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"expand": "content_no_encoding"}
+
+    def test_get_user_attachment_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "att-1"})
+        users = Users(mock_client)
+
+        users.get_user_attachment("  u1  ", "  att-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert (
+            call["endpoint"]
+            == "almaws/v1/users/u1/attachments/att-1"
+        )
+
+    def test_get_user_attachment_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_attachment("", "att-1")
+
+    def test_get_user_attachment_raises_on_empty_attachment_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_attachment("u1", "")
+
+    def test_get_user_attachment_raises_on_non_string_attachment_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_attachment("u1", None)  # type: ignore[arg-type]
+
+    def test_get_user_attachment_returns_empty_dict_on_empty_body(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        result = users.get_user_attachment("u1", "att-1")
+
+        assert result == {}
+
+    def test_get_user_attachment_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Not found", status_code=404
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.get_user_attachment("u1", "missing-att")
+
+
+# ---------------------------------------------------------------------------
+# upload_user_attachment  (issue #39)
+# ---------------------------------------------------------------------------
+
+
+class TestUploadUserAttachment:
+    """Tests for ``Users.upload_user_attachment`` (issue #39)."""
+
+    def test_upload_user_attachment_happy_path(self, tmp_path):
+        """Upload posts JSON+base64 with the verified body shape."""
+        import base64
+
+        from almaapitk.domains.users import Users
+
+        # Create a small file with deterministic bytes.
+        file_bytes = b"hello world"
+        file_path = tmp_path / "hello.txt"
+        file_path.write_bytes(file_bytes)
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={
+                "id": "12345",
+                "type": "GENERAL",
+                "size": len(file_bytes),
+                "file_name": "hello.txt",
+            }
+        )
+        users = Users(mock_client)
+
+        response = users.upload_user_attachment("u1", str(file_path))
+
+        # One POST to the correct endpoint.
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/attachments"
+        # JSON body, NOT multipart — content_type must be the default.
+        assert call["content_type"] is None
+
+        body = call["data"]
+        assert isinstance(body, dict)
+        # ``type`` is a plain string, NOT a {"value": "..."} wrapper.
+        assert body["type"] == "GENERAL"
+        assert body["file_name"] == "hello.txt"
+        # ``content`` is base64-encoded file bytes.
+        assert body["content"] == base64.b64encode(file_bytes).decode("ascii")
+
+        # Returned AlmaResponse exposes the new attachment's id.
+        assert response.data["id"] == "12345"
+
+    def test_upload_user_attachment_uses_supplied_attachment_data(
+        self, tmp_path
+    ):
+        """Caller-supplied attachment_data overrides defaults except content."""
+        import base64
+
+        from almaapitk.domains.users import Users
+
+        file_bytes = b"abc123"
+        file_path = tmp_path / "doc.pdf"
+        file_path.write_bytes(file_bytes)
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "att-1"})
+        users = Users(mock_client)
+
+        users.upload_user_attachment(
+            "u1",
+            str(file_path),
+            attachment_data={
+                "type": "GENERAL",
+                "note": "Operator-supplied note",
+                # A stale ``content`` value MUST be overridden by the
+                # freshly-encoded file bytes.
+                "content": "STALE_BASE64",
+            },
+        )
+
+        call = mock_client.calls["post"][0]
+        body = call["data"]
+        assert body["type"] == "GENERAL"
+        assert body["note"] == "Operator-supplied note"
+        assert body["file_name"] == "doc.pdf"
+        # Content is the live encoding of the file, NOT the stale value.
+        assert body["content"] == base64.b64encode(file_bytes).decode("ascii")
+        assert body["content"] != "STALE_BASE64"
+
+    def test_upload_user_attachment_does_not_mutate_caller_dict(
+        self, tmp_path
+    ):
+        """``attachment_data`` must be shallow-copied, not mutated in place."""
+        from almaapitk.domains.users import Users
+
+        file_bytes = b"x"
+        file_path = tmp_path / "x.bin"
+        file_path.write_bytes(file_bytes)
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "x"})
+        users = Users(mock_client)
+
+        caller_data = {"type": "GENERAL", "note": "n"}
+        snapshot = dict(caller_data)
+        users.upload_user_attachment(
+            "u1", str(file_path), attachment_data=caller_data
+        )
+
+        # Caller's dict must remain untouched (no ``content`` /
+        # ``file_name`` injected).
+        assert caller_data == snapshot
+
+    def test_upload_user_attachment_defaults_type_to_general(self, tmp_path):
+        from almaapitk.domains.users import Users
+
+        file_path = tmp_path / "f.txt"
+        file_path.write_bytes(b"abc")
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "x"})
+        users = Users(mock_client)
+
+        users.upload_user_attachment("u1", str(file_path))
+
+        body = mock_client.calls["post"][0]["data"]
+        assert body["type"] == "GENERAL"
+
+    def test_upload_user_attachment_raises_on_missing_file(self, tmp_path):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        missing_path = tmp_path / "does_not_exist.bin"
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.upload_user_attachment("u1", str(missing_path))
+        # No HTTP call should have been issued.
+        assert mock_client.calls["post"] == []
+
+    def test_upload_user_attachment_raises_on_directory_path(self, tmp_path):
+        """A directory is not a file — must raise validation error."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.upload_user_attachment("u1", str(tmp_path))
+
+    def test_upload_user_attachment_raises_on_empty_file_path(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.upload_user_attachment("u1", "")
+
+    def test_upload_user_attachment_raises_on_non_string_file_path(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.upload_user_attachment(
+                "u1", None  # type: ignore[arg-type]
+            )
+
+    def test_upload_user_attachment_raises_on_empty_user_id(self, tmp_path):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        file_path = tmp_path / "f.txt"
+        file_path.write_bytes(b"abc")
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.upload_user_attachment("", str(file_path))
+
+    def test_upload_user_attachment_propagates_api_error(self, tmp_path):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        file_path = tmp_path / "f.txt"
+        file_path.write_bytes(b"abc")
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.upload_user_attachment("u1", str(file_path))
+
+    def test_upload_user_attachment_does_not_log_file_body_or_base64(
+        self, tmp_path
+    ):
+        """File contents and base64 payload must never appear in logs."""
+        import base64
+
+        from almaapitk.domains.users import Users
+
+        # Use a recognisable byte sequence that we can grep for in logs.
+        file_bytes = b"SUPER_SECRET_FILE_CONTENT_MARKER"
+        file_path = tmp_path / "secret.bin"
+        file_path.write_bytes(file_bytes)
+        encoded = base64.b64encode(file_bytes).decode("ascii")
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "x"})
+        users = Users(mock_client)
+
+        with _captured_logs("Users_SANDBOX") as records:
+            users.upload_user_attachment("u1", str(file_path))
+
+        sensitive_strings = (
+            file_bytes.decode("ascii"),  # raw content
+            encoded,                     # base64 payload
+        )
+        for rec in records:
+            msg = rec.getMessage()
+            for needle in sensitive_strings:
+                assert needle not in msg, (
+                    f"Sensitive value leaked into log: {msg!r}"
                 )
 
 

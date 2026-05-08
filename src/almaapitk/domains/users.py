@@ -574,6 +574,598 @@ class Users:
             )
             raise
 
+    # ------------------------------------------------------------------
+    # User fines & fees (issue #44)
+    # ------------------------------------------------------------------
+    #
+    # The fines/fees endpoints expose three reads (list/get/create) and
+    # five op-driven posts (pay-all, pay, waive, dispute, restore). All
+    # five op-driven posts use the documented Alma convention of passing
+    # the operation and its scalar arguments as **query parameters**:
+    #
+    #   POST /users/{id}/fees/all?op=pay&amount=ALL&method=CASH
+    #   POST /users/{id}/fees/{fee_id}?op=waive&reason=...&amount=...
+    #
+    # The audit (2026-05-08) flagged three signature mismatches in the
+    # original spec and these methods correct them:
+    #   1. ``pay_all_user_fees`` defaults ``amount="ALL"`` (string sentinel,
+    #      not a number) and forwards ``op``, ``amount``, ``method`` as
+    #      **params** — never body.
+    #   2. ``dispute_user_fee.reason`` is OPTIONAL — only ``waive``
+    #      requires a reason.
+    #   3. ``method`` is only sent on ``op=pay`` / ``op=pay_all``; waive,
+    #      dispute, and restore have no ``method`` arg in their signature.
+    #
+    # Read patterns mirror ``Configuration.list_libraries`` /
+    # ``Configuration.get_library`` (issue #24) for "single GET, unwrap
+    # envelope, return list" and ``list_user_attachments`` /
+    # ``get_user_attachment`` (issue #39) for the fees envelope key
+    # discipline.
+
+    @staticmethod
+    def _validate_pay_amount(amount: str) -> None:
+        """Validate the ``amount`` argument for op=pay / op=pay_all.
+
+        Allowed: the literal string ``"ALL"`` (sentinel meaning "the full
+        outstanding balance"), or a numeric string consisting of digits
+        with at most one decimal point. Anything else raises
+        :class:`AlmaValidationError`.
+        """
+        if not isinstance(amount, str) or not amount.strip():
+            raise AlmaValidationError(
+                "amount must be a non-empty string ('ALL' or a numeric value)"
+            )
+        clean = amount.strip()
+        if clean == "ALL":
+            return
+        # Reject obviously non-numeric values. Allow optional leading
+        # minus only for a defensive future-proofing — Alma rejects
+        # negatives at the server, but the client validator is about
+        # *shape*, not policy.
+        candidate = clean[1:] if clean.startswith("-") else clean
+        if candidate.count(".") > 1 or not candidate.replace(".", "").isdigit():
+            raise AlmaValidationError(
+                f"amount must be 'ALL' or a numeric string, got: {amount!r}"
+            )
+
+    def list_user_fees(
+        self,
+        user_id: str,
+        status: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List a user's active fines and fees.
+
+        Calls ``GET /almaws/v1/users/{user_id}/fees`` and unwraps the
+        Alma response envelope (``{"fee": [...], "total_record_count":
+        N}``) into a flat list. The optional ``status`` filter is
+        forwarded as a query parameter when supplied; otherwise Alma
+        applies its own default (``ACTIVE``).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            status: Optional fee-status filter (e.g. ``"ACTIVE"``,
+                ``"INDISPUTE"``, ``"CLOSED"``). When ``None`` (default),
+                no ``status`` query parameter is sent and Alma returns
+                the default set.
+
+        Returns:
+            List of fee dicts as returned by Alma. Returns an empty list
+            when the user has no matching fees (or when the response
+            envelope is missing the ``fee`` key).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: list_user_attachments (above, issue #39) for
+        # the "single GET, unwrap envelope, return list" idiom plus
+        # single-record-as-dict normalisation. ``list_users``
+        # (issue #36) for the optional-filter forwarding pattern.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+
+        endpoint = f"almaws/v1/users/{clean_id}/fees"
+        self.logger.info(
+            f"Listing fees for user {clean_id} (status={status!r})"
+        )
+        try:
+            response = self.client.get(
+                endpoint, params=params if params else None
+            )
+            payload = response.json() or {}
+            fees = payload.get("fee") or []
+            if isinstance(fees, dict):
+                # Single-record responses can come back as a dict; normalise.
+                fees = [fees]
+            self.logger.info(
+                f"Retrieved {len(fees)} fees for user {clean_id}"
+            )
+            return fees
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing fees for user {clean_id}: {e}"
+            )
+            raise
+
+    def create_user_fee(
+        self,
+        user_id: str,
+        fee_data: Dict[str, Any],
+    ) -> AlmaResponse:
+        """Create a new fine/fee on a user record.
+
+        Calls ``POST /almaws/v1/users/{user_id}/fees`` with the
+        operator-supplied ``fee_data`` dict as the JSON body. The body
+        is passed through verbatim — the caller is responsible for
+        supplying the Alma-required fields (``type``, ``original_amount``,
+        ``owner``, etc.; see Alma's ``user fine/fee type/amount/owner is
+        required`` validation errors).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_data: Fee body as a non-empty dict. Passed through to
+                Alma verbatim.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response. The created
+            fee's identifier lives at ``response.data["id"]``.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty/not a string,
+                or if ``fee_data`` is empty or not a dict.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: upload_user_attachment (above, issue #39) for
+        # the "validate, log entry without body, POST, log success with
+        # the new id" discipline. update_user (below) for the
+        # "fee_data passed through verbatim" pattern.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_data, dict) or not fee_data:
+            raise AlmaValidationError(
+                "fee_data must be a non-empty dictionary"
+            )
+        clean_id = user_id.strip()
+
+        endpoint = f"almaws/v1/users/{clean_id}/fees"
+        # Audit-log: the user_id and the fee type only (not amounts /
+        # comments / arbitrary caller-supplied fields).
+        fee_type = fee_data.get("type")
+        self.logger.info(
+            f"Creating fee for user {clean_id} (type={fee_type!r})"
+        )
+        try:
+            response = self.client.post(endpoint, data=fee_data)
+            fee_id: Any = None
+            try:
+                fee_id = (response.data or {}).get("id")
+            except (ValueError, AttributeError):
+                fee_id = None
+            self.logger.info(
+                f"Created fee for user {clean_id} (fee_id={fee_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating fee for user {clean_id}: {e}"
+            )
+            raise
+
+    def get_user_fee(self, user_id: str, fee_id: str) -> Dict[str, Any]:
+        """Retrieve a single fee's details.
+
+        Calls ``GET /almaws/v1/users/{user_id}/fees/{fee_id}`` and
+        returns the unwrapped fee dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_id: Fee identifier as returned by :meth:`list_user_fees`
+                (key ``id`` on each entry). Must be a non-empty string.
+
+        Returns:
+            The fee dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``fee_id`` is empty
+                or not a string.
+            AlmaAPIError: If the API request fails (including 404 when
+                the user or fee does not exist).
+        """
+        # Pattern source: get_user_attachment (above, issue #39) — same
+        # "validate two ids, GET, return dict" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_id, str) or not fee_id.strip():
+            raise AlmaValidationError("Fee ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_fee_id = fee_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/fees/{clean_fee_id}"
+        )
+        self.logger.info(
+            f"Retrieving fee {clean_fee_id} for user {clean_user_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved fee {clean_fee_id} for user {clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving fee {clean_fee_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def pay_all_user_fees(
+        self,
+        user_id: str,
+        amount: str = "ALL",
+        method: str = "CASH",
+        external_transaction_id: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Pay all of a user's outstanding fees in one operation.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/fees/all?op=pay&amount=...&method=...``.
+        The ``op``, ``amount``, ``method``, and (when supplied)
+        ``external_transaction_id`` are sent as **query parameters**, not
+        in the request body — Alma's documented convention for this
+        endpoint.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            amount: The literal string ``"ALL"`` (default — pay the full
+                outstanding balance) or a numeric string (e.g.
+                ``"12.50"``). Validated client-side; non-conforming
+                values raise :class:`AlmaValidationError` before any
+                HTTP call is issued.
+            method: Payment method (Alma values: ``"CASH"``, ``"CREDIT"``,
+                ``"CHECK"``, ``"ONLINE"``, ``"WIRE"``). Defaults to
+                ``"CASH"``.
+            external_transaction_id: Optional external system identifier
+                (e.g. payment-gateway transaction id). Forwarded only
+                when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty/not a string,
+                or if ``amount`` is not ``"ALL"`` and not a numeric
+                string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: upload_user_attachment (issue #39) for the
+        # validate-and-POST discipline. This is the audit-corrected
+        # signature: ``amount="ALL"`` default + query-param transport.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        self._validate_pay_amount(amount)
+        if not isinstance(method, str) or not method.strip():
+            raise AlmaValidationError("method must be a non-empty string")
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {
+            "op": "pay",
+            "amount": amount.strip(),
+            "method": method.strip(),
+        }
+        if external_transaction_id is not None:
+            params["external_transaction_id"] = external_transaction_id
+
+        endpoint = f"almaws/v1/users/{clean_id}/fees/all"
+        self.logger.info(
+            f"Paying all fees for user {clean_id} "
+            f"(amount={params['amount']!r}, method={params['method']!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Paid all fees for user {clean_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error paying all fees for user {clean_id}: {e}"
+            )
+            raise
+
+    def pay_user_fee(
+        self,
+        user_id: str,
+        fee_id: str,
+        amount: str,
+        method: str = "CASH",
+        external_transaction_id: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Pay (in full or in part) a single fee.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/fees/{fee_id}?op=pay&amount=...&method=...``.
+        ``op``, ``amount``, ``method``, and (when supplied)
+        ``external_transaction_id`` are sent as **query parameters**.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_id: Fee identifier. Must be a non-empty string.
+            amount: ``"ALL"`` (sentinel — pay the full remaining balance)
+                or a numeric string (e.g. ``"5.00"``). Validated
+                client-side.
+            method: Payment method (default ``"CASH"``).
+            external_transaction_id: Optional external system identifier
+                forwarded only when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If any required input is empty/wrong
+                type, or if ``amount`` is malformed.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: pay_all_user_fees (above) — same op-driven
+        # POST shape, scoped to a specific fee.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_id, str) or not fee_id.strip():
+            raise AlmaValidationError("Fee ID cannot be empty")
+        self._validate_pay_amount(amount)
+        if not isinstance(method, str) or not method.strip():
+            raise AlmaValidationError("method must be a non-empty string")
+        clean_user_id = user_id.strip()
+        clean_fee_id = fee_id.strip()
+
+        params: Dict[str, Any] = {
+            "op": "pay",
+            "amount": amount.strip(),
+            "method": method.strip(),
+        }
+        if external_transaction_id is not None:
+            params["external_transaction_id"] = external_transaction_id
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/fees/{clean_fee_id}"
+        )
+        self.logger.info(
+            f"Paying fee {clean_fee_id} for user {clean_user_id} "
+            f"(amount={params['amount']!r}, method={params['method']!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Paid fee {clean_fee_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error paying fee {clean_fee_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def waive_user_fee(
+        self,
+        user_id: str,
+        fee_id: str,
+        reason: str,
+        amount: Optional[str] = None,
+        comment: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Waive (in full or in part) a single fee.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/fees/{fee_id}?op=waive&reason=...``.
+        ``op``, ``reason``, and (when supplied) ``amount`` and
+        ``comment`` are sent as **query parameters**. ``method`` is NOT
+        sent on waive — only on pay / pay_all.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_id: Fee identifier. Must be a non-empty string.
+            reason: Reason for the waiver. **Required** for ``op=waive``;
+                empty / whitespace / non-string values raise
+                :class:`AlmaValidationError`.
+            amount: Optional partial-waive amount as a string (e.g.
+                ``"3.00"``). When ``None``, Alma waives the full balance.
+            comment: Optional free-text comment. Forwarded only when
+                non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If any required input is empty/wrong
+                type. ``reason`` is required.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: pay_user_fee (above) — same op-driven POST
+        # shape, but ``reason`` is required (audit fix #2: dispute does
+        # NOT require reason; only waive does).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_id, str) or not fee_id.strip():
+            raise AlmaValidationError("Fee ID cannot be empty")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AlmaValidationError(
+                "reason is required for op=waive and must be a non-empty string"
+            )
+        clean_user_id = user_id.strip()
+        clean_fee_id = fee_id.strip()
+
+        params: Dict[str, Any] = {
+            "op": "waive",
+            "reason": reason.strip(),
+        }
+        if amount is not None:
+            params["amount"] = amount
+        if comment is not None:
+            params["comment"] = comment
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/fees/{clean_fee_id}"
+        )
+        self.logger.info(
+            f"Waiving fee {clean_fee_id} for user {clean_user_id} "
+            f"(reason={params['reason']!r}, amount={amount!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Waived fee {clean_fee_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error waiving fee {clean_fee_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def dispute_user_fee(
+        self,
+        user_id: str,
+        fee_id: str,
+        reason: Optional[str] = None,
+        comment: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Mark a single fee as disputed.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/fees/{fee_id}?op=dispute``.
+        ``op`` is always sent; ``reason`` and ``comment`` are sent only
+        when non-``None``. ``method`` is NOT sent on dispute.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_id: Fee identifier. Must be a non-empty string.
+            reason: **Optional** dispute reason. The audit (2026-05-08)
+                corrected the original "reason required" bug — only
+                ``waive`` requires a reason. Forwarded only when
+                non-``None`` and non-empty.
+            comment: Optional free-text comment. Forwarded only when
+                non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``fee_id`` is empty.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: waive_user_fee (above) — same op-driven POST
+        # shape, but ``reason`` is OPTIONAL (audit fix #2).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_id, str) or not fee_id.strip():
+            raise AlmaValidationError("Fee ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_fee_id = fee_id.strip()
+
+        params: Dict[str, Any] = {"op": "dispute"}
+        # Only forward ``reason`` if a non-empty string was supplied —
+        # an empty / whitespace value would just clutter the query
+        # string. ``None`` default makes the arg fully optional.
+        if reason is not None and isinstance(reason, str) and reason.strip():
+            params["reason"] = reason.strip()
+        if comment is not None:
+            params["comment"] = comment
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/fees/{clean_fee_id}"
+        )
+        self.logger.info(
+            f"Disputing fee {clean_fee_id} for user {clean_user_id} "
+            f"(reason={params.get('reason')!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Disputed fee {clean_fee_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error disputing fee {clean_fee_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def restore_user_fee(
+        self,
+        user_id: str,
+        fee_id: str,
+        comment: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Restore a previously-disputed fee back to active status.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/fees/{fee_id}?op=restore``.
+        Only ``op`` and (optionally) ``comment`` are sent — no
+        ``reason``, no ``amount``, no ``method``.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            fee_id: Fee identifier. Must be a non-empty string.
+            comment: Optional free-text comment. Forwarded only when
+                non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``fee_id`` is empty.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: dispute_user_fee (above) — same op-driven POST
+        # shape; restore takes only the comment kwarg (audit fix #3:
+        # no reason / amount / method).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(fee_id, str) or not fee_id.strip():
+            raise AlmaValidationError("Fee ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_fee_id = fee_id.strip()
+
+        params: Dict[str, Any] = {"op": "restore"}
+        if comment is not None:
+            params["comment"] = comment
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/fees/{clean_fee_id}"
+        )
+        self.logger.info(
+            f"Restoring fee {clean_fee_id} for user {clean_user_id}"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Restored fee {clean_fee_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error restoring fee {clean_fee_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
     def update_user(self, user_id: str, user_data: Dict[str, Any]) -> AlmaResponse:
         """
         Update a user record.

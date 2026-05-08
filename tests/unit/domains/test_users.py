@@ -1024,6 +1024,890 @@ class TestUploadUserAttachment:
 
 
 # ---------------------------------------------------------------------------
+# list_user_fees  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserFees:
+    """Tests for ``Users.list_user_fees`` (issue #44)."""
+
+    def test_list_user_fees_calls_correct_endpoint_no_status(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "fee": [
+                    {"id": "fee-1", "type": {"value": "OVERDUEFINEFEE"}},
+                    {"id": "fee-2", "type": {"value": "LOSTITEMREPLACEMENTFEE"}},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_fees("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees"
+        # No status filter → params should be None (not empty dict).
+        assert call["params"] is None
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "fee-1"
+
+    def test_list_user_fees_forwards_status_filter(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"fee": [{"id": "fee-1"}], "total_record_count": 1}
+        )
+        users = Users(mock_client)
+
+        users.list_user_fees("u1", status="ACTIVE")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"status": "ACTIVE"}
+
+    def test_list_user_fees_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"fee": []})
+        users = Users(mock_client)
+
+        users.list_user_fees("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees"
+
+    def test_list_user_fees_returns_empty_list_on_missing_key(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_fees("u1")
+
+        assert result == []
+
+    def test_list_user_fees_handles_single_dict_response(self):
+        """A single fee returned as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"fee": {"id": "only-fee"}, "total_record_count": 1}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_fees("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "only-fee"
+
+    def test_list_user_fees_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_fees("")
+
+    def test_list_user_fees_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_fees(None)  # type: ignore[arg-type]
+
+    def test_list_user_fees_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.list_user_fees("u1")
+
+
+# ---------------------------------------------------------------------------
+# create_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserFee:
+    """Tests for ``Users.create_user_fee`` (issue #44)."""
+
+    def test_create_user_fee_posts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        fee_body = {
+            "type": {"value": "CREDIT"},
+            "original_amount": "10.00",
+            "balance": "10.00",
+            "owner": {"value": "MAIN"},
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "fee-99", "type": {"value": "CREDIT"}}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user_fee("u1", fee_body)
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees"
+        # JSON body, not multipart.
+        assert call["content_type"] is None
+        # Body is the operator-supplied dict verbatim.
+        assert call["data"] == fee_body
+        # No query params on creation.
+        assert call["params"] is None
+        assert response.data["id"] == "fee-99"
+
+    def test_create_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_fee("", {"type": "X"})
+
+    def test_create_user_fee_raises_on_empty_fee_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_fee("u1", {})
+
+    def test_create_user_fee_raises_on_non_dict_fee_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_fee("u1", "not-a-dict")  # type: ignore[arg-type]
+
+    def test_create_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "User fine/fee type is required.", status_code=400
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.create_user_fee("u1", {"original_amount": "5.00"})
+
+
+# ---------------------------------------------------------------------------
+# get_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserFee:
+    """Tests for ``Users.get_user_fee`` (issue #44)."""
+
+    def test_get_user_fee_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "id": "fee-1",
+                "type": {"value": "OVERDUEFINEFEE"},
+                "original_amount": "5.00",
+                "balance": "5.00",
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_fee("u1", "fee-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["id"] == "fee-1"
+
+    def test_get_user_fee_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "fee-1"})
+        users = Users(mock_client)
+
+        users.get_user_fee("  u1  ", "  fee-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+
+    def test_get_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_fee("", "fee-1")
+
+    def test_get_user_fee_raises_on_empty_fee_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_fee("u1", "")
+
+    def test_get_user_fee_returns_empty_dict_on_empty_body(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        result = users.get_user_fee("u1", "fee-1")
+
+        assert result == {}
+
+    def test_get_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Not found", status_code=404
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.get_user_fee("u1", "missing-fee")
+
+
+# ---------------------------------------------------------------------------
+# pay_all_user_fees  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestPayAllUserFees:
+    """Tests for ``Users.pay_all_user_fees`` (issue #44)."""
+
+    def test_pay_all_user_fees_defaults_send_op_amount_method_as_params(self):
+        """Default call: op=pay, amount=ALL, method=CASH as query params."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_all_user_fees("u1")
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/all"
+        # No body — all transport is via query params.
+        assert call["data"] is None
+        assert call["params"] == {
+            "op": "pay",
+            "amount": "ALL",
+            "method": "CASH",
+        }
+
+    def test_pay_all_user_fees_forwards_numeric_amount_and_method(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_all_user_fees("u1", amount="12.50", method="CREDIT")
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "pay",
+            "amount": "12.50",
+            "method": "CREDIT",
+        }
+
+    def test_pay_all_user_fees_forwards_external_transaction_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_all_user_fees(
+            "u1",
+            amount="ALL",
+            method="ONLINE",
+            external_transaction_id="txn-abc",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"]["external_transaction_id"] == "txn-abc"
+
+    def test_pay_all_user_fees_omits_external_transaction_id_when_none(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_all_user_fees("u1")
+
+        call = mock_client.calls["post"][0]
+        assert "external_transaction_id" not in call["params"]
+
+    def test_pay_all_user_fees_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_all_user_fees("")
+        # No HTTP call on failed validation.
+        assert mock_client.calls["post"] == []
+
+    def test_pay_all_user_fees_rejects_non_numeric_non_all_amount(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_all_user_fees("u1", amount="not-a-number")
+        assert mock_client.calls["post"] == []
+
+    def test_pay_all_user_fees_rejects_amount_with_two_decimals(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_all_user_fees("u1", amount="1.2.3")
+
+    def test_pay_all_user_fees_rejects_empty_amount(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_all_user_fees("u1", amount="")
+
+    def test_pay_all_user_fees_rejects_empty_method(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_all_user_fees("u1", method="")
+
+    def test_pay_all_user_fees_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=400)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.pay_all_user_fees("u1")
+
+
+# ---------------------------------------------------------------------------
+# pay_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestPayUserFee:
+    """Tests for ``Users.pay_user_fee`` (issue #44)."""
+
+    def test_pay_user_fee_sends_op_amount_method_as_params(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_user_fee("u1", "fee-1", amount="5.00")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+        assert call["data"] is None
+        assert call["params"] == {
+            "op": "pay",
+            "amount": "5.00",
+            "method": "CASH",
+        }
+
+    def test_pay_user_fee_accepts_amount_all_sentinel(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_user_fee("u1", "fee-1", amount="ALL", method="CREDIT")
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "pay",
+            "amount": "ALL",
+            "method": "CREDIT",
+        }
+
+    def test_pay_user_fee_forwards_external_transaction_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.pay_user_fee(
+            "u1",
+            "fee-1",
+            amount="3.00",
+            external_transaction_id="ext-xyz",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"]["external_transaction_id"] == "ext-xyz"
+
+    def test_pay_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_user_fee("", "fee-1", amount="1.00")
+
+    def test_pay_user_fee_raises_on_empty_fee_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_user_fee("u1", "", amount="1.00")
+
+    def test_pay_user_fee_rejects_bad_amount(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.pay_user_fee("u1", "fee-1", amount="abc")
+
+    def test_pay_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "The fee is API Restricted by library.", status_code=400
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.pay_user_fee("u1", "fee-1", amount="5.00")
+
+
+# ---------------------------------------------------------------------------
+# waive_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestWaiveUserFee:
+    """Tests for ``Users.waive_user_fee`` (issue #44)."""
+
+    def test_waive_user_fee_required_reason_sent_as_param(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.waive_user_fee("u1", "fee-1", reason="GOODWILL")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+        assert call["data"] is None
+        assert call["params"] == {"op": "waive", "reason": "GOODWILL"}
+        # method must NOT be sent on waive.
+        assert "method" not in call["params"]
+
+    def test_waive_user_fee_with_partial_amount_and_comment(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.waive_user_fee(
+            "u1",
+            "fee-1",
+            reason="GOODWILL",
+            amount="2.50",
+            comment="Partial waive per supervisor",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "waive",
+            "reason": "GOODWILL",
+            "amount": "2.50",
+            "comment": "Partial waive per supervisor",
+        }
+
+    def test_waive_user_fee_strips_reason_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.waive_user_fee("u1", "fee-1", reason="  GOODWILL  ")
+
+        call = mock_client.calls["post"][0]
+        assert call["params"]["reason"] == "GOODWILL"
+
+    def test_waive_user_fee_raises_on_missing_reason(self):
+        """Reason is REQUIRED for op=waive."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.waive_user_fee("u1", "fee-1", reason="")
+        assert mock_client.calls["post"] == []
+
+    def test_waive_user_fee_raises_on_whitespace_reason(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.waive_user_fee("u1", "fee-1", reason="   ")
+
+    def test_waive_user_fee_raises_on_non_string_reason(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.waive_user_fee(
+                "u1", "fee-1", reason=None  # type: ignore[arg-type]
+            )
+
+    def test_waive_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.waive_user_fee("", "fee-1", reason="GOODWILL")
+
+    def test_waive_user_fee_raises_on_empty_fee_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.waive_user_fee("u1", "", reason="GOODWILL")
+
+    def test_waive_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=400)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.waive_user_fee("u1", "fee-1", reason="GOODWILL")
+
+
+# ---------------------------------------------------------------------------
+# dispute_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestDisputeUserFee:
+    """Tests for ``Users.dispute_user_fee`` (issue #44).
+
+    Audit fix #2: ``reason`` is OPTIONAL on dispute (not required).
+    """
+
+    def test_dispute_user_fee_minimal_no_reason_no_comment(self):
+        """Dispute with just user_id + fee_id sends only op=dispute."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.dispute_user_fee("u1", "fee-1")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+        assert call["data"] is None
+        assert call["params"] == {"op": "dispute"}
+        # reason MUST be absent when not provided (audit fix).
+        assert "reason" not in call["params"]
+        # method MUST NOT be sent on dispute.
+        assert "method" not in call["params"]
+        # comment MUST be absent when not provided.
+        assert "comment" not in call["params"]
+
+    def test_dispute_user_fee_with_reason(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.dispute_user_fee("u1", "fee-1", reason="LOST_RECEIPT")
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "dispute",
+            "reason": "LOST_RECEIPT",
+        }
+
+    def test_dispute_user_fee_with_comment_only(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.dispute_user_fee(
+            "u1", "fee-1", comment="Patron filed a written objection"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "dispute",
+            "comment": "Patron filed a written objection",
+        }
+        assert "reason" not in call["params"]
+
+    def test_dispute_user_fee_with_reason_and_comment(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.dispute_user_fee(
+            "u1", "fee-1", reason="LOST_RECEIPT", comment="See ticket #123"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "dispute",
+            "reason": "LOST_RECEIPT",
+            "comment": "See ticket #123",
+        }
+
+    def test_dispute_user_fee_drops_empty_reason_string(self):
+        """An empty/whitespace reason string is dropped (treated as None)."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.dispute_user_fee("u1", "fee-1", reason="   ")
+
+        call = mock_client.calls["post"][0]
+        assert "reason" not in call["params"]
+
+    def test_dispute_user_fee_does_not_require_reason(self):
+        """Regression: the audit-fixed signature must NOT raise on no reason."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        # Should not raise.
+        users.dispute_user_fee("u1", "fee-1")
+        assert len(mock_client.calls["post"]) == 1
+
+    def test_dispute_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.dispute_user_fee("", "fee-1")
+
+    def test_dispute_user_fee_raises_on_empty_fee_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.dispute_user_fee("u1", "")
+
+    def test_dispute_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.dispute_user_fee("u1", "fee-1")
+
+
+# ---------------------------------------------------------------------------
+# restore_user_fee  (issue #44)
+# ---------------------------------------------------------------------------
+
+
+class TestRestoreUserFee:
+    """Tests for ``Users.restore_user_fee`` (issue #44)."""
+
+    def test_restore_user_fee_sends_only_op(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.restore_user_fee("u1", "fee-1")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+        assert call["data"] is None
+        assert call["params"] == {"op": "restore"}
+        # No reason/amount/method on restore.
+        assert "reason" not in call["params"]
+        assert "amount" not in call["params"]
+        assert "method" not in call["params"]
+
+    def test_restore_user_fee_with_comment(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.restore_user_fee(
+            "u1", "fee-1", comment="Dispute resolved against patron"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "op": "restore",
+            "comment": "Dispute resolved against patron",
+        }
+
+    def test_restore_user_fee_strips_whitespace_in_ids(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"status": "ok"})
+        users = Users(mock_client)
+
+        users.restore_user_fee("  u1  ", "  fee-1  ")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/fees/fee-1"
+
+    def test_restore_user_fee_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.restore_user_fee("", "fee-1")
+
+    def test_restore_user_fee_raises_on_empty_fee_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.restore_user_fee("u1", "")
+
+    def test_restore_user_fee_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=400)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.restore_user_fee("u1", "fee-1")
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

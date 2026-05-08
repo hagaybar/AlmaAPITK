@@ -71,8 +71,9 @@ class MockAlmaAPIClient:
         self.logger = MagicMock()
         self.get_response: MockAlmaResponse = MockAlmaResponse()
         self.post_response: MockAlmaResponse = MockAlmaResponse()
+        self.delete_response: MockAlmaResponse = MockAlmaResponse()
         self.next_exception: Optional[Exception] = None
-        self.calls = {"get": [], "post": []}
+        self.calls = {"get": [], "post": [], "delete": []}
 
     def get_environment(self) -> str:
         return self.environment
@@ -111,6 +112,20 @@ class MockAlmaAPIClient:
             exc, self.next_exception = self.next_exception, None
             raise exc
         return self.post_response
+
+    def delete(
+        self,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
+    ) -> MockAlmaResponse:
+        self.calls["delete"].append(
+            {"endpoint": endpoint, "params": params}
+        )
+        if self.next_exception is not None:
+            exc, self.next_exception = self.next_exception, None
+            raise exc
+        return self.delete_response
 
 
 # ---------------------------------------------------------------------------
@@ -2350,3 +2365,318 @@ def _captured_logs(logger_name: str):
         yield records
     finally:
         logger.removeHandler(handler)
+
+
+# ---------------------------------------------------------------------------
+# create_user  (issue #37)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUser:
+    """Tests for ``Users.create_user`` (issue #37)."""
+
+    def _valid_user_data(self) -> Dict[str, Any]:
+        """Return a fully-populated, Alma-valid user payload (synthetic IDs).
+
+        Uses the ``{"value": ...}`` wrapper shape Alma returns on reads
+        — exercising the round-trip path callers will most often use.
+        """
+        return {
+            "primary_id": "tau000000",
+            "account_type": {"value": "INTERNAL"},
+            "status": {"value": "ACTIVE"},
+            "user_group": {"value": "STAFF"},
+            "first_name": "Synthetic",
+            "last_name": "User",
+        }
+
+    def test_create_user_posts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        body = self._valid_user_data()
+        # Add a non-required extra key to confirm the body passes through
+        # verbatim (the issue's AC is explicit about not stripping fields).
+        body["contact_info"] = {
+            "email": [
+                {
+                    "email_address": "synthetic@example.com",
+                    "preferred": True,
+                }
+            ]
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"primary_id": "tau000000", "first_name": "Synthetic"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user(body)
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users"
+        # JSON body, not multipart.
+        assert call["content_type"] is None
+        # Body forwarded verbatim — including the extra non-required key.
+        assert call["data"] == body
+        # No query params on creation.
+        assert call["params"] is None
+        assert response.data["primary_id"] == "tau000000"
+
+    def test_create_user_accepts_plain_string_account_type(self):
+        """Bare strings for ``account_type`` / ``status`` / ``user_group``
+        must be accepted (mirrors ``Admin.create_set`` behaviour)."""
+        from almaapitk.domains.users import Users
+
+        body = {
+            "primary_id": "tau000000",
+            "account_type": "INTERNAL",
+            "status": "ACTIVE",
+            "user_group": "STAFF",
+        }
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"primary_id": "tau000000"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user(body)
+
+        # Validation accepted bare strings; body forwarded verbatim.
+        assert mock_client.calls["post"][0]["data"] == body
+        assert response.data["primary_id"] == "tau000000"
+
+    def test_create_user_accepts_value_dict_account_type(self):
+        """The canonical ``{"value": "..."}`` wrapper shape must be
+        accepted (the shape Alma returns on reads)."""
+        from almaapitk.domains.users import Users
+
+        body = self._valid_user_data()  # uses {"value": ...} dicts
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"primary_id": "tau000000"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user(body)
+
+        # The body is forwarded as-is; Alma owns server-side semantics.
+        sent = mock_client.calls["post"][0]["data"]
+        assert sent["account_type"] == {"value": "INTERNAL"}
+        assert sent["status"] == {"value": "ACTIVE"}
+        assert sent["user_group"] == {"value": "STAFF"}
+        assert response.data["primary_id"] == "tau000000"
+
+    def test_create_user_raises_on_empty_dict(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user({})
+
+    def test_create_user_raises_on_non_dict(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user("not-a-dict")  # type: ignore[arg-type]
+
+    def test_create_user_raises_on_missing_primary_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body.pop("primary_id")
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_raises_on_empty_primary_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body["primary_id"] = "   "
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_raises_on_missing_account_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body.pop("account_type")
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_raises_on_missing_status(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body.pop("status")
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_raises_on_missing_user_group(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body.pop("user_group")
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_raises_on_empty_value_in_wrapper(self):
+        """The ``{"value": ""}`` shape must fail validation, not
+        silently pass through."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        body = self._valid_user_data()
+        body["account_type"] = {"value": ""}
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user(body)
+
+    def test_create_user_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Primary identifier already exists",
+            status_code=400,
+            alma_code="401873",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.create_user(self._valid_user_data())
+
+
+# ---------------------------------------------------------------------------
+# delete_user  (issue #37)
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteUser:
+    """Tests for ``Users.delete_user`` (issue #37)."""
+
+    def test_delete_user_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        # Alma typically echoes the deleted user's payload — we can
+        # exercise the audit path by returning a stub.
+        mock_client.delete_response = MockAlmaResponse(
+            body={"primary_id": "tau000000", "status": {"value": "ACTIVE"}}
+        )
+        users = Users(mock_client)
+
+        response = users.delete_user("tau000000")
+
+        assert len(mock_client.calls["delete"]) == 1
+        call = mock_client.calls["delete"][0]
+        assert call["endpoint"] == "almaws/v1/users/tau000000"
+        # Should not pass any query params.
+        assert call["params"] is None
+        # Response is returned for audit, including the echoed body.
+        assert response.data["primary_id"] == "tau000000"
+
+    def test_delete_user_strips_id_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.delete_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.delete_user("  tau000000  ")
+
+        # Whitespace stripped from the endpoint URL.
+        assert (
+            mock_client.calls["delete"][0]["endpoint"]
+            == "almaws/v1/users/tau000000"
+        )
+
+    def test_delete_user_raises_on_empty_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.delete_user("")
+
+    def test_delete_user_raises_on_whitespace_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.delete_user("   ")
+
+    def test_delete_user_raises_on_non_string_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.delete_user(None)  # type: ignore[arg-type]
+
+    def test_delete_user_propagates_api_error(self):
+        """When Alma rejects (e.g. user has active loans/fees), the
+        AlmaAPIError must propagate so callers can dispatch on
+        alma_code / tracking_id."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "User has active loans/fees",
+            status_code=400,
+            alma_code="401890",
+            tracking_id="tracking-abc-123",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.delete_user("tau000000")
+
+        # The exception still carries the diagnostic fields callers need.
+        assert exc_info.value.alma_code == "401890"
+        assert exc_info.value.tracking_id == "tracking-abc-123"

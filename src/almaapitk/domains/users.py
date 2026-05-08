@@ -127,6 +127,174 @@ class Users:
                 self.logger.error(f"API error retrieving user {user_id}: {e}")
             raise
     
+    def list_users(
+        self,
+        limit: int = 10,
+        offset: int = 0,
+        q: Optional[str] = None,
+        order_by: Optional[str] = None,
+        expand: Optional[str] = None,
+        source_user_id: Optional[str] = None,
+        source_institution_code: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List or search users via ``GET /almaws/v1/users``.
+
+        Calls the Alma users list/search endpoint and unwraps the
+        response envelope (``{"user": [...], "total_record_count": N}``)
+        into a flat list. ``q`` enables Alma's specialized SRU-style
+        query syntax — e.g. ``last_name~Smith`` or ``primary_id~ST123``.
+        Any non-``None`` filter is forwarded as a query parameter; ``None``
+        values are dropped so Alma applies its own defaults.
+
+        Args:
+            limit: Maximum number of users to return per request
+                (Alma caps at 100). Defaults to 10.
+            offset: Zero-based offset into the result set. Defaults to 0.
+            q: Alma query string (e.g. ``last_name~Smith``). Optional.
+            order_by: Field to sort by (e.g. ``last_name``). Optional.
+            expand: Additional data to include (e.g. ``loans,requests``).
+                Optional.
+            source_user_id: Filter by source-system user identifier
+                (fulfillment-network use case). Optional.
+            source_institution_code: Filter by source-institution code
+                (fulfillment-network use case). Optional.
+
+        Returns:
+            List of user dicts as returned by Alma. Returns an empty
+            list when no users match (or when the response envelope is
+            missing the ``user`` key).
+
+        Raises:
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: Configuration.list_libraries
+        # (configuration.py line 218, issue #24) for the
+        # "single GET, unwrap envelope, return list" idiom. The audit
+        # (2026-05-01) flagged the prior narrower signature as missing
+        # several documented optional filters; surface them explicitly
+        # here so IDE/type-check users get autocompletion.
+        params: Dict[str, Any] = {
+            "limit": str(limit),
+            "offset": str(offset),
+        }
+        if q is not None:
+            params["q"] = q
+        if order_by is not None:
+            params["order_by"] = order_by
+        if expand is not None:
+            params["expand"] = expand
+        if source_user_id is not None:
+            params["source_user_id"] = source_user_id
+        if source_institution_code is not None:
+            params["source_institution_code"] = source_institution_code
+
+        self.logger.info(
+            f"Listing users (limit={limit}, offset={offset}, q={q!r})"
+        )
+        try:
+            response = self.client.get("almaws/v1/users", params=params)
+            payload = response.json() or {}
+            users = payload.get("user") or []
+            if isinstance(users, dict):
+                # Single-record responses can come back as a dict; normalise.
+                users = [users]
+            self.logger.info(f"Retrieved {len(users)} users")
+            return users
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing users: {e}",
+            )
+            raise
+
+    def search_users(
+        self,
+        q: str,
+        limit: int = 10,
+        offset: int = 0,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]:
+        """Search users with a required Alma query string.
+
+        Convenience wrapper around :meth:`list_users` for the common
+        case of "find users matching this query". Validates that ``q``
+        is a non-empty string and forwards every other parameter to
+        :meth:`list_users`.
+
+        Args:
+            q: Alma query string (e.g. ``last_name~Smith``,
+                ``primary_id~ST123``). Required and must be a non-empty
+                string.
+            limit: Maximum number of users to return. Defaults to 10.
+            offset: Zero-based offset into the result set. Defaults to 0.
+            **kwargs: Additional optional filters forwarded to
+                :meth:`list_users` (``order_by``, ``expand``,
+                ``source_user_id``, ``source_institution_code``).
+
+        Returns:
+            List of user dicts matching the query. Returns an empty list
+            when no users match.
+
+        Raises:
+            AlmaValidationError: If ``q`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: list_users (above) — thin wrapper that adds a
+        # required-q validation gate before delegating.
+        if not isinstance(q, str) or not q.strip():
+            raise AlmaValidationError(
+                "Query string 'q' must be a non-empty string"
+            )
+        return self.list_users(
+            q=q.strip(),
+            limit=limit,
+            offset=offset,
+            **kwargs,
+        )
+
+    def get_user_personal_data(self, user_id: str) -> Dict[str, Any]:
+        """Fetch the GDPR personal-data export for a single user.
+
+        Calls ``GET /almaws/v1/users/{user_id}/personal-data`` and
+        returns the raw export payload as a dict. The response body is
+        sensitive (full GDPR data-portability export) — only the
+        ``user_id`` and result-shape are logged, never the body itself.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+
+        Returns:
+            The personal-data export dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails (including 404 / 400
+                + errorCode 401890 when the user does not exist).
+        """
+        # Pattern source: get_user (above) — validate, log entry, GET,
+        # log success without body, propagate API errors.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        endpoint = f"almaws/v1/users/{clean_id}/personal-data"
+        self.logger.info(f"Retrieving personal data for user {clean_id}")
+        try:
+            response = self.client.get(endpoint)
+            data: Dict[str, Any] = response.data or {}
+            # Personal-data responses are sensitive; log only the shape
+            # (top-level key count), never the body itself.
+            self.logger.info(
+                f"Retrieved personal data for user {clean_id} "
+                f"(top-level keys: {len(data)})"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving personal data for user {clean_id}: {e}"
+            )
+            raise
+
     def update_user(self, user_id: str, user_data: Dict[str, Any]) -> AlmaResponse:
         """
         Update a user record.

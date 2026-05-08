@@ -1422,34 +1422,229 @@ class Users:
             )
             raise
 
+    def create_user(self, user_data: Dict[str, Any]) -> AlmaResponse:
+        """Create a new Alma user.
+
+        Wraps ``POST /almaws/v1/users``. ``user_data`` is passed through
+        to Alma verbatim — the caller is responsible for supplying any
+        optional fields (emails, addresses, identifiers, user statistics,
+        etc.). This method validates only the four core fields Alma
+        requires to materialise a user record:
+
+        - ``primary_id`` (str)
+        - ``account_type`` (str or ``{"value": "..."}`` dict)
+        - ``status`` (str or ``{"value": "..."}`` dict)
+        - ``user_group`` (str or ``{"value": "..."}`` dict)
+
+        The ``{"value": "..."}`` wrapper is the canonical shape Alma
+        returns on reads; both the bare string and the wrapper dict are
+        accepted so callers can round-trip a user object without having
+        to reshape it before sending it back.
+
+        Args:
+            user_data: User object payload. Must be a non-empty dict
+                containing the four required keys above. Any extra keys
+                are forwarded verbatim and validated by Alma server-side.
+
+        Returns:
+            ``AlmaResponse`` wrapping the create response. The created
+            user's primary identifier lives at
+            ``response.data["primary_id"]``.
+
+        Raises:
+            AlmaValidationError: If ``user_data`` is empty/not a dict, or
+                if any of ``primary_id`` / ``account_type`` / ``status``
+                / ``user_group`` is missing or empty.
+            AlmaAPIError: If the API request fails (typed subclass when
+                the Alma error code or HTTP status maps to one — see
+                ``AlmaAPIClient._classify_error``).
+
+        Example:
+            >>> response = users.create_user({
+            ...     "primary_id": "<user_primary_id>",
+            ...     "account_type": {"value": "INTERNAL"},
+            ...     "status": {"value": "ACTIVE"},
+            ...     "user_group": {"value": "STAFF"},
+            ...     "first_name": "Ada",
+            ...     "last_name": "Lovelace",
+            ... })
+            >>> created_id = response.data["primary_id"]
+        """
+        # Pattern source: Admin.create_set (issue #23) — same
+        # validate-via-helper / log-without-body / POST-verbatim shape,
+        # including the bare-string-vs-{"value": ...}-dict acceptance.
+        # See also Users.create_user_fee (above, issue #44) for the
+        # state-changing log discipline (entry, success, error with
+        # alma_code + tracking_id).
+        self._validate_user_data_for_create(user_data)
+        primary_id = user_data.get("primary_id")
+
+        # Audit-log shape per R9 (no PII): only the primary_id and a
+        # count of top-level keys on the body. Never log the full body —
+        # it may contain personal data, addresses, identifiers, etc.
+        self.logger.info(
+            f"Creating user: {primary_id} (user_data_keys={len(user_data)})"
+        )
+
+        try:
+            response = self.client.post("almaws/v1/users", data=user_data)
+            created_primary_id = None
+            try:
+                created_primary_id = response.data.get("primary_id")
+            except (ValueError, AttributeError):
+                # Body may not be JSON / dict; the response itself is
+                # still a valid AlmaResponse and we should hand it back.
+                created_primary_id = None
+
+            if created_primary_id:
+                self.logger.info(
+                    f"Created user: {created_primary_id}"
+                )
+            else:
+                self.logger.info(
+                    f"Created user: {primary_id}"
+                )
+            return response
+
+        except AlmaAPIError as e:
+            alma_code = getattr(e, "alma_code", "")
+            tracking_id = getattr(e, "tracking_id", None)
+            self.logger.error(
+                f"API error creating user {primary_id}: {e} "
+                f"(alma_code={alma_code!r}, tracking_id={tracking_id!r})"
+            )
+            raise
+
+    def delete_user(self, user_id: str) -> AlmaResponse:
+        """Delete a user by primary id.
+
+        Wraps ``DELETE /almaws/v1/users/{user_id}``. Alma rejects the
+        delete when the user has active loans, requests, or unpaid fees
+        — those rejections surface as ``AlmaAPIError`` with the Alma
+        error code intact for the caller to dispatch on.
+
+        Args:
+            user_id: The user's primary identifier (or any other
+                Alma-accepted id type). Must be a non-empty string.
+
+        Returns:
+            ``AlmaResponse`` wrapping the delete response. Alma typically
+            echoes the deleted user's payload back in the body, which is
+            useful for audit trails — callers that record deletions
+            should persist ``response.data`` before discarding the
+            response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: On API failure (typed subclass when the Alma
+                error code or HTTP status maps to one — e.g.,
+                ``AlmaResourceNotFoundError`` for an unknown user). The
+                exception carries ``alma_code`` and ``tracking_id`` so
+                callers can surface the precise reason (active loans,
+                outstanding fees, etc.).
+        """
+        # Pattern source: Admin.delete_set (issue #23) — same
+        # validate-id / log entry / DELETE / log success / log error with
+        # alma_code + tracking_id shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        self.logger.info(f"Deleting user: {clean_id}")
+
+        try:
+            response = self.client.delete(f"almaws/v1/users/{clean_id}")
+            self.logger.info(f"Deleted user: {clean_id}")
+            return response
+
+        except AlmaAPIError as e:
+            alma_code = getattr(e, "alma_code", "")
+            tracking_id = getattr(e, "tracking_id", None)
+            self.logger.error(
+                f"API error deleting user {clean_id}: {e} "
+                f"(alma_code={alma_code!r}, tracking_id={tracking_id!r})"
+            )
+            raise
+
+    @staticmethod
+    def _validate_user_data_for_create(user_data: Any) -> None:
+        """Validate the ``user_data`` argument to ``create_user``.
+
+        Enforces the four core fields Alma requires on user creation:
+        ``primary_id``, ``account_type``, ``status``, ``user_group``.
+        The latter three accept either a bare string or the canonical
+        ``{"value": "..."}`` wrapper dict (the shape Alma returns on
+        reads).
+
+        Args:
+            user_data: Candidate payload for ``create_user``.
+
+        Raises:
+            AlmaValidationError: If ``user_data`` is not a non-empty
+                dict, or if any required key is missing or empty.
+        """
+        # Pattern source: Admin._validate_set_data_for_create (issue
+        # #23) — same {bare-string | {"value": ...} dict} acceptance.
+        if not isinstance(user_data, dict) or not user_data:
+            raise AlmaValidationError(
+                "user_data must be a non-empty dict"
+            )
+
+        primary_id = user_data.get("primary_id")
+        if not isinstance(primary_id, str) or not primary_id.strip():
+            raise AlmaValidationError(
+                "user_data['primary_id'] is required and must be a "
+                "non-empty string"
+            )
+
+        for field in ("account_type", "status", "user_group"):
+            value = user_data.get(field)
+            if isinstance(value, dict):
+                inner = value.get("value")
+                if not isinstance(inner, str) or not inner.strip():
+                    raise AlmaValidationError(
+                        f"user_data[{field!r}]['value'] is required and "
+                        f"must be a non-empty string"
+                    )
+            elif isinstance(value, str):
+                if not value.strip():
+                    raise AlmaValidationError(
+                        f"user_data[{field!r}] must be a non-empty string"
+                    )
+            else:
+                raise AlmaValidationError(
+                    f"user_data[{field!r}] is required (string or "
+                    f"{{'value': '<CODE>'}} dict)"
+                )
+
     def update_user(self, user_id: str, user_data: Dict[str, Any]) -> AlmaResponse:
         """
         Update a user record.
-        
+
         Args:
             user_id: User identifier
             user_data: Complete user data to update
-        
+
         Returns:
             AlmaResponse containing updated user data
-            
+
         Raises:
             AlmaValidationError: If user_id is empty or user_data is invalid
             AlmaAPIError: If API request fails
         """
         if not user_id or not user_id.strip():
             raise AlmaValidationError("User ID cannot be empty")
-        
+
         if not user_data or not isinstance(user_data, dict):
             raise AlmaValidationError("User data must be a non-empty dictionary")
-        
+
         endpoint = f'almaws/v1/users/{user_id.strip()}'
-        
+
         try:
             response = self.client.put(endpoint, data=user_data)
             self.logger.info(f"Updated user {user_id}")
             return response
-            
+
         except AlmaAPIError as e:
             self.logger.error(f"API error updating user {user_id}: {e}")
             raise

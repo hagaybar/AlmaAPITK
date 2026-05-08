@@ -44,6 +44,7 @@ effects — callers must restrict it to known-safe workflow ids.
 Concrete API methods for the remaining sibling tickets (calendars, etc.)
 land in those tickets and intentionally do NOT live here.
 """
+import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional
 
 from almaapitk.client.AlmaAPIClient import (
@@ -53,6 +54,60 @@ from almaapitk.client.AlmaAPIClient import (
     AlmaValidationError,
 )
 from almaapitk.alma_logging import get_logger
+
+
+def _alma_dict_to_xml(data: Dict[str, Any], root_tag: str) -> str:
+    """Serialize an Alma-style dict to an XML body string.
+
+    Handles the two idioms Alma uses in JSON responses:
+
+    - Plain string-valued fields → ``<tag>value</tag>``.
+    - ``{"value": v, "desc": d, "link": l}`` wrapper dicts → become
+      ``<tag desc="d" link="l">v</tag>`` (``desc`` and ``link`` are
+      treated as read-only metadata attributes; only ``value`` is the
+      payload). Empty / missing entries are omitted.
+
+    Other dict shapes recurse, producing nested elements. Lists produce
+    repeated child elements (caller controls the parent tag). ``None``
+    values produce an empty element.
+
+    Used by :meth:`Configuration.update_letter` (issue #114) — Alma's
+    letters PUT endpoint requires an XML request body and rejects JSON
+    with ``60105`` ("JSON is not supported for this API."). ``ET``
+    escapes ``<``, ``>``, and ``&`` in element text, so an embedded XSL
+    template (which itself contains XML markup) round-trips safely
+    without explicit ``CDATA`` wrapping.
+    """
+    root = ET.Element(root_tag)
+    _build_element(root, data)
+    return ET.tostring(root, encoding="unicode")
+
+
+_VALUE_DESC_KEYS = {"value", "desc", "link"}
+
+
+def _build_element(parent: ET.Element, data: Any) -> None:
+    """Populate ``parent`` from ``data`` per the Alma idioms above."""
+    if isinstance(data, dict):
+        if data and set(data.keys()) <= _VALUE_DESC_KEYS:
+            value = data.get("value", "")
+            desc = data.get("desc")
+            link = data.get("link")
+            if desc is not None and desc != "":
+                parent.set("desc", str(desc))
+            if link is not None and link != "":
+                parent.set("link", str(link))
+            parent.text = str(value) if value not in (None, "") else None
+        else:
+            for key, val in data.items():
+                child = ET.SubElement(parent, key)
+                _build_element(child, val)
+    elif isinstance(data, list):
+        for item in data:
+            child = ET.SubElement(parent, parent.tag)
+            _build_element(child, item)
+    else:
+        parent.text = str(data) if data is not None else None
 
 
 class Configuration:
@@ -1534,26 +1589,32 @@ class Configuration:
     ) -> AlmaResponse:
         """Replace an entire letter template.
 
-        .. warning::
-            **Known limitation as of 2026-05-07:** the live Alma
-            letters PUT endpoint requires an XML request body and
-            rejects JSON with HTTP 400 + Alma error code ``60105``
-            ("JSON is not supported for this API."). This method
-            sends JSON like the rest of the toolkit, so calls against
-            live Alma will fail. The implementation is correct for a
-            JSON-accepting endpoint and is exercised by the unit-test
-            suite (mocked HTTP); XML body support is tracked as a
-            follow-up issue. Until that ships, treat this method as
-            non-functional against live Alma.
-
         Wraps ``PUT /almaws/v1/conf/letters/{letterCode}``. **The PUT
         replaces the entire letter — it is NOT a partial update.** Alma
-        requires the complete letter object on the wire (subject, body,
-        XSL template, enabled flag, etc.). Callers typically read the
-        letter with :meth:`get_letter`, mutate the dict (edit the
-        subject text or the ``letter_template_xsl`` body), then pass
-        the whole thing back here. Fields omitted from the request body
-        are dropped from the letter.
+        requires the complete letter object on the wire (the XSL
+        template body, the enabled flag, the channel, etc.). Callers
+        typically read the letter with :meth:`get_letter`, mutate the
+        dict, then pass the whole thing back here. Fields omitted from
+        the request body are dropped from the letter.
+
+        .. note::
+            **The Alma letters PUT endpoint is XML-only — it rejects
+            JSON with Alma error code 60105 ("JSON is not supported
+            for this API.").** This method serialises ``letter_data``
+            to XML internally before sending and forces an
+            ``application/json`` ``Accept`` header so the response is
+            still parsed as JSON into ``AlmaResponse.data``. Callers
+            pass and receive Python dicts; the XML conversion is an
+            implementation detail. (Resolved by issue #114, 2026-05-08.)
+
+        .. note::
+            **Some letter fields are derived/read-only on Alma's
+            side** — notably ``description``, which is sourced from
+            the labels code-table mapping rather than stored on the
+            letter object. Mutating such fields in the request body
+            yields a ``200`` response but no observable change. The
+            mutable surface includes ``enabled``, ``customized``,
+            ``channel``, and the XSL template body itself.
 
         Args:
             letter_code: The Alma letter code (e.g.
@@ -1593,10 +1654,20 @@ class Configuration:
             letter_code=code,
         )
 
+        # Issue #114: Alma's letters PUT requires XML; serialise the
+        # caller's dict and send with Content-Type: application/xml.
+        # Force Accept: application/json on the response so AlmaResponse
+        # parses it as a dict (the default Accept gets flipped to xml
+        # by `_prepare_headers` whenever Content-Type is xml — that
+        # would defeat the dict-in / dict-out contract of this method).
+        xml_body = _alma_dict_to_xml(letter_data, "letter")
+
         try:
             response = self.client.put(
                 f"almaws/v1/conf/letters/{code}",
-                data=letter_data,
+                data=xml_body,
+                content_type="application/xml",
+                custom_headers={"Accept": "application/json"},
             )
             self.logger.info(
                 f"✓ Updated letter: {code}",

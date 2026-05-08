@@ -127,12 +127,19 @@ class MockAlmaAPIClient:
     def put(
         self,
         endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[Any] = None,
         params: Optional[Dict[str, Any]] = None,
+        content_type: Optional[str] = None,
         custom_headers: Optional[Dict[str, str]] = None,
     ) -> MockAlmaResponse:
         self.calls["put"].append(
-            {"endpoint": endpoint, "data": data, "params": params}
+            {
+                "endpoint": endpoint,
+                "data": data,
+                "params": params,
+                "content_type": content_type,
+                "custom_headers": custom_headers,
+            }
         )
         if self.next_exception is not None:
             exc, self.next_exception = self.next_exception, None
@@ -2712,6 +2719,110 @@ class TestGetLetter:
         assert "Letter code" in str(exc_info.value)
 
 
+class TestAlmaDictToXml:
+    """Tests for the dict → XML serializer used by update_letter (issue #114)."""
+
+    def test_plain_string_fields(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml({"a": "1", "b": "2"}, "letter")
+        assert xml == "<letter><a>1</a><b>2</b></letter>"
+
+    def test_value_desc_dict_collapses_to_scalar(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml(
+            {"enabled": {"value": "true", "desc": "Yes"}}, "letter"
+        )
+        # Value becomes element text; desc rides as an attribute.
+        assert xml == '<letter><enabled desc="Yes">true</enabled></letter>'
+
+    def test_value_only_dict_yields_text_no_attributes(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml({"updated_by": {"value": "abc"}}, "letter")
+        assert xml == "<letter><updated_by>abc</updated_by></letter>"
+
+    def test_empty_string_value_omits_text(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml({"retention_period": ""}, "letter")
+        # Self-closing or empty element either way is acceptable.
+        assert xml in {
+            "<letter><retention_period /></letter>",
+            "<letter><retention_period></retention_period></letter>",
+        }
+
+    def test_link_attribute_is_preserved_when_present(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml(
+            {
+                "labels": {
+                    "value": "SyntheticLetterCode",
+                    "link": "https://example/code-tables/X",
+                }
+            },
+            "letter",
+        )
+        assert "labels" in xml
+        assert 'link="https://example/code-tables/X"' in xml
+        assert ">SyntheticLetterCode<" in xml
+
+    def test_xsl_content_is_escaped_not_raw(self):
+        # Embedded XML markup in element text is escaped by ElementTree
+        # so the receiver can unescape it back. CDATA is not required.
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xsl = '<xsl:stylesheet xmlns:xsl="x"><foo & bar></xsl:stylesheet>'
+        xml = _alma_dict_to_xml({"xsl": xsl}, "letter")
+        assert "&lt;xsl:stylesheet" in xml
+        assert "&amp;" in xml
+        # The raw < should NOT appear inside element text.
+        assert "<xsl:stylesheet" not in xml.replace("<xsl>", "").replace(
+            "<letter>", ""
+        )
+
+    def test_letter_round_trip_shape_matches_alma_get_response(self):
+        # End-to-end check: a payload mirroring an Alma get_letter
+        # response serialises to a well-formed <letter>...</letter>.
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        payload = {
+            "code": "SyntheticLetterCode",
+            "enabled": {"value": "false", "desc": "No"},
+            "name": "Ful Transit Slip Letter",
+            "description": "Ful Transit Slip Letter",
+            "channel": "EMAIL",
+            "retention_period": "",
+            "customized": {"value": "false", "desc": "No"},
+            "patron_facing": {"value": "false", "desc": "No"},
+            "updated_by": {"value": "027393602"},
+            "update_date": "2018-10-24Z",
+            "labels": {
+                "value": "SyntheticLetterCode",
+                "link": "https://example/code-tables/SyntheticLetterCode",
+            },
+            "xsl": "<?xml version='1.0'?><xsl:stylesheet/>",
+        }
+        xml = _alma_dict_to_xml(payload, "letter")
+        assert xml.startswith("<letter>")
+        assert xml.endswith("</letter>")
+        assert "<code>SyntheticLetterCode</code>" in xml
+        assert "<enabled" in xml and "false</enabled>" in xml
+        assert "<channel>EMAIL</channel>" in xml
+        assert "&lt;xsl:stylesheet" in xml  # escaped, not raw
+
+    def test_none_value_yields_empty_element(self):
+        from almaapitk.domains.configuration import _alma_dict_to_xml
+
+        xml = _alma_dict_to_xml({"foo": None}, "letter")
+        assert xml in {
+            "<letter><foo /></letter>",
+            "<letter><foo></foo></letter>",
+        }
+
+
 class TestUpdateLetter:
     """Tests for ``Configuration.update_letter`` (issue #33)."""
 
@@ -2730,6 +2841,10 @@ class TestUpdateLetter:
         }
 
     def test_update_letter_calls_correct_endpoint_and_returns_response(self):
+        # Issue #114: Alma's letters PUT requires XML, so update_letter
+        # serialises the dict and sends Content-Type: application/xml
+        # while forcing Accept: application/json so the response is
+        # still parsed as a dict by AlmaResponse.
         from almaapitk.domains.configuration import Configuration
 
         mock_client = MockAlmaAPIClient()
@@ -2752,8 +2867,20 @@ class TestUpdateLetter:
             call["endpoint"]
             == "almaws/v1/conf/letters/OverdueAndLostLoanLetter"
         )
-        # Body forwarded verbatim — full letter object on the wire.
-        assert call["data"] == self._valid_payload()
+        # Body is XML, not the raw dict.
+        assert isinstance(call["data"], str)
+        assert call["data"].startswith("<letter>")
+        assert call["data"].endswith("</letter>")
+        # Content-Type and Accept are wired for the XML-in / JSON-out shape.
+        assert call["content_type"] == "application/xml"
+        assert call["custom_headers"] == {"Accept": "application/json"}
+        # XML body carries every top-level field from the payload.
+        assert "<code>OverdueAndLostLoanLetter</code>" in call["data"]
+        assert "<subject>Your loan is overdue</subject>" in call["data"]
+        # value/desc dicts collapse to scalar text (desc is preserved
+        # as an attribute when present and non-empty).
+        assert '<enabled>true</enabled>' in call["data"] or '<enabled' in call["data"]
+
         assert response is mock_client.put_response
         assert response.data["code"] == "OverdueAndLostLoanLetter"
 

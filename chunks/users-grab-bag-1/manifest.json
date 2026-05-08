@@ -1,0 +1,135 @@
+{
+  "chunk": "users-grab-bag-1",
+  "issues": [
+    {
+      "number": 39,
+      "title": "Coverage: Users: user attachments",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/39",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## Background\nAdd coverage for user attachments (the `Attachments` resource hanging off a\nuser, used for ID scans, deposit receipts, ILL paperwork, etc.). The wrapper\nhas no methods for this resource today.\n\nThe audit (2026-05-01) flagged two ambiguities in the original proposal that\nneed to be resolved during implementation, not assumed away:\n\n1. The `GET /attachments/{attachment_id}` shape \u2014 the docs describe an\n   `Attachment` object with `expand=content` / `content_no_encoding` query\n   params, **not** a raw-bytes binary download as the original signature\n   implied (`-> bytes`).\n2. The `POST` shape \u2014 the original notes called it \"multipart\"; the docs\n   describe an Attachment object payload with the file content embedded\n   (base64 inside the Attachment object). Multipart vs JSON+base64 must be\n   verified against the developer-network docs before coding.\n\n## Relevant Alma API documentation\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Endpoints touched:\n  - `GET /almaws/v1/users/{user_id}/attachments`\n  - `POST /almaws/v1/users/{user_id}/attachments`\n  - `GET /almaws/v1/users/{user_id}/attachments/{attachment_id}`\n- Note: docs describe an Attachment XML/JSON object; the GET single-attachment\n  endpoint accepts an `expand` query param taking values `content` (returns\n  base64-encoded content inline) or `content_no_encoding` (returns raw text\n  inline) \u2014 see \"User Attachments\" page on the dev network.\n- No DELETE endpoint is documented for user attachments.\n\n## Current wrapper behavior\nNone. `BibliographicRecords.create_representation` /\n`link_file_to_representation` (`src/almaapitk/domains/bibs.py:569-690`) provide\na precedent for binary uploads on a different domain; reuse the helper\npatterns there only after confirming the user-attachments endpoint actually\naccepts the same shape.\n\n## Expected wrapper behavior\n\n```python\ndef list_user_attachments(self, user_id: str) -> List[Dict[str, Any]]: ...\n\ndef get_user_attachment(\n    self,\n    user_id: str,\n    attachment_id: str,\n    expand: str = None,    # \"content\" or \"content_no_encoding\"\n) -> Dict[str, Any]:\n    \"\"\"\n    Returns the Attachment object. When `expand` is set, the object contains\n    the file payload inline (base64 if 'content', plaintext if\n    'content_no_encoding'). Callers needing raw bytes should base64-decode\n    the inline content themselves.\n    \"\"\"\n\ndef upload_user_attachment(\n    self,\n    user_id: str,\n    file_path: str,\n    attachment_data: Dict[str, Any] = None,\n) -> AlmaResponse:\n    \"\"\"\n    Uploads a file to a user's attachments. Wraps the file bytes into the\n    Attachment object format documented by Alma (verify exact shape against\n    dev-network docs at implementation time \u2014 multipart vs JSON+base64 is\n    NOT to be guessed).\n    \"\"\"\n```\n\n## Implementation notes\n- **Verify before coding** whether the POST endpoint expects multipart form\n  data or a JSON body with embedded base64 content. The original ticket\n  asserted multipart; the audit flagged this as unverified. Resolve by\n  reading the developer-network \"Create Attachment\" page directly.\n- `get_user_attachment` returns the Attachment object as a dict; do not\n  silently base64-decode \u2014 let the caller decide.\n- `attachment_type` was on the original signature; replace with a generic\n  `attachment_data: Dict[str, Any]` so callers can supply the full\n  documented Attachment object (note, type, etc.).\n- Validate `user_id`, `attachment_id`, and `file_path` (must exist on disk)\n  at method entry.\n\n## Acceptance criteria\n- [ ] All three endpoints exposed with type hints and Google-style docstrings.\n- [ ] `get_user_attachment` accepts the documented `expand` query parameter\n      and returns the Attachment dict (NOT raw `bytes`).\n- [ ] `upload_user_attachment` body shape matches what the developer-network\n      docs actually require (verified at implementation time, not guessed).\n- [ ] Unit tests (mocked HTTP) cover: list, get without expand, get with\n      `expand=content`, upload happy path, upload with missing file.\n- [ ] At least one SANDBOX integration test that round-trips an attachment\n      (upload \u2192 list \u2192 get \u2192 verify content).\n- [ ] No DELETE method is implemented (Alma does not document one).\n- [ ] No `print()` \u2014 all operations logged via `alma_logging`. File contents\n      are NOT logged.\n- [ ] `scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.\n\n## Open questions\n- Multipart vs JSON+base64 for upload \u2014 must be verified against the\n  developer-network \"Create Attachment\" page before implementation.\n- Whether `expand=content` is mandatory or merely recommended for\n  `get_user_attachment` callers needing the file body.\n\n## Audit notes (2026-05-01)\n- Primary audit: **Partially aligned**. Endpoints correct; the\n  raw-bytes return type and multipart upload assumption are not confirmed by\n  docs. Action: verify response shape and request shape during implementation.\n- Codex direct audit: **Partially aligned** \u2014 same finding, with the explicit\n  doc reference to Attachment objects + `expand=content` /\n  `content_no_encoding`.\n- Decision: re-shape the signature to return `Dict[str, Any]` and accept\n  `expand`, and replace ad-hoc multipart with a doc-verified upload body.\n\n## Files to touch\n- `src/almaapitk/domains/users.py` (extend existing `Users` class)\n- `tests/unit/domains/test_users.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- See `BibliographicRecords.create_representation` / `link_file_to_representation` (`src/almaapitk/domains/bibs.py:569-690`) for binary-upload pattern, but verify whether user attachments uses the same shape before reusing.\n- No DELETE endpoint for attachments per the API.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Users",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "tests/unit/domains/test_users.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All three endpoints exposed with type hints and Google-style docstrings.",
+        "`get_user_attachment` accepts the documented `expand` query parameter",
+        "`upload_user_attachment` body shape matches what the developer-network",
+        "Unit tests (mocked HTTP) cover: list, get without expand, get with",
+        "At least one SANDBOX integration test that round-trips an attachment",
+        "No DELETE method is implemented (Alma does not document one).",
+        "No `print()` \u2014 all operations logged via `alma_logging`. File contents",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass."
+      ]
+    },
+    {
+      "number": 44,
+      "title": "Coverage: Users: fines & fees",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/44",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## Background\nAdd coverage for the user fines & fees resource. Endpoints and `op` values\nmatch docs, but the audit (2026-05-01) flagged three signature-level\nmismatches that need to be corrected before implementation:\n\n1. `pay_all_user_fees` omits the mandatory `op=pay` query param plus the\n   literal `amount=ALL` value used by Alma for the bulk-pay endpoint.\n2. `dispute_user_fee(... reason: str)` makes `reason` required, but only\n   `op=waive` documents `reason` as required \u2014 `op=dispute` does not.\n3. `method='CASH'` should not be the silent default for non-`pay` ops; it\n   only applies when posting `op=pay`.\n\n## Relevant Alma API documentation\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Endpoints touched:\n  - `GET /almaws/v1/users/{user_id}/fees`\n  - `POST /almaws/v1/users/{user_id}/fees`\n  - `GET /almaws/v1/users/{user_id}/fees/{fee_id}`\n  - `POST /almaws/v1/users/{user_id}/fees/all` (bulk pay)\n  - `POST /almaws/v1/users/{user_id}/fees/{fee_id}` (`op=pay|waive|dispute|restore`)\n\nPer docs:\n- `pay_all` and per-fee `pay` both require `op=pay` plus `amount` (`ALL`,\n  `numeric`, etc.) and `method` (`CASH`, `CREDIT_CARD`, `ONLINE`, ...).\n- `op=waive` requires `reason`. `op=dispute` and `op=restore` do not.\n- All of the above are query parameters, not body fields.\n\n## Current wrapper behavior\nNone of the fees endpoints are wrapped today.\n\n## Expected wrapper behavior\n\n```python\ndef list_user_fees(self, user_id: str, status: str = None) -> Dict[str, Any]:\n    \"\"\"Returns the Alma envelope (`total_record_count`, `fee[]`).\"\"\"\n\ndef create_user_fee(self, user_id: str, fee_data: Dict[str, Any]) -> AlmaResponse: ...\n\ndef get_user_fee(self, user_id: str, fee_id: str) -> Dict[str, Any]: ...\n\ndef pay_all_user_fees(\n    self,\n    user_id: str,\n    amount: str = 'ALL',         # 'ALL' or numeric string\n    method: str = 'CASH',\n    external_transaction_id: str = None,\n) -> AlmaResponse:\n    \"\"\"POST .../fees/all?op=pay&amount=...&method=...\"\"\"\n\ndef pay_user_fee(\n    self,\n    user_id: str,\n    fee_id: str,\n    amount: str,\n    method: str = 'CASH',\n    external_transaction_id: str = None,\n) -> AlmaResponse:\n    \"\"\"POST .../fees/{fee_id}?op=pay&amount=...&method=...\"\"\"\n\ndef waive_user_fee(\n    self,\n    user_id: str,\n    fee_id: str,\n    reason: str,                 # REQUIRED (op=waive)\n    amount: str = None,\n    comment: str = None,\n) -> AlmaResponse: ...\n\ndef dispute_user_fee(\n    self,\n    user_id: str,\n    fee_id: str,\n    reason: str = None,          # OPTIONAL (audit-corrected)\n    comment: str = None,\n) -> AlmaResponse: ...\n\ndef restore_user_fee(\n    self,\n    user_id: str,\n    fee_id: str,\n    comment: str = None,\n) -> AlmaResponse: ...\n```\n\n## Implementation notes\n- Each action method is a thin wrapper that builds the correct query string\n  (`op=...&amount=...&method=...`) and posts to the right URL.\n- Keep `method` as a parameter only on payment methods (`pay_all_user_fees`,\n  `pay_user_fee`); do NOT make it a default on non-payment ops.\n- Validate non-empty `reason` for `waive_user_fee` at call time\n  (`AlmaValidationError`).\n- Treat `amount` as `str` (not `float`) to avoid floating-point precision\n  issues \u2014 Alma's API accepts string amounts including the literal `ALL`.\n\n## Acceptance criteria\n- [ ] `pay_all_user_fees` posts to `.../fees/all` with **`op=pay`** and\n      **`amount`** (default `'ALL'`) and **`method`** as query parameters.\n- [ ] `pay_user_fee(amount, method)` posts to `.../fees/{fee_id}` with\n      `op=pay` plus `amount` and `method` as query params.\n- [ ] `waive_user_fee` requires non-empty `reason` (validated) and posts\n      `op=waive&reason=...`.\n- [ ] `dispute_user_fee.reason` is **optional**; method posts `op=dispute`.\n- [ ] `restore_user_fee` posts `op=restore` with no required extras.\n- [ ] No method silently injects `method='CASH'` outside payment ops.\n- [ ] Unit tests cover each of the 4 `op` values, plus the `pay_all` shape.\n- [ ] At least one SANDBOX integration test for each `op`.\n- [ ] No `print()` \u2014 operations logged via `alma_logging`.\n- [ ] `scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.\n\n## Open questions\n- Whether `external_transaction_id` is part of the standard query string for\n  online payments \u2014 confirm during integration testing.\n\n## Audit notes (2026-05-01)\n- Primary audit: **Partially aligned**. `pay_all_user_fees` missed `op=pay`\n  + `amount=ALL`; `dispute_user_fee.reason` is wrongly required; `method`\n  default leaks into non-pay ops.\n- Codex direct audit: **Aligned** (didn't flag the signature-level issues).\n- Decision: take the stricter primary-audit recommendation and re-shape the\n  signatures so each `op` carries exactly the params Alma documents.\n\n## Files to touch\n- `src/almaapitk/domains/users.py` (extend existing `Users` class)\n- `tests/unit/domains/test_users.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules \u2014 `op` values: `pay`, `waive`, `dispute`, `restore`\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- POST /fees/{fee_id} dispatches on `op` \u2014 single endpoint, multiple operations.\n- `pay_all_user_fees` posts to `/fees/all` (a special endpoint, not a fee_id of \"all\").\n- Always include `method` (CASH / CREDIT_CARD / ONLINE / etc.) for payment ops.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Users",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "tests/unit/domains/test_users.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules \u2014 `op` values: `pay`, `waive`, `dispute`, `restore`"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "`pay_all_user_fees` posts to `.../fees/all` with **`op=pay`** and",
+        "`pay_user_fee(amount, method)` posts to `.../fees/{fee_id}` with",
+        "`waive_user_fee` requires non-empty `reason` (validated) and posts",
+        "`dispute_user_fee.reason` is **optional**; method posts `op=dispute`.",
+        "`restore_user_fee` posts `op=restore` with no required extras.",
+        "No method silently injects `method='CASH'` outside payment ops.",
+        "Unit tests cover each of the 4 `op` values, plus the `pay_all` shape.",
+        "At least one SANDBOX integration test for each `op`.",
+        "No `print()` \u2014 operations logged via `alma_logging`.",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass."
+      ]
+    },
+    {
+      "number": 45,
+      "title": "Coverage: Users: deposits",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/45",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** High\n**Effort:** S (\u2264\u00bd day)\n\n## API endpoints touched\n- `GET /almaws/v1/users/{user_id}/deposits`\n- `POST /almaws/v1/users/{user_id}/deposits`\n- `GET /almaws/v1/users/{user_id}/deposits/{deposit_id}`\n- `POST /almaws/v1/users/{user_id}/deposits/{deposit_id}`\n\n## Methods to add\n```python\ndef list_user_deposits(self, user_id: str) -> List[Dict[str, Any]]\ndef create_user_deposit(self, user_id: str, deposit_data: Dict[str, Any]) -> AlmaResponse\ndef get_user_deposit(self, user_id: str, deposit_id: str) -> Dict[str, Any]\ndef perform_user_deposit_action(self, user_id: str, deposit_id: str, op: str) -> AlmaResponse\n```\n\n## Files to touch\n- `src/almaapitk/domains/users.py (extend existing Users class)`\n- `tests/unit/domains/test_users.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Acceptance criteria\n- All listed methods implemented on the existing domain class with type hints and docstrings.\n- Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.\n- Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).\n- All operations logged through `alma_logging` (no `print`).\n- `scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.\n- If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- Deposits are typically used for ILL fees, key deposits, etc. Refer to `alma-api-expert` for action `op` values.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.",
+      "domain": "Users",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [
+        "GET /almaws/v1/users/{user_id}/deposits",
+        "POST /almaws/v1/users/{user_id}/deposits",
+        "GET /almaws/v1/users/{user_id}/deposits/{deposit_id}",
+        "POST /almaws/v1/users/{user_id}/deposits/{deposit_id}"
+      ],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "tests/unit/domains/test_users.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All listed methods implemented on the existing domain class with type hints and docstrings.",
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+        "All operations logged through `alma_logging` (no `print`).",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1990 @@
+{
+  "issueNumber": 45,
+  "domains": [
+    "users"
+  ],
+  "reports": [
+    {
+      "domain": "users",
+      "swaggerUrl": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/users.json",
+      "fetchedAt": "2026-05-08T18:53:06+00:00",
+      "codeCount": 107,
+      "codes": [
+        {
+          "code": "60100",
+          "message": "The parameter X must be a number greater than zero.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "The parameter X must be a number greater than zero."
+            }
+          ]
+        },
+        {
+          "code": "60101",
+          "message": "General Error: An error has occurred while processing the request.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/ME",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            }
+          ]
+        },
+        {
+          "code": "60221",
+          "message": "Mms ID is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Mms ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60224",
+          "message": "Organization institution not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Organization institution not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Organization institution not found."
+            }
+          ]
+        },
+        {
+          "code": "60225",
+          "message": "Fulfillment network not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network not found."
+            }
+          ]
+        },
+        {
+          "code": "60226",
+          "message": "Fulfillment network copied user not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network copied user not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network copied user not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network copied user not found."
+            }
+          ]
+        },
+        {
+          "code": "60227",
+          "message": "Linked account for user already exists.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Linked account for user already exists."
+            }
+          ]
+        },
+        {
+          "code": "60228",
+          "message": "Failed to create linked user account.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create linked user account."
+            }
+          ]
+        },
+        {
+          "code": "60229",
+          "message": "Failed to find linked account for user.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find linked account for user."
+            }
+          ]
+        },
+        {
+          "code": "60230",
+          "message": "Failed to refresh linked user.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to refresh linked user."
+            }
+          ]
+        },
+        {
+          "code": "60231",
+          "message": "Failed to link user due to identifier issues.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Failed to link user due to identifier issues."
+            }
+          ]
+        },
+        {
+          "code": "60232",
+          "message": "Failed to link user due to user group empty.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Failed to link user due to user group empty."
+            }
+          ]
+        },
+        {
+          "code": "60258",
+          "message": "The API Restricted profile is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/all",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The API Restricted profile is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60270",
+          "message": "Requested format is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Requested format is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60271",
+          "message": "Currency is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Currency is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60272",
+          "message": "Vendor account is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Vendor account is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60273",
+          "message": "Title is missing.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Title is missing."
+            }
+          ]
+        },
+        {
+          "code": "60274",
+          "message": "Resource metadata is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Resource metadata is required."
+            }
+          ]
+        },
+        {
+          "code": "60275",
+          "message": "Purchase request status is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request status is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60276",
+          "message": "The purchase request identifier is not valid.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The purchase request identifier is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The purchase request identifier is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60277",
+          "message": "The purchase request deletion failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The purchase request deletion failed."
+            }
+          ]
+        },
+        {
+          "code": "60278",
+          "message": "Purchase request creation failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request creation failed."
+            }
+          ]
+        },
+        {
+          "code": "60279",
+          "message": "Fund is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Fund is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60280",
+          "message": "Purchase request citation not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request citation not valid."
+            }
+          ]
+        },
+        {
+          "code": "60281",
+          "message": "Purchase request location",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request location"
+            }
+          ]
+        },
+        {
+          "code": "60282",
+          "message": "Purchase request location",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request location"
+            }
+          ]
+        },
+        {
+          "code": "60283",
+          "message": "Purchase request location",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase request location"
+            }
+          ]
+        },
+        {
+          "code": "60308",
+          "message": "Delivery to personal address is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery to personal address is not supported."
+            }
+          ]
+        },
+        {
+          "code": "60309",
+          "message": "User does not have address for personal delivery.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User does not have address for personal delivery."
+            }
+          ]
+        },
+        {
+          "code": "60310",
+          "message": "Delivery is not supported for this type of personal address.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Delivery is not supported for this type of personal address."
+            }
+          ]
+        },
+        {
+          "code": "60321",
+          "message": "Attachment X not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment X not found."
+            }
+          ]
+        },
+        {
+          "code": "60322",
+          "message": "Attachment content could not be processed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/attachments",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/attachments/{attachment_id}",
+              "httpStatus": "400",
+              "messageVariant": "Attachment content could not be processed."
+            }
+          ]
+        },
+        {
+          "code": "60324",
+          "message": "Fulfillment network is not configured.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network is not configured."
+            }
+          ]
+        },
+        {
+          "code": "60325",
+          "message": "Fulfillment network institution is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network institution is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60326",
+          "message": "Fulfillment network pickup library or pickup circulation desk is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60327",
+          "message": "Fulfillment network pickup library or pickup circulation desk is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Fulfillment network pickup library or pickup circulation desk is required."
+            }
+          ]
+        },
+        {
+          "code": "60328",
+          "message": "Item for request was not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Item for request was not found."
+            }
+          ]
+        },
+        {
+          "code": "60329",
+          "message": "Purchase requested material type is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Purchase requested material type is not valid."
+            }
+          ]
+        },
+        {
+          "code": "60330",
+          "message": "Invalid partial digitization volume or issue.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Invalid partial digitization volume or issue."
+            }
+          ]
+        },
+        {
+          "code": "60331",
+          "message": "Failed to create request.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to create request."
+            }
+          ]
+        },
+        {
+          "code": "60340",
+          "message": "The request is API Restricted by library.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/all",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "The fee is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "The loan is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The request is API Restricted by library."
+            }
+          ]
+        },
+        {
+          "code": "60349",
+          "message": "The user data could not be added.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "The user data could not be added."
+            }
+          ]
+        },
+        {
+          "code": "401129",
+          "message": "No items can fulfill the submitted request.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "No items can fulfill the submitted request."
+            }
+          ]
+        },
+        {
+          "code": "401136",
+          "message": "Failed to save the request: Patron has active request for selected item.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to save the request: Patron has active request for selected item."
+            }
+          ]
+        },
+        {
+          "code": "401153",
+          "message": "Item cannot be loaned from this circulation desk.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "Item cannot be loaned from this circulation desk."
+            }
+          ]
+        },
+        {
+          "code": "401604",
+          "message": "Warning: The institutional inventory has services for the requested title.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "Warning: The institutional inventory has services for the requested title."
+            }
+          ]
+        },
+        {
+          "code": "401607",
+          "message": "Resource sharing library (owner) is missing",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "Resource sharing library (owner) is missing"
+            }
+          ]
+        },
+        {
+          "code": "401608",
+          "message": "The given resource sharing library (owner) is not defined in the patron record",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "The given resource sharing library (owner) is not defined in the patron record"
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The given resource sharing library (owner) is not defined in the patron record"
+            }
+          ]
+        },
+        {
+          "code": "401651",
+          "message": "Source institution not valid or not part of fulfillment network.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Source institution not valid or not part of fulfillment network."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Source institution not valid or not part of fulfillment network."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "Identifier not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/all",
+              "httpStatus": "400",
+              "messageVariant": "Identifier not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Identifier not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Identifier not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "Item is not loanable."
+            }
+          ]
+        },
+        {
+          "code": "401652",
+          "message": "General Error: An error has occurred while processing the request.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/deposits",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while creating the deposit."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/deposits/{deposit_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while updating the deposit."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error - An error has occurred while processing the request."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "General Error: An error has occurred while processing the request."
+            }
+          ]
+        },
+        {
+          "code": "401658",
+          "message": "General Error - Failed to create new user",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "General Error - Failed to create new user"
+            }
+          ]
+        },
+        {
+          "code": "401664",
+          "message": "Mandatory field is missing: X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Mandatory field is missing: X"
+            }
+          ]
+        },
+        {
+          "code": "401665",
+          "message": "Fine not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Fine not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Fine not found."
+            }
+          ]
+        },
+        {
+          "code": "401666",
+          "message": "X parameter is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/deposits",
+              "httpStatus": "400",
+              "messageVariant": "X parameter is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/deposits/{deposit_id}",
+              "httpStatus": "400",
+              "messageVariant": "X parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "Parameter is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/all",
+              "httpStatus": "400",
+              "messageVariant": "Parameter is not valid."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter is not valid."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "X parameter is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401672",
+          "message": "PID field is empty.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "PID field is empty."
+            }
+          ]
+        },
+        {
+          "code": "401676",
+          "message": "No valid XML was given.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "No valid XML was given."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "No valid XML was given."
+            }
+          ]
+        },
+        {
+          "code": "401681",
+          "message": "Due date cannot be in the past.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Due date cannot be in the past."
+            }
+          ]
+        },
+        {
+          "code": "401684",
+          "message": "Search for request physical item failed.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Search for request physical item failed."
+            }
+          ]
+        },
+        {
+          "code": "401694",
+          "message": "Request Identifier not found.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request Identifier not found."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request Identifier not found."
+            }
+          ]
+        },
+        {
+          "code": "401768",
+          "message": "Patron is not affiliated with a resource sharing library",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "Patron is not affiliated with a resource sharing library"
+            }
+          ]
+        },
+        {
+          "code": "401822",
+          "message": "Cannot renew loan: Loan ID XXX.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot renew loan: Loan ID XXX."
+            }
+          ]
+        },
+        {
+          "code": "401823",
+          "message": "Loan ID XXX does not exist.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Loan ID XXX does not exist."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Loan ID XXX does not exist."
+            }
+          ]
+        },
+        {
+          "code": "401824",
+          "message": "Due date is not in loan object.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}/loans/{loan_id}",
+              "httpStatus": "400",
+              "messageVariant": "Due date is not in loan object."
+            }
+          ]
+        },
+        {
+          "code": "401850",
+          "message": "Failed to delete user with identifier X of type Y.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to delete user with identifier X of type Y."
+            }
+          ]
+        },
+        {
+          "code": "401851",
+          "message": "User with identifier  of type Y already exists.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier  of type Y already exists."
+            }
+          ]
+        },
+        {
+          "code": "401852",
+          "message": "Given user group is not legal.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Given user group is not legal."
+            }
+          ]
+        },
+        {
+          "code": "401853",
+          "message": "External Id must be empty for internal user.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "External Id must be empty for internal user."
+            }
+          ]
+        },
+        {
+          "code": "401854",
+          "message": "External Id must be given for external user.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "External Id must be given for external user."
+            }
+          ]
+        },
+        {
+          "code": "401855",
+          "message": "The account type",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "The account type"
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "The account type"
+            }
+          ]
+        },
+        {
+          "code": "401857",
+          "message": "The given user account type is illegal (must be INTERNAL/EXTERNAL).",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "The given user account type is illegal (must be INTERNAL/EXTERNAL)."
+            }
+          ]
+        },
+        {
+          "code": "401858",
+          "message": "The external id in DB does not fit the given value in xml - external id cannot be updated.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "The external id in DB does not fit the given value in xml - external id cannot be updated."
+            }
+          ]
+        },
+        {
+          "code": "401859",
+          "message": "Action currently not supported.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Action currently not supported."
+            }
+          ]
+        },
+        {
+          "code": "401860",
+          "message": "Failed to update user.",
+          "endpoints": [
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to update user."
+            }
+          ]
+        },
+        {
+          "code": "401861",
+          "message": "Source institution user with given identifier not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Source institution user with given identifier not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Refresh user with given identifier not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "The user ID is not valid."
+            }
+          ]
+        },
+        {
+          "code": "401863",
+          "message": "Given X type (Y) is not supported for given user record type (Z).",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Given X type (Y) is not supported for given user record type (Z)."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Given X type (Y) is not supported for given user record type (Z)."
+            }
+          ]
+        },
+        {
+          "code": "401864",
+          "message": "Given X type (Y) is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Given X type (Y) is invalid."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "Given X type (Y) is invalid."
+            }
+          ]
+        },
+        {
+          "code": "401866",
+          "message": "User authentication failed",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User authentication failed"
+            }
+          ]
+        },
+        {
+          "code": "401873",
+          "message": "The operation is not supported.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "The operation is not supported."
+            }
+          ]
+        },
+        {
+          "code": "401890",
+          "message": "User with identifier X of type Y was not found.",
+          "endpoints": [
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User was not found."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/loans",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "The user can not be found using this identifier."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "DELETE",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with identifier X of type Y was not found."
+            }
+          ]
+        },
+        {
+          "code": "401895",
+          "message": "Pickup circulation desk with code X and library code Y was not found.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests",
+              "httpStatus": "400",
+              "messageVariant": "Pickup circulation desk with code X and library code Y was not found."
+            }
+          ]
+        },
+        {
+          "code": "401907",
+          "message": "Failed to find a request for the given request ID.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to find a request for the given request ID."
+            }
+          ]
+        },
+        {
+          "code": "401932",
+          "message": "Request X is not a Digitization request",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Request X is not a Digitization request"
+            }
+          ]
+        },
+        {
+          "code": "401933",
+          "message": "Cannot move forward in workflow. Request ID: X, Step: Y",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Cannot move forward in workflow. Request ID: X, Step: Y"
+            }
+          ]
+        },
+        {
+          "code": "401934",
+          "message": "Move digitization request to next step in workflow has failed. Request ID: X",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Move digitization request to next step in workflow has failed. Request ID: X"
+            }
+          ]
+        },
+        {
+          "code": "402039",
+          "message": "Could not create request, default item location is not defined for the resource sharing library",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "Could not create request, default item location is not defined for the resource sharing library"
+            }
+          ]
+        },
+        {
+          "code": "402119",
+          "message": "General error.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/all",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees/{fee_id}",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "General error."
+            }
+          ]
+        },
+        {
+          "code": "402205",
+          "message": "Input parameter X (Y) is not numeric.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/deposits",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter X (Y) is not numeric."
+            },
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Input parameter X (Y) is not numeric."
+            }
+          ]
+        },
+        {
+          "code": "402238",
+          "message": "Failed to get deposits.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/deposits",
+              "httpStatus": "400",
+              "messageVariant": "Failed to get deposits."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/deposits/{deposit_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to get deposit."
+            }
+          ]
+        },
+        {
+          "code": "402362",
+          "message": "Failed to save the request: Patron has duplicate request",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests",
+              "httpStatus": "400",
+              "messageVariant": "Failed to save the request: Patron has duplicate request"
+            }
+          ]
+        },
+        {
+          "code": "402469",
+          "message": "Library is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Library is not valid."
+            }
+          ]
+        },
+        {
+          "code": "402880",
+          "message": "Vendor is not valid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/purchase-requests",
+              "httpStatus": "400",
+              "messageVariant": "Vendor is not valid."
+            }
+          ]
+        },
+        {
+          "code": "500038",
+          "message": "New password must be at least 8 characters long and must not include the user-name or any commonly used password.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "New password must be at least 8 characters long and must not include the user-name or any commonly used password."
+            },
+            {
+              "method": "PUT",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "New password must be at least 8 characters long and must not include the user-name or any commonly used password."
+            }
+          ]
+        },
+        {
+          "code": "4019990",
+          "message": "Local copied user information not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users",
+              "httpStatus": "400",
+              "messageVariant": "Local copied user information not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with source identifier X of institution Y was not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "User with source identifier X of institution Y was not found."
+            }
+          ]
+        },
+        {
+          "code": "4019991",
+          "message": "User fine/fee type is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee type is required."
+            }
+          ]
+        },
+        {
+          "code": "4019992",
+          "message": "User fine/fee type invalid entry.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee type invalid entry."
+            }
+          ]
+        },
+        {
+          "code": "4019993",
+          "message": "User item barcode invalid entry.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User item barcode invalid entry."
+            }
+          ]
+        },
+        {
+          "code": "4019994",
+          "message": "User fine/fee original amount is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee original amount is required."
+            }
+          ]
+        },
+        {
+          "code": "4019996",
+          "message": "User fine/fee owner is required.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee owner is required."
+            }
+          ]
+        },
+        {
+          "code": "4019997",
+          "message": "User fine/fee owner must be a library and not institution.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee owner must be a library and not institution."
+            }
+          ]
+        },
+        {
+          "code": "4019998",
+          "message": "User with linking ID not found.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}",
+              "httpStatus": "400",
+              "messageVariant": "User with linking ID not found."
+            },
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/personal-data",
+              "httpStatus": "400",
+              "messageVariant": "User with linking ID not found."
+            }
+          ]
+        },
+        {
+          "code": "4019999",
+          "message": "User fine/fee owner must be an institution.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/fees",
+              "httpStatus": "400",
+              "messageVariant": "User fine/fee owner must be an institution."
+            }
+          ]
+        },
+        {
+          "code": "40166411",
+          "message": "Parameter value is invalid.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is invalid."
+            }
+          ]
+        },
+        {
+          "code": "40166412",
+          "message": "Failed to perform operation.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Failed to perform operation."
+            }
+          ]
+        },
+        {
+          "code": "40166422",
+          "message": "Value of parameter is invalid given other parameter.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Value of parameter is invalid given other parameter."
+            }
+          ]
+        },
+        {
+          "code": "40166425",
+          "message": "Shipping cost cannot be lower than 0.",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Shipping cost cannot be lower than 0."
+            }
+          ]
+        },
+        {
+          "code": "40166426",
+          "message": "Parameter value is invalid (with error message).",
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "Parameter value is invalid (with error message)."
+            }
+          ]
+        },
+        {
+          "code": "40166450",
+          "message": "No result found for given parameters.",
+          "endpoints": [
+            {
+              "method": "GET",
+              "path": "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+              "httpStatus": "400",
+              "messageVariant": "No result found for given parameters."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

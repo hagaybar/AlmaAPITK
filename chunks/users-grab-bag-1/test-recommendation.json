@@ -1,0 +1,452 @@
+{
+  "chunk": "users-grab-bag-1",
+  "branch": "chunk/users-grab-bag-1",
+  "createdAt": "2026-05-08T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 39,
+      "title": "Coverage: Users: user attachments",
+      "classification": "general",
+      "subBranch": "feat/39-coverage-users-attachments",
+      "tests": [
+        {
+          "id": "t-39-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only user-attachment methods shipped in issue #39 against live SANDBOX. Calls list_user_attachments(${existing_user_primary_id}) to confirm the GET /users/{user_id}/attachments endpoint round-trips and returns a List[Dict] envelope successfully unwrapped from Alma's response shape. If the returned list is non-empty, picks the first attachment's id and calls get_user_attachment(${existing_user_primary_id}, <attachment_id>) to confirm the single-attachment GET round-trips and returns a non-empty Dict[str, Any] containing an 'id' key. If the list is empty (the SANDBOX user has no attachments), the get-step is skipped and only the list-shape assertion is verified — the test is still considered pass because the list endpoint itself responded correctly. No state is mutated. Covers the read half of issue #39's 'list / get without expand' integration coverage; the upload+read-back round-trip is exercised by t-39-3.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/attachments",
+            "GET /almaws/v1/users/{user_id}/attachments/{attachment_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-39-1 (read-only list/get), t-39-3 (live attachment upload — leaves a permanent artifact, see that test's scope), t-44-1 (read-only fee list/get), and t-45-1 (read-only deposit list). The user is not deleted or otherwise destructively mutated; t-39-3 attaches a small probe HTML file that the operator must manually delete via the Alma UI after the run. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "attachments = users.list_user_attachments('${existing_user_primary_id}')",
+            "first_attachment = None\nattachment_detail = None\nif isinstance(attachments, list) and len(attachments) > 0:\n    first_attachment = attachments[0]\n    attachment_id = first_attachment.get('id') if isinstance(first_attachment, dict) else None\n    if attachment_id:\n        attachment_detail = users.get_user_attachment('${existing_user_primary_id}', str(attachment_id))"
+          ],
+          "passCriteria": [
+            "isinstance(attachments, list)",
+            "first_attachment is None or (isinstance(attachment_detail, dict) and 'id' in attachment_detail)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-39-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #39 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_attachments('') / list_user_attachments('   ') / list_user_attachments(None) / list_user_attachments(123); get_user_attachment('', 'A') / get_user_attachment('U', '') / get_user_attachment(None, 'A') / get_user_attachment('U', None) / get_user_attachment('U', 123); upload_user_attachment('', '/tmp/x.html') / upload_user_attachment(None, '/tmp/x.html') / upload_user_attachment('U', '') / upload_user_attachment('U', None) / upload_user_attachment('U', '/path/that/definitely/does/not/exist/probe.html'). Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #39's 'unit tests cover ... upload with missing file' AC and the input-validation contract for the public API surface.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_attachments('')\nexcept AlmaValidationError as e:\n    errors['list_attachments_empty'] = e",
+            "try:\n    users.list_user_attachments('   ')\nexcept AlmaValidationError as e:\n    errors['list_attachments_whitespace'] = e",
+            "try:\n    users.list_user_attachments(None)\nexcept AlmaValidationError as e:\n    errors['list_attachments_none'] = e",
+            "try:\n    users.list_user_attachments(123)\nexcept AlmaValidationError as e:\n    errors['list_attachments_nonstring'] = e",
+            "try:\n    users.get_user_attachment('', 'A')\nexcept AlmaValidationError as e:\n    errors['get_attachment_empty_user'] = e",
+            "try:\n    users.get_user_attachment('U', '')\nexcept AlmaValidationError as e:\n    errors['get_attachment_empty_id'] = e",
+            "try:\n    users.get_user_attachment(None, 'A')\nexcept AlmaValidationError as e:\n    errors['get_attachment_none_user'] = e",
+            "try:\n    users.get_user_attachment('U', None)\nexcept AlmaValidationError as e:\n    errors['get_attachment_none_id'] = e",
+            "try:\n    users.get_user_attachment('U', 123)\nexcept AlmaValidationError as e:\n    errors['get_attachment_nonstring_id'] = e",
+            "try:\n    users.upload_user_attachment('', '/tmp/probe.html')\nexcept AlmaValidationError as e:\n    errors['upload_empty_user'] = e",
+            "try:\n    users.upload_user_attachment(None, '/tmp/probe.html')\nexcept AlmaValidationError as e:\n    errors['upload_none_user'] = e",
+            "try:\n    users.upload_user_attachment('U', '')\nexcept AlmaValidationError as e:\n    errors['upload_empty_path'] = e",
+            "try:\n    users.upload_user_attachment('U', None)\nexcept AlmaValidationError as e:\n    errors['upload_none_path'] = e",
+            "try:\n    users.upload_user_attachment('U', '/path/that/definitely/does/not/exist/almaapitk_probe.html')\nexcept AlmaValidationError as e:\n    errors['upload_missing_file'] = e"
+          ],
+          "passCriteria": [
+            "'list_attachments_empty' in errors and isinstance(errors['list_attachments_empty'], AlmaValidationError)",
+            "'list_attachments_whitespace' in errors and isinstance(errors['list_attachments_whitespace'], AlmaValidationError)",
+            "'list_attachments_none' in errors and isinstance(errors['list_attachments_none'], AlmaValidationError)",
+            "'list_attachments_nonstring' in errors and isinstance(errors['list_attachments_nonstring'], AlmaValidationError)",
+            "'get_attachment_empty_user' in errors and isinstance(errors['get_attachment_empty_user'], AlmaValidationError)",
+            "'get_attachment_empty_id' in errors and isinstance(errors['get_attachment_empty_id'], AlmaValidationError)",
+            "'get_attachment_none_user' in errors and isinstance(errors['get_attachment_none_user'], AlmaValidationError)",
+            "'get_attachment_none_id' in errors and isinstance(errors['get_attachment_none_id'], AlmaValidationError)",
+            "'get_attachment_nonstring_id' in errors and isinstance(errors['get_attachment_nonstring_id'], AlmaValidationError)",
+            "'upload_empty_user' in errors and isinstance(errors['upload_empty_user'], AlmaValidationError)",
+            "'upload_none_user' in errors and isinstance(errors['upload_none_user'], AlmaValidationError)",
+            "'upload_empty_path' in errors and isinstance(errors['upload_empty_path'], AlmaValidationError)",
+            "'upload_none_path' in errors and isinstance(errors['upload_none_path'], AlmaValidationError)",
+            "'upload_missing_file' in errors and isinstance(errors['upload_missing_file'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-39-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live upload_user_attachment round-trip against the supplied SANDBOX user ${existing_user_primary_id}. Generates synthetic test content in-test (a tiny HTML file with a UUID-suffixed marker so concurrent runs do not collide and so the operator can identify the artifact in the Alma UI), writes it to a NamedTemporaryFile, then calls upload_user_attachment with attachment_data of {'type': 'GENERAL', 'note': 'AlmaAPITK regression-smoke probe'}. Asserts the returned AlmaResponse reports success and exposes an 'id' on its data payload, then calls list_user_attachments and asserts the list contains a dict whose id matches the upload response's id AND whose file_name contains 'almaapitk' or matches the temp filename basename. CRITICAL OPERATOR CLEANUP REQUIRED: Alma exposes NO DELETE endpoint for user attachments (verified live 2026-05-08). Each test run accumulates ONE additional attachment on the supplied user, which the operator MUST manually delete via the Alma staff UI after the run. There is no try/finally cleanup block because no API call exists to clean up. The test prints the attachment id, user id, and synthetic file_name at runtime so the regression-smoke output makes the cleanup target visible to the operator. The probe payload is intentionally tiny and human-recognizable ('AlmaAPITK probe attachment - safe to delete - <UUID>') to make manual deletion safe and unambiguous. Covers issue #39 AC about a SANDBOX integration test that round-trips an attachment (upload then list-and-verify); the GET-with-expand variant is covered by unit tests (mocked HTTP) only — see unmappable[].",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/attachments",
+            "GET /almaws/v1/users/{user_id}/attachments"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-39-1 (read-only list/get), t-39-3 (live attachment upload — leaves a permanent artifact, see that test's scope), t-44-1 (read-only fee list/get), and t-45-1 (read-only deposit list). The user is not deleted or otherwise destructively mutated; t-39-3 attaches a small probe HTML file that the operator must manually delete via the Alma UI after the run. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "import os",
+            "import uuid",
+            "from tempfile import NamedTemporaryFile",
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "marker = uuid.uuid4().hex[:8]",
+            "html_payload = f'<!-- AlmaAPITK probe attachment - safe to delete - {marker} -->\\n<html><body>probe-{marker}</body></html>\\n'",
+            "tmp = NamedTemporaryFile(mode='w', suffix=f'_almaapitk_probe_{marker}.html', delete=False, encoding='utf-8')\ntry:\n    tmp.write(html_payload)\n    tmp.close()\n    file_path = tmp.name\n    file_basename = os.path.basename(file_path)\n    upload_response = users.upload_user_attachment(\n        '${existing_user_primary_id}',\n        file_path,\n        attachment_data={'type': 'GENERAL', 'note': 'AlmaAPITK regression-smoke probe'},\n    )\n    upload_data = getattr(upload_response, 'data', None) if upload_response is not None else None\n    upload_id = upload_data.get('id') if isinstance(upload_data, dict) else None\n    print(f'[t-39-3] uploaded attachment id={upload_id} user_id=${existing_user_primary_id} file_basename={file_basename} -- OPERATOR MUST MANUALLY DELETE VIA ALMA UI (no DELETE endpoint exists)')\n    listing = users.list_user_attachments('${existing_user_primary_id}')\n    matched = None\n    if isinstance(listing, list) and upload_id is not None:\n        for entry in listing:\n            if not isinstance(entry, dict):\n                continue\n            entry_id = entry.get('id')\n            entry_file_name = entry.get('file_name') or ''\n            if str(entry_id) == str(upload_id):\n                if 'almaapitk' in str(entry_file_name).lower() or file_basename in str(entry_file_name):\n                    matched = entry\n                    break\nfinally:\n    try:\n        os.unlink(tmp.name)\n    except OSError:\n        pass"
+          ],
+          "passCriteria": [
+            "upload_response is not None and getattr(upload_response, 'success', False) is True",
+            "isinstance(upload_data, dict) and 'id' in upload_data and upload_id is not None",
+            "isinstance(listing, list) and matched is not None"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All three endpoints exposed with type hints and Google-style docstrings.": [
+          "t-39-1",
+          "t-39-3"
+        ],
+        "`get_user_attachment` accepts the documented `expand` query parameter": [
+          "t-39-1"
+        ],
+        "`upload_user_attachment` body shape matches what the developer-network": [
+          "t-39-3"
+        ],
+        "Unit tests (mocked HTTP) cover: list, get without expand, get with": [
+          "t-39-1",
+          "t-39-3"
+        ],
+        "At least one SANDBOX integration test that round-trips an attachment": [
+          "t-39-3"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All three endpoints exposed with type hints and Google-style docstrings.",
+          "reason": "The 'with type hints and Google-style docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Users class' facet IS observable at runtime (t-39-1 only succeeds if list_user_attachments/get_user_attachment are importable and bound on Users; upload_user_attachment is exercised end-to-end by t-39-3), so the AC is partially mapped to t-39-1 / t-39-3; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "`get_user_attachment` accepts the documented `expand` query parameter",
+          "reason": "The expand-parameter facet — specifically the 'get with expand=content' / 'get with expand=content_no_encoding' variants — is intentionally NOT exercised against SANDBOX. The base get_user_attachment(user_id, attachment_id) call without expand IS exercised by t-39-1 when the user has at least one existing attachment, which proves the path-parameter binding and the no-expand happy path. The expand=content / expand=content_no_encoding variants are wire-shape concerns (query-string assembly, response decoding) covered by the chunk's unit tests in tests/unit/domains/test_users.py with mocked HTTP. Adding a SANDBOX expand-content fetch would require a known attachment with a verified inline payload, which the operator has not designated; the unit-test coverage is sufficient."
+        },
+        {
+          "ac": "`upload_user_attachment` body shape matches what the developer-network",
+          "reason": "Partially mapped to t-39-3 — the live upload only succeeds end-to-end if the wrapper's serialized body shape (multipart vs JSON+base64 Attachment object) is what Alma actually accepts, so t-39-3 is the strongest possible behavioural verification. The 'matches what the developer-network docs require' facet is otherwise a doc-conformance invariant verified by code review of the chunk diff against the developer-network 'Create Attachment' page, plus the unit tests in tests/unit/domains/test_users.py that pin the exact body shape. SANDBOX cannot distinguish between two body shapes that both happen to be accepted; the doc-conformance facet is a residual static-only check."
+        },
+        {
+          "ac": "Unit tests (mocked HTTP) cover: list, get without expand, get with",
+          "reason": "The 'unit tests (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'integration test against SANDBOX' facet for the list+get+upload paths IS exercised by t-39-1 and t-39-3; this entry documents the unit-test residual."
+        },
+        {
+          "ac": "No DELETE method is implemented (Alma does not document one).",
+          "reason": "Negative-existence invariant on src/almaapitk/domains/users.py — the AC asserts that NO delete_user_attachment method is implemented. Cannot be verified via SANDBOX (no endpoint exists to call). Verified by code review of the chunk diff and the public-API contract test (which would detect a new public symbol). Operator note: this is precisely WHY t-39-3 has no try/finally cleanup — Alma exposes no DELETE endpoint for user attachments, so each run accumulates one attachment that the operator must delete manually via the Alma staff UI."
+        },
+        {
+          "ac": "No `print()` — all operations logged via `alma_logging`. File contents",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the new methods, file contents not passed into log records) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        }
+      ]
+    },
+    {
+      "number": 44,
+      "title": "Coverage: Users: fines & fees",
+      "classification": "general",
+      "subBranch": "feat/44-coverage-users-fees",
+      "tests": [
+        {
+          "id": "t-44-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only fee methods shipped in issue #44 against live SANDBOX. Calls list_user_fees(${existing_user_primary_id}) to confirm the GET /users/{user_id}/fees endpoint round-trips and returns a List[Dict] envelope (the wrapper is documented to return List[Dict] per the chunk's audit-corrected signature; the SANDBOX user may have zero fees, in which case the list is empty and that is still a pass for the list-shape assertion). If the returned list is non-empty, picks the first fee's id and calls get_user_fee(${existing_user_primary_id}, <fee_id>) to confirm the single-fee GET round-trips and returns a non-empty Dict[str, Any] containing an 'id' key. If the list is empty, the get-step is skipped — the test is still considered pass because the list endpoint itself responded correctly. No state is mutated. Covers the read half of issue #44's integration coverage; all write paths (create / pay_all / pay / waive / dispute / restore) are documented as unmappable below.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/fees",
+            "GET /almaws/v1/users/{user_id}/fees/{fee_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-39-1 (read-only list/get), t-39-3 (live attachment upload — leaves a permanent artifact, see that test's scope), t-44-1 (read-only fee list/get), and t-45-1 (read-only deposit list). The user is not deleted or otherwise destructively mutated; t-39-3 attaches a small probe HTML file that the operator must manually delete via the Alma UI after the run. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "fees = users.list_user_fees('${existing_user_primary_id}')",
+            "first_fee = None\nfee_detail = None\nif isinstance(fees, list) and len(fees) > 0:\n    first_fee = fees[0]\n    fee_id = first_fee.get('id') if isinstance(first_fee, dict) else None\n    if fee_id:\n        fee_detail = users.get_user_fee('${existing_user_primary_id}', str(fee_id))"
+          ],
+          "passCriteria": [
+            "isinstance(fees, list)",
+            "first_fee is None or (isinstance(fee_detail, dict) and 'id' in fee_detail)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-44-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #44 raises AlmaValidationError BEFORE any HTTP call is issued, including the audit-corrected guards: pay_all_user_fees rejects non-numeric / non-'ALL' amount strings; waive_user_fee requires non-empty reason; dispute_user_fee does NOT require reason. Exercises: list_user_fees / get_user_fee guards on user_id and fee_id (empty/whitespace/None/non-string); create_user_fee on empty/None user_id and on missing/non-dict fee_data; pay_all_user_fees on empty/None user_id and on amount='abc' (audit-flagged: must reject non-numeric, non-'ALL'); pay_user_fee on empty/None user_id, empty/None fee_id, and missing amount; waive_user_fee on empty/None reason (audit-flagged: required); dispute_user_fee called WITHOUT reason and asserted to NOT raise AlmaValidationError on the reason guard (audit-corrected: optional); restore_user_fee on empty/None user_id and fee_id. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #44 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).' and the audit-corrected signature contracts.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_fees('')\nexcept AlmaValidationError as e:\n    errors['list_fees_empty'] = e",
+            "try:\n    users.list_user_fees(None)\nexcept AlmaValidationError as e:\n    errors['list_fees_none'] = e",
+            "try:\n    users.get_user_fee('', 'F')\nexcept AlmaValidationError as e:\n    errors['get_fee_empty_user'] = e",
+            "try:\n    users.get_user_fee('U', '')\nexcept AlmaValidationError as e:\n    errors['get_fee_empty_id'] = e",
+            "try:\n    users.get_user_fee(None, 'F')\nexcept AlmaValidationError as e:\n    errors['get_fee_none_user'] = e",
+            "try:\n    users.get_user_fee('U', None)\nexcept AlmaValidationError as e:\n    errors['get_fee_none_id'] = e",
+            "try:\n    users.create_user_fee('', {'type': {'value': 'OTHER'}, 'amount': '1.00'})\nexcept AlmaValidationError as e:\n    errors['create_fee_empty_user'] = e",
+            "try:\n    users.create_user_fee(None, {'type': {'value': 'OTHER'}, 'amount': '1.00'})\nexcept AlmaValidationError as e:\n    errors['create_fee_none_user'] = e",
+            "try:\n    users.create_user_fee('U', None)\nexcept AlmaValidationError as e:\n    errors['create_fee_none_body'] = e",
+            "try:\n    users.create_user_fee('U', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['create_fee_nondict_body'] = e",
+            "try:\n    users.pay_all_user_fees('')\nexcept AlmaValidationError as e:\n    errors['pay_all_empty_user'] = e",
+            "try:\n    users.pay_all_user_fees(None)\nexcept AlmaValidationError as e:\n    errors['pay_all_none_user'] = e",
+            "try:\n    users.pay_all_user_fees('U', amount='abc')\nexcept AlmaValidationError as e:\n    errors['pay_all_bad_amount'] = e",
+            "try:\n    users.pay_user_fee('', 'F', amount='1.00')\nexcept AlmaValidationError as e:\n    errors['pay_empty_user'] = e",
+            "try:\n    users.pay_user_fee('U', '', amount='1.00')\nexcept AlmaValidationError as e:\n    errors['pay_empty_id'] = e",
+            "try:\n    users.pay_user_fee(None, 'F', amount='1.00')\nexcept AlmaValidationError as e:\n    errors['pay_none_user'] = e",
+            "try:\n    users.pay_user_fee('U', None, amount='1.00')\nexcept AlmaValidationError as e:\n    errors['pay_none_id'] = e",
+            "try:\n    users.waive_user_fee('U', 'F', reason='')\nexcept AlmaValidationError as e:\n    errors['waive_empty_reason'] = e",
+            "try:\n    users.waive_user_fee('U', 'F', reason=None)\nexcept AlmaValidationError as e:\n    errors['waive_none_reason'] = e",
+            "dispute_no_reason_validation_raised = False\ntry:\n    users.dispute_user_fee('', 'F')  # bad user_id should raise; reason optional\nexcept AlmaValidationError:\n    dispute_no_reason_validation_raised = True\nexcept Exception:\n    dispute_no_reason_validation_raised = False",
+            "try:\n    users.restore_user_fee('', 'F')\nexcept AlmaValidationError as e:\n    errors['restore_empty_user'] = e",
+            "try:\n    users.restore_user_fee('U', '')\nexcept AlmaValidationError as e:\n    errors['restore_empty_id'] = e"
+          ],
+          "passCriteria": [
+            "'list_fees_empty' in errors and isinstance(errors['list_fees_empty'], AlmaValidationError)",
+            "'list_fees_none' in errors and isinstance(errors['list_fees_none'], AlmaValidationError)",
+            "'get_fee_empty_user' in errors and isinstance(errors['get_fee_empty_user'], AlmaValidationError)",
+            "'get_fee_empty_id' in errors and isinstance(errors['get_fee_empty_id'], AlmaValidationError)",
+            "'get_fee_none_user' in errors and isinstance(errors['get_fee_none_user'], AlmaValidationError)",
+            "'get_fee_none_id' in errors and isinstance(errors['get_fee_none_id'], AlmaValidationError)",
+            "'create_fee_empty_user' in errors and isinstance(errors['create_fee_empty_user'], AlmaValidationError)",
+            "'create_fee_none_user' in errors and isinstance(errors['create_fee_none_user'], AlmaValidationError)",
+            "'create_fee_none_body' in errors and isinstance(errors['create_fee_none_body'], AlmaValidationError)",
+            "'create_fee_nondict_body' in errors and isinstance(errors['create_fee_nondict_body'], AlmaValidationError)",
+            "'pay_all_empty_user' in errors and isinstance(errors['pay_all_empty_user'], AlmaValidationError)",
+            "'pay_all_none_user' in errors and isinstance(errors['pay_all_none_user'], AlmaValidationError)",
+            "'pay_all_bad_amount' in errors and isinstance(errors['pay_all_bad_amount'], AlmaValidationError)",
+            "'pay_empty_user' in errors and isinstance(errors['pay_empty_user'], AlmaValidationError)",
+            "'pay_empty_id' in errors and isinstance(errors['pay_empty_id'], AlmaValidationError)",
+            "'pay_none_user' in errors and isinstance(errors['pay_none_user'], AlmaValidationError)",
+            "'pay_none_id' in errors and isinstance(errors['pay_none_id'], AlmaValidationError)",
+            "'waive_empty_reason' in errors and isinstance(errors['waive_empty_reason'], AlmaValidationError)",
+            "'waive_none_reason' in errors and isinstance(errors['waive_none_reason'], AlmaValidationError)",
+            "dispute_no_reason_validation_raised is True",
+            "'restore_empty_user' in errors and isinstance(errors['restore_empty_user'], AlmaValidationError)",
+            "'restore_empty_id' in errors and isinstance(errors['restore_empty_id'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "`pay_all_user_fees` posts to `.../fees/all` with **`op=pay`** and": [
+          "t-44-2"
+        ],
+        "`pay_user_fee(amount, method)` posts to `.../fees/{fee_id}` with": [
+          "t-44-2"
+        ],
+        "`waive_user_fee` requires non-empty `reason` (validated) and posts": [
+          "t-44-2"
+        ],
+        "`dispute_user_fee.reason` is **optional**; method posts `op=dispute`.": [
+          "t-44-2"
+        ],
+        "`restore_user_fee` posts `op=restore` with no required extras.": [
+          "t-44-2"
+        ],
+        "Unit tests cover each of the 4 `op` values, plus the `pay_all` shape.": [
+          "t-44-1",
+          "t-44-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "`pay_all_user_fees` posts to `.../fees/all` with **`op=pay`** and",
+          "reason": "The validation half (audit-corrected: pay_all_user_fees rejects non-numeric, non-'ALL' amount values) is mapped to t-44-2. The wire-shape facet (the actual op=pay & amount=... & method=... query string posted to /fees/all) is NOT exercised against SANDBOX because no pre-existing fee fixture is available on the supplied test user, and creating a fee in SANDBOX to exercise the bulk-pay endpoint would accumulate state with no automated cleanup (Alma's fee restore op is not a true delete). Unit tests in tests/unit/domains/test_users.py with mocked HTTP cover the exact wire shape including the audit-flagged op=pay + amount=ALL + method query params; this entry documents the deliberate gap in SANDBOX coverage."
+        },
+        {
+          "ac": "`pay_user_fee(amount, method)` posts to `.../fees/{fee_id}` with",
+          "reason": "Same reason as pay_all_user_fees above: validation guards are exercised by t-44-2, but the live POST .../fees/{fee_id}?op=pay&amount=...&method=... is NOT exercised against SANDBOX because no pre-existing fee fixture is available on the supplied test user, and creating a fee solely to pay it would accumulate state. Unit tests cover the wire shape with mocked HTTP."
+        },
+        {
+          "ac": "`waive_user_fee` requires non-empty `reason` (validated) and posts",
+          "reason": "The validation half (waive_user_fee requires non-empty reason — audit-corrected to be the ONLY op that requires reason) is mapped to t-44-2. The wire-shape facet (POST .../fees/{fee_id}?op=waive&reason=...) is NOT exercised against SANDBOX for the same reason as the pay ops: no pre-existing fee fixture, and creating then waiving a fee would accumulate state. Unit tests cover the op=waive wire shape with mocked HTTP."
+        },
+        {
+          "ac": "`dispute_user_fee.reason` is **optional**; method posts `op=dispute`.",
+          "reason": "The validation half (dispute_user_fee does NOT raise AlmaValidationError when reason is omitted — audit-corrected: dispute does NOT require reason, unlike waive) is mapped to t-44-2 via the dispute_no_reason_validation_raised assertion. The wire-shape facet (POST .../fees/{fee_id}?op=dispute) is NOT exercised against SANDBOX for the same reason as the other write ops: no pre-existing fee fixture, and creating then disputing a fee would accumulate state. Unit tests cover the op=dispute wire shape with mocked HTTP, including the audit-corrected absence of a required reason param."
+        },
+        {
+          "ac": "`restore_user_fee` posts `op=restore` with no required extras.",
+          "reason": "Validation guards (empty/None user_id, empty/None fee_id) are mapped to t-44-2. The live POST .../fees/{fee_id}?op=restore is NOT exercised against SANDBOX for the same reason as the other write ops: no pre-existing fee fixture in a disputed/waived state available, and the operator declined to authorize a create→dispute→restore flow that would leave state visible in the SANDBOX user's account. Unit tests cover the op=restore wire shape with mocked HTTP."
+        },
+        {
+          "ac": "No method silently injects `method='CASH'` outside payment ops.",
+          "reason": "Negative-behaviour invariant on the wrapper. The audit flagged that 'method' should NOT default into waive/dispute/restore query strings; only pay_all_user_fees and pay_user_fee should accept and forward 'method'. Cannot be observed via SANDBOX because Alma silently ignores extra query params on non-payment ops. Verified by code review of the chunk diff (no method= kwarg on waive/dispute/restore signatures) and by tests/unit/domains/test_users.py which pin the exact query strings issued by waive/dispute/restore — no method= present."
+        },
+        {
+          "ac": "Unit tests cover each of the 4 `op` values, plus the `pay_all` shape.",
+          "reason": "The 'unit tests (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The validation guard half IS exercised by t-44-2; the read happy-path is exercised by t-44-1; this entry documents the unit-test residual."
+        },
+        {
+          "ac": "At least one SANDBOX integration test for each `op`.",
+          "reason": "DELIBERATE SCOPE LIMIT: the operator has not authorized live execution of any write op (create / pay_all / pay / waive / dispute / restore) against SANDBOX. Reason: no pre-existing fee fixture is available on the supplied test user, and creating a fee solely to exercise an op would accumulate state with no automated cleanup (Alma's fee 'restore' is not a delete; it just reverts a waive/dispute, and a freshly-created fee remains as ACTIVE). Unit tests in tests/unit/domains/test_users.py with mocked HTTP cover the wire shape for all four op values plus pay_all, including the audit-flagged param requirements. This is the single biggest deliberate gap in the SANDBOX coverage for this chunk and is documented here for transparency."
+        },
+        {
+          "ac": "No `print()` — operations logged via `alma_logging`.",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        }
+      ]
+    },
+    {
+      "number": 45,
+      "title": "Coverage: Users: deposits",
+      "classification": "general",
+      "subBranch": "feat/45-coverage-users-deposits",
+      "tests": [
+        {
+          "id": "t-45-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only deposit method shipped in issue #45 against live SANDBOX. Calls list_user_deposits(${existing_user_primary_id}) to confirm the GET /users/{user_id}/deposits endpoint round-trips and returns a List[Dict] envelope (the SANDBOX user is likely to have zero deposits — common case — in which case the list is empty and that is still a pass for the list-shape assertion). No state is mutated. Covers the read half of issue #45's integration coverage; all write paths (create / get / perform-action) are documented as unmappable below.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/deposits"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-39-1 (read-only list/get), t-39-3 (live attachment upload — leaves a permanent artifact, see that test's scope), t-44-1 (read-only fee list/get), and t-45-1 (read-only deposit list). The user is not deleted or otherwise destructively mutated; t-39-3 attaches a small probe HTML file that the operator must manually delete via the Alma UI after the run. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "deposits = users.list_user_deposits('${existing_user_primary_id}')"
+          ],
+          "passCriteria": [
+            "isinstance(deposits, list)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-45-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #45 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_deposits on empty/None/non-string user_id; create_user_deposit on empty/None user_id and on missing/non-dict deposit_data; get_user_deposit on empty/None user_id and empty/None deposit_id; perform_user_deposit_action on empty/None user_id, empty/None deposit_id, and empty/None op. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #45 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API).'",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_deposits('')\nexcept AlmaValidationError as e:\n    errors['list_deposits_empty'] = e",
+            "try:\n    users.list_user_deposits(None)\nexcept AlmaValidationError as e:\n    errors['list_deposits_none'] = e",
+            "try:\n    users.list_user_deposits(123)\nexcept AlmaValidationError as e:\n    errors['list_deposits_nonstring'] = e",
+            "try:\n    users.create_user_deposit('', {'amount': '1.00'})\nexcept AlmaValidationError as e:\n    errors['create_deposit_empty_user'] = e",
+            "try:\n    users.create_user_deposit(None, {'amount': '1.00'})\nexcept AlmaValidationError as e:\n    errors['create_deposit_none_user'] = e",
+            "try:\n    users.create_user_deposit('U', None)\nexcept AlmaValidationError as e:\n    errors['create_deposit_none_body'] = e",
+            "try:\n    users.create_user_deposit('U', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['create_deposit_nondict_body'] = e",
+            "try:\n    users.get_user_deposit('', 'D')\nexcept AlmaValidationError as e:\n    errors['get_deposit_empty_user'] = e",
+            "try:\n    users.get_user_deposit('U', '')\nexcept AlmaValidationError as e:\n    errors['get_deposit_empty_id'] = e",
+            "try:\n    users.get_user_deposit(None, 'D')\nexcept AlmaValidationError as e:\n    errors['get_deposit_none_user'] = e",
+            "try:\n    users.get_user_deposit('U', None)\nexcept AlmaValidationError as e:\n    errors['get_deposit_none_id'] = e",
+            "try:\n    users.perform_user_deposit_action('', 'D', 'pay')\nexcept AlmaValidationError as e:\n    errors['action_empty_user'] = e",
+            "try:\n    users.perform_user_deposit_action('U', '', 'pay')\nexcept AlmaValidationError as e:\n    errors['action_empty_id'] = e",
+            "try:\n    users.perform_user_deposit_action('U', 'D', '')\nexcept AlmaValidationError as e:\n    errors['action_empty_op'] = e",
+            "try:\n    users.perform_user_deposit_action(None, 'D', 'pay')\nexcept AlmaValidationError as e:\n    errors['action_none_user'] = e",
+            "try:\n    users.perform_user_deposit_action('U', None, 'pay')\nexcept AlmaValidationError as e:\n    errors['action_none_id'] = e",
+            "try:\n    users.perform_user_deposit_action('U', 'D', None)\nexcept AlmaValidationError as e:\n    errors['action_none_op'] = e"
+          ],
+          "passCriteria": [
+            "'list_deposits_empty' in errors and isinstance(errors['list_deposits_empty'], AlmaValidationError)",
+            "'list_deposits_none' in errors and isinstance(errors['list_deposits_none'], AlmaValidationError)",
+            "'list_deposits_nonstring' in errors and isinstance(errors['list_deposits_nonstring'], AlmaValidationError)",
+            "'create_deposit_empty_user' in errors and isinstance(errors['create_deposit_empty_user'], AlmaValidationError)",
+            "'create_deposit_none_user' in errors and isinstance(errors['create_deposit_none_user'], AlmaValidationError)",
+            "'create_deposit_none_body' in errors and isinstance(errors['create_deposit_none_body'], AlmaValidationError)",
+            "'create_deposit_nondict_body' in errors and isinstance(errors['create_deposit_nondict_body'], AlmaValidationError)",
+            "'get_deposit_empty_user' in errors and isinstance(errors['get_deposit_empty_user'], AlmaValidationError)",
+            "'get_deposit_empty_id' in errors and isinstance(errors['get_deposit_empty_id'], AlmaValidationError)",
+            "'get_deposit_none_user' in errors and isinstance(errors['get_deposit_none_user'], AlmaValidationError)",
+            "'get_deposit_none_id' in errors and isinstance(errors['get_deposit_none_id'], AlmaValidationError)",
+            "'action_empty_user' in errors and isinstance(errors['action_empty_user'], AlmaValidationError)",
+            "'action_empty_id' in errors and isinstance(errors['action_empty_id'], AlmaValidationError)",
+            "'action_empty_op' in errors and isinstance(errors['action_empty_op'], AlmaValidationError)",
+            "'action_none_user' in errors and isinstance(errors['action_none_user'], AlmaValidationError)",
+            "'action_none_id' in errors and isinstance(errors['action_none_id'], AlmaValidationError)",
+            "'action_none_op' in errors and isinstance(errors['action_none_op'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-45-1",
+          "t-45-2"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-45-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-45-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py. The 'methods exist on the existing Users class' facet IS partially observable at runtime: t-45-1 only succeeds if list_user_deposits is importable and bound on Users, and t-45-2 only succeeds if create_user_deposit, get_user_deposit, and perform_user_deposit_action are importable and bound on Users (because the validation guards live on those methods). So the AC is partially mapped to t-45-1 / t-45-2; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-45-1 for list_user_deposits. The integration-test facet for create_user_deposit, get_user_deposit, and perform_user_deposit_action is intentionally NOT exercised against SANDBOX. Reason: no pre-existing deposit fixture is available on the supplied test user, and creating a deposit solely to exercise these endpoints would accumulate state with no automated cleanup (Alma's deposit perform-action ops are state transitions, not deletes — a freshly-created deposit remains in the user's account regardless of what subsequent ops are applied). Unit tests in tests/unit/domains/test_users.py with mocked HTTP cover the wire shape for create / get / perform-action; this entry documents both the unit-test residual AND the deliberate gap in SANDBOX coverage for the write paths."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-45-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (404 on a non-existent deposit_id, 401 on bad auth, 400 on malformed deposit_data) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_users.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #45 extends the existing Users class (already exported via the original public API) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

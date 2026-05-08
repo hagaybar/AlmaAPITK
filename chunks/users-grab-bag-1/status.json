@@ -1,0 +1,18 @@
+{
+  "chunk": "users-grab-bag-1",
+  "issues": [
+    39,
+    44,
+    45
+  ],
+  "stage": "merged",
+  "branch": "chunk/users-grab-bag-1",
+  "createdAt": "2026-05-08T16:16:02Z",
+  "updatedAt": "2026-05-08T19:30:15Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/121)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KR45ZRXP5TY97R144NPCPMYN",
+  "testRunId": "01KR4G110H6R31NAAH3D5JPAGV",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/121"
+}

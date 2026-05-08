@@ -1,0 +1,87 @@
+{
+  "chunk": "users-grab-bag-1",
+  "branch": "chunk/users-grab-bag-1",
+  "everyTestPassed": true,
+  "anySkips": false,
+  "tests": [
+    {
+      "id": "t-39-1",
+      "issue": 39,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke for list_user_attachments / get_user_attachment against the supplied test user round-tripped successfully. pytest collected 1 item and reported PASSED in 0.67s. No state mutated."
+    },
+    {
+      "id": "t-39-2",
+      "issue": 39,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Input-validation guard exercise for list_user_attachments / get_user_attachment / upload_user_attachment all raised AlmaValidationError before any HTTP call. pytest reported PASSED in 0.06s. No SANDBOX state read or mutated."
+    },
+    {
+      "id": "t-39-3",
+      "issue": 39,
+      "status": "passed",
+      "stateChanging": true,
+      "cleanupStatus": "no-api-cleanup-possible",
+      "details": "Live upload_user_attachment round-trip against the supplied test user succeeded: AlmaResponse.success was True, the upload payload exposed an 'id', and the subsequent list_user_attachments call returned the matching entry with the synthetic 'almaapitk' filename marker. pytest reported PASSED in 0.61s. CRITICAL OPERATOR CLEANUP REQUIRED: Alma exposes no DELETE endpoint for user attachments, so this run left one probe HTML attachment on the supplied test user that the operator must manually delete via the Alma staff UI. The leftover attachment id was emitted at runtime by the test (see regression-smoke output for the cleanup target); the probe is a tiny synthetic HTML file labelled 'AlmaAPITK probe attachment - safe to delete - <UUID>' to make manual deletion safe and unambiguous."
+    },
+    {
+      "id": "t-44-1",
+      "issue": 44,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke for list_user_fees / get_user_fee against the supplied test user round-tripped successfully. pytest reported PASSED in 0.45s. No state mutated."
+    },
+    {
+      "id": "t-44-2",
+      "issue": 44,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Input-validation guard exercise for list_user_fees, get_user_fee, create_user_fee, pay_all_user_fees (including audit-corrected non-numeric/non-'ALL' amount rejection), pay_user_fee, waive_user_fee (audit-corrected: reason required), dispute_user_fee (audit-corrected: reason optional, no AlmaValidationError when reason omitted), and restore_user_fee all behaved as specified. pytest reported PASSED in 0.06s. No SANDBOX state read or mutated."
+    },
+    {
+      "id": "t-45-1",
+      "issue": 45,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Read-only smoke for list_user_deposits against the supplied test user round-tripped successfully and returned a List[Dict] envelope. pytest reported PASSED in 0.44s. No state mutated."
+    },
+    {
+      "id": "t-45-2",
+      "issue": 45,
+      "status": "passed",
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Input-validation guard exercise for list_user_deposits, create_user_deposit, get_user_deposit, and perform_user_deposit_action all raised AlmaValidationError before any HTTP call. pytest reported PASSED in 0.06s. No SANDBOX state read or mutated."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 39,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 44,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 45,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

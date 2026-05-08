@@ -1,0 +1,129 @@
+{
+  "chunk": "users-list-and-search",
+  "branch": "chunk/users-list-and-search",
+  "createdAt": "2026-05-08T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 36,
+      "title": "Coverage: Users: list & search users",
+      "classification": "general",
+      "subBranch": "feat/36-coverage-users-list-search",
+      "tests": [
+        {
+          "id": "t-36-1",
+          "kind": "smoke",
+          "scope": "Exercise the three new read-only methods shipped in issue #36 against live SANDBOX. Calls list_users(limit=5) and asserts it returns a non-empty List[Dict] (the Alma envelope {'user': [...], 'total_record_count': N} is unwrapped per the implementation; a real Alma tenant always has at least a few users so non-empty is a safe assertion). Then calls search_users(q=f'primary_id~{existing_user_primary_id}', limit=5) and asserts the supplied user is among the returned dicts (echo-back check via the user's primary_id). Finally calls get_user_personal_data(${existing_user_primary_id}) and asserts the response is a non-empty dict (the GDPR export payload). No state is mutated — pure read smoke. Covers issue #36 ACs 'list_users exposes optional filters and forwards them only when provided' (the limit / q passthrough is exercised), 'search_users(query, limit) is a thin wrapper over list_users and returns just the user array', 'get_user_personal_data(user_id) calls GET /almaws/v1/users/{user_id}/personal-data and returns the body', and the 'at least one SANDBOX integration test for list_users and one for get_user_personal_data' AC.",
+          "endpoints": [
+            "GET /almaws/v1/users",
+            "GET /almaws/v1/users/{user_id}/personal-data"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing user_primary_id in SANDBOX (any active user is fine; no special role / loan / fine state required). Used to (a) echo-test search_users via primary_id~<value> and (b) fetch the GDPR personal-data export. The value is reused across chunks — operator can copy from chunks/client-ergonomics/test-data.json. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file (R9).",
+              "example": "tau000000"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users_domain = Users(client)",
+            "users_list = users_domain.list_users(limit=5)",
+            "search_results = users_domain.search_users(q='primary_id~${existing_user_primary_id}', limit=5)",
+            "personal_data = users_domain.get_user_personal_data('${existing_user_primary_id}')"
+          ],
+          "passCriteria": [
+            "isinstance(users_list, list) and len(users_list) > 0 and all(isinstance(u, dict) for u in users_list)",
+            "isinstance(search_results, list) and any((u.get('primary_id') == '${existing_user_primary_id}') or (isinstance(u.get('primary_id'), dict) and u.get('primary_id', {}).get('value') == '${existing_user_primary_id}') for u in search_results)",
+            "isinstance(personal_data, dict) and len(personal_data) > 0"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-36-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #36 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises search_users('') / search_users('   ') / search_users(None) / search_users(123) for the q guard ('Query string q must be a non-empty string'), and get_user_personal_data('') / get_user_personal_data('   ') / get_user_personal_data(None) / get_user_personal_data(123) for the user_id guard ('User ID cannot be empty'). list_users() has no required string parameter so has no validation surface — it is not exercised here. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers the AlmaValidationError half of issue #36 AC 'Errors raise AlmaValidationError (input) or AlmaAPIError / subclass (API)' and the 'missing user_id raises AlmaValidationError' facet of the unit-test AC.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users_domain = Users(client)",
+            "errors = {}",
+            "try:\n    users_domain.search_users('')\nexcept AlmaValidationError as e:\n    errors['search_empty'] = e",
+            "try:\n    users_domain.search_users('   ')\nexcept AlmaValidationError as e:\n    errors['search_whitespace'] = e",
+            "try:\n    users_domain.search_users(None)\nexcept AlmaValidationError as e:\n    errors['search_none'] = e",
+            "try:\n    users_domain.search_users(123)\nexcept AlmaValidationError as e:\n    errors['search_nonstring'] = e",
+            "try:\n    users_domain.get_user_personal_data('')\nexcept AlmaValidationError as e:\n    errors['personal_empty'] = e",
+            "try:\n    users_domain.get_user_personal_data('   ')\nexcept AlmaValidationError as e:\n    errors['personal_whitespace'] = e",
+            "try:\n    users_domain.get_user_personal_data(None)\nexcept AlmaValidationError as e:\n    errors['personal_none'] = e",
+            "try:\n    users_domain.get_user_personal_data(123)\nexcept AlmaValidationError as e:\n    errors['personal_nonstring'] = e"
+          ],
+          "passCriteria": [
+            "'search_empty' in errors and isinstance(errors['search_empty'], AlmaValidationError)",
+            "'search_whitespace' in errors and isinstance(errors['search_whitespace'], AlmaValidationError)",
+            "'search_none' in errors and isinstance(errors['search_none'], AlmaValidationError)",
+            "'search_nonstring' in errors and isinstance(errors['search_nonstring'], AlmaValidationError)",
+            "'personal_empty' in errors and isinstance(errors['personal_empty'], AlmaValidationError)",
+            "'personal_whitespace' in errors and isinstance(errors['personal_whitespace'], AlmaValidationError)",
+            "'personal_none' in errors and isinstance(errors['personal_none'], AlmaValidationError)",
+            "'personal_nonstring' in errors and isinstance(errors['personal_nonstring'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "`list_users` exposes `limit`, `offset`, `q`, `order_by`, `expand`, `source_user_id`, `source_institution_code` and forwards them to the `GET /almaws/v1/users` query string only when provided.": [
+          "t-36-1"
+        ],
+        "`search_users(query, limit)` is a thin wrapper over `list_users` and returns just the `user` array.": [
+          "t-36-1"
+        ],
+        "`get_user_personal_data(user_id)` calls `GET /almaws/v1/users/{user_id}/personal-data` and returns the body.": [
+          "t-36-1"
+        ],
+        "At least one SANDBOX integration test for `list_users` and one for `get_user_personal_data`.": [
+          "t-36-1"
+        ],
+        "Unit tests (mocked HTTP) cover: pagination params, `q` syntax, missing `user_id` raises `AlmaValidationError`, personal-data redaction.": [
+          "t-36-2"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "`list_users` exposes `limit`, `offset`, `q`, `order_by`, `expand`, `source_user_id`, `source_institution_code` and forwards them to the `GET /almaws/v1/users` query string only when provided.",
+          "reason": "The 'forwards them to the query string only when provided' facet (i.e. that None-valued kwargs are dropped from params and non-None kwargs appear on the wire) is a request-construction invariant that is observable only by inspecting the outbound HTTP — covered by tests/unit/domains/test_users.py with mocked HTTP, not by the SANDBOX response. The 'limit/offset/q passthrough' facet IS partially observable in t-36-1 (limit=5 and q='primary_id~...' both demonstrably reach Alma because the response shape and content reflect them), so the AC is partially mapped to t-36-1; this entry documents the residual order_by/expand/source_user_id/source_institution_code pass-through facet."
+        },
+        {
+          "ac": "Type hints + Google-style docstrings on all methods.",
+          "reason": "Static-source invariant. Type hints and Google-style docstrings are observable only by inspecting src/almaapitk/domains/users.py — Alma SANDBOX returns identical bytes whether or not the wrapper has type annotations or docstrings. Verified by code review of the chunk diff and (transitively) by tests/test_public_api_contract.py."
+        },
+        {
+          "ac": "Unit tests (mocked HTTP) cover: pagination params, `q` syntax, missing `user_id` raises `AlmaValidationError`, personal-data redaction.",
+          "reason": "The 'unit tests with mocked HTTP' facet is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'missing user_id raises AlmaValidationError' facet IS mapped to t-36-2 via runtime exercise of the guard. The 'personal-data redaction' facet (verifying the personal-data response body never appears in logs) is observable only by inspecting log output post-run — verified by reviewing logs/ directory, not by SANDBOX bytes; it is a logging-call invariant on the source. This entry documents both the unit-test-suite residual AND the redaction facet."
+        },
+        {
+          "ac": "At least one SANDBOX integration test for `list_users` and one for `get_user_personal_data`.",
+          "reason": "Fully mapped to t-36-1; this AC is satisfied by the live read smoke. Listed here for completeness — no residual facet."
+        },
+        {
+          "ac": "No `print()` — all operations logged via `alma_logging`. Personal-data response bodies are NOT logged.",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper prints or logs, and regardless of whether the personal-data body appears in the log. Observable only by (a) grepping the new methods in src/almaapitk/domains/users.py for `print(` tokens and (b) reviewing the logs/api_requests/<date>/users.log file after t-36-1 runs to confirm the personal-data body is not present. Verified by code review of the chunk diff and post-run log inspection, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-36-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is harder to provoke deterministically against SANDBOX — most failure paths (401890 'User with identifier X was not found', 401652 / 4xx auth issues, 5xx transient outages) are environment-dependent and would flake. Existing unit tests in tests/unit/domains/test_users.py cover the API-error path with mocked HTTP; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour. This is also enforced as an impl-pipeline gate before SANDBOX testing begins."
+        },
+        {
+          "ac": "If exposed publicly, added to `almaapitk/__init__.py` `__all__`.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #36 extends the existing Users class (already exported via the v0.2.0 public API) — no NEW public symbols are introduced (list_users / search_users / get_user_personal_data are methods on the already-exported Users class), so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

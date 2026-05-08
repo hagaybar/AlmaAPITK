@@ -1,0 +1,32 @@
+{
+  "chunk": "users-list-and-search",
+  "testRunStartedAt": "2026-05-08T00:00:00+03:00",
+  "testRunFinishedAt": "2026-05-08T00:00:01+03:00",
+  "perTest": [
+    {
+      "id": "t-36-1",
+      "outcome": "passed",
+      "issueNumber": 36,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Live SANDBOX read smoke for the three new read-only methods on Users (list_users, search_users, get_user_personal_data). pytest reported 1 passed in 1.02s; all three pass-criteria asserts succeeded — list_users(limit=5) returned a non-empty List[Dict], search_users(q='primary_id~<supplied test user>', limit=5) echoed back the supplied user, and get_user_personal_data(<supplied test user>) returned a non-empty dict. No state mutated; cleanup not applicable."
+    },
+    {
+      "id": "t-36-2",
+      "outcome": "passed",
+      "issueNumber": 36,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Pure runtime input-validation guard exercise — no HTTP issued. pytest reported 1 passed in 0.06s; all eight pass-criteria asserts succeeded — search_users('') / search_users('   ') / search_users(None) / search_users(123) and get_user_personal_data('') / get_user_personal_data('   ') / get_user_personal_data(None) / get_user_personal_data(123) each raised AlmaValidationError before any outbound request. No state read or mutated; cleanup not applicable."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 36,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

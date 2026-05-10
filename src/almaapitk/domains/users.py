@@ -1422,6 +1422,375 @@ class Users:
             )
             raise
 
+    # -----------------------------------------------------------------
+    # Loans (issue #40)
+    # -----------------------------------------------------------------
+
+    def list_user_loans(
+        self,
+        user_id: str,
+        limit: int = 10,
+        offset: int = 0,
+        expand: Optional[str] = None,
+        order_by: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List a user's active loans.
+
+        Calls ``GET /almaws/v1/users/{user_id}/loans`` and unwraps the
+        Alma response envelope (``{"item_loan": [...],
+        "total_record_count": N}``) into a flat list. Pagination
+        parameters are forwarded to Alma; ``expand`` and ``order_by``
+        are forwarded only when supplied.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            limit: Page size (Alma default 10, valid range 0-100).
+                Forwarded as ``limit`` query parameter.
+            offset: Page offset (Alma default 0). Forwarded as
+                ``offset`` query parameter.
+            expand: Optional comma-separated expand values
+                (e.g. ``"renewable"``). Forwarded only when non-``None``.
+            order_by: Optional sort key (e.g. ``"due_date"``,
+                ``"loan_date"``, ``"barcode"``, ``"title"``).
+                Forwarded only when non-``None``.
+
+        Returns:
+            List of loan dicts as returned by Alma. Returns an empty
+            list when the user has no loans (or when the response
+            envelope lacks the ``item_loan`` key).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: list_user_fees (issue #44) for the
+        # "single GET, unwrap envelope, return list" idiom plus
+        # single-record-as-dict normalisation; list_users (issue #36)
+        # for the optional-filter forwarding pattern. Swagger:
+        # GET /almaws/v1/users/{user_id}/loans returns rest_item_loans.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        if expand is not None:
+            params["expand"] = expand
+        if order_by is not None:
+            params["order_by"] = order_by
+
+        endpoint = f"almaws/v1/users/{clean_id}/loans"
+        self.logger.info(
+            f"Listing loans for user {clean_id} "
+            f"(limit={limit}, offset={offset}, expand={expand!r}, "
+            f"order_by={order_by!r})"
+        )
+        try:
+            response = self.client.get(endpoint, params=params)
+            payload = response.json() or {}
+            loans = payload.get("item_loan") or []
+            if isinstance(loans, dict):
+                # Single-record responses can come back as a dict; normalise.
+                loans = [loans]
+            self.logger.info(
+                f"Retrieved {len(loans)} loans for user {clean_id}"
+            )
+            return loans
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing loans for user {clean_id}: {e}"
+            )
+            raise
+
+    def create_user_loan(
+        self,
+        user_id: str,
+        item_barcode: Optional[str] = None,
+        item_pid: Optional[str] = None,
+        user_id_type: Optional[str] = None,
+        loan_data: Optional[Dict[str, Any]] = None,
+    ) -> AlmaResponse:
+        """Create (loan) an item to a user.
+
+        Calls ``POST /almaws/v1/users/{user_id}/loans``. Per the Alma
+        OpenAPI spec, ``item_barcode``, ``item_pid``, and
+        ``user_id_type`` are **query parameters**; the request body is
+        the Loan object (``rest_item_loan-post.json``) carrying
+        ``circ_desk`` / ``library`` and any other Alma-accepted fields.
+        Exactly one of ``item_barcode`` or ``item_pid`` must be
+        supplied; ``loan_data`` is optional (Alma can derive
+        circ_desk / library from the operator context for some flows).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            item_barcode: The Item barcode. Mutually exclusive with
+                ``item_pid``; forwarded as a **query** parameter when
+                supplied.
+            item_pid: The Item PID. Mutually exclusive with
+                ``item_barcode``; forwarded as a **query** parameter when
+                supplied.
+            user_id_type: Optional user identifier type (any value from
+                the Alma "User Identifier Type" code table, e.g.
+                ``"all_unique"`` / ``"BARCODE"``). Forwarded as a
+                **query** parameter only when non-``None``.
+            loan_data: Optional Loan body dict (e.g.
+                ``{"circ_desk": {"value": "DEFAULT_CIRC_DESK"},
+                "library": {"value": "MAIN"}}``). When ``None``, no
+                body is sent and Alma applies its defaults.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response. The created
+            loan's identifier lives at ``response.data["loan_id"]``.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty / not a string,
+                if neither or both of ``item_barcode`` / ``item_pid``
+                are supplied, or if ``loan_data`` is supplied but is
+                not a dict.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: create_user_fee (issue #44) for "validate,
+        # log entry, POST with body, log success with new id"; and
+        # pay_user_fee (issue #44) for "build params dict dynamically,
+        # only include non-None keys". Swagger: POST
+        # /almaws/v1/users/{user_id}/loans uses query params for the
+        # item / user_id_type identifiers and accepts a Loan body.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if item_barcode is not None and item_pid is not None:
+            raise AlmaValidationError(
+                "Exactly one of item_barcode or item_pid must be supplied "
+                "(got both)"
+            )
+        if item_barcode is None and item_pid is None:
+            raise AlmaValidationError(
+                "Exactly one of item_barcode or item_pid must be supplied "
+                "(got neither)"
+            )
+        if loan_data is not None and not isinstance(loan_data, dict):
+            raise AlmaValidationError(
+                "loan_data must be a dict when supplied"
+            )
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {}
+        if item_barcode is not None:
+            params["item_barcode"] = item_barcode
+        if item_pid is not None:
+            params["item_pid"] = item_pid
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+
+        endpoint = f"almaws/v1/users/{clean_id}/loans"
+        # Audit-log: only the user_id and the item identifier — never
+        # the full loan_data (may carry patron-adjacent fields).
+        self.logger.info(
+            f"Creating loan for user {clean_id} "
+            f"(item_barcode={item_barcode!r}, item_pid={item_pid!r})"
+        )
+        try:
+            response = self.client.post(
+                endpoint,
+                data=loan_data,
+                params=params if params else None,
+            )
+            loan_id: Any = None
+            try:
+                loan_id = (response.data or {}).get("loan_id")
+            except (ValueError, AttributeError):
+                loan_id = None
+            self.logger.info(
+                f"Created loan for user {clean_id} (loan_id={loan_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating loan for user {clean_id} "
+                f"(item_barcode={item_barcode!r}, item_pid={item_pid!r}): {e}"
+            )
+            raise
+
+    def get_user_loan(
+        self,
+        user_id: str,
+        loan_id: str,
+    ) -> Dict[str, Any]:
+        """Retrieve a single loan's details.
+
+        Calls ``GET /almaws/v1/users/{user_id}/loans/{loan_id}`` and
+        returns the unwrapped loan dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            loan_id: Loan identifier. Must be a non-empty string.
+
+        Returns:
+            The loan dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``loan_id`` is empty
+                or not a string.
+            AlmaAPIError: If the API request fails (including 400 with
+                error code ``401823`` when the loan does not exist).
+        """
+        # Pattern source: get_user_fee (issue #44) — same
+        # "validate two ids, GET, return dict" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(loan_id, str) or not loan_id.strip():
+            raise AlmaValidationError("Loan ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_loan_id = loan_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/loans/{clean_loan_id}"
+        )
+        self.logger.info(
+            f"Retrieving loan {clean_loan_id} for user {clean_user_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved loan {clean_loan_id} for user {clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving loan {clean_loan_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def renew_user_loan(
+        self,
+        user_id: str,
+        loan_id: str,
+    ) -> AlmaResponse:
+        """Renew a single loan.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/loans/{loan_id}?op=renew``
+        with an empty request body. The swagger documents only
+        ``op=renew`` for this endpoint.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            loan_id: Loan identifier. Must be a non-empty string.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the renewed
+            loan body, including the new ``due_date``).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``loan_id`` is empty
+                or not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401822`` "Cannot renew loan" or ``401823``
+                "Loan ID does not exist").
+        """
+        # Pattern source: perform_user_deposit_action (issue #45) —
+        # same op-driven POST shape (op as query param, empty body).
+        # Pinned to op=renew per the swagger ("currently only op=renew
+        # is supported").
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(loan_id, str) or not loan_id.strip():
+            raise AlmaValidationError("Loan ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_loan_id = loan_id.strip()
+
+        params: Dict[str, Any] = {"op": "renew"}
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/loans/{clean_loan_id}"
+        )
+        self.logger.info(
+            f"Renewing loan {clean_loan_id} for user {clean_user_id}"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Renewed loan {clean_loan_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error renewing loan {clean_loan_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
+    def update_user_loan(
+        self,
+        user_id: str,
+        loan_id: str,
+        loan_data: Dict[str, Any],
+    ) -> AlmaResponse:
+        """Update a loan (typically the due date).
+
+        Calls ``PUT /almaws/v1/users/{user_id}/loans/{loan_id}`` with
+        ``loan_data`` as the JSON body. The swagger documents this
+        endpoint as "Change loan due date" — Alma's typical use is to
+        ship a body containing at least ``{"due_date": "<ISO-8601>"}``.
+        The body is passed through verbatim; the caller is responsible
+        for the loan-object shape.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            loan_id: Loan identifier. Must be a non-empty string.
+            loan_data: Loan body as a non-empty dict. Passed through to
+                Alma verbatim.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the updated
+            loan body).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` / ``loan_id`` is empty,
+                or if ``loan_data`` is empty / not a dict.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401824`` "Due date is not in loan object" or
+                ``401681`` "Due date cannot be in the past").
+        """
+        # Pattern source: update_user (above) — same
+        # "validate ids + non-empty dict, PUT body verbatim" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(loan_id, str) or not loan_id.strip():
+            raise AlmaValidationError("Loan ID cannot be empty")
+        if not isinstance(loan_data, dict) or not loan_data:
+            raise AlmaValidationError(
+                "loan_data must be a non-empty dictionary"
+            )
+        clean_user_id = user_id.strip()
+        clean_loan_id = loan_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/loans/{clean_loan_id}"
+        )
+        # Audit-log: never log the full loan_data body (may include
+        # patron-adjacent free-text fields like notes).
+        self.logger.info(
+            f"Updating loan {clean_loan_id} for user {clean_user_id}"
+        )
+        try:
+            response = self.client.put(endpoint, data=loan_data)
+            self.logger.info(
+                f"Updated loan {clean_loan_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error updating loan {clean_loan_id} for user "
+                f"{clean_user_id}: {e}"
+            )
+            raise
+
     def create_user(self, user_data: Dict[str, Any]) -> AlmaResponse:
         """Create a new Alma user.
 

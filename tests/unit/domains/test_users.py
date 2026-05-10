@@ -1,5 +1,6 @@
 """
-Unit tests for the Users domain class — issue #36 / #39 / #44 / #45 coverage:
+Unit tests for the Users domain class — issue #36 / #39 / #40 / #44 / #45
+coverage:
 
 - ``Users.list_users`` — list/search via ``GET /almaws/v1/users``
 - ``Users.search_users`` — convenience wrapper requiring ``q``
@@ -18,6 +19,8 @@ Unit tests for the Users domain class — issue #36 / #39 / #44 / #45 coverage:
   (issue #44)
 - ``Users.{list,create,get}_user_deposit`` and
   ``perform_user_deposit_action`` — deposits coverage (issue #45)
+- ``Users.{list,create,get}_user_loan`` plus ``renew_user_loan`` /
+  ``update_user_loan`` — loans coverage (issue #40)
 
 Tests use a mocked AlmaAPIClient stand-in (no real HTTP) following the
 mock-shape established in ``tests/unit/domains/test_configuration.py``.
@@ -71,9 +74,10 @@ class MockAlmaAPIClient:
         self.logger = MagicMock()
         self.get_response: MockAlmaResponse = MockAlmaResponse()
         self.post_response: MockAlmaResponse = MockAlmaResponse()
+        self.put_response: MockAlmaResponse = MockAlmaResponse()
         self.delete_response: MockAlmaResponse = MockAlmaResponse()
         self.next_exception: Optional[Exception] = None
-        self.calls = {"get": [], "post": [], "delete": []}
+        self.calls = {"get": [], "post": [], "put": [], "delete": []}
 
     def get_environment(self) -> str:
         return self.environment
@@ -112,6 +116,27 @@ class MockAlmaAPIClient:
             exc, self.next_exception = self.next_exception, None
             raise exc
         return self.post_response
+
+    def put(
+        self,
+        endpoint: str,
+        data: Any = None,
+        params: Optional[Dict[str, Any]] = None,
+        content_type: Optional[str] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
+    ) -> MockAlmaResponse:
+        self.calls["put"].append(
+            {
+                "endpoint": endpoint,
+                "data": data,
+                "params": params,
+                "content_type": content_type,
+            }
+        )
+        if self.next_exception is not None:
+            exc, self.next_exception = self.next_exception, None
+            raise exc
+        return self.put_response
 
     def delete(
         self,
@@ -2680,3 +2705,666 @@ class TestDeleteUser:
         # The exception still carries the diagnostic fields callers need.
         assert exc_info.value.alma_code == "401890"
         assert exc_info.value.tracking_id == "tracking-abc-123"
+
+
+# ---------------------------------------------------------------------------
+# list_user_loans  (issue #40)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserLoans:
+    """Tests for ``Users.list_user_loans`` (issue #40)."""
+
+    def test_list_user_loans_calls_correct_endpoint_with_defaults(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "item_loan": [
+                    {"loan_id": "loan-1", "item_barcode": "B1"},
+                    {"loan_id": "loan-2", "item_barcode": "B2"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_loans("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans"
+        # Default limit/offset are forwarded; expand/order_by absent.
+        assert call["params"] == {"limit": 10, "offset": 0}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["loan_id"] == "loan-1"
+
+    def test_list_user_loans_forwards_limit_offset(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"item_loan": [], "total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        users.list_user_loans("u1", limit=50, offset=100)
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"limit": 50, "offset": 100}
+
+    def test_list_user_loans_forwards_expand(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"item_loan": []})
+        users = Users(mock_client)
+
+        users.list_user_loans("u1", expand="renewable")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "expand": "renewable",
+        }
+
+    def test_list_user_loans_forwards_order_by(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"item_loan": []})
+        users = Users(mock_client)
+
+        users.list_user_loans("u1", order_by="due_date")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "order_by": "due_date",
+        }
+
+    def test_list_user_loans_forwards_all_optional_params(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"item_loan": []})
+        users = Users(mock_client)
+
+        users.list_user_loans(
+            "u1", limit=25, offset=50, expand="renewable", order_by="barcode"
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 25,
+            "offset": 50,
+            "expand": "renewable",
+            "order_by": "barcode",
+        }
+
+    def test_list_user_loans_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"item_loan": []})
+        users = Users(mock_client)
+
+        users.list_user_loans("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans"
+
+    def test_list_user_loans_returns_empty_list_on_missing_key(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_loans("u1")
+
+        assert result == []
+
+    def test_list_user_loans_handles_single_dict_response(self):
+        """A single loan returned as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "item_loan": {"loan_id": "only-loan"},
+                "total_record_count": 1,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_loans("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["loan_id"] == "only-loan"
+
+    def test_list_user_loans_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_loans("")
+
+    def test_list_user_loans_raises_on_whitespace_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_loans("   ")
+
+    def test_list_user_loans_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_loans(None)  # type: ignore[arg-type]
+
+    def test_list_user_loans_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.list_user_loans("u1")
+
+
+# ---------------------------------------------------------------------------
+# create_user_loan  (issue #40)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserLoan:
+    """Tests for ``Users.create_user_loan`` (issue #40)."""
+
+    def test_create_user_loan_with_item_barcode_only(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-99", "item_barcode": "B1"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user_loan("u1", item_barcode="B1")
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans"
+        # item_barcode is a query param, NOT a body field.
+        assert call["params"] == {"item_barcode": "B1"}
+        # No body when loan_data is None.
+        assert call["data"] is None
+        assert response.data["loan_id"] == "loan-99"
+
+    def test_create_user_loan_with_item_pid_only(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_loan("u1", item_pid="23123456")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans"
+        assert call["params"] == {"item_pid": "23123456"}
+        assert call["data"] is None
+
+    def test_create_user_loan_forwards_user_id_type(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_loan(
+            "u1", item_barcode="B1", user_id_type="all_unique"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "item_barcode": "B1",
+            "user_id_type": "all_unique",
+        }
+
+    def test_create_user_loan_forwards_loan_data_as_body(self):
+        from almaapitk.domains.users import Users
+
+        loan_body = {
+            "circ_desk": {"value": "DEFAULT_CIRC_DESK"},
+            "library": {"value": "MAIN"},
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_loan(
+            "u1", item_barcode="B1", loan_data=loan_body
+        )
+
+        call = mock_client.calls["post"][0]
+        # loan_data forwarded verbatim as body.
+        assert call["data"] == loan_body
+        # Identifier still in query params.
+        assert call["params"] == {"item_barcode": "B1"}
+
+    def test_create_user_loan_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_loan("  u1  ", item_barcode="B1")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans"
+
+    def test_create_user_loan_raises_when_both_item_identifiers_supplied(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_loan(
+                "u1", item_barcode="B1", item_pid="23123456"
+            )
+        # No HTTP call should be made on validation failure.
+        assert mock_client.calls["post"] == []
+
+    def test_create_user_loan_raises_when_neither_item_identifier_supplied(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_loan("u1")
+        assert mock_client.calls["post"] == []
+
+    def test_create_user_loan_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_loan("", item_barcode="B1")
+
+    def test_create_user_loan_raises_on_whitespace_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_loan("   ", item_barcode="B1")
+
+    def test_create_user_loan_raises_on_non_dict_loan_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_loan(
+                "u1",
+                item_barcode="B1",
+                loan_data="not-a-dict",  # type: ignore[arg-type]
+            )
+
+    def test_create_user_loan_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Item is not loanable",
+            status_code=400,
+            alma_code="401651",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.create_user_loan("u1", item_barcode="B1")
+
+        assert exc_info.value.alma_code == "401651"
+
+
+# ---------------------------------------------------------------------------
+# get_user_loan  (issue #40)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserLoan:
+    """Tests for ``Users.get_user_loan`` (issue #40)."""
+
+    def test_get_user_loan_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "loan_id": "loan-1",
+                "item_barcode": "B1",
+                "due_date": "2026-06-01Z",
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_loan("u1", "loan-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+        # No params on a plain GET.
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["loan_id"] == "loan-1"
+
+    def test_get_user_loan_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"loan_id": "loan-1"})
+        users = Users(mock_client)
+
+        users.get_user_loan("  u1  ", "  loan-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+
+    def test_get_user_loan_returns_empty_dict_on_empty_body(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        result = users.get_user_loan("u1", "loan-1")
+
+        assert result == {}
+
+    def test_get_user_loan_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_loan("", "loan-1")
+
+    def test_get_user_loan_raises_on_empty_loan_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_loan("u1", "")
+
+    def test_get_user_loan_raises_on_non_string_loan_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_loan("u1", None)  # type: ignore[arg-type]
+
+    def test_get_user_loan_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Loan ID does not exist", status_code=400, alma_code="401823"
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.get_user_loan("u1", "loan-1")
+
+        assert exc_info.value.alma_code == "401823"
+
+
+# ---------------------------------------------------------------------------
+# renew_user_loan  (issue #40)
+# ---------------------------------------------------------------------------
+
+
+class TestRenewUserLoan:
+    """Tests for ``Users.renew_user_loan`` (issue #40)."""
+
+    def test_renew_user_loan_sends_op_renew_with_empty_body(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"loan_id": "loan-1", "due_date": "2026-07-01Z"}
+        )
+        users = Users(mock_client)
+
+        response = users.renew_user_loan("u1", "loan-1")
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+        assert call["params"] == {"op": "renew"}
+        # Empty body — renewal is op-driven, not body-driven.
+        assert call["data"] is None
+        assert response.data["loan_id"] == "loan-1"
+
+    def test_renew_user_loan_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"loan_id": "loan-1"})
+        users = Users(mock_client)
+
+        users.renew_user_loan("  u1  ", "  loan-1  ")
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+
+    def test_renew_user_loan_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.renew_user_loan("", "loan-1")
+
+    def test_renew_user_loan_raises_on_empty_loan_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.renew_user_loan("u1", "")
+
+    def test_renew_user_loan_raises_on_non_string_ids(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.renew_user_loan(None, "loan-1")  # type: ignore[arg-type]
+        with pytest.raises(AlmaValidationError):
+            users.renew_user_loan("u1", None)  # type: ignore[arg-type]
+
+    def test_renew_user_loan_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Cannot renew loan", status_code=400, alma_code="401822"
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.renew_user_loan("u1", "loan-1")
+
+        assert exc_info.value.alma_code == "401822"
+
+
+# ---------------------------------------------------------------------------
+# update_user_loan  (issue #40)
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateUserLoan:
+    """Tests for ``Users.update_user_loan`` (issue #40)."""
+
+    def test_update_user_loan_puts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        loan_body = {
+            "loan_id": "loan-1",
+            "due_date": "2026-08-01Z",
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"loan_id": "loan-1", "due_date": "2026-08-01Z"}
+        )
+        users = Users(mock_client)
+
+        response = users.update_user_loan("u1", "loan-1", loan_body)
+
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+        # Body is the operator-supplied dict verbatim.
+        assert call["data"] == loan_body
+        # No query params (notify_user is not exposed by the wrapper).
+        assert call["params"] is None
+        assert response.data["due_date"] == "2026-08-01Z"
+
+    def test_update_user_loan_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(body={"loan_id": "loan-1"})
+        users = Users(mock_client)
+
+        users.update_user_loan(
+            "  u1  ", "  loan-1  ", {"due_date": "2026-08-01Z"}
+        )
+
+        call = mock_client.calls["put"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/loans/loan-1"
+
+    def test_update_user_loan_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_loan("", "loan-1", {"due_date": "2026-08-01Z"})
+
+    def test_update_user_loan_raises_on_empty_loan_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_loan("u1", "", {"due_date": "2026-08-01Z"})
+
+    def test_update_user_loan_raises_on_empty_loan_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_loan("u1", "loan-1", {})
+
+    def test_update_user_loan_raises_on_non_dict_loan_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_loan(
+                "u1", "loan-1", "not-a-dict"  # type: ignore[arg-type]
+            )
+
+    def test_update_user_loan_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Due date cannot be in the past",
+            status_code=400,
+            alma_code="401681",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.update_user_loan(
+                "u1", "loan-1", {"due_date": "2020-01-01Z"}
+            )
+
+        assert exc_info.value.alma_code == "401681"

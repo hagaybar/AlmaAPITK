@@ -3368,3 +3368,918 @@ class TestUpdateUserLoan:
             )
 
         assert exc_info.value.alma_code == "401681"
+
+
+# ---------------------------------------------------------------------------
+# list_user_requests  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserRequests:
+    """Tests for ``Users.list_user_requests`` (issue #41)."""
+
+    def test_list_user_requests_calls_correct_endpoint_with_defaults(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_request": [
+                    {"request_id": "req-1", "request_type": "HOLD"},
+                    {"request_id": "req-2", "request_type": "BOOKING"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_requests("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests"
+        # Default limit/offset are forwarded; request_type / status absent.
+        assert call["params"] == {"limit": 10, "offset": 0}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["request_id"] == "req-1"
+
+    def test_list_user_requests_forwards_request_type(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"user_request": []})
+        users = Users(mock_client)
+
+        users.list_user_requests("u1", request_type="HOLD")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "request_type": "HOLD",
+        }
+
+    def test_list_user_requests_forwards_status(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"user_request": []})
+        users = Users(mock_client)
+
+        users.list_user_requests("u1", status="history")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "status": "history",
+        }
+
+    def test_list_user_requests_forwards_limit_offset(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"user_request": []})
+        users = Users(mock_client)
+
+        users.list_user_requests("u1", limit=50, offset=100)
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"limit": 50, "offset": 100}
+
+    def test_list_user_requests_forwards_all_filters(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"user_request": []})
+        users = Users(mock_client)
+
+        users.list_user_requests(
+            "u1",
+            request_type="DIGITIZATION",
+            status="active",
+            limit=25,
+            offset=50,
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 25,
+            "offset": 50,
+            "request_type": "DIGITIZATION",
+            "status": "active",
+        }
+
+    def test_list_user_requests_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"user_request": []})
+        users = Users(mock_client)
+
+        users.list_user_requests("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests"
+
+    def test_list_user_requests_returns_empty_list_on_missing_key(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_requests("u1")
+
+        assert result == []
+
+    def test_list_user_requests_handles_single_dict_response(self):
+        """A single request returned as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_request": {"request_id": "only-req"},
+                "total_record_count": 1,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_requests("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["request_id"] == "only-req"
+
+    def test_list_user_requests_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_requests("")
+
+    def test_list_user_requests_raises_on_whitespace_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_requests("   ")
+
+    def test_list_user_requests_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_requests(None)  # type: ignore[arg-type]
+
+    def test_list_user_requests_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError("boom", status_code=500)
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError):
+            users.list_user_requests("u1")
+
+
+# ---------------------------------------------------------------------------
+# create_user_request  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserRequest:
+    """Tests for ``Users.create_user_request`` (issue #41)."""
+
+    def test_create_user_request_with_mms_id_only(self):
+        from almaapitk.domains.users import Users
+
+        body = {
+            "request_type": "HOLD",
+            "pickup_location_type": "LIBRARY",
+            "pickup_location_library": "MAIN",
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99", "request_type": "HOLD"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user_request(
+            "u1", request_data=body, mms_id="9981234567"
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests"
+        assert call["params"] == {"mms_id": "9981234567"}
+        # request_data forwarded verbatim as body.
+        assert call["data"] == body
+        assert response.data["request_id"] == "req-99"
+
+    def test_create_user_request_with_item_pid_only(self):
+        from almaapitk.domains.users import Users
+
+        body = {"request_type": "BOOKING"}
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_request(
+            "u1", request_data=body, item_pid="23123456"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests"
+        assert call["params"] == {"item_pid": "23123456"}
+        assert call["data"] == body
+
+    def test_create_user_request_with_holding_id_only(self):
+        from almaapitk.domains.users import Users
+
+        body = {"request_type": "HOLD"}
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_request(
+            "u1", request_data=body, holding_id="hol-1"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {"holding_id": "hol-1"}
+        assert call["data"] == body
+
+    def test_create_user_request_with_mms_and_item_pid(self):
+        from almaapitk.domains.users import Users
+
+        body = {"request_type": "HOLD"}
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99"}
+        )
+        users = Users(mock_client)
+
+        # The wrapper does NOT enforce title-vs-item exclusivity; both
+        # are forwarded so Alma can apply the institution-specific
+        # rules. Cf. create_user_loan, which DOES enforce one-of for
+        # item_barcode/item_pid — but the request endpoint takes a
+        # different shape per swagger.
+        users.create_user_request(
+            "u1",
+            request_data=body,
+            mms_id="9981234567",
+            item_pid="23123456",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "mms_id": "9981234567",
+            "item_pid": "23123456",
+        }
+
+    def test_create_user_request_forwards_user_id_type(self):
+        from almaapitk.domains.users import Users
+
+        body = {"request_type": "HOLD"}
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_request(
+            "u1",
+            request_data=body,
+            mms_id="9981234567",
+            user_id_type="all_unique",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {
+            "mms_id": "9981234567",
+            "user_id_type": "all_unique",
+        }
+
+    def test_create_user_request_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-99"}
+        )
+        users = Users(mock_client)
+
+        users.create_user_request(
+            "  u1  ",
+            request_data={"request_type": "HOLD"},
+            mms_id="9981234567",
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests"
+
+    def test_create_user_request_raises_when_no_resource_identifier_supplied(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_request(
+                "u1", request_data={"request_type": "HOLD"}
+            )
+        # No HTTP call should be made on validation failure.
+        assert mock_client.calls["post"] == []
+
+    def test_create_user_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_request(
+                "",
+                request_data={"request_type": "HOLD"},
+                mms_id="9981234567",
+            )
+
+    def test_create_user_request_raises_on_whitespace_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_request(
+                "   ",
+                request_data={"request_type": "HOLD"},
+                mms_id="9981234567",
+            )
+
+    def test_create_user_request_raises_on_empty_request_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_request(
+                "u1", request_data={}, mms_id="9981234567"
+            )
+
+    def test_create_user_request_raises_on_non_dict_request_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_request(
+                "u1",
+                request_data="not-a-dict",  # type: ignore[arg-type]
+                mms_id="9981234567",
+            )
+
+    def test_create_user_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "No items can fulfill the submitted request",
+            status_code=400,
+            alma_code="401129",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.create_user_request(
+                "u1",
+                request_data={"request_type": "HOLD"},
+                mms_id="9981234567",
+            )
+
+        assert exc_info.value.alma_code == "401129"
+
+
+# ---------------------------------------------------------------------------
+# get_user_request  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserRequest:
+    """Tests for ``Users.get_user_request`` (issue #41)."""
+
+    def test_get_user_request_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "request_id": "req-1",
+                "request_type": "HOLD",
+                "request_status": "ACTIVE",
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_request("u1", "req-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        # No params on a plain GET.
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["request_id"] == "req-1"
+
+    def test_get_user_request_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"request_id": "req-1"}
+        )
+        users = Users(mock_client)
+
+        users.get_user_request("  u1  ", "  req-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+
+    def test_get_user_request_returns_empty_dict_on_empty_body(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        result = users.get_user_request("u1", "req-1")
+
+        assert result == {}
+
+    def test_get_user_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_request("", "req-1")
+
+    def test_get_user_request_raises_on_empty_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_request("u1", "")
+
+    def test_get_user_request_raises_on_non_string_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_request("u1", None)  # type: ignore[arg-type]
+
+    def test_get_user_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Request Identifier not found",
+            status_code=400,
+            alma_code="401694",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.get_user_request("u1", "req-1")
+
+        assert exc_info.value.alma_code == "401694"
+
+
+# ---------------------------------------------------------------------------
+# cancel_user_request  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestCancelUserRequest:
+    """Tests for ``Users.cancel_user_request`` (issue #41)."""
+
+    def test_cancel_user_request_with_reason_only(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        # Swagger says 204 No Content — body is empty.
+        mock_client.delete_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        response = users.cancel_user_request(
+            "u1", "req-1", reason="CancelledAtPatronRequest"
+        )
+
+        assert len(mock_client.calls["delete"]) == 1
+        call = mock_client.calls["delete"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        # Reason is forwarded as a QUERY param on DELETE.
+        assert call["params"] == {"reason": "CancelledAtPatronRequest"}
+        # Empty body for 204 response — wrapper still returns it.
+        assert response.data == {}
+
+    def test_cancel_user_request_with_reason_and_note(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.delete_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.cancel_user_request(
+            "u1",
+            "req-1",
+            reason="CancelledAtPatronRequest",
+            note="Patron called and asked to cancel",
+        )
+
+        call = mock_client.calls["delete"][0]
+        assert call["params"] == {
+            "reason": "CancelledAtPatronRequest",
+            "note": "Patron called and asked to cancel",
+        }
+
+    def test_cancel_user_request_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.delete_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.cancel_user_request(
+            "  u1  ",
+            "  req-1  ",
+            reason="  CancelledAtPatronRequest  ",
+        )
+
+        call = mock_client.calls["delete"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        # Reason whitespace is stripped.
+        assert call["params"] == {"reason": "CancelledAtPatronRequest"}
+
+    def test_cancel_user_request_raises_on_empty_reason(self):
+        """Reason is REQUIRED per the swagger."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.cancel_user_request("u1", "req-1", reason="")
+        # No HTTP call on validation failure.
+        assert mock_client.calls["delete"] == []
+
+    def test_cancel_user_request_raises_on_whitespace_reason(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.cancel_user_request("u1", "req-1", reason="   ")
+
+    def test_cancel_user_request_raises_on_non_string_reason(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.cancel_user_request(
+                "u1", "req-1", reason=None  # type: ignore[arg-type]
+            )
+
+    def test_cancel_user_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.cancel_user_request(
+                "", "req-1", reason="CancelledAtPatronRequest"
+            )
+
+    def test_cancel_user_request_raises_on_empty_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.cancel_user_request(
+                "u1", "", reason="CancelledAtPatronRequest"
+            )
+
+    def test_cancel_user_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Request Identifier not found",
+            status_code=400,
+            alma_code="401694",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.cancel_user_request(
+                "u1", "req-1", reason="CancelledAtPatronRequest"
+            )
+
+        assert exc_info.value.alma_code == "401694"
+
+
+# ---------------------------------------------------------------------------
+# perform_user_request_action  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestPerformUserRequestAction:
+    """Tests for ``Users.perform_user_request_action`` (issue #41)."""
+
+    def test_perform_user_request_action_sends_op_as_param(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "req-1", "request_status": "IN_PROCESS"}
+        )
+        users = Users(mock_client)
+
+        response = users.perform_user_request_action(
+            "u1", "req-1", op="next_step"
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        assert call["params"] == {"op": "next_step"}
+        # Empty body — action is op-driven, not body-driven.
+        assert call["data"] is None
+        assert response.data["request_id"] == "req-1"
+
+    def test_perform_user_request_action_accepts_arbitrary_op(self):
+        """Wrapper does not enumerate ops; Alma rejects invalid ones."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.perform_user_request_action(
+            "u1", "req-1", op="some_future_op"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {"op": "some_future_op"}
+
+    def test_perform_user_request_action_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.perform_user_request_action(
+            "  u1  ", "  req-1  ", op="  next_step  "
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        assert call["params"] == {"op": "next_step"}
+
+    def test_perform_user_request_action_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_request_action("", "req-1", op="next_step")
+
+    def test_perform_user_request_action_raises_on_empty_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_request_action("u1", "", op="next_step")
+
+    def test_perform_user_request_action_raises_on_empty_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_request_action("u1", "req-1", op="")
+
+    def test_perform_user_request_action_raises_on_whitespace_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_request_action("u1", "req-1", op="   ")
+
+    def test_perform_user_request_action_raises_on_non_string_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_request_action(
+                "u1", "req-1", op=None  # type: ignore[arg-type]
+            )
+
+    def test_perform_user_request_action_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Failed to find a request for the given request ID",
+            status_code=400,
+            alma_code="401907",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.perform_user_request_action(
+                "u1", "req-1", op="next_step"
+            )
+
+        assert exc_info.value.alma_code == "401907"
+
+
+# ---------------------------------------------------------------------------
+# update_user_request  (issue #41)
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateUserRequest:
+    """Tests for ``Users.update_user_request`` (issue #41)."""
+
+    def test_update_user_request_puts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        body = {
+            "request_type": "HOLD",
+            "pickup_location_library": "OTHER_LIB",
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"request_id": "req-1", "pickup_location_library": "OTHER_LIB"}
+        )
+        users = Users(mock_client)
+
+        response = users.update_user_request("u1", "req-1", body)
+
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+        # Body forwarded verbatim.
+        assert call["data"] == body
+        # No query params on update.
+        assert call["params"] is None
+        assert response.data["request_id"] == "req-1"
+
+    def test_update_user_request_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"request_id": "req-1"}
+        )
+        users = Users(mock_client)
+
+        users.update_user_request(
+            "  u1  ", "  req-1  ", {"request_type": "HOLD"}
+        )
+
+        call = mock_client.calls["put"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/requests/req-1"
+
+    def test_update_user_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_request("", "req-1", {"request_type": "HOLD"})
+
+    def test_update_user_request_raises_on_empty_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_request("u1", "", {"request_type": "HOLD"})
+
+    def test_update_user_request_raises_on_empty_request_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_request("u1", "req-1", {})
+
+    def test_update_user_request_raises_on_non_dict_request_data(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.update_user_request(
+                "u1", "req-1", "not-a-dict"  # type: ignore[arg-type]
+            )
+
+    def test_update_user_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Invalid partial digitization volume or issue",
+            status_code=400,
+            alma_code="60330",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.update_user_request(
+                "u1", "req-1", {"request_type": "DIGITIZATION"}
+            )
+
+        assert exc_info.value.alma_code == "60330"

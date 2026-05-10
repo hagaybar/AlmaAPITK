@@ -87,13 +87,14 @@ def test_t_37_1():
         assert got.data.get("primary_id") == primary_id
 
         # --- delete (happy path) --------------------------------------------
-        # Note: Alma's user-delete endpoint can take 30-60 seconds in
-        # SANDBOX (it cascades through linked resources). The response
-        # body is empty / non-JSON in practice (verified live
-        # 2026-05-09: a 40-second 200 with no parseable JSON body), so
-        # we assert .success only — NOT that .data is a dict. The
-        # "user actually deleted" semantics are verified by the next
-        # step where get_user must raise.
+        # Note: Alma's user-delete endpoint returns HTTP 204 No Content
+        # (verified live 2026-05-10; matches swagger `204: "Deleted"`),
+        # so .data is empty. We assert .success only — NOT that .data
+        # is a dict. The "user actually deleted" semantics are verified
+        # by the next step where get_user must raise.
+        # Latency: typically 1-2 seconds, but observed up to ~40 seconds
+        # in SANDBOX under load (Alma cascades through linked resources
+        # — notes, audit log entries, blocks).
         delete_response = users.delete_user(primary_id)
         assert delete_response is not None
         assert getattr(delete_response, "success", False) is True

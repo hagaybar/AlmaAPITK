@@ -1,0 +1,46 @@
+{
+  "chunk": "users-requests",
+  "issues": [
+    {
+      "number": 41,
+      "title": "Coverage: Users: requests (list, create, get, cancel, action, update)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/41",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## Background\nAdd coverage for the user requests resource (list, create, get, cancel,\nupdate, perform action). Endpoints and verbs are documented and the\nproposed signatures cover the main flows. The audit (2026-05-01, codex\ndirect) flagged that `cancel_user_request` should make `reason` required\nbecause Alma documents `reason` as a required query parameter on\n`DELETE /requests/{id}`.\n\n## Relevant Alma API documentation\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Endpoints touched:\n  - `GET /almaws/v1/users/{user_id}/requests`\n  - `POST /almaws/v1/users/{user_id}/requests`\n  - `GET /almaws/v1/users/{user_id}/requests/{request_id}`\n  - `POST /almaws/v1/users/{user_id}/requests/{request_id}` (`op=...`)\n  - `PUT /almaws/v1/users/{user_id}/requests/{request_id}`\n  - `DELETE /almaws/v1/users/{user_id}/requests/{request_id}`\n\nPer docs, the cancel endpoint expects a `reason` query param (and an\noptional `note`); requests can be canceled but not deleted in the literal\nsense \u2014 the DELETE verb is the documented \"cancel\" path.\n\n## Current wrapper behavior\nNone of the user-requests endpoints are wrapped today.\n\n## Expected wrapper behavior\n\n```python\ndef list_user_requests(\n    self,\n    user_id: str,\n    limit: int = 100,\n    offset: int = 0,\n    request_type: str = None,\n    status: str = None,\n) -> Dict[str, Any]: ...\n\ndef create_user_request(\n    self,\n    user_id: str,\n    request_data: Dict[str, Any],\n    *,\n    mms_id: str = None,\n    holding_id: str = None,\n    item_pid: str = None,\n    user_id_type: str = None,\n) -> AlmaResponse:\n    \"\"\"\n    Optional query params let callers create a request scoped to a specific\n    bib/holding/item without restructuring the body.\n    \"\"\"\n\ndef get_user_request(self, user_id: str, request_id: str) -> Dict[str, Any]: ...\n\ndef cancel_user_request(\n    self,\n    user_id: str,\n    request_id: str,\n    reason: str,            # REQUIRED per Alma docs\n    note: str = None,\n    notify_user: bool = True,\n) -> AlmaResponse: ...\n\ndef update_user_request(\n    self, user_id: str, request_id: str, request_data: Dict[str, Any],\n) -> AlmaResponse: ...\n\ndef perform_user_request_action(\n    self, user_id: str, request_id: str, op: str,\n) -> AlmaResponse: ...\n```\n\n## Implementation notes\n- Make `reason` a positional required parameter on `cancel_user_request` so\n  callers can't accidentally hit Alma's 400 for missing reason. Validate\n  non-empty and raise `AlmaValidationError` if blank.\n- `op` values for the action POST aren't enumerated on the public docs index;\n  document the ones you actually hit during integration tests in the\n  docstring.\n- The DELETE verb is what Alma documents for \"cancel\" \u2014 wire\n  `cancel_user_request` to the DELETE endpoint, not POST `op=cancel`.\n\n## Acceptance criteria\n- [ ] All six methods exposed with type hints and Google-style docstrings.\n- [ ] `cancel_user_request(reason)` requires `reason` (non-empty validation)\n      and forwards it as a query parameter to DELETE\n      `.../requests/{request_id}`.\n- [ ] `list_user_requests` supports the documented `limit`, `offset`,\n      `request_type`, `status` filters.\n- [ ] Unit tests cover: missing `reason` raises `AlmaValidationError`;\n      `op` is wired into the action POST query string; `cancel_user_request`\n      uses HTTP DELETE not POST.\n- [ ] At least one SANDBOX integration test that creates \u2192 gets \u2192 cancels.\n- [ ] No `print()` \u2014 all operations logged via `alma_logging`.\n- [ ] `scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.\n\n## Open questions\n- Which `op` values on `POST /requests/{id}` are still supported in current\n  Alma releases (docs hint at `move`, `prioritize`, etc.) \u2014 confirm during\n  integration testing and list them in the docstring.\n\n## Audit notes (2026-05-01)\n- Primary audit: **Aligned** \u2014 all six endpoints and HTTP verbs match docs\n  exactly.\n- Codex direct audit: **Partially aligned** \u2014 flagged that\n  `cancel_user_request(reason: str = None)` makes `reason` optional, but\n  Alma documents it as required.\n- Decision: take the codex finding; promote `reason` to a required\n  positional parameter and validate non-empty at call time.\n\n## Files to touch\n- `src/almaapitk/domains/users.py` (extend existing `Users` class)\n- `tests/unit/domains/test_users.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- POST /requests/{id} dispatches via `op` query parameter to actions like `move`, `prioritize`, etc.\n- Pair this work with the bib-level/item-level requests issues (#49, #50) for shared validation helpers.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Users",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "tests/unit/domains/test_users.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "All six methods exposed with type hints and Google-style docstrings.",
+        "`cancel_user_request(reason)` requires `reason` (non-empty validation)",
+        "`list_user_requests` supports the documented `limit`, `offset`,",
+        "Unit tests cover: missing `reason` raises `AlmaValidationError`;",
+        "At least one SANDBOX integration test that creates \u2192 gets \u2192 cancels.",
+        "No `print()` \u2014 all operations logged via `alma_logging`.",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass."
+      ]
+    }
+  ]
+}

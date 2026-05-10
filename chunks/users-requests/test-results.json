@@ -1,0 +1,40 @@
+{
+  "chunk": "users-requests",
+  "testRunStartedAt": "2026-05-10T14:05:34+03:00",
+  "testRunFinishedAt": "2026-05-10T14:15:53+03:00",
+  "perTest": [
+    {
+      "id": "t-41-1",
+      "outcome": "passed",
+      "issueNumber": 41,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "OK"
+    },
+    {
+      "id": "t-41-2",
+      "outcome": "passed",
+      "issueNumber": 41,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "OK"
+    },
+    {
+      "id": "t-41-3",
+      "outcome": "passed",
+      "issueNumber": 41,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "OK"
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 41,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": true
+    }
+  ]
+}

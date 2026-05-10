@@ -1,0 +1,220 @@
+{
+  "chunk": "users-requests",
+  "branch": "chunk/users-requests",
+  "createdAt": "2026-05-10T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 41,
+      "title": "Coverage: Users: requests (list, create, get, cancel, action, update)",
+      "classification": "general",
+      "subBranch": "feat/41-coverage-users-requests-list-c",
+      "tests": [
+        {
+          "id": "t-41-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only request methods shipped in issue #41 against live SANDBOX. Calls list_user_requests(${existing_user_primary_id}) to confirm the GET /users/{user_id}/requests endpoint round-trips and returns a List[Dict] envelope (the wrapper unwraps the Alma 'user_request' key into a flat list per the chunk's audit-corrected signature; the SANDBOX user is likely to have zero active requests on a fresh fixture, in which case the list is empty and that is still a pass for the list-shape assertion). If the returned list is non-empty, picks the first request's request_id and calls get_user_request(${existing_user_primary_id}, <request_id>) to confirm the single-request GET round-trips and returns a non-empty Dict[str, Any]. If the list is empty, the get-step is skipped — the test is still considered pass because the list endpoint itself responded correctly. No state is mutated. Covers the read half of issue #41's integration coverage; the create→get→cancel live cycle is exercised by t-41-3 and update_user_request / perform_user_request_action are documented as unmappable below.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/requests",
+            "GET /almaws/v1/users/{user_id}/requests/{request_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-41-1 (read-only list/get) and t-41-3 (live create→get→cancel hold-request round-trip). The user is not destructively mutated; t-41-3 creates a real hold request and cancels it in-band with reason 'AUTOMATED_REGRESSION_TEST_CLEANUP', so the user's request history will show one created/cancelled request as an audit artifact. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "requests_list = users.list_user_requests('${existing_user_primary_id}')",
+            "first_request = None\nrequest_detail = None\nif isinstance(requests_list, list) and len(requests_list) > 0:\n    first_request = requests_list[0]\n    request_id = first_request.get('request_id') if isinstance(first_request, dict) else None\n    if request_id:\n        request_detail = users.get_user_request('${existing_user_primary_id}', str(request_id))"
+          ],
+          "passCriteria": [
+            "isinstance(requests_list, list)",
+            "first_request is None or (isinstance(request_detail, dict) and len(request_detail) > 0)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-41-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #41 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_requests on empty/None/non-string user_id; get_user_request on empty/None user_id and empty/None request_id; create_user_request on empty/None user_id, on empty/None/non-dict request_data, and on the at-least-one-resource-identifier guard (mms_id/item_pid/holding_id all None must raise); cancel_user_request on empty/None user_id, empty/None request_id, AND the audit-corrected MUST guard — empty/None/non-string reason must raise (this is the codex-direct audit finding that promoted reason from optional to required); perform_user_request_action on empty/None user_id, empty/None request_id, and empty/None/non-string op; update_user_request on empty/None user_id, empty/None request_id, empty dict request_data, and non-dict request_data. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers issue #41 ACs 'Errors raise AlmaValidationError (input)' and 'cancel_user_request(reason) requires reason (non-empty validation)' for the live runtime — these are pure Python guards, but exercising them through the live Users object proves the guards are wired in the build the operator will actually use.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_requests('')\nexcept AlmaValidationError as e:\n    errors['list_requests_empty'] = e",
+            "try:\n    users.list_user_requests(None)\nexcept AlmaValidationError as e:\n    errors['list_requests_none'] = e",
+            "try:\n    users.list_user_requests(123)\nexcept AlmaValidationError as e:\n    errors['list_requests_nonstring'] = e",
+            "try:\n    users.get_user_request('', 'R')\nexcept AlmaValidationError as e:\n    errors['get_request_empty_user'] = e",
+            "try:\n    users.get_user_request('U', '')\nexcept AlmaValidationError as e:\n    errors['get_request_empty_id'] = e",
+            "try:\n    users.get_user_request(None, 'R')\nexcept AlmaValidationError as e:\n    errors['get_request_none_user'] = e",
+            "try:\n    users.get_user_request('U', None)\nexcept AlmaValidationError as e:\n    errors['get_request_none_id'] = e",
+            "try:\n    users.create_user_request('', {'request_type': 'HOLD'}, mms_id='9911')\nexcept AlmaValidationError as e:\n    errors['create_request_empty_user'] = e",
+            "try:\n    users.create_user_request(None, {'request_type': 'HOLD'}, mms_id='9911')\nexcept AlmaValidationError as e:\n    errors['create_request_none_user'] = e",
+            "try:\n    users.create_user_request('U', {}, mms_id='9911')\nexcept AlmaValidationError as e:\n    errors['create_request_empty_body'] = e",
+            "try:\n    users.create_user_request('U', 'not-a-dict', mms_id='9911')\nexcept AlmaValidationError as e:\n    errors['create_request_nondict_body'] = e",
+            "try:\n    users.create_user_request('U', {'request_type': 'HOLD'})\nexcept AlmaValidationError as e:\n    errors['create_request_no_resource'] = e",
+            "try:\n    users.cancel_user_request('', 'R', reason='X')\nexcept AlmaValidationError as e:\n    errors['cancel_empty_user'] = e",
+            "try:\n    users.cancel_user_request(None, 'R', reason='X')\nexcept AlmaValidationError as e:\n    errors['cancel_none_user'] = e",
+            "try:\n    users.cancel_user_request('U', '', reason='X')\nexcept AlmaValidationError as e:\n    errors['cancel_empty_id'] = e",
+            "try:\n    users.cancel_user_request('U', None, reason='X')\nexcept AlmaValidationError as e:\n    errors['cancel_none_id'] = e",
+            "try:\n    users.cancel_user_request('U', 'R', reason='')\nexcept AlmaValidationError as e:\n    errors['cancel_empty_reason'] = e",
+            "try:\n    users.cancel_user_request('U', 'R', reason=None)\nexcept AlmaValidationError as e:\n    errors['cancel_none_reason'] = e",
+            "try:\n    users.cancel_user_request('U', 'R', reason=123)\nexcept AlmaValidationError as e:\n    errors['cancel_nonstring_reason'] = e",
+            "try:\n    users.perform_user_request_action('', 'R', op='next_step')\nexcept AlmaValidationError as e:\n    errors['action_empty_user'] = e",
+            "try:\n    users.perform_user_request_action('U', '', op='next_step')\nexcept AlmaValidationError as e:\n    errors['action_empty_id'] = e",
+            "try:\n    users.perform_user_request_action('U', 'R', op='')\nexcept AlmaValidationError as e:\n    errors['action_empty_op'] = e",
+            "try:\n    users.update_user_request('', 'R', {'pickup_location_library': 'MAIN'})\nexcept AlmaValidationError as e:\n    errors['update_empty_user'] = e",
+            "try:\n    users.update_user_request('U', '', {'pickup_location_library': 'MAIN'})\nexcept AlmaValidationError as e:\n    errors['update_empty_id'] = e",
+            "try:\n    users.update_user_request('U', 'R', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    users.update_user_request('U', 'R', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['update_nondict_body'] = e"
+          ],
+          "passCriteria": [
+            "'list_requests_empty' in errors and isinstance(errors['list_requests_empty'], AlmaValidationError)",
+            "'list_requests_none' in errors and isinstance(errors['list_requests_none'], AlmaValidationError)",
+            "'list_requests_nonstring' in errors and isinstance(errors['list_requests_nonstring'], AlmaValidationError)",
+            "'get_request_empty_user' in errors and isinstance(errors['get_request_empty_user'], AlmaValidationError)",
+            "'get_request_empty_id' in errors and isinstance(errors['get_request_empty_id'], AlmaValidationError)",
+            "'get_request_none_user' in errors and isinstance(errors['get_request_none_user'], AlmaValidationError)",
+            "'get_request_none_id' in errors and isinstance(errors['get_request_none_id'], AlmaValidationError)",
+            "'create_request_empty_user' in errors and isinstance(errors['create_request_empty_user'], AlmaValidationError)",
+            "'create_request_none_user' in errors and isinstance(errors['create_request_none_user'], AlmaValidationError)",
+            "'create_request_empty_body' in errors and isinstance(errors['create_request_empty_body'], AlmaValidationError)",
+            "'create_request_nondict_body' in errors and isinstance(errors['create_request_nondict_body'], AlmaValidationError)",
+            "'create_request_no_resource' in errors and isinstance(errors['create_request_no_resource'], AlmaValidationError)",
+            "'cancel_empty_user' in errors and isinstance(errors['cancel_empty_user'], AlmaValidationError)",
+            "'cancel_none_user' in errors and isinstance(errors['cancel_none_user'], AlmaValidationError)",
+            "'cancel_empty_id' in errors and isinstance(errors['cancel_empty_id'], AlmaValidationError)",
+            "'cancel_none_id' in errors and isinstance(errors['cancel_none_id'], AlmaValidationError)",
+            "'cancel_empty_reason' in errors and isinstance(errors['cancel_empty_reason'], AlmaValidationError)",
+            "'cancel_none_reason' in errors and isinstance(errors['cancel_none_reason'], AlmaValidationError)",
+            "'cancel_nonstring_reason' in errors and isinstance(errors['cancel_nonstring_reason'], AlmaValidationError)",
+            "'action_empty_user' in errors and isinstance(errors['action_empty_user'], AlmaValidationError)",
+            "'action_empty_id' in errors and isinstance(errors['action_empty_id'], AlmaValidationError)",
+            "'action_empty_op' in errors and isinstance(errors['action_empty_op'], AlmaValidationError)",
+            "'update_empty_user' in errors and isinstance(errors['update_empty_user'], AlmaValidationError)",
+            "'update_empty_id' in errors and isinstance(errors['update_empty_id'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'update_nondict_body' in errors and isinstance(errors['update_nondict_body'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-41-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live round-trip: create a real HOLD request on ${existing_user_primary_id} for the supplied ${existing_mms_id} with pickup at ${target_library_code}, GET it back to confirm the request_id round-trips, then CANCEL it via DELETE with the documented cleanup reason 'AUTOMATED_REGRESSION_TEST_CLEANUP', and finally re-GET to confirm the request is no longer fetchable as an active request (the second GET is expected to raise AlmaAPIError — Alma either returns 404 or moves the request to status COMPLETED/CANCELLED depending on institution config). The cancel step is the cleanup — DELETE is documented as the 'cancel' verb on the user-requests endpoint, returning 204 No Content on success. The round-trip exercises four of the six wrapper methods against live SANDBOX (list/create/get/cancel via the steps below; the input-validation guards on perform_user_request_action and update_user_request are exercised by t-41-2 to prove the wrappers are importable and bound, but they are NOT exercised live — see unmappable[] for rationale). The test prints request_id, user_id, mms_id, target_library at runtime; if the cancel step fails for any reason, the request is still on the user and the test re-prints those identifiers as a manual-cleanup banner so the operator can cancel via the Alma staff UI. Net state on a happy run: the user's request history shows one created/cancelled hold request as an audit artifact (similar to the loans round-trip's loan/return audit trail).",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/requests",
+            "GET /almaws/v1/users/{user_id}/requests/{request_id}",
+            "DELETE /almaws/v1/users/{user_id}/requests/{request_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-41-1 (read-only list/get) and t-41-3 (live create→get→cancel hold-request round-trip with in-band cancel-as-cleanup). The user is not destructively mutated; t-41-3 creates a hold request and cancels it with reason 'AUTOMATED_REGRESSION_TEST_CLEANUP' so the user's request history will show one created/cancelled request as an audit artifact. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            },
+            {
+              "key": "existing_mms_id",
+              "description": "An existing Alma bibliographic record MMS ID in SANDBOX that has at least one available item which can accept a HOLD request from ${existing_user_primary_id} at pickup library ${target_library_code}. The bib record is never modified — only a request is placed and immediately cancelled. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real MMS ID into this file.",
+              "example": "<mms_id>"
+            },
+            {
+              "key": "target_library_code",
+              "description": "The pickup library code (LIBRARY pickup_location_type) at which the hold request will be placed. The operator must have rights to place hold requests for ${existing_user_primary_id} at this library, and the bib ${existing_mms_id} must be requestable for pickup here. Used as pickup_location_library in the create_user_request body. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<library_code>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "create_response = None\ncreate_data = None\nrequest_id = None\nget_response = None\nget_request_id_echo = None\ncancel_response = None\npost_cancel_error = None",
+            "print(f'[t-41-3] live create→get→cancel hold request on user ${existing_user_primary_id}, mms_id ${existing_mms_id}, pickup at ${target_library_code}')",
+            "create_response = users.create_user_request(\n    '${existing_user_primary_id}',\n    {\n        'request_type': 'HOLD',\n        'pickup_location_type': 'LIBRARY',\n        'pickup_location_library': '${target_library_code}',\n    },\n    mms_id='${existing_mms_id}',\n)",
+            "create_data = getattr(create_response, 'data', None) if create_response is not None else None\nif isinstance(create_data, dict):\n    request_id = create_data.get('request_id')\nprint(f'[t-41-3] request created: request_id={request_id!r} user_id=${existing_user_primary_id} mms_id=${existing_mms_id}')",
+            "get_response = users.get_user_request('${existing_user_primary_id}', str(request_id)) if request_id else None\nif isinstance(get_response, dict):\n    get_request_id_echo = get_response.get('request_id')",
+            "# In-band cancel: DELETE with the documented cleanup reason.\n# This IS the cleanup happy-path — the finally block below only\n# retries if this step did not run or failed.\ncancel_response = users.cancel_user_request(\n    '${existing_user_primary_id}',\n    str(request_id),\n    reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n) if request_id else None\nprint(f'[t-41-3] request cancelled: request_id={request_id!r} status={getattr(cancel_response, \"status_code\", None)} success={getattr(cancel_response, \"success\", None)}')",
+            "# Confirm the request is no longer an active fetchable request:\n# Alma either returns 404 (gone) or marks it COMPLETED/CANCELLED;\n# either way the wrapper raises AlmaAPIError (or a subclass) on\n# a non-active fetch — capture and assert non-None below.\ntry:\n    users.get_user_request('${existing_user_primary_id}', str(request_id))\nexcept AlmaAPIError as e:\n    post_cancel_error = e"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(create_data, dict) and 'request_id' in create_data and request_id is not None",
+            "isinstance(get_response, dict) and str(get_request_id_echo) == str(request_id)",
+            "cancel_response is not None and getattr(cancel_response, 'success', False) is True",
+            "post_cancel_error is not None"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users as _UsersCleanup",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band cancel did not run (e.g. an\n# earlier assertion raised) or did not succeed, retry the cancel\n# with the same documented reason. If it still fails, print a\n# manual-cleanup banner with request_id, user_id, mms_id so the\n# operator can cancel the leftover hold request via the Alma\n# staff UI. Do NOT re-raise from finally — let the original test\n# failure surface.\ntry:\n    if request_id and (cancel_response is None or not getattr(cancel_response, 'success', False)):\n        users2 = _UsersCleanup(client)\n        users2.cancel_user_request(\n            '${existing_user_primary_id}',\n            str(request_id),\n            reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n        )\n        print(f'[t-41-3 cleanup] in-finally cancel succeeded for request_id={request_id!r}')\nexcept AlmaAPIError as cleanup_err:\n    print(f'\\n!!! [t-41-3] MANUAL CLEANUP REQUIRED !!!\\n!!! request_id: {request_id!r}\\n!!! user_id: ${existing_user_primary_id}\\n!!! mms_id: ${existing_mms_id}\\n!!! pickup library: ${target_library_code}\\n!!! reason: {cleanup_err}\\n!!! Operator must cancel the leftover hold request via the Alma staff UI.\\n')"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "All six methods exposed with type hints and Google-style docstrings.": [
+          "t-41-1",
+          "t-41-2",
+          "t-41-3"
+        ],
+        "`cancel_user_request(reason)` requires `reason` (non-empty validation)": [
+          "t-41-2",
+          "t-41-3"
+        ],
+        "`list_user_requests` supports the documented `limit`, `offset`,": [
+          "t-41-1"
+        ],
+        "Unit tests cover: missing `reason` raises `AlmaValidationError`;": [
+          "t-41-2"
+        ],
+        "At least one SANDBOX integration test that creates → gets → cancels.": [
+          "t-41-3"
+        ],
+        "No `print()` — all operations logged via `alma_logging`.": [],
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.": []
+      },
+      "unmappable": [
+        {
+          "ac": "All six methods exposed with type hints and Google-style docstrings.",
+          "reason": "Partially mapped: the 'methods exist on the existing Users class' facet IS observable at runtime (t-41-1 / t-41-2 / t-41-3 collectively import and invoke list_user_requests, create_user_request, get_user_request, cancel_user_request, perform_user_request_action, and update_user_request — every method is touched at least via its validation guards in t-41-2, proving they are importable and bound on the live Users object). The 'with type hints and Google-style docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — verified by code review of the chunk diff and (transitively) by the public-API contract test under tests/test_public_api_contract.py. This entry documents the residual static-only facet."
+        },
+        {
+          "ac": "`list_user_requests` supports the documented `limit`, `offset`,",
+          "reason": "Partially mapped: t-41-1 exercises the live GET /users/{user_id}/requests path with the wrapper's default limit=10 / offset=0 and asserts the wrapper returns a List[Dict]. The 'supports limit / offset / request_type / status query params' facet is NOT individually exercised against SANDBOX because the test user is expected to have zero or very few requests, making pagination/filter behaviour unobservable (the same request_type and status filters either return the same single request or the same empty list across realistic inputs). The query-string assembly for these four params is pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "Unit tests cover: missing `reason` raises `AlmaValidationError`;",
+          "reason": "Partially mapped: the 'missing reason raises AlmaValidationError' facet IS exercised by t-41-2 against the live Users object (cancel_empty_reason / cancel_none_reason / cancel_nonstring_reason guards). The 'op is wired into the action POST query string' and 'cancel_user_request uses HTTP DELETE not POST' facets are wire-shape invariants that SANDBOX cannot distinguish from the documented Alma behaviour without intercepting the HTTP call; both are pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py. The wire-correctness of the cancel DELETE IS exercised end-to-end by t-41-3 (cancel only succeeds with success=True if the wrapper actually issues DELETE with reason as a query param), but the op-wiring on perform_user_request_action is NOT exercised live — see the next unmappable entry."
+        },
+        {
+          "ac": "At least one SANDBOX integration test that creates → gets → cancels.",
+          "reason": "FULLY MAPPED to t-41-3 (create → get → cancel → re-get-raises). This entry exists only to document the in-band cancel-as-cleanup pattern: the cancel step IS the cleanup happy-path; the finally block only retries if that step did not run or failed. The post-cancel re-GET asserts AlmaAPIError is raised (Alma either 404s the cancelled request or moves it to COMPLETED/CANCELLED status — either way the wrapper raises). No additional test is needed; this AC is in the mapping table above."
+        },
+        {
+          "ac": "perform_user_request_action live round-trip",
+          "reason": "DELIBERATE SCOPE LIMIT — NOT in the issue's AC list, but called out here to explain why two of the six methods aren't live-exercised. perform_user_request_action(user_id, request_id, op) is INTENTIONALLY NOT exercised against SANDBOX because the only documented op (next_step) advances a digitization request through its workflow — exercising it requires a digitization-type request with a particular intermediate status, and there is no observable assertion target without partner-side state (Alma library staff would need to confirm the workflow advanced). The wrapper's input-validation guards (action_empty_user / action_empty_id / action_empty_op) ARE exercised by t-41-2 against the live Users object, proving the method is importable and bound. The wire-shape (op as query param, empty body, POST verb) is pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py."
+        },
+        {
+          "ac": "update_user_request live round-trip",
+          "reason": "DELIBERATE SCOPE LIMIT — NOT in the issue's AC list, but called out here to explain why two of the six methods aren't live-exercised. update_user_request(user_id, request_id, request_data) is INTENTIONALLY NOT exercised against SANDBOX because (1) there is no observable assertion target without partner-side state — updating a hold mid-flight (e.g., changing pickup_location_library) returns the same 200 OK whether or not Alma actually rebound the queue, and SANDBOX cannot distinguish two body shapes that both happen to be accepted; (2) adding a PUT mutation between the create and cancel steps would not change the cleanup picture but would add another mutation that the regression-smoke output has to flag. The wrapper's input-validation guards (update_empty_user / update_empty_id / update_empty_body / update_nondict_body) ARE exercised by t-41-2 against the live Users object, proving the method is importable and bound. The wire-shape (PUT verb, body verbatim) is pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py."
+        },
+        {
+          "ac": "No `print()` — all operations logged via `alma_logging`.",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the new methods on src/almaapitk/domains/users.py) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff. (Note: the t-41-3 print() statements are inside the SANDBOX-test runner script — emitted to stdout for operator-cleanup visibility — not inside the wrapper methods. The AC is about the wrappers, which use self.logger throughout.)"
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        }
+      ]
+    }
+  ]
+}

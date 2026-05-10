@@ -1791,6 +1791,494 @@ class Users:
             )
             raise
 
+    # -----------------------------------------------------------------
+    # Requests (issue #41)
+    # -----------------------------------------------------------------
+
+    def list_user_requests(
+        self,
+        user_id: str,
+        request_type: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """List a user's requests (holds, bookings, digitization).
+
+        Calls ``GET /almaws/v1/users/{user_id}/requests`` and unwraps the
+        Alma response envelope (``{"user_request": [...],
+        "total_record_count": N}``) into a flat list. Pagination
+        parameters are forwarded to Alma; ``request_type`` and
+        ``status`` are forwarded only when supplied.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_type: Optional filter by request type. Per the
+                swagger, valid values are ``"HOLD"``, ``"DIGITIZATION"``,
+                ``"BOOKING"``. Forwarded only when non-``None``.
+            status: Optional status filter. Per the swagger,
+                ``"active"`` (default) or ``"history"`` (the latter is
+                only available when the customer's
+                ``should_anonymize_requests`` parameter is ``false`` at
+                request-completion time). Forwarded only when
+                non-``None``.
+            limit: Page size (Alma default 10, valid range 0-100).
+                Forwarded as ``limit`` query parameter.
+            offset: Page offset (Alma default 0). Forwarded as
+                ``offset`` query parameter.
+
+        Returns:
+            List of request dicts as returned by Alma. Returns an empty
+            list when the user has no requests (or when the response
+            envelope lacks the ``user_request`` key).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: list_user_loans (issue #40) for the
+        # "single GET, unwrap envelope, return list" idiom plus
+        # single-record-as-dict normalisation; list_users (issue #36)
+        # for the optional-filter forwarding pattern. Swagger:
+        # GET /almaws/v1/users/{user_id}/requests returns
+        # rest_user_requests; the envelope key is ``user_request``.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        if request_type is not None:
+            params["request_type"] = request_type
+        if status is not None:
+            params["status"] = status
+
+        endpoint = f"almaws/v1/users/{clean_id}/requests"
+        self.logger.info(
+            f"Listing requests for user {clean_id} "
+            f"(limit={limit}, offset={offset}, "
+            f"request_type={request_type!r}, status={status!r})"
+        )
+        try:
+            response = self.client.get(endpoint, params=params)
+            payload = response.json() or {}
+            requests = payload.get("user_request") or []
+            if isinstance(requests, dict):
+                # Single-record responses can come back as a dict; normalise.
+                requests = [requests]
+            self.logger.info(
+                f"Retrieved {len(requests)} requests for user {clean_id}"
+            )
+            return requests
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing requests for user {clean_id}: {e}"
+            )
+            raise
+
+    def create_user_request(
+        self,
+        user_id: str,
+        request_data: Dict[str, Any],
+        mms_id: Optional[str] = None,
+        item_pid: Optional[str] = None,
+        holding_id: Optional[str] = None,
+        user_id_type: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Create a request (hold, booking, or digitization) for a user.
+
+        Calls ``POST /almaws/v1/users/{user_id}/requests``. Per the Alma
+        OpenAPI spec, ``mms_id``, ``item_pid``, and ``user_id_type`` are
+        **query parameters**; the request body is the request object
+        (``rest_user_request.xsd``) carrying request-type, pickup
+        location, and any other Alma-accepted fields. At least one of
+        ``mms_id`` / ``item_pid`` / ``holding_id`` must be supplied so
+        Alma knows what's being requested.
+
+        Note on ``holding_id``: it is NOT documented as a query param in
+        the public swagger (only ``mms_id`` and ``item_pid`` are), but
+        the issue ticket requires the wrapper to accept it; it is
+        forwarded as a query param when supplied so that Alma can apply
+        any institution-specific handling.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_data: Request body as a non-empty dict (e.g.
+                ``{"request_type": "HOLD", "pickup_location_type":
+                "LIBRARY", "pickup_location_library": "MAIN"}``).
+                Forwarded to Alma verbatim.
+            mms_id: The requested title's MMS ID. Required for
+                title-level requests. Forwarded as a **query** parameter
+                when supplied.
+            item_pid: The requested item's PID. Required for item-level
+                requests. Forwarded as a **query** parameter when
+                supplied.
+            holding_id: The requested holding's ID. Forwarded as a
+                **query** parameter when supplied. (Not documented in
+                the public swagger; see method note above.)
+            user_id_type: Optional user identifier type (any value from
+                the Alma "User Identifier Type" code table, e.g.
+                ``"all_unique"`` / ``"BARCODE"``). Forwarded as a
+                **query** parameter only when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the created
+            request body, including the new ``request_id``).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty / not a string,
+                if ``request_data`` is empty / not a dict, or if none of
+                ``mms_id`` / ``item_pid`` / ``holding_id`` are supplied.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401129`` "No items can fulfill the submitted request"
+                or ``401895`` "Pickup circulation desk not found").
+        """
+        # Pattern source: create_user_loan (issue #40) for "validate
+        # ids, identifier query params, body verbatim". Swagger: POST
+        # /almaws/v1/users/{user_id}/requests uses query params for
+        # mms_id / item_pid / user_id_type and accepts a Request body.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_data, dict) or not request_data:
+            raise AlmaValidationError(
+                "request_data must be a non-empty dictionary"
+            )
+        if mms_id is None and item_pid is None and holding_id is None:
+            raise AlmaValidationError(
+                "At least one of mms_id, item_pid, or holding_id must "
+                "be supplied so Alma knows what's being requested"
+            )
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {}
+        if mms_id is not None:
+            params["mms_id"] = mms_id
+        if item_pid is not None:
+            params["item_pid"] = item_pid
+        if holding_id is not None:
+            params["holding_id"] = holding_id
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+
+        endpoint = f"almaws/v1/users/{clean_id}/requests"
+        # Audit-log: only the user_id and the resource identifiers —
+        # never the full request_data (may carry pickup notes / patron
+        # comments — treat as PII-adjacent).
+        self.logger.info(
+            f"Creating request for user {clean_id} "
+            f"(mms_id={mms_id!r}, item_pid={item_pid!r}, "
+            f"holding_id={holding_id!r})"
+        )
+        try:
+            response = self.client.post(
+                endpoint,
+                data=request_data,
+                params=params if params else None,
+            )
+            request_id: Any = None
+            try:
+                request_id = (response.data or {}).get("request_id")
+            except (ValueError, AttributeError):
+                request_id = None
+            self.logger.info(
+                f"Created request for user {clean_id} "
+                f"(request_id={request_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating request for user {clean_id} "
+                f"(mms_id={mms_id!r}, item_pid={item_pid!r}, "
+                f"holding_id={holding_id!r}): {e}"
+            )
+            raise
+
+    def get_user_request(
+        self,
+        user_id: str,
+        request_id: str,
+    ) -> Dict[str, Any]:
+        """Retrieve a single request's details.
+
+        Calls ``GET /almaws/v1/users/{user_id}/requests/{request_id}``
+        and returns the unwrapped request dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Request identifier. Must be a non-empty string.
+
+        Returns:
+            The request dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``request_id`` is
+                empty or not a string.
+            AlmaAPIError: If the API request fails.
+        """
+        # Pattern source: get_user_loan (issue #40) — same
+        # "validate two ids, GET, return dict" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Retrieving request {clean_request_id} for user "
+            f"{clean_user_id}"
+        )
+        try:
+            response = self.client.get(endpoint)
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved request {clean_request_id} for user "
+                f"{clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving request {clean_request_id} for "
+                f"user {clean_user_id}: {e}"
+            )
+            raise
+
+    def cancel_user_request(
+        self,
+        user_id: str,
+        request_id: str,
+        reason: str,
+        note: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Cancel a single request.
+
+        Calls
+        ``DELETE /almaws/v1/users/{user_id}/requests/{request_id}``
+        with ``reason`` (required) and ``note`` (optional) as query
+        parameters. Per the swagger this endpoint returns ``204 No
+        Content``, so ``response.data`` will typically be empty.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Request identifier. Must be a non-empty string.
+            reason: Cancel reason code from the
+                ``RequestCancellationReasons`` code table. **Required**
+                per the swagger — Alma rejects DELETE without this
+                parameter.
+            note: Optional free-text note with additional information
+                about the cancellation. Forwarded as a query parameter
+                only when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the (typically empty 204)
+            response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` / ``request_id`` is
+                empty or not a string, or if ``reason`` is empty / not a
+                string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401694`` "Request Identifier not found" or ``401890``
+                "User not found").
+        """
+        # Pattern source: delete_user (issue #37) for the
+        # "validate id / log / DELETE / log" shape; ``reason`` is
+        # required per the swagger so it's promoted from optional to a
+        # mandatory positional kwarg. Swagger response is 204 No
+        # Content — callers should not expect a body.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AlmaValidationError(
+                "reason must be a non-empty string (required by the "
+                "Alma cancel-request endpoint)"
+            )
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+        clean_reason = reason.strip()
+
+        params: Dict[str, Any] = {"reason": clean_reason}
+        if note is not None:
+            # Note is operator-supplied free text; forward verbatim
+            # (don't strip — Alma may want trailing whitespace
+            # significant). Don't audit-log the note value (PII-
+            # adjacent).
+            params["note"] = note
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Cancelling request {clean_request_id} for user "
+            f"{clean_user_id} (reason={clean_reason!r}, "
+            f"note_supplied={note is not None})"
+        )
+        try:
+            response = self.client.delete(endpoint, params=params)
+            self.logger.info(
+                f"Cancelled request {clean_request_id} for user "
+                f"{clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error cancelling request {clean_request_id} for "
+                f"user {clean_user_id}: {e}"
+            )
+            raise
+
+    def perform_user_request_action(
+        self,
+        user_id: str,
+        request_id: str,
+        op: str,
+    ) -> AlmaResponse:
+        """Perform an action on a single request.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/requests/{request_id}?op=<op>``
+        with an empty request body. Per the swagger, ``op=next_step``
+        is currently the only documented value (used to advance a
+        digitization request through its workflow). The wrapper does
+        NOT enumerate / restrict the set: invalid ops are rejected by
+        Alma with its own error response (a future Alma release may
+        add new ops, and the wrapper should not be the bottleneck).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Request identifier. Must be a non-empty string.
+            op: Action to perform. Must be a non-empty string. Per
+                Alma docs, currently only ``"next_step"`` is supported
+                — not validated client-side.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response.
+
+        Raises:
+            AlmaValidationError: If ``user_id``, ``request_id``, or
+                ``op`` is empty / not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401907`` "Failed to find a request for the given
+                request ID" or ``401932`` "Request is not a
+                Digitization request").
+        """
+        # Pattern source: perform_user_deposit_action (issue #45) and
+        # renew_user_loan (issue #40) — same op-driven POST shape (op
+        # as query param, empty body). The wrapper is deliberately
+        # op-agnostic; per the same convention, "let Alma reject
+        # invalid ops with its own error".
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        if not isinstance(op, str) or not op.strip():
+            raise AlmaValidationError("op must be a non-empty string")
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+        clean_op = op.strip()
+
+        params: Dict[str, Any] = {"op": clean_op}
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Performing request action for user {clean_user_id} "
+            f"(request_id={clean_request_id!r}, op={clean_op!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Performed request action for user {clean_user_id} "
+                f"(request_id={clean_request_id!r}, op={clean_op!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error performing request action for user "
+                f"{clean_user_id} (request_id={clean_request_id!r}, "
+                f"op={clean_op!r}): {e}"
+            )
+            raise
+
+    def update_user_request(
+        self,
+        user_id: str,
+        request_id: str,
+        request_data: Dict[str, Any],
+    ) -> AlmaResponse:
+        """Update a request.
+
+        Calls
+        ``PUT /almaws/v1/users/{user_id}/requests/{request_id}`` with
+        ``request_data`` as the JSON body. The body is passed through
+        verbatim; the caller is responsible for the request-object
+        shape (e.g., updated pickup location, partial-digitization
+        volume / issue, etc.).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Request identifier. Must be a non-empty string.
+            request_data: Request body as a non-empty dict. Passed
+                through to Alma verbatim.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the updated
+            request body).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` / ``request_id`` is
+                empty, or if ``request_data`` is empty / not a dict.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``60330`` "Invalid partial digitization volume or
+                issue").
+        """
+        # Pattern source: update_user_loan (issue #40) — same
+        # "validate ids + non-empty dict, PUT body verbatim" shape.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        if not isinstance(request_data, dict) or not request_data:
+            raise AlmaValidationError(
+                "request_data must be a non-empty dictionary"
+            )
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}/requests/{clean_request_id}"
+        )
+        # Audit-log: never log the full request_data body (may include
+        # pickup notes / patron comments — treat as PII-adjacent).
+        self.logger.info(
+            f"Updating request {clean_request_id} for user "
+            f"{clean_user_id}"
+        )
+        try:
+            response = self.client.put(endpoint, data=request_data)
+            self.logger.info(
+                f"Updated request {clean_request_id} for user "
+                f"{clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error updating request {clean_request_id} for "
+                f"user {clean_user_id}: {e}"
+            )
+            raise
+
     def create_user(self, user_data: Dict[str, Any]) -> AlmaResponse:
         """Create a new Alma user.
 

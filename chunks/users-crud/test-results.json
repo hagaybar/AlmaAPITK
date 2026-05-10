@@ -1,0 +1,32 @@
+{
+  "chunk": "users-crud",
+  "testRunStartedAt": "2026-05-09T07:30:19Z",
+  "testRunFinishedAt": "2026-05-09T07:30:22Z",
+  "perTest": [
+    {
+      "id": "t-37-1",
+      "outcome": "passed",
+      "issueNumber": 37,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "Full create-get-delete round-trip against SANDBOX on the synthetic tau-test user: create succeeded, get returned the new record, delete succeeded, and a post-delete get raised as expected. Happy-path delete handled cleanup; no manual teardown required."
+    },
+    {
+      "id": "t-37-2",
+      "outcome": "passed",
+      "issueNumber": 37,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Validation-only test (no HTTP traffic): exercised input validation paths for the users CRUD signatures and confirmed the expected exceptions were raised."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 37,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

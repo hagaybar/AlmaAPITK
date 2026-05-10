@@ -1,0 +1,136 @@
+{
+  "chunk": "users-crud",
+  "branch": "chunk/users-crud",
+  "createdAt": "2026-05-08T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 37,
+      "title": "Coverage: Users: create / delete user (CRUD completeness)",
+      "classification": "general",
+      "subBranch": "feat/37-coverage-users-create-delete-u",
+      "tests": [
+        {
+          "id": "t-37-1",
+          "kind": "round-trip",
+          "scope": "WARNING - STATE-CHANGING WITH OPERATOR-CLEANUP-FALLBACK: This test creates a brand-new Alma user against live SANDBOX, fetches it, then deletes it within the same run. The primary_id is generated inside the test as f'tau-test-{uuid.uuid4().hex[:8]}' so concurrent runs cannot collide and the 'tau-test-' prefix makes any leftover trivially identifiable in the Alma staff UI. The full body runs inside try/finally; if the happy-path delete is not reached (e.g. an earlier assertion fails), the finally block retries delete_user(primary_id). If BOTH the happy-path delete AND the finally-retry delete fail, the primary_id of the leftover user is printed loudly at runtime so the operator can manually remove it via the Alma staff UI (the operator has explicitly authorized this fallback). The primary_id is also printed at the very start of the test so even on a Python crash the regression-smoke output captures the id. Covers issue #37 ACs for the live runtime: create_user round-trips a real user (integration-against-SANDBOX), get_user confirms the user materialised, delete_user returns the deleted user payload for audit logging, and a follow-up get_user proves the user is gone (mapping the 'AlmaAPIError on API failure' half of the errors-AC). The minimal payload uses synthetic placeholder values: primary_id with a 'tau-test-' UUID prefix, account_type=INTERNAL, status=ACTIVE, user_group='01' (synthetic placeholder code; if Alma rejects with a typed validation error the runner will iterate the user_group code), first_name='AlmaAPITK', last_name='TestUser'. No fixtures needed.",
+          "endpoints": [
+            "POST /almaws/v1/users",
+            "GET /almaws/v1/users/{user_id}",
+            "DELETE /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import uuid",
+            "from almaapitk.domains.users import Users",
+            "from almaapitk._internal import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "primary_id = f'tau-test-{uuid.uuid4().hex[:8]}'",
+            "print(f'[t-37-1] generated primary_id={primary_id} (delete fallback marker)')",
+            "create_payload = {'primary_id': primary_id, 'first_name': 'AlmaAPITK', 'last_name': 'TestUser', 'account_type': {'value': 'INTERNAL'}, 'status': {'value': 'ACTIVE'}, 'user_group': {'value': '01'}}",
+            "happy_path_deleted = False",
+            "create_response = None\nget_response = None\ndelete_response = None\npost_delete_error = None",
+            "try:\n    create_response = users.create_user(create_payload)\n    create_data = getattr(create_response, 'data', None) if create_response is not None else None\n    create_echo_primary_id = (create_data or {}).get('primary_id') if isinstance(create_data, dict) else None\n    get_response = users.get_user(primary_id)\n    get_data = getattr(get_response, 'data', None) if get_response is not None else None\n    get_echo_primary_id = (get_data or {}).get('primary_id') if isinstance(get_data, dict) else None\n    delete_response = users.delete_user(primary_id)\n    delete_data = getattr(delete_response, 'data', None) if delete_response is not None else None\n    happy_path_deleted = bool(getattr(delete_response, 'success', False))\n    try:\n        users.get_user(primary_id)\n    except AlmaAPIError as e:\n        post_delete_error = e\nfinally:\n    if not happy_path_deleted:\n        try:\n            users.delete_user(primary_id)\n            print(f'[t-37-1] finally-cleanup: deleted leftover user {primary_id}')\n        except Exception as cleanup_exc:\n            print(f'[t-37-1] !!! MANUAL CLEANUP REQUIRED !!! Leftover SANDBOX user primary_id={primary_id} could not be deleted automatically (reason: {cleanup_exc!r}). Remove it via the Alma staff UI; the tau-test- prefix makes it unambiguous.')"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(create_echo_primary_id, str) and create_echo_primary_id.strip() != ''",
+            "create_echo_primary_id == primary_id",
+            "get_response is not None and getattr(get_response, 'success', False) is True",
+            "isinstance(get_echo_primary_id, str) and get_echo_primary_id == primary_id",
+            "delete_response is not None and getattr(delete_response, 'success', False) is True",
+            "isinstance(delete_data, dict) and delete_data.get('primary_id') == primary_id",
+            "post_delete_error is not None and isinstance(post_delete_error, AlmaAPIError)"
+          ],
+          "cleanup": [
+            "from almaapitk._internal import AlmaAPIError",
+            "if 'happy_path_deleted' in dir() and not happy_path_deleted and 'primary_id' in dir() and primary_id:\n    try:\n        users.delete_user(primary_id)\n    except AlmaAPIError:\n        # Already gone, or already-noisy-printed in the finally block above.\n        pass\n    except Exception:\n        pass"
+          ]
+        },
+        {
+          "id": "t-37-2",
+          "kind": "smoke",
+          "scope": "Confirm create_user and delete_user raise AlmaValidationError on malformed inputs BEFORE any HTTP call is issued. Exercises the input-validation guards added in this chunk: create_user rejects empty/None/non-dict payloads and payloads missing each of the four required core fields (primary_id, account_type, status, user_group); delete_user rejects empty / None / whitespace-only user_id. Covers issue #37 AC 'Errors raise AlmaValidationError (input)' and 'create_user validates required fields (primary_id, account_type, status, user_group) before sending' for the live runtime — these are pure Python guards but exercising them through the live Users object proves the guards are wired in the build the operator will actually use. No SANDBOX state is mutated.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk._internal import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.create_user({})\nexcept AlmaValidationError as e:\n    errors['create_empty'] = e",
+            "try:\n    users.create_user(None)\nexcept (AlmaValidationError, TypeError) as e:\n    errors['create_none'] = e",
+            "try:\n    users.create_user({'account_type': {'value': 'INTERNAL'}, 'status': {'value': 'ACTIVE'}, 'user_group': {'value': '01'}})\nexcept AlmaValidationError as e:\n    errors['create_no_primary_id'] = e",
+            "try:\n    users.create_user({'primary_id': 'tau-test-placeholder', 'status': {'value': 'ACTIVE'}, 'user_group': {'value': '01'}})\nexcept AlmaValidationError as e:\n    errors['create_no_account_type'] = e",
+            "try:\n    users.create_user({'primary_id': 'tau-test-placeholder', 'account_type': {'value': 'INTERNAL'}, 'user_group': {'value': '01'}})\nexcept AlmaValidationError as e:\n    errors['create_no_status'] = e",
+            "try:\n    users.create_user({'primary_id': 'tau-test-placeholder', 'account_type': {'value': 'INTERNAL'}, 'status': {'value': 'ACTIVE'}})\nexcept AlmaValidationError as e:\n    errors['create_no_user_group'] = e",
+            "try:\n    users.delete_user('')\nexcept AlmaValidationError as e:\n    errors['delete_empty'] = e",
+            "try:\n    users.delete_user(None)\nexcept (AlmaValidationError, TypeError) as e:\n    errors['delete_none'] = e",
+            "try:\n    users.delete_user('   ')\nexcept AlmaValidationError as e:\n    errors['delete_whitespace'] = e"
+          ],
+          "passCriteria": [
+            "'create_empty' in errors and isinstance(errors['create_empty'], AlmaValidationError)",
+            "'create_none' in errors",
+            "'create_no_primary_id' in errors and isinstance(errors['create_no_primary_id'], AlmaValidationError)",
+            "'create_no_account_type' in errors and isinstance(errors['create_no_account_type'], AlmaValidationError)",
+            "'create_no_status' in errors and isinstance(errors['create_no_status'], AlmaValidationError)",
+            "'create_no_user_group' in errors and isinstance(errors['create_no_user_group'], AlmaValidationError)",
+            "'delete_empty' in errors and isinstance(errors['delete_empty'], AlmaValidationError)",
+            "'delete_none' in errors",
+            "'delete_whitespace' in errors and isinstance(errors['delete_whitespace'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-37-1",
+          "t-37-2"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-37-1"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-37-2",
+          "t-37-1"
+        ],
+        "All operations logged through `alma_logging` (no `print`).": [],
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.": [],
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.": [],
+        "`create_user` validates required fields (primary_id, account_type, status, user_group) before sending.": [
+          "t-37-2"
+        ],
+        "`delete_user` returns the deleted user payload for audit logging.": [
+          "t-37-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "The 'with type hints and docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour — it is verified by code review of the chunk diff and (transitively) by the public-API contract test under tests/test_public_api_contract.py. The 'methods exist on the existing Users class' facet IS observable at runtime (t-37-1 only succeeds if create_user / get_user / delete_user are all importable and bound on Users; t-37-2 also touches both new methods through the live Users object), so the AC is partially mapped to t-37-1 and t-37-2; this entry documents the residual static-only facet."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "The 'unit-test coverage (mocked HTTP)' facet is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The 'at least one integration test against SANDBOX' facet IS exercised by t-37-1 (the round-trip touches both new methods against live SANDBOX); this entry documents the unit-test residual."
+        },
+        {
+          "ac": "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).",
+          "reason": "The input-validation half (AlmaValidationError on bad inputs) is mapped to t-37-2. The API-error half (AlmaAPIError/subclass on real Alma failures) is partially mapped to t-37-1 via the post-delete get_user assertion (which expects an AlmaAPIError / AlmaResourceNotFoundError on a vanished user). Other API-error subclasses (401 on bad auth, 429 on rate limit, 5xx on server failures, plus business-rule rejections such as 'user has active loans / outstanding fees') are environment-dependent and would flake against SANDBOX — they are covered by the mocked-HTTP unit tests in tests/unit/domains/test_users.py; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints; observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff."
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Module-structure invariant on src/almaapitk/__init__.py. Issue #37 extends the existing Users class (already exported) — no NEW public symbols are introduced, so this AC is vacuously satisfied. Verified by inspecting the chunk diff against src/almaapitk/__init__.py (no changes expected) and by the existing public-API contract test, neither of which is a SANDBOX observation."
+        }
+      ]
+    }
+  ]
+}

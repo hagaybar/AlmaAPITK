@@ -1,0 +1,220 @@
+{
+  "chunk": "users-loans",
+  "branch": "chunk/users-loans",
+  "createdAt": "2026-05-10T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 40,
+      "title": "Coverage: Users: loans (list, create, get, renew, change due date)",
+      "classification": "general",
+      "subBranch": "feat/40-coverage-users-loans-list-crea",
+      "tests": [
+        {
+          "id": "t-40-1",
+          "kind": "smoke",
+          "scope": "Exercise the read-only loan methods shipped in issue #40 against live SANDBOX. Calls list_user_loans(${existing_user_primary_id}) to confirm the GET /users/{user_id}/loans endpoint round-trips and returns a List[Dict] envelope (the wrapper returns List[Dict] per the chunk's audit-corrected signature; the SANDBOX user is likely to have zero active loans on a fresh fixture, in which case the list is empty and that is still a pass for the list-shape assertion). If the returned list is non-empty, picks the first loan's loan_id and calls get_user_loan(${existing_user_primary_id}, <loan_id>) to confirm the single-loan GET round-trips and returns a non-empty Dict[str, Any] containing a 'loan_id' key. If the list is empty, the get-step is skipped — the test is still considered pass because the list endpoint itself responded correctly. No state is mutated. Covers the read half of issue #40's integration coverage; the create→get→renew live cycle is exercised by t-40-3 and update_user_loan is documented as unmappable below.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/loans",
+            "GET /almaws/v1/users/{user_id}/loans/{loan_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-40-1 (read-only list/get) and t-40-3 (live create→get→renew loan round-trip — leaves a permanent loan artifact, see t-40-3 scope and the operator-cleanup banner). The user is not deleted or otherwise destructively mutated; t-40-3 creates a real loan that the operator must manually return via the Alma staff UI after the run because Alma exposes NO DELETE endpoint for loans. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "loans = users.list_user_loans('${existing_user_primary_id}')",
+            "first_loan = None\nloan_detail = None\nif isinstance(loans, list) and len(loans) > 0:\n    first_loan = loans[0]\n    loan_id = first_loan.get('loan_id') if isinstance(first_loan, dict) else None\n    if loan_id:\n        loan_detail = users.get_user_loan('${existing_user_primary_id}', str(loan_id))"
+          ],
+          "passCriteria": [
+            "isinstance(loans, list)",
+            "first_loan is None or (isinstance(loan_detail, dict) and 'loan_id' in loan_detail)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-40-2",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #40 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_loans on empty/None/non-string user_id; get_user_loan on empty/None user_id and empty/None loan_id; create_user_loan on empty/None user_id, on BOTH item_barcode AND item_pid supplied (must raise — exclusivity guard), on NEITHER item_barcode NOR item_pid supplied (must raise — at-least-one guard), and on non-dict loan_data when item_barcode is supplied; renew_user_loan on empty/None user_id and empty/None loan_id; update_user_loan on empty/None user_id, empty/None loan_id, empty dict loan_data, and non-dict loan_data. Pure runtime guard exercise; no SANDBOX state is read or mutated. Covers issue #40 AC 'Unit tests cover: missing/both item_barcode+item_pid raises AlmaValidationError; missing body fields raise AlmaValidationError' for the live runtime — these are pure Python guards but exercising them through the live Users object proves the guards are wired in the build the operator will actually use.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_loans('')\nexcept AlmaValidationError as e:\n    errors['list_loans_empty'] = e",
+            "try:\n    users.list_user_loans(None)\nexcept AlmaValidationError as e:\n    errors['list_loans_none'] = e",
+            "try:\n    users.list_user_loans(123)\nexcept AlmaValidationError as e:\n    errors['list_loans_nonstring'] = e",
+            "try:\n    users.get_user_loan('', 'L')\nexcept AlmaValidationError as e:\n    errors['get_loan_empty_user'] = e",
+            "try:\n    users.get_user_loan('U', '')\nexcept AlmaValidationError as e:\n    errors['get_loan_empty_id'] = e",
+            "try:\n    users.get_user_loan(None, 'L')\nexcept AlmaValidationError as e:\n    errors['get_loan_none_user'] = e",
+            "try:\n    users.get_user_loan('U', None)\nexcept AlmaValidationError as e:\n    errors['get_loan_none_id'] = e",
+            "try:\n    users.create_user_loan('', item_barcode='BC1')\nexcept AlmaValidationError as e:\n    errors['create_loan_empty_user'] = e",
+            "try:\n    users.create_user_loan(None, item_barcode='BC1')\nexcept AlmaValidationError as e:\n    errors['create_loan_none_user'] = e",
+            "try:\n    users.create_user_loan('U', item_barcode='BC1', item_pid='PID1')\nexcept AlmaValidationError as e:\n    errors['create_loan_both_ids'] = e",
+            "try:\n    users.create_user_loan('U')\nexcept AlmaValidationError as e:\n    errors['create_loan_neither_id'] = e",
+            "try:\n    users.create_user_loan('U', item_barcode='BC1', loan_data='not-a-dict')\nexcept AlmaValidationError as e:\n    errors['create_loan_nondict_body'] = e",
+            "try:\n    users.renew_user_loan('', 'L')\nexcept AlmaValidationError as e:\n    errors['renew_empty_user'] = e",
+            "try:\n    users.renew_user_loan('U', '')\nexcept AlmaValidationError as e:\n    errors['renew_empty_id'] = e",
+            "try:\n    users.renew_user_loan(None, 'L')\nexcept AlmaValidationError as e:\n    errors['renew_none_user'] = e",
+            "try:\n    users.renew_user_loan('U', None)\nexcept AlmaValidationError as e:\n    errors['renew_none_id'] = e",
+            "try:\n    users.update_user_loan('', 'L', {'due_date': '2026-12-31Z'})\nexcept AlmaValidationError as e:\n    errors['update_empty_user'] = e",
+            "try:\n    users.update_user_loan('U', '', {'due_date': '2026-12-31Z'})\nexcept AlmaValidationError as e:\n    errors['update_empty_id'] = e",
+            "try:\n    users.update_user_loan(None, 'L', {'due_date': '2026-12-31Z'})\nexcept AlmaValidationError as e:\n    errors['update_none_user'] = e",
+            "try:\n    users.update_user_loan('U', None, {'due_date': '2026-12-31Z'})\nexcept AlmaValidationError as e:\n    errors['update_none_id'] = e",
+            "try:\n    users.update_user_loan('U', 'L', {})\nexcept AlmaValidationError as e:\n    errors['update_empty_body'] = e",
+            "try:\n    users.update_user_loan('U', 'L', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['update_nondict_body'] = e"
+          ],
+          "passCriteria": [
+            "'list_loans_empty' in errors and isinstance(errors['list_loans_empty'], AlmaValidationError)",
+            "'list_loans_none' in errors and isinstance(errors['list_loans_none'], AlmaValidationError)",
+            "'list_loans_nonstring' in errors and isinstance(errors['list_loans_nonstring'], AlmaValidationError)",
+            "'get_loan_empty_user' in errors and isinstance(errors['get_loan_empty_user'], AlmaValidationError)",
+            "'get_loan_empty_id' in errors and isinstance(errors['get_loan_empty_id'], AlmaValidationError)",
+            "'get_loan_none_user' in errors and isinstance(errors['get_loan_none_user'], AlmaValidationError)",
+            "'get_loan_none_id' in errors and isinstance(errors['get_loan_none_id'], AlmaValidationError)",
+            "'create_loan_empty_user' in errors and isinstance(errors['create_loan_empty_user'], AlmaValidationError)",
+            "'create_loan_none_user' in errors and isinstance(errors['create_loan_none_user'], AlmaValidationError)",
+            "'create_loan_both_ids' in errors and isinstance(errors['create_loan_both_ids'], AlmaValidationError)",
+            "'create_loan_neither_id' in errors and isinstance(errors['create_loan_neither_id'], AlmaValidationError)",
+            "'create_loan_nondict_body' in errors and isinstance(errors['create_loan_nondict_body'], AlmaValidationError)",
+            "'renew_empty_user' in errors and isinstance(errors['renew_empty_user'], AlmaValidationError)",
+            "'renew_empty_id' in errors and isinstance(errors['renew_empty_id'], AlmaValidationError)",
+            "'renew_none_user' in errors and isinstance(errors['renew_none_user'], AlmaValidationError)",
+            "'renew_none_id' in errors and isinstance(errors['renew_none_id'], AlmaValidationError)",
+            "'update_empty_user' in errors and isinstance(errors['update_empty_user'], AlmaValidationError)",
+            "'update_empty_id' in errors and isinstance(errors['update_empty_id'], AlmaValidationError)",
+            "'update_none_user' in errors and isinstance(errors['update_none_user'], AlmaValidationError)",
+            "'update_none_id' in errors and isinstance(errors['update_none_id'], AlmaValidationError)",
+            "'update_empty_body' in errors and isinstance(errors['update_empty_body'], AlmaValidationError)",
+            "'update_nondict_body' in errors and isinstance(errors['update_nondict_body'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-40-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live round-trip: create a real loan on ${existing_user_primary_id} for the supplied loanable item (${existing_item_pid} / holdings ${existing_holding_id} / MMS ${existing_mms_id}) at the operator-supplied test library and circ-desk, GET it, RENEW it, then RETURN it via BibliographicRecords.scan_in_item (op=scan + circ_desk = circulation return). The loans API itself has no DELETE endpoint, but the same Alma endpoint family that places work-orders also performs circ-desk returns when called with a circ_desk and no work_order_type — so the cleanup IS automatable via an existing toolkit method. Sequence: (1) create_user_loan(${existing_user_primary_id}, item_pid=${existing_item_pid}, loan_data={'circ_desk': {'value': '${existing_circ_desk_code}'}, 'library': {'value': '${target_library_code}'}}) — capture loan_id from response.data; (2) get_user_loan asserts the response echoes loan_id and item_pid; (3) renew_user_loan exercises op=renew; (4) bibs.scan_in_item(${existing_mms_id}, ${existing_holding_id}, ${existing_item_pid}, library=${target_library_code}, circ_desk=${existing_circ_desk_code}) returns the item; (5) the loan is now completed — operator's user-history shows: loan / renew / return — net state clean. update_user_loan (PUT — change due date) is INTENTIONALLY NOT exercised in the round-trip; see unmappable[]. The test prints loan_id, user_id, item_pid, holding_id, mms_id at runtime; if the scan-in step in the cleanup block fails for any reason, the loan is still on the user and the test re-prints those identifiers as a manual-cleanup banner.",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/loans",
+            "GET /almaws/v1/users/{user_id}/loans/{loan_id}",
+            "POST /almaws/v1/users/{user_id}/loans/{loan_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-40-1 (read-only list/get) and t-40-3 (live create→get→renew→return loan round-trip with automatic cleanup via scan-in). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            },
+            {
+              "key": "existing_item_pid",
+              "description": "An existing Alma item PID in SANDBOX that the operator has authorized for a live loan create→renew→return round-trip against ${existing_user_primary_id}. The item must be currently on-shelf and belong to ${target_library_code} so that the scan-in cleanup step (circ-desk return) completes the loan rather than placing the item in transit. Synthetic placeholder only; the SANDBOX-test runner substitutes a real value at runtime. Never write a real item PID into this file.",
+              "example": "<item_pid>"
+            },
+            {
+              "key": "existing_holding_id",
+              "description": "The Alma holdings_id under which ${existing_item_pid} lives. Required by the scan_in_item cleanup step at the end of t-40-3, which targets POST /almaws/v1/bibs/{mms_id}/holdings/{holdings_id}/items/{item_pid}?op=scan. Synthetic placeholder only.",
+              "example": "<holdings_id>"
+            },
+            {
+              "key": "existing_mms_id",
+              "description": "The Alma MMS ID of the bib record that owns ${existing_item_pid}. Required by the scan_in_item cleanup step. Synthetic placeholder only.",
+              "example": "<mms_id>"
+            },
+            {
+              "key": "target_library_code",
+              "description": "The library code that owns ${existing_item_pid}; the operator has circulation rights here. Used (1) in the loan-body for create_user_loan, and (2) as the library param on the scan_in_item cleanup step that returns the loaned item. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<library_code>"
+            },
+            {
+              "key": "existing_circ_desk_code",
+              "description": "A circulation-desk code at ${target_library_code} that the supplied SANDBOX operator has rights to. Used (1) in the loan-body for create_user_loan, and (2) as the circ_desk param on the scan_in_item cleanup step (which performs a circulation return when called with a circ_desk and no work_order_type). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real circ-desk code into this file.",
+              "example": "<circ_desk_code>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "bibs = BibliographicRecords(client)",
+            "create_response = None\ncreate_data = None\nloan_id = None\nget_response = None\nget_loan_id_echo = None\nrenew_response = None\nscan_in_response = None",
+            "print(f'[t-40-3] live create→renew→return on user ${existing_user_primary_id}, item ${existing_item_pid} at library ${target_library_code} / circ_desk ${existing_circ_desk_code}')",
+            "create_response = users.create_user_loan(\n    '${existing_user_primary_id}',\n    item_pid='${existing_item_pid}',\n    loan_data={\n        'circ_desk': {'value': '${existing_circ_desk_code}'},\n        'library': {'value': '${target_library_code}'},\n    },\n)",
+            "create_data = getattr(create_response, 'data', None) if create_response is not None else None\nif isinstance(create_data, dict):\n    loan_id = create_data.get('loan_id')\nprint(f'[t-40-3] loan created: loan_id={loan_id!r} user_id=${existing_user_primary_id} item_pid=${existing_item_pid}')",
+            "get_response = users.get_user_loan('${existing_user_primary_id}', str(loan_id)) if loan_id else None\nif isinstance(get_response, dict):\n    get_loan_id_echo = get_response.get('loan_id')",
+            "renew_response = users.renew_user_loan('${existing_user_primary_id}', str(loan_id)) if loan_id else None\nprint(f'[t-40-3] loan renewed: loan_id={loan_id!r}')",
+            "# Cleanup-in-band: return the item via scan-in (circ-desk scan).\n# Same Alma endpoint used for work-order placement also performs\n# circulation returns when called with circ_desk and no work_order_type.\nscan_in_response = bibs.scan_in_item(\n    mms_id='${existing_mms_id}',\n    holding_id='${existing_holding_id}',\n    item_pid='${existing_item_pid}',\n    library='${target_library_code}',\n    circ_desk='${existing_circ_desk_code}',\n)\nprint(f'[t-40-3] item returned via scan-in: status={getattr(scan_in_response, \"status_code\", None)} success={getattr(scan_in_response, \"success\", None)}')"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(create_data, dict) and 'loan_id' in create_data and loan_id is not None",
+            "isinstance(get_response, dict) and str(get_loan_id_echo) == str(loan_id)",
+            "renew_response is not None and getattr(renew_response, 'success', False) is True",
+            "scan_in_response is not None and getattr(scan_in_response, 'success', False) is True"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band scan-in did not run (e.g. an\n# earlier assertion raised) but the loan was created, retry the\n# scan-in once. If it still fails, print a manual-cleanup banner\n# with the loan_id, user_id, item_pid so the operator can clear\n# the leftover loan via the Alma staff UI.\ntry:\n    if loan_id and (scan_in_response is None or not getattr(scan_in_response, 'success', False)):\n        bibs2 = BibliographicRecords(client)\n        bibs2.scan_in_item(\n            mms_id='${existing_mms_id}',\n            holding_id='${existing_holding_id}',\n            item_pid='${existing_item_pid}',\n            library='${target_library_code}',\n            circ_desk='${existing_circ_desk_code}',\n        )\n        print(f'[t-40-3 cleanup] in-finally scan-in returned the item OK')\nexcept AlmaAPIError as cleanup_err:\n    print(f'\\n!!! [t-40-3] MANUAL CLEANUP REQUIRED !!!\\n!!! loan_id: {loan_id!r}\\n!!! user_id: ${existing_user_primary_id}\\n!!! item_pid: ${existing_item_pid}\\n!!! reason: {cleanup_err}\\n!!! Operator must return the item via the Alma staff UI.\\n')"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "`list_user_loans` returns the Alma envelope and supports": [
+          "t-40-1"
+        ],
+        "`create_user_loan` accepts `item_barcode` OR `item_pid` (exclusive),": [
+          "t-40-2",
+          "t-40-3"
+        ],
+        "`renew_user_loan` posts to `/loans/{loan_id}?op=renew` with no body.": [
+          "t-40-3"
+        ],
+        "`change_loan_due_date` performs a PUT with a properly formatted ISO": [],
+        "Unit tests cover: missing/both `item_barcode`+`item_pid` raises": [
+          "t-40-2"
+        ],
+        "At least one SANDBOX integration test for the full create→renew→PUT": [
+          "t-40-3"
+        ],
+        "No `print()` — all operations logged via `alma_logging`.": [],
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.": []
+      },
+      "unmappable": [
+        {
+          "ac": "`list_user_loans` returns the Alma envelope and supports",
+          "reason": "Partially mapped: t-40-1 exercises the live GET /users/{user_id}/loans path with the default limit=10 / offset=0 and asserts the wrapper returns a List[Dict]. The 'supports limit / offset / expand / order_by query params' facet is NOT individually exercised against SANDBOX because the test user is expected to have zero or very few loans, making pagination/sort behaviour unobservable. The query-string assembly for these four params is pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py; this entry documents that residual unit-only facet."
+        },
+        {
+          "ac": "`change_loan_due_date` performs a PUT with a properly formatted ISO",
+          "reason": "DELIBERATE SCOPE LIMIT: update_user_loan (PUT /users/{user_id}/loans/{loan_id} — the wrapper that the issue spec refers to as 'change_loan_due_date'; it was renamed update_user_loan during implementation to match the Alma swagger 'Update Loan' shape) is INTENTIONALLY NOT exercised against SANDBOX. Two reasons: (1) Alma exposes NO DELETE endpoint for loans (verified live this session) — t-40-3 already creates a loan that persists until manual operator intervention, and adding a PUT mutation on the same loan would not change the cleanup picture but would add another mutation that the regression-smoke output has to flag. (2) The PUT wire shape (path-binding + JSON body verbatim + due_date ISO-8601-with-Z formatting) is fully pinned by the chunk's mocked-HTTP unit tests in tests/unit/domains/test_users.py — SANDBOX cannot distinguish between two body shapes that both happen to be accepted, so a live PUT would only reproduce the unit-test guarantee at the cost of a second mutation. The validation guards on update_user_loan (empty user_id / loan_id / loan_data, non-dict loan_data) ARE exercised by t-40-2 against the live Users object."
+        },
+        {
+          "ac": "Unit tests cover: missing/both `item_barcode`+`item_pid` raises",
+          "reason": "The 'unit tests (mocked HTTP)' facet — specifically the wire-shape pins for op=renew query string assembly, and the date-formatting tests for str-vs-datetime inputs to update_user_loan / change_loan_due_date — is a local pytest-suite deliverable (tests/unit/domains/test_users.py) verified pre-merge by the test runner, not by Alma SANDBOX behaviour. The validation half (missing/both item_barcode+item_pid raises AlmaValidationError; missing-body-fields raises AlmaValidationError) IS exercised by t-40-2 against the live Users object; the wire-correctness of op=renew IS exercised end-to-end by t-40-3 (renew_user_loan only succeeds if the wrapper actually appends ?op=renew); this entry documents the residual unit-only facet (date-formatting + mocked-HTTP wire pins for the variants not exercised live)."
+        },
+        {
+          "ac": "At least one SANDBOX integration test for the full create→renew→PUT",
+          "reason": "Partially mapped: t-40-3 exercises create→get→renew live against the supplied SANDBOX user + item PID. The PUT (update_user_loan / change_loan_due_date) leg of the cycle is NOT exercised live for the reasons documented under the change_loan_due_date AC above (Alma has no DELETE for loans, so adding a PUT mutation would only duplicate the mocked-HTTP unit-test guarantee at the cost of further state). The 'full create→renew→PUT cycle' AC is therefore mapped to t-40-3 for the create+renew portion and to the chunk's mocked-HTTP unit tests for the PUT portion."
+        },
+        {
+          "ac": "No `print()` — all operations logged via `alma_logging`.",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the new methods) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff. (Note: the t-40-3 print() statements are inside the SANDBOX-test runner script — emitted to stdout for operator-cleanup visibility — not inside the wrapper methods on src/almaapitk/domains/users.py. The AC is about the wrapper, which uses self.logger throughout.)"
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        }
+      ]
+    }
+  ]
+}

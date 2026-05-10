@@ -1,0 +1,16 @@
+{
+  "chunk": "users-loans",
+  "issues": [
+    40
+  ],
+  "stage": "merged",
+  "branch": "chunk/users-loans",
+  "createdAt": "2026-05-10T04:50:57Z",
+  "updatedAt": "2026-05-10T08:09:35Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/124)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KR83JSY60TW1RKN7BKB4SECQ",
+  "testRunId": "01KR8DN89P2ZNA35NWQFYMJBJH",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/124"
+}

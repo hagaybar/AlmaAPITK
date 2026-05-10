@@ -1,0 +1,13 @@
+{
+  "chunk": "users-loans",
+  "testRunStartedAt": "2026-05-10T08:03:21Z",
+  "testRunFinishedAt": "2026-05-10T08:03:21Z",
+  "perTest": [
+    {"id": "t-40-1", "outcome": "passed", "issueNumber": 40, "stateChanging": false, "cleanupStatus": "n/a", "details": "Read-only loan retrieval against the supplied test fixtures completed successfully (pytest: 1 passed in 0.49s)."},
+    {"id": "t-40-2", "outcome": "passed", "issueNumber": 40, "stateChanging": false, "cleanupStatus": "n/a", "details": "Read-only validation of loan listing/parsing behavior completed successfully (pytest: 1 passed in 0.06s)."},
+    {"id": "t-40-3", "outcome": "passed", "issueNumber": 40, "stateChanging": true, "cleanupStatus": "ok", "details": "Full create-renew-return round-trip succeeded against the supplied test user / item; loan was created, renewed, and returned via in-band scan-in within the same test run; net state clean (no leftover loan). Pytest: 1 passed in 2.04s."}
+  ],
+  "perIssue": [
+    {"number": 40, "everyAcMapped": false, "everyTestPassed": true, "anySkips": false, "autoCloseEligible": false}
+  ]
+}

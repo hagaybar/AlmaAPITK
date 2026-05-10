@@ -1,0 +1,47 @@
+{
+  "chunk": "users-loans",
+  "issues": [
+    {
+      "number": 40,
+      "title": "Coverage: Users: loans (list, create, get, renew, change due date)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/40",
+      "labels": [
+        "api-coverage",
+        "priority:high"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** High\n**Effort:** M (1\u20133 days)\n\n## Background\nAdd coverage for the user loans resource (list, create, get, renew, change\ndue date). The audit (2026-05-01) flagged that the original\n`create_user_loan` signature mis-modelled the endpoint by mixing query and\nbody parameters into one flat list and by omitting the alternative\n`item_pid` identifier path.\n\n## Relevant Alma API documentation\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Endpoints touched:\n  - `GET /almaws/v1/users/{user_id}/loans`\n  - `POST /almaws/v1/users/{user_id}/loans`\n  - `GET /almaws/v1/users/{user_id}/loans/{loan_id}`\n  - `POST /almaws/v1/users/{user_id}/loans/{loan_id}` (`op=renew`)\n  - `PUT /almaws/v1/users/{user_id}/loans/{loan_id}`\n\nPer docs:\n- For `POST /loans` (create), **one of** `item_barcode` or `item_pid` is\n  **mandatory** as a **query** parameter. `user_id_type` is an optional\n  query param.\n- The `library` and `circ_desk` fields belong inside the **request body**\n  (Loan object), not as flat function args at the same level as\n  `item_barcode`.\n- `op=renew` is the only documented operation for `POST /loans/{loan_id}`.\n- `PUT /loans/{loan_id}` updates the loan (e.g., due date) directly.\n\n## Current wrapper behavior\nNone of the loans endpoints are wrapped today.\n\n## Expected wrapper behavior\n\n```python\ndef list_user_loans(\n    self,\n    user_id: str,\n    limit: int = 100,\n    offset: int = 0,\n    expand: str = None,\n    order_by: str = None,\n) -> Dict[str, Any]:\n    \"\"\"Returns the Alma envelope (`total_record_count`, `item_loan[]`).\"\"\"\n\ndef create_user_loan(\n    self,\n    user_id: str,\n    *,\n    item_barcode: str = None,\n    item_pid: str = None,\n    user_id_type: str = None,\n    loan_data: Dict[str, Any],   # body \u2014 must include library + circ_desk\n) -> AlmaResponse:\n    \"\"\"\n    Exactly one of `item_barcode` / `item_pid` is required (query param).\n    `loan_data` is the Loan object body (library, circ_desk, due_date, etc.).\n    \"\"\"\n\ndef get_user_loan(self, user_id: str, loan_id: str) -> Dict[str, Any]: ...\n\ndef renew_user_loan(self, user_id: str, loan_id: str) -> AlmaResponse:\n    \"\"\"POST .../loans/{loan_id}?op=renew\"\"\"\n\ndef change_loan_due_date(\n    self, user_id: str, loan_id: str, new_due_date: str,\n) -> AlmaResponse:\n    \"\"\"PUT .../loans/{loan_id} with the due_date field updated.\"\"\"\n```\n\n## Implementation notes\n- Validate that exactly one of `item_barcode` / `item_pid` is provided in\n  `create_user_loan`; raise `AlmaValidationError` otherwise.\n- Validate that `loan_data` includes `library` and `circ_desk`; raise\n  `AlmaValidationError` with a precise message listing what's missing.\n- `new_due_date` must be ISO 8601 with `Z` (e.g., `2026-12-31Z`); reuse the\n  date-formatting pattern from `Acquisitions._format_invoice_date` if a\n  `datetime` is passed in.\n- `op=renew` is a query parameter on the action POST \u2014 don't put it in the\n  body.\n- For PUT due-date updates, do a GET first if the body shape requires the\n  full Loan object (verify against docs).\n\n## Acceptance criteria\n- [ ] `list_user_loans` returns the Alma envelope and supports\n      `limit`/`offset`/`expand`/`order_by` query params.\n- [ ] `create_user_loan` accepts `item_barcode` OR `item_pid` (exclusive),\n      plus `user_id_type` and a separate `loan_data` body dict; validates\n      mutual exclusivity and required body fields.\n- [ ] `renew_user_loan` posts to `/loans/{loan_id}?op=renew` with no body.\n- [ ] `change_loan_due_date` performs a PUT with a properly formatted ISO\n      8601 date string.\n- [ ] Unit tests cover: missing/both `item_barcode`+`item_pid` raises\n      `AlmaValidationError`; missing body fields raise `AlmaValidationError`;\n      `op=renew` is wired correctly; date formatting works for `str` and\n      `datetime` inputs.\n- [ ] At least one SANDBOX integration test for the full create\u2192renew\u2192PUT\n      cycle.\n- [ ] No `print()` \u2014 all operations logged via `alma_logging`.\n- [ ] `scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass.\n\n## Open questions\n- Whether `change_loan_due_date` requires a full Loan object body (round-trip\n  GET first) or accepts a partial PUT \u2014 verify in docs before merge.\n\n## Audit notes (2026-05-01)\n- Primary audit: **Partially aligned**. Endpoints correct, but\n  `create_user_loan(user_id, item_barcode, library, circ_desk)` flattens\n  query and body params and omits the alternative `item_pid` plus optional\n  `user_id_type`.\n- Codex direct audit: **Partially aligned** \u2014 same finding (`library` and\n  `circ_desk` are not documented as parameters to this endpoint outside the\n  body).\n- Decision: re-shape `create_user_loan` so query params (`item_barcode` /\n  `item_pid` / `user_id_type`) are explicit kwargs and body fields go\n  through a dedicated `loan_data` dict.\n\n## Files to touch\n- `src/almaapitk/domains/users.py` (extend existing `Users` class)\n- `tests/unit/domains/test_users.py`\n\n## References\n- Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/\n- Use the `alma-api-expert` skill for endpoint quirks and validation rules \u2014 `op=renew` query param for renewals\n\n<!-- prereqs:auto:begin -->\n## Prerequisites\n\n**Recommended (would simplify or improve this work, but not strictly blocking):**\n- #3 \u2014 Persistent requests.Session (every new HTTP call inherits connection pooling)\n- #4 \u2014 Consolidate HTTP verbs into _request() (every new method routes through one chokepoint)\n- #5 \u2014 Retry with exponential backoff for 429 / 5xx (every new method gets 429/5xx resilience for free)\n- #9 \u2014 Map Alma error codes to specific exception subclasses (new methods raise typed Alma errors instead of generic AlmaAPIError)\n- #10 \u2014 Propagate tracking_id and alma_code on errors (errors carry tracking_id for support escalation)\n- #14 \u2014 Replace print() with logger; remove safe_request() (no print() statements in the new methods)\n- #11 \u2014 iter_paged() generator at the client level (list/search methods should use iter_paged() instead of manual offset loops)\n\n<!-- prereqs:auto:end -->\n\n## Notes for the implementing agent\n- Mirror an existing domain method as the pattern source (e.g., `Acquisitions.get_invoice` for read, `Acquisitions.create_invoice_simple` for write).\n- All public methods must have type hints + Google-style docstrings.\n- Validate required inputs at top of method and raise `AlmaValidationError` with a clear message.\n- Log method entry with key parameters (info), success with result identifiers (info), and errors with full context (error).\n- NEVER print \u2014 use `self.logger`.\n- Test in SANDBOX first. Add at least one unit test under `tests/unit/` and one integration test under `tests/integration/`.\n- After implementation, `poetry run python scripts/smoke_import.py` and the public-API contract test MUST pass.\n\n- POST /loans/{loan_id} uses the `op` query parameter \u2014 `op=renew` triggers a renewal.\n- PUT /loans/{loan_id} updates the due date directly.\n- Date format is ISO 8601 with Z (e.g., `2026-12-31Z`); reuse `Acquisitions._format_invoice_date` pattern.\n\n---\nFiled as part of the coverage-expansion backlog. See `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md` for context.\n",
+      "domain": "Users",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "tests/unit/domains/test_users.py"
+      ],
+      "references": [
+        "Alma dev-network: https://developers.exlibrisgroup.com/alma/apis/users/",
+        "Use the `alma-api-expert` skill for endpoint quirks and validation rules \u2014 `op=renew` query param for renewals"
+      ],
+      "hard_prereqs": [],
+      "soft_prereqs": [
+        3,
+        4,
+        5,
+        9,
+        10,
+        14,
+        11
+      ],
+      "acceptance_criteria": [
+        "`list_user_loans` returns the Alma envelope and supports",
+        "`create_user_loan` accepts `item_barcode` OR `item_pid` (exclusive),",
+        "`renew_user_loan` posts to `/loans/{loan_id}?op=renew` with no body.",
+        "`change_loan_due_date` performs a PUT with a properly formatted ISO",
+        "Unit tests cover: missing/both `item_barcode`+`item_pid` raises",
+        "At least one SANDBOX integration test for the full create\u2192renew\u2192PUT",
+        "No `print()` \u2014 all operations logged via `alma_logging`.",
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` pass."
+      ]
+    }
+  ]
+}

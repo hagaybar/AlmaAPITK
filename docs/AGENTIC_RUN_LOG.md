@@ -31,3 +31,5 @@ Append-only log of chunk runs. One row per finished chunk.
 | users-grab-bag-1 | 2026-05-08 | #39, #44, #45 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/121 |
 | users-crud | 2026-05-10 | #37 |  | 2 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/122 |
 | users-crud | 2026-05-10 | #37 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/122 |
+| users-loans | 2026-05-10 | #40 |  | 3 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/124 |
+| users-loans | 2026-05-10 | #40 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/124 |

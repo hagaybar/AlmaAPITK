@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-05-11
+
+### Fixed
+
+- `almaapitk.__version__` now reads dynamically from the installed
+  distribution's metadata (`importlib.metadata.version("almaapitk")`)
+  instead of a hardcoded string. The hardcoded value had drifted —
+  `0.4.2` shipped to PyPI with `__version__ == "0.3.1"` baked into
+  `src/almaapitk/__init__.py` because the version-bump step only
+  touched `pyproject.toml`. A regression test at `tests/test_version.py`
+  now asserts `__version__` matches the installed-metadata version,
+  per CLAUDE.md R10 (bug-driven regression tests).
+
 ## [0.4.2] — 2026-05-11
 
 First publish of the 0.4.x series to PyPI. (`0.4.0` and `0.4.1` were
@@ -113,6 +126,7 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.3
 [0.4.2]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.2
 [0.3.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.3.1

@@ -55,7 +55,16 @@
 #
 # =============================================================================
 
-__version__ = "0.3.1"
+# Resolved at import-time from the installed distribution's metadata so
+# this string is *always* in sync with pyproject.toml. The hardcoded
+# previous value drifted (shipped as "0.3.1" inside the 0.4.2 wheel);
+# tests/test_version.py guards against the same regression.
+from importlib.metadata import version as _pkg_version, PackageNotFoundError as _PackageNotFoundError
+
+try:
+    __version__ = _pkg_version("almaapitk")
+except _PackageNotFoundError:  # pragma: no cover — only fires when running from a non-installed tree
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     # Package metadata

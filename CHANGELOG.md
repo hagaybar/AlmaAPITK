@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.4.1] — 2026-05-11
+## [0.4.2] — 2026-05-11
 
-First publish of the 0.4.x series to PyPI. (0.4.0 was uploaded to
-TestPyPI during pre-publish verification but never released to real
-PyPI; doc-completeness corrections caught during the TestPyPI gate
-required a version bump to 0.4.1, mirroring the 0.3.0 → 0.3.1 path.)
+First publish of the 0.4.x series to PyPI. (`0.4.0` and `0.4.1` were
+uploaded to TestPyPI during pre-publish verification but never
+released to real PyPI; doc-completeness corrections caught during the
+TestPyPI gate required two version bumps in succession, mirroring the
+`0.3.0` → `0.3.1` path. The final bump to `0.4.2` added `Analytics`
+and `Configuration` to the top-level discoverability surfaces —
+`README.md`, `docs/index.md`, `docs/getting-started.md` — and noted
+that `Configuration` is the active expansion area going into 0.5.x.)
 The full 0.4.0 content set is preserved below.
 
 ### Added
@@ -109,6 +113,6 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.1...HEAD
-[0.4.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.1
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.2
 [0.3.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.3.1

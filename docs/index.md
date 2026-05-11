@@ -25,10 +25,12 @@ Detailed documentation for each domain module:
 | Domain | Description | Documentation |
 |--------|-------------|---------------|
 | **Acquisitions** | Invoice management, POL operations, item receiving | [View Guide](domains/acquisitions.md) |
-| **Users** | User management, email operations, batch processing | [View Guide](domains/users.md) |
+| **Admin** | Sets management (BIB_MMS, USER), full CRUD + member management | [View Guide](domains/admin.md) |
+| **Analytics** | Analytics report headers and rows with built-in pagination | _no dedicated guide yet — see [api-reference.md](api-reference.md#analytics)_ |
 | **BibliographicRecords** | Bib records, holdings, items, digital representations | [View Guide](domains/bibliographicrecords.md) |
-| **Admin** | Sets management (BIB_MMS, USER) | [View Guide](domains/admin.md) |
+| **Configuration** | Libraries/locations, code tables, letters, mapping tables, deposit/import profiles. **Active growth area** — more endpoints land in each 0.x release | [View Guide](domains/configuration.md) |
 | **ResourceSharing** | Lending/borrowing requests via Partners API | [View Guide](domains/resourcesharing.md) |
+| **Users** | User management, loans, requests, CRUD, search, email/expiry processing | [View Guide](domains/users.md) |
 
 ---
 

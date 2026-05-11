@@ -10,11 +10,13 @@ A Python toolkit for interacting with the Ex Libris Alma ILS (Integrated Library
 - **Simple API Client**: Easy-to-use HTTP client with automatic authentication and error handling
 - **Domain Classes**: High-level abstractions for common Alma operations
   - `Acquisitions` - POL operations, invoicing, item receiving
+  - `Admin` - Sets management (BIB_MMS, USER), full CRUD + member management
   - `Analytics` - Analytics reports with pagination support
-  - `Users` - User management, email updates
   - `BibliographicRecords` - Bib records, holdings, items
-  - `Admin` - Sets management (BIB_MMS, USER)
+  - `Configuration` - Libraries/locations, code tables, letters, mapping tables
+    *(active expansion area — more endpoints land in each 0.x release)*
   - `ResourceSharing` - Lending/borrowing via Partners API
+  - `Users` - User management, loans, requests, CRUD, search, expiry processing
 - **Environment Support**: Seamless switching between Sandbox and Production
 - **Response Wrapper**: Consistent response handling with `AlmaResponse`
 - **Comprehensive Logging**: Built-in logging with automatic API key redaction

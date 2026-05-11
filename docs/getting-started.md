@@ -284,11 +284,13 @@ AlmaAPITK provides specialized domain classes for common operations:
 ```python
 from almaapitk import (
     AlmaAPIClient,
-    Admin,           # Set management
-    Users,           # User operations
-    Acquisitions,    # POL and invoicing
-    BibliographicRecords,  # Bib records
-    ResourceSharing  # Lending/borrowing
+    Acquisitions,          # POL and invoicing
+    Admin,                 # Set management (full CRUD + members)
+    Analytics,             # Analytics reports
+    BibliographicRecords,  # Bib records, holdings, items
+    Configuration,         # Libraries, locations, code tables, letters (growing)
+    ResourceSharing,       # Lending/borrowing via Partners API
+    Users,                 # User CRUD, loans, requests, search
 )
 
 # Initialize client

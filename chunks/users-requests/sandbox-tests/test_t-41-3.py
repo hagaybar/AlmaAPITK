@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import time
 
 from almaapitk import AlmaAPIClient, BibliographicRecords
 from almaapitk.client.AlmaAPIClient import AlmaAPIError
@@ -108,15 +109,36 @@ def test_t_41_3():
         print(f"[t-41-3] loan created: loan_id={loan_id!r} for user A")
 
         # --- Step 2: create an item-level HOLD for User B -----------------
-        create_response = users.create_user_request(
-            user_b,
-            {
-                "request_type": "HOLD",
-                "pickup_location_type": "LIBRARY",
-                "pickup_location_library": target_library,
-            },
-            item_pid=item_pid,
-        )
+        # Alma's availability index is eventually consistent: an item that
+        # was just loaned (POST /loans returned a loan_id) may still appear
+        # available to the request endpoint for a few seconds, causing a
+        # spurious 401129 "no items can fulfill". Retry briefly to give the
+        # index time to converge.
+        create_response = None
+        last_err = None
+        for attempt in range(5):
+            if attempt > 0:
+                time.sleep(2)
+            try:
+                create_response = users.create_user_request(
+                    user_b,
+                    {
+                        "request_type": "HOLD",
+                        "pickup_location_type": "LIBRARY",
+                        "pickup_location_library": target_library,
+                    },
+                    item_pid=item_pid,
+                )
+                break
+            except AlmaAPIError as e:
+                last_err = e
+                if "401129" not in str(e) and "No items can fulfill" not in str(e):
+                    raise
+                continue
+        if create_response is None:
+            raise AssertionError(
+                f"create_user_request still failing after 5 attempts: {last_err}"
+            )
         assert create_response is not None
         assert getattr(create_response, "success", False) is True
         create_data = getattr(create_response, "data", None)

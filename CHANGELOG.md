@@ -20,7 +20,18 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   now asserts `__version__` matches the installed-metadata version,
   per CLAUDE.md R10 (bug-driven regression tests).
 
-## [0.4.2] — 2026-05-11
+## [0.4.2] — 2026-05-11 [YANKED 2026-05-11]
+
+> **⚠️ Yanked from PyPI on 2026-05-11.** This release shipped with a
+> stale `__version__` string: `pip install almaapitk==0.4.2` resolved
+> correctly, but `import almaapitk; almaapitk.__version__` returned
+> `"0.3.1"` because `src/almaapitk/__init__.py` had a hardcoded version
+> constant that drifted from `pyproject.toml`. Fixed in `0.4.3` —
+> `__version__` is now resolved dynamically from package metadata, and
+> a regression test (`tests/test_version.py`) prevents the bug from
+> recurring. Upgrade to `0.4.3`; pinned consumers can keep `0.4.2`
+> safely (the API surface is identical to `0.4.3`; only the reported
+> `__version__` string differs).
 
 First publish of the 0.4.x series to PyPI. (`0.4.0` and `0.4.1` were
 uploaded to TestPyPI during pre-publish verification but never

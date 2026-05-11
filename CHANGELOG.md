@@ -17,11 +17,14 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   and rate-limit policy.
 - HTTP retry with exponential backoff for transient failures
   (`429`, `500`, `502`, `503`, `504`) (issue #5).
-- Configurable per-call timeout and a region map covering the published
-  Alma endpoints (NA, EU, APAC, China) (issues #6, #7).
+- Configurable per-call timeout (default lowered from 300s to 60s) and
+  a region map covering the published Alma endpoints (NA, EU, APAC,
+  China) (issues #6, #7).
 - Mapped Alma error codes to `AlmaAPIError` subclasses
-  (`AlmaAuthenticationError`, `AlmaRateLimitError`, `AlmaValidationError`)
-  and surfaced `trackingId` / `errorCode` on raised exceptions (issues #9, #10).
+  (`AlmaAuthenticationError`, `AlmaRateLimitError`, `AlmaServerError`,
+  `AlmaResourceNotFoundError`, `AlmaDuplicateInvoiceError`,
+  `AlmaInvalidPolModeError`) and surfaced `tracking_id` / `error_code`
+  on raised exceptions (issues #9, #10).
 - `client.iter_paged(endpoint, ...)` generator that walks paged Alma
   endpoints with on-demand fetching, `max_records` cap, and centralized
   `limit` / `offset` / `total_record_count` bookkeeping (issue #11).

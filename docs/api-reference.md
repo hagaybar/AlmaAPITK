@@ -1,6 +1,6 @@
 # AlmaAPITK API Reference
 
-**Version:** 0.2.0
+**Version:** 0.4.0
 **Package:** `almaapitk`
 
 This document provides comprehensive API reference documentation for the AlmaAPITK Python library.
@@ -10,14 +10,21 @@ This document provides comprehensive API reference documentation for the AlmaAPI
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [AlmaAPIClient](#almaapiclient)
+  - [Context-manager support](#context-manager-support)
+  - [iter_paged()](#iter_paged)
 - [AlmaResponse](#almaresponse)
 - [Exceptions](#exceptions)
+  - [AlmaAPIError](#almaapierror)
+  - [AlmaValidationError](#almavalidationerror)
+  - [Typed AlmaAPIError subclasses](#typed-almaapierror-subclasses)
 - [Domain Classes](#domain-classes)
   - [Acquisitions](#acquisitions)
   - [Users](#users)
   - [BibliographicRecords](#bibliographicrecords)
   - [Admin](#admin)
   - [ResourceSharing](#resourcesharing)
+  - [Analytics](#analytics)
+  - [Configuration](#configuration)
 - [Utilities](#utilities)
   - [TSVGenerator](#tsvgenerator)
   - [Citation Metadata](#citation-metadata)
@@ -88,7 +95,16 @@ class AlmaAPIClient:
 ### Constructor
 
 ```python
-AlmaAPIClient(environment: str = 'SANDBOX')
+AlmaAPIClient(
+    environment: str = 'SANDBOX',
+    *,
+    max_retries: int = 3,
+    backoff_factor: float = 1.0,
+    retry: Optional[urllib3.util.Retry] = None,
+    timeout: Optional[float] = None,
+    region: str = 'EU',
+    host: Optional[str] = None,
+)
 ```
 
 **Parameters:**
@@ -96,21 +112,44 @@ AlmaAPIClient(environment: str = 'SANDBOX')
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `environment` | `str` | `'SANDBOX'` | Environment to use. Must be `'SANDBOX'` or `'PRODUCTION'` |
+| `max_retries` | `int` | `3` | Retry attempts on 429/5xx responses (issue #5). Ignored when `retry` is provided. |
+| `backoff_factor` | `float` | `1.0` | Exponential backoff multiplier (1s, 2s, 4s, ...). Ignored when `retry` is provided. |
+| `retry` | `Optional[Retry]` | `None` | Fully-built `urllib3.util.Retry` for advanced tuning. Wins over `max_retries`/`backoff_factor`. |
+| `timeout` | `Optional[float]` | `None` -> `60` | Default per-request timeout in seconds (issue #6). Lowered from the pre-0.3 default of `300` to `60`. Per-call overrides via `_request(..., timeout=...)`. |
+| `region` | `str` | `'EU'` | Alma hosting region (issue #7). One of `'EU'`, `'NA'`, `'AP'`, `'APS'`, `'CA'`, `'CN'`. Ignored when `host` is set. |
+| `host` | `Optional[str]` | `None` | Override the base URL with an arbitrary string. Useful for staging proxies, on-prem mirrors, and tests. Wins outright over `region`. |
+
+**Region -> base URL mapping** (issue #7):
+
+| Region key | Base URL |
+|------------|----------|
+| `EU`  | `https://api-eu.hosted.exlibrisgroup.com` |
+| `NA`  | `https://api-na.hosted.exlibrisgroup.com` |
+| `AP`  | `https://api-ap.hosted.exlibrisgroup.com` (Asia Pacific – Singapore) |
+| `APS` | `https://api-aps.hosted.exlibrisgroup.com` (Asia Pacific – Australia) |
+| `CA`  | `https://api-ca.hosted.exlibrisgroup.com` |
+| `CN`  | `https://api-cn.hosted.exlibrisgroup.com.cn` (note the `.com.cn` TLD) |
 
 **Raises:**
-- `ValueError`: If environment is not 'SANDBOX' or 'PRODUCTION'
-- `ValueError`: If the corresponding environment variable is not set
+- `ValueError`: If `environment` is not `'SANDBOX'` or `'PRODUCTION'`, or if the corresponding environment variable is not set.
+- `AlmaValidationError`: If `max_retries` is negative or non-int, `backoff_factor` is negative or non-numeric, `timeout` is non-positive or non-numeric, or `region` is not a known key and no `host` override was given.
 
 **Example:**
 
 ```python
 from almaapitk import AlmaAPIClient
 
-# Sandbox environment
+# Sandbox environment (EU host, 60s timeout, 3 retries)
 client = AlmaAPIClient('SANDBOX')
 
 # Production environment
 client = AlmaAPIClient('PRODUCTION')
+
+# North America tenant with a longer timeout
+client = AlmaAPIClient('PRODUCTION', region='NA', timeout=120)
+
+# Pointed at a staging proxy
+client = AlmaAPIClient('SANDBOX', host='https://alma-staging.example.org')
 ```
 
 ### Methods
@@ -295,6 +334,105 @@ Get base URL.
 
 **Returns:** Base URL string (e.g., `'https://api-eu.hosted.exlibrisgroup.com'`)
 
+#### iter_paged()
+
+```python
+def iter_paged(
+    self,
+    endpoint: str,
+    *,
+    params: Optional[Dict[str, Any]] = None,
+    page_size: int = 100,
+    record_key: Optional[str] = None,
+    max_records: Optional[int] = None,
+) -> Iterator[Dict[str, Any]]
+```
+
+Walk any Alma list/search endpoint that uses the standard `limit` / `offset`
+pagination contract and yield records one at a time, fetching pages on demand.
+Centralises the offset bookkeeping that previously lived inline in every
+domain method walking paged results (issue #11).
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `endpoint` | `str` | Required | API endpoint (e.g., `'almaws/v1/acq/invoices'`). |
+| `params` | `Optional[Dict]` | `None` | Query parameters. Merged with the paginator's `limit`/`offset` on each request; paginator values win on key collision. |
+| `page_size` | `int` | `100` | Records per page. Must be a positive int. Some endpoints cap lower — pass the documented limit if so. |
+| `record_key` | `Optional[str]` | `None` | Top-level key in the response body where the record array lives (e.g., `'invoice'`, `'pol'`, `'user'`, `'bib'`). When `None`, no records are yielded. |
+| `max_records` | `Optional[int]` | `None` | Hard cap on records yielded. `None` means "walk until exhausted". |
+
+**Yields:** Each record `dict` in the order Alma returns them.
+
+**Raises:**
+- `AlmaValidationError`: If `endpoint` is empty, `page_size` is non-positive/non-int, or `max_records` is negative/non-int.
+- `AlmaAPIError`: Surfaces verbatim from the underlying page fetch.
+
+**Generator semantics are load-bearing.** Callers that break out early (e.g.,
+"find the first match") skip the remaining page fetches. Reach for `list(...)`
+only when you genuinely need the full materialised set.
+
+**Example — stream and break early:**
+
+```python
+# Find the first ACME invoice over $1,000 without scanning the rest
+target = None
+for invoice in client.iter_paged(
+    "almaws/v1/acq/invoices",
+    params={"q": "vendor~ACME"},
+    record_key="invoice",
+):
+    if invoice["total_amount"] > 1000:
+        target = invoice
+        break
+```
+
+**Example — materialize with `list()`:**
+
+```python
+# Fetch the first 10 invoices as a list
+invoices = list(client.iter_paged(
+    "almaws/v1/acq/invoices",
+    record_key="invoice",
+    max_records=10,
+))
+```
+
+### Context-manager support
+
+`AlmaAPIClient` is a context manager (issue #13). Using it inside a
+`with` block guarantees the persistent `requests.Session` is closed
+deterministically when the block exits, releasing pooled TCP+TLS
+connections and file descriptors.
+
+```python
+from almaapitk import AlmaAPIClient
+
+with AlmaAPIClient('SANDBOX') as client:
+    response = client.get('almaws/v1/bibs/<mms_id>')
+    # ... use the client ...
+# Session has been closed here; further client.get(...) calls would raise
+# AlmaAPIError("AlmaAPIClient has been closed; ...").
+```
+
+`close()` is also available explicitly for callers that cannot use a
+`with` block (e.g., long-lived workers managing their own teardown):
+
+```python
+client = AlmaAPIClient('PRODUCTION')
+try:
+    client.get('almaws/v1/conf/libraries')
+finally:
+    client.close()
+```
+
+`close()` is idempotent — calling it more than once is safe. Any
+exception during teardown is logged at WARNING level and swallowed, so
+teardown failures never mask an in-flight exception from the `with`
+body. Once closed, the client refuses further HTTP calls; construct a
+new instance if you need to make additional calls.
+
 ---
 
 ## AlmaResponse
@@ -314,7 +452,15 @@ class AlmaResponse:
 |----------|------|-------------|
 | `status_code` | `int` | HTTP status code |
 | `success` | `bool` | `True` if status_code < 400 |
-| `data` | `Dict[str, Any]` | Alias for `json()` - returns parsed JSON response |
+| `data` | `Dict[str, Any]` | Cached parsed JSON body — alias for `json()` (issue #16). |
+
+**Body parsing is memoized.** The parsed JSON body is cached on first
+access (issue #16): `.data`, `.json()`, and the client's internal
+debug-body-logging path all share a single `response.json()` call.
+Repeated access — common in idioms like `if r.data and r.data.get("foo"):`
+— no longer re-parses the body on every read, which is measurable on
+large analytics payloads. Exception behaviour is unchanged: a malformed
+body still raises `ValueError` from `.json()` / `.data`.
 
 ### Methods
 
@@ -324,7 +470,8 @@ class AlmaResponse:
 def json(self) -> Dict[str, Any]
 ```
 
-Return JSON data from response.
+Return JSON data from response. Cached on first successful parse (issue
+#16); subsequent calls return the cached object.
 
 **Returns:** Parsed JSON response as dictionary
 
@@ -370,29 +517,42 @@ else:
 
 ### AlmaAPIError
 
-Base exception for Alma API errors.
+Base exception for Alma API errors. Carries the HTTP status, the underlying
+`requests.Response`, and — when the failing response body included an Alma
+`errorList` payload — the per-error `trackingId` and `errorCode` that Ex
+Libris support uses to investigate cases (issue #10).
 
 ```python
 class AlmaAPIError(Exception):
-    """General Alma API error."""
-
-    def __init__(self, message: str, status_code: int = None, response=None):
-        super().__init__(message)
-        self.status_code = status_code
-        self.response = response
+    def __init__(
+        self,
+        message: str,
+        status_code: int = None,
+        response=None,
+        tracking_id: Optional[str] = None,
+        alma_code: str = "",
+    ):
+        ...
 ```
 
 **Attributes:**
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `status_code` | `int` | HTTP status code that caused the error |
-| `response` | `Response` | The original response object |
+| `status_code` | `int` | HTTP status code that caused the error. `None` for synthetic errors raised outside the response handler. |
+| `response` | `Response` | The original `requests.Response`. |
+| `tracking_id` | `Optional[str]` | `trackingId` field from `errorList.error[0]` (issue #10). `None` when the body had no `errorList` or no trackingId entry. Quote this back to Ex Libris support when filing a case. |
+| `alma_code` | `str` | `errorCode` field from `errorList.error[0]`, normalised to `str` (issue #10). Empty string when no code was present — chosen so log formatters can interpolate without a falsy guard. |
 
 **When Raised:**
 - HTTP status code >= 400
 - API returns an error in the response body
 - Network or connection errors
+
+> **Note:** As of 0.3, `_handle_response` raises the most specific
+> [typed subclass](#typed-almaapierror-subclasses) it can determine
+> from the error code / HTTP status. Catching the bare `AlmaAPIError`
+> base class still works — every typed subclass inherits from it.
 
 **Example:**
 
@@ -402,10 +562,12 @@ from almaapitk import AlmaAPIClient, AlmaAPIError
 client = AlmaAPIClient('SANDBOX')
 
 try:
-    response = client.get('almaws/v1/bibs/invalid_mms_id')
+    response = client.get('almaws/v1/bibs/<invalid_mms_id>')
 except AlmaAPIError as e:
     print(f"API Error: {e}")
-    print(f"Status Code: {e.status_code}")
+    print(f"Status Code:  {e.status_code}")
+    print(f"Alma code:    {e.alma_code}")
+    print(f"Tracking ID:  {e.tracking_id}")  # quote this to Ex Libris support
 ```
 
 ### AlmaValidationError
@@ -436,6 +598,64 @@ try:
 except AlmaValidationError as e:
     print(f"Validation Error: {e}")
 ```
+
+### Typed AlmaAPIError subclasses
+
+The client raises the most specific subclass it can determine from the
+combination of HTTP status and the Alma `errorList.error[0].errorCode`
+field (issues #9, #10). Alma error codes are more specific than HTTP
+status and always win when both are available; HTTP status is the
+fallback for unmapped codes.
+
+All subclasses inherit from `AlmaAPIError` and carry the same
+`status_code`, `response`, `tracking_id`, and `alma_code` attributes —
+so existing `except AlmaAPIError:` blocks keep catching them.
+
+| Subclass | Triggered by | When to catch specifically |
+|----------|--------------|----------------------------|
+| `AlmaAuthenticationError` | HTTP **401** | The API key is missing, malformed, or revoked. No retry will help — surface to the operator with "check your `ALMA_*_API_KEY`". |
+| `AlmaResourceNotFoundError` | HTTP **404**, or Alma codes `401861` ("User with identifier ... was not found") and `60224` ("Organization institution not found") | The lookup target does not exist. Often non-fatal — e.g., "does this user already exist?" probes can treat this as a `False` answer instead of an error. |
+| `AlmaRateLimitError` | HTTP **429** | The retry-aware adapter has already exhausted retries (issue #5). Back off further, or reduce concurrency. |
+| `AlmaServerError` | HTTP **5xx** | Transient Alma-side failure. The retry adapter has already retried; consider re-queueing the job and alerting an operator. |
+| `AlmaDuplicateInvoiceError` | Alma error code **402459** | Invoice already exists for the given vendor. Branch on this in invoice-creation flows to skip / surface a "duplicate" outcome instead of bubbling a generic error. |
+| `AlmaInvalidPolModeError` | Alma error code **40166411** | POL is not in the right mode for the requested operation. Re-check POL status before retrying (e.g., POL must be SENT before receiving). |
+
+**Example — branch on type instead of inspecting message strings:**
+
+```python
+from almaapitk import (
+    AlmaAPIClient,
+    Acquisitions,
+    AlmaDuplicateInvoiceError,
+    AlmaResourceNotFoundError,
+    AlmaAPIError,
+)
+
+acq = Acquisitions(AlmaAPIClient('SANDBOX'))
+
+try:
+    invoice = acq.create_invoice_simple(
+        invoice_number="<invoice_number>",
+        invoice_date="2026-05-11",
+        vendor_code="<vendor_code>",
+        total_amount=100.00,
+    )
+except AlmaDuplicateInvoiceError as e:
+    # 402459 — already invoiced. Skip.
+    print(f"Already invoiced (tracking_id={e.tracking_id})")
+except AlmaResourceNotFoundError as e:
+    # 404 or 401861 / 60224 — vendor or user missing.
+    print(f"Lookup target missing: {e}")
+except AlmaAPIError as e:
+    # Fallthrough — generic failure.
+    print(f"Unhandled API error: {e} (code={e.alma_code})")
+```
+
+When to catch the bare `AlmaAPIError` base class: any catch-all where
+you just want to log/alert and move on. When to catch a specific
+subclass: any flow where the response shape of "this happened" is
+materially different from "any other error" (skip-and-continue,
+operator-facing message, retry vs. abort decision).
 
 ---
 
@@ -1169,6 +1389,59 @@ def get_request_summary(self, request_data: Dict[str, Any]) -> Dict[str, str]
 Extract key information from a lending request for display.
 
 **Returns:** Summary dictionary with key fields
+
+---
+
+### Analytics
+
+Pulls Alma Analytics report headers and row data via the Analytics
+endpoint. Pagination across large reports is handled internally.
+
+> **Important:** Analytics runs against a single shared production DB.
+> SANDBOX has no analytics endpoint — always construct your client with
+> `AlmaAPIClient('PRODUCTION')` (and the corresponding
+> `ALMA_PROD_API_KEY`) for analytics calls, even when the rest of a
+> script uses SANDBOX.
+
+#### Constructor
+
+```python
+Analytics(client: AlmaAPIClient)
+```
+
+```python
+from almaapitk import AlmaAPIClient, Analytics
+
+analytics = Analytics(AlmaAPIClient('PRODUCTION'))
+```
+
+See the source under `src/almaapitk/domains/analytics.py` for full
+method signatures (headers, row iteration with pagination, report
+metadata).
+
+---
+
+### Configuration
+
+Foundation for the Alma Configuration API (issue #22). The class
+skeleton landed in the 0.3.1 development series; concrete methods for
+organizations and locations (#24, #25), code tables (#26, #27), letters
+and grab-bag (#30, #33, #35) shipped in 0.4.0. See
+[`domains/configuration.md`](domains/configuration.md) for the full
+methods reference. The class is exported from the public API so consumer code
+can already type-annotate and instantiate against it.
+
+#### Constructor
+
+```python
+Configuration(client: AlmaAPIClient)
+```
+
+```python
+from almaapitk import AlmaAPIClient, Configuration
+
+config = Configuration(AlmaAPIClient('SANDBOX'))
+```
 
 ---
 

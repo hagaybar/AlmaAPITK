@@ -57,6 +57,8 @@ When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the s
 
 The test stays in the suite forever; the bug can never silently regress. This applies to bugs found post-merge (cleanup commit) AND bugs found mid-chunk (extra test in the chunk's diff). The cumulative suite is run via `scripts/agentic/chunks regression-smoke` before each test release. R10 is the discipline that makes the suite worth running: a regression suite without bug-driven tests is just smoke tests by another name.
 
+**Canonical home for R10 tests:** `tests/unit/regressions/test_issue_<N>.py` (one file per bug, named after the GitHub issue or `test_bug_found_at_<YYYY-MM-DD>.py` if no issue exists). The cumulative regression suite is exactly `pytest tests/unit/regressions/` — no further intersection logic. Chunks `sandbox-tests/` smokes are a separate testing pattern (live-API verification) and do NOT count as the R10 test for a bug; if a SANDBOX smoke was the discovery vehicle, the R10 unit test still lands under `tests/unit/regressions/`.
+
 ---
 
 ## Project Overview

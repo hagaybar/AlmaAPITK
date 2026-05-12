@@ -2884,6 +2884,9 @@ class TestUpdateLetter:
         assert response is mock_client.put_response
         assert response.data["code"] == "OverdueAndLostLoanLetter"
 
+    # R10 regression test for issue #114 lives at
+    # tests/unit/regressions/test_issue_114.py (issue #135).
+
     def test_update_letter_strips_whitespace_in_code(self):
         from almaapitk.domains.configuration import Configuration
 

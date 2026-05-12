@@ -1120,12 +1120,41 @@ class AlmaAPIClient:
             return False
     
     def switch_environment(self, new_environment: str) -> None:
-        """
-        Switch between SANDBOX and PRODUCTION environments.
-        
+        """Switch between SANDBOX and PRODUCTION environments.
+
         Args:
-            new_environment: 'SANDBOX' or 'PRODUCTION'
+            new_environment: ``'SANDBOX'`` or ``'PRODUCTION'``.
+
+        Raises:
+            AlmaAPIError: When the client has already been closed (see
+                :meth:`close`). A closed client signals the caller's
+                intent to release the underlying ``requests.Session``;
+                silently re-creating it during a ``switch_environment``
+                call would mask programmer errors (e.g., reusing a
+                ``with``-block client outside the block). Construct a
+                new ``AlmaAPIClient`` instead.
+            Exception: Any error raised by ``_load_configuration`` or
+                ``_setup_headers`` while applying the new environment is
+                re-raised after rolling back to ``old_env``.
+
+        Pattern source: this method mirrors the closed-state guard used
+        by :meth:`_request` (issue #13). Behaviour was previously
+        undefined post-``close()`` (issue #138, finding F-012).
         """
+        # Issue #138: refuse to switch environments after ``close()``.
+        # Aligns with the HTTP-verb guard in ``_request``: a ``None``
+        # session is the documented sentinel for "this client has been
+        # closed". The defensive ``hasattr(self, '_session') and
+        # self._session is not None`` blocks below remain in place for
+        # the in-flight failure path (where ``__init__`` aborted before
+        # ``_setup_session`` ran), but the close-then-switch caller now
+        # gets a clear error instead of landing in an unusable state.
+        if getattr(self, "_session", None) is None:
+            raise AlmaAPIError(
+                "AlmaAPIClient has been closed; construct a new client "
+                "instance to switch environments."
+            )
+
         old_env = self.environment
         self.environment = new_environment.upper()
         try:

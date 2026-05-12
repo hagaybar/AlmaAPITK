@@ -1,10 +1,10 @@
 schema_version: 1
-total_chunks: 59
-total_issues: 79
+total_chunks: 70
+total_issues: 96
 
 intro: |
   **Status:** Suggested groupings — revise freely. The chunking is your call; this doc removes the "what do I chunk next" decision fatigue.
-  **Inputs used:** `docs/issue-finalization-report-2026-05-01.md`, `docs/issue-audit-2026-05-01.md`, handbook §10.1 wave structure, CLAUDE.md priority/prereq notes.
+  **Inputs used:** `docs/issue-finalization-report-2026-05-01.md`, `docs/issue-audit-2026-05-01.md`, handbook §10.1 wave structure, CLAUDE.md priority/prereq notes, `docs/reviews/2026-05-12-release-0.4.x-review.md` (post-0.4.3 retrospective).
 
 how_to_read: |
   Each chunk shows:
@@ -25,6 +25,8 @@ how_to_read: |
   ```
 
   Skip any chunk freely. Chunks are independent of each other within a phase, except where Prereqs say otherwise.
+
+  **Note on renumbering (2026-05-12):** Phase IDs 4–6 were inserted to capture post-0.4.x review work and deprecation migrations; old Phase 4 (Configuration) is now Phase 7, etc. Phase 16 captures pipeline/dev-experience improvements that surfaced from running the pipeline at scale.
 
 blocked:
   - issue: 29
@@ -111,7 +113,7 @@ phases:
         prereqs: []
         audit: clean
         notes: |
-          Distribution-only: OIDC release flow (#1) + LICENSE file (#17). **Owner-side decision needed first:** MIT vs Apache-2.0 (audit's prioritized next-action #6).
+          Distribution-only: OIDC release flow (#1) + LICENSE file (#17). **Owner-side decision needed first:** MIT vs Apache-2.0 (audit's prioritized next-action #6). #1 may now be a duplicate of #128 (`pipeline-pypi-publish`) — verify before chunking.
       - name: logger-noise-fix
         issues: [2]
         risk: low
@@ -119,8 +121,61 @@ phases:
         audit: clean
         notes: |
           Bug fix, not enhancement. Quick. The audit's per-issue note suggested labelling as `bug`.
+      - name: pipeline-pypi-publish
+        issues: [128]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Post-0.4.x. Replace manual `twine upload` with tag-triggered GitHub Actions workflow using PyPI Trusted Publishing (OIDC). Removes the four-version-bump risk of the 0.4.x cycle's manual release flow. Off-pipeline candidate (one workflow file + docs). Likely supersedes #1.
 
   - id: 4
+    title: Release quality & next-release-risk reducers (post-0.4.x review)
+    description: |
+      Filed from the 2026-05-12 0.4.x retrospective (`docs/reviews/2026-05-12-release-0.4.x-review.md`). HIGHEST current priority — these reduce the chance that the next release repeats the 0.4.0→0.4.3 four-bump pattern. Small, cohesive, shares files across tests/meta, tests/unit/regressions, CLAUDE.md, users.py, acquisition.py.
+    chunks:
+      - name: release-quality-cluster
+        issues: [131, 132, 133, 134, 135, 136, 137, 138]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Eight tickets from one review. #131 (meta-tests trio scope-widened), #132 (Users.__init__ alma_logging refactor), #133 (bare-except + ast guard), #134 (R10 backfill for #114), #135 (canonical R10 home), #136 (401129 race docstring), #137 (gitignore swagger caches), #138 (close-then-switch test). All small. Land together for one cohesive "harden next release" PR. Splitting is fine if scope review dictates, but the testing infrastructure (#131, #133, #135) wants to land in one file commit.
+
+  - id: 5
+    title: Deprecation migrations (must precede related coverage)
+    description: |
+      Three-stage public-API renames. Must land BEFORE any new coverage method that uses the old name — otherwise the new method is migrated twice. `#120` is gating for `#74` (ResourceSharing partner CRUD); `#111` has no current coverage blocker but locks in `Configuration` as the canonical name.
+    chunks:
+      - name: partners-rename
+        issues: [120]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          3-stage migration: (1) add `Partners` as alias, (2) `DeprecationWarning` on `ResourceSharing` import, (3) cutover after a release cycle. **Hard prereq for `#74`** (rs-partners chunk in Phase 13) — otherwise the partner CRUD ships into a name that's about to be deprecated. Solo, careful review.
+      - name: admin-deprecate
+        issues: [111]
+        risk: high
+        prereqs: []
+        audit: clean
+        notes: |
+          Mirror of `partners-rename`. 3-stage: `Configuration` alias for `Admin`, deprecation warning, cutover. No current Admin coverage tickets, so timing is opportunistic — pair with `partners-rename` for review economy. Solo, careful review.
+
+  - id: 6
+    title: Documentation overhaul
+    description: |
+      Public-facing docs lag the public API by 0.2.x. README and API reference are out of sync with v0.4.3 (Configuration / typed errors missing from tables, `Version: 0.2.0` headings on a 0.4.3 release). This phase ships the docs catch-up.
+    chunks:
+      - name: docs-overhaul
+        issues: [118]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          README + API reference + examples + migration guides. Large scope; likely its own session. Coordinate with #131 meta-test (`test_top_level_docs_match_all`) — if that test lands first, this chunk closes the failing assertions. If this lands first, the meta-test is born green.
+
+  - id: 7
     title: Configuration domain (high priority, post-architecture)
     description: |
       The largest cluster. #22 is the foundation; #23 is independent (extends Admin); the rest depend on #22.
@@ -188,11 +243,18 @@ phases:
         audit: clean
         notes: |
           Two standalone smaller pieces; group for review economy.
+      - name: config-int-str-cleanup
+        issues: [139]
+        risk: low
+        prereqs: [22, 11]
+        audit: clean
+        notes: |
+          Post-0.4.x review. Replace `'100'`/`'0'` strings with ints in `Configuration.list_*` params; or migrate to `iter_paged()`. ~10 call sites. Fold into the next Configuration PR rather than its own chunk if appetite is small.
 
-  - id: 5
+  - id: 8
     title: Users domain (high priority)
     description: |
-      Diverse scope. Bootstrap exists already; #36–#45 each add a different user-side capability.
+      Diverse scope. Bootstrap exists already; #36–#45 each add a different user-side capability. #119 adds user-note helpers (post-0.4.x).
     chunks:
       - name: users-list-and-search
         issues: [36]
@@ -230,12 +292,19 @@ phases:
         notes: |
           Already rewritten. Round-trip needs test user + test item barcode.
       - name: users-requests
-        issues: [41, 42, 43]
+        issues: [41]
         risk: med
         prereqs: []
         audit: clean
         notes: |
-          Three request types (regular requests, RS, purchase). Same shape; share the test user fixture.
+          Regular user requests (POST/GET/PUT/DELETE for `/users/{id}/requests`). Shipped 2026-05-10 via PR #125. #42 (RS) and #43 (purchase requests) split out into `users-requests-followup` to allow incremental delivery.
+      - name: users-requests-followup
+        issues: [42, 43]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Follow-up to `users-requests`. #42 (resource-sharing requests) and #43 (purchase requests) — both `priority:high`, same shape as #41. Mirrors the request/cancel/action pattern already shipped. Test user fixture reused.
       - name: users-fines-and-deposits
         issues: [44, 45]
         risk: med
@@ -243,11 +312,18 @@ phases:
         audit: "#44 partially aligned (op=pay/amount=ALL fix)"
         notes: |
           Already rewritten. Action-driven (pay/waive/dispute/restore for #44).
+      - name: users-notes
+        issues: [119]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Post-0.4.x. Add `add_user_note` / `list_user_notes` / `remove_user_note` helpers. New surface; mirror existing Users patterns (validate inputs, log entry, raise `AlmaValidationError` / `AlmaAPIError`).
 
-  - id: 6
+  - id: 9
     title: Bibs domain (medium priority)
     description: |
-      Mostly read + tightly bounded CRUD. Two audit Not-aligned cases (#52, #57).
+      Mostly read + tightly bounded CRUD. Two audit Not-aligned cases (#52, #57). #103 adds SRU-based keyword search (post-0.4.x).
     chunks:
       - name: bibs-holdings-and-items
         issues: [46, 47]
@@ -305,8 +381,15 @@ phases:
         audit: "#57 NOT ALIGNED (only `op=unlink_from_nz` documented; `suppress_bib`/`unsuppress_bib` removed)"
         notes: |
           Already rewritten — the original `suppress` wrappers must NOT be reintroduced. Solo.
+      - name: bibs-sru-search
+        issues: [103]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Post-cleanup-monolith. Replaces the removed `search_records()` with an SRU-based keyword-search method. Needs SRU CQL knowledge; design pass recommended before chunking. Off-pipeline candidate if scope is well-bounded.
 
-  - id: 7
+  - id: 10
     title: Acquisitions
     description: ""
     chunks:
@@ -360,7 +443,7 @@ phases:
         notes: |
           Already rewritten.
 
-  - id: 8
+  - id: 11
     title: Electronic
     description: ""
     chunks:
@@ -379,7 +462,7 @@ phases:
         notes: |
           Already rewritten. e-collections + e-services + portfolios share fixtures and patterns. **All three together** is fine — same shape; one PR is enough.
 
-  - id: 9
+  - id: 12
     title: TaskLists
     description: |
       Three of four tickets in this phase are previously-flagged. Take care.
@@ -413,26 +496,26 @@ phases:
         notes: |
           Already rewritten. `create_printout` was removed.
 
-  - id: 10
+  - id: 13
     title: ResourceSharing
     description: ""
     chunks:
       - name: rs-partners
         issues: [74]
         risk: med
-        prereqs: []
+        prereqs: [120]
         audit: "#74 partially aligned (no `q`/`type_filter`; documented filter is `status`)"
         notes: |
-          Already rewritten.
+          Already rewritten. **Hard prereq: `partners-rename` (#120) must land first** — otherwise this chunk ships partner CRUD into a name that's about to be deprecated.
       - name: rs-directory-members
         issues: [78]
         risk: high
-        prereqs: []
+        prereqs: [120]
         audit: "#78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented)"
         notes: |
-          Already rewritten — bodyless POST. Solo.
+          Already rewritten — bodyless POST. Solo. Same `#120` prereq as `rs-partners`.
 
-  - id: 11
+  - id: 14
     title: Courses
     description: ""
     chunks:
@@ -458,7 +541,7 @@ phases:
         notes: |
           Already rewritten.
 
-  - id: 12
+  - id: 15
     title: Analytics
     description: ""
     chunks:
@@ -470,7 +553,27 @@ phases:
         notes: |
           Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand.
 
-  - id: 13
+  - id: 16
+    title: Pipeline & dev-experience improvements
+    description: |
+      Improvements to the chunk pipeline itself, surfaced from running it at scale across 0.4.x. Not user-facing; affects how future chunks are run.
+    chunks:
+      - name: pipeline-swagger-enrich
+        issues: [123]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          Enrich `_swagger_*.json` sidecars with per-endpoint description/requestBody/responses so the implement agent has structured context instead of just error codes. Pipeline internals only.
+      - name: re-verify-create-user-request
+        issues: [129]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          Calendar-tied: re-verify `Users.create_user_request` live SANDBOX behavior around 2026-05-25. Not really a chunk — surface here so it isn't forgotten; execute as a one-shot when the date arrives.
+
+  - id: 17
     title: Advanced architecture (deferred until coverage stabilizes)
     description: |
       The handbook recommends doing these in wave 7, after most of the high-priority coverage has merged. Each is non-trivial; some change patterns.
@@ -519,4 +622,4 @@ phases:
           Schema-derived models. Defer to last; benefits most from real fixtures.
 
 footer: |
-  > **Note:** the deferred chunks (phase 13) are aspirational. They're listed for completeness so #8/#12/#18–#21 don't get forgotten. You may decide some of them are not worth the effort given the toolkit's actual usage patterns.
+  > **Note:** the deferred chunks (phase 17) are aspirational. They're listed for completeness so #8/#12/#18–#21 don't get forgotten. You may decide some of them are not worth the effort given the toolkit's actual usage patterns.

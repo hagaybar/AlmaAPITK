@@ -205,5 +205,68 @@ class TestUseAfterClose(_AlmaAPIClientTestBase):
             client.get('almaws/v1/conf/libraries')
 
 
+class TestSwitchEnvironmentAfterClose(_AlmaAPIClientTestBase):
+    """Tests for issue #138 (F-012): ``switch_environment`` after ``close``.
+
+    Before this fix, ``switch_environment`` defensively guarded the
+    ``self._session.headers.update(...)`` call with ``hasattr/is not
+    None`` so the call did not crash, but it also did NOT re-create the
+    session. The client landed in an unusable "no session" state and the
+    very next HTTP verb call failed in an undocumented way. We picked
+    "raise a clear ``AlmaAPIError``" over "lazy re-init" to stay
+    consistent with the HTTP-verb guard added in issue #13 (see
+    ``close``'s docstring): a closed client signals an explicit caller
+    intent to release the resource, and silently rebuilding it would
+    mask programmer errors. The ``switch_environment`` docstring now
+    documents this exception.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # Also inject a fake production key so ``_load_configuration``
+        # does not blow up if the rollback path is exercised.
+        self._prod_env_patcher = patch.dict(
+            os.environ, {'ALMA_PROD_API_KEY': 'test-prod-key'}, clear=False
+        )
+        self._prod_env_patcher.start()
+        self.addCleanup(self._prod_env_patcher.stop)
+
+    def test_switch_environment_after_close_raises(self):
+        """``switch_environment`` after ``close`` must raise ``AlmaAPIError``."""
+        client = AlmaAPIClient('SANDBOX')
+        client.close()
+        with self.assertRaises(AlmaAPIError) as ctx:
+            client.switch_environment('PRODUCTION')
+        self.assertIn('closed', str(ctx.exception).lower())
+        # Environment must remain unchanged when the guard fires; the
+        # caller's view of the world is "this client is dead" rather
+        # than "this client mutated half-way through a switch".
+        self.assertEqual(client.environment, 'SANDBOX')
+        # Session must still be ``None`` — the guard refused to rebuild it.
+        self.assertIsNone(client._session)
+
+    def test_switch_environment_after_with_block_raises(self):
+        """End-to-end: switch after the ``with`` block must raise."""
+        client = AlmaAPIClient('SANDBOX')
+        with client as alma:
+            with patch.object(
+                alma._session, 'request', return_value=_make_mock_response()
+            ):
+                alma.get('almaws/v1/conf/libraries')
+        # The block has exited — switching environments should raise.
+        with self.assertRaises(AlmaAPIError):
+            client.switch_environment('PRODUCTION')
+
+    def test_switch_environment_before_close_still_works(self):
+        """Regression guard: the live-session path is unchanged."""
+        client = AlmaAPIClient('SANDBOX')
+        live_session = client._session
+        self.assertIsNotNone(live_session)
+        # Switch should succeed and the same session object must remain.
+        client.switch_environment('PRODUCTION')
+        self.assertEqual(client.environment, 'PRODUCTION')
+        self.assertIs(client._session, live_session)
+
+
 if __name__ == '__main__':
     unittest.main()

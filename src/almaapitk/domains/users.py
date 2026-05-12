@@ -5,17 +5,13 @@ for users expired 2+ years from Alma sets.
 """
 
 import base64
-import logging
-import os
 import re
-import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# Import the working AlmaAPIClient and its response/error classes
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'client'))
+from almaapitk.alma_logging import get_logger
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError
 
 
@@ -32,66 +28,21 @@ class Users:
     """
     
     def __init__(self, client: AlmaAPIClient):
-        """
-        Initialize the Users domain.
-        
+        """Initialize the Users domain.
+
+        Mirrors the logger-wiring pattern used by ``Acquisitions.__init__``
+        and ``Configuration.__init__`` — defer to ``alma_logging.get_logger``
+        so the domain participates in the project-wide logging framework
+        (issues #2 / #14) instead of creating bespoke handlers in the
+        operator's current working directory.
+
         Args:
-            client: The AlmaAPIClient instance for making HTTP requests
+            client: The :class:`AlmaAPIClient` instance for making HTTP
+                requests.
         """
         self.client = client
-        self.logger = client.logger
         self.environment = client.get_environment()
-         # Setup enhanced logger with optional file handler
-        self.logger = self._setup_enhanced_logger("sb_log_file.log" if self.environment == "SANDBOX" else "prod_log_file.log")
-    
-    # Core User Retrieval Methods
-
-
-
-    def _setup_enhanced_logger(self, log_file: str = None):
-        """
-        Setup enhanced logger with both console and optional file handlers.
-        
-        Args:
-            log_file: Optional path to log file
-            
-        Returns:
-            Enhanced logger instance
-        """
-        
-        # Create logger name
-        logger_name = f"Users_{self.environment}"
-        logger = logging.getLogger(logger_name)
-        
-        # Clear existing handlers to avoid duplicates
-        logger.handlers.clear()
-        logger.setLevel(logging.DEBUG)
-        
-        # Create formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        
-        # Console handler (INFO level)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-        
-        # File handler (DEBUG level) - if log_file specified
-        if log_file:
-            try:
-                file_handler = logging.FileHandler(log_file, encoding='utf-8')
-                file_handler.setLevel(logging.DEBUG)
-                file_handler.setFormatter(formatter)
-                logger.addHandler(file_handler)
-                logger.info(f"File logging enabled: {log_file}")
-            except Exception as e:
-                logger.error(f"Could not create file handler for {log_file}: {e}")
-        
-        return logger
-
-
+        self.logger = get_logger('users', environment=self.environment)
 
 
 

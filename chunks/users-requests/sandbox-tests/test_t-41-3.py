@@ -1,3 +1,4 @@
+# operator-only output; do not redirect to CI artifacts unless redaction is applied.
 """SANDBOX test t-41-3 — Users requests live round-trip with item-level
 HOLD against a loaned item (issue #41). STATE-CHANGING — operator-
 authorized.

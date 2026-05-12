@@ -2884,6 +2884,97 @@ class TestUpdateLetter:
         assert response is mock_client.put_response
         assert response.data["code"] == "OverdueAndLostLoanLetter"
 
+    # TODO(#135): migrate to tests/unit/regressions/test_issue_114.py
+    # once that home exists.
+    def test_update_letter_sends_xml_body_regression_114(self):
+        """R10 regression for issue #114.
+
+        Before commit 2d20ab3 (``fix(configuration): send XML body for
+        update_letter``), ``update_letter`` passed the caller's dict to
+        ``self.client.put`` as a JSON body. Alma's letters PUT endpoint
+        rejects JSON with error code ``60105 "JSON is not supported for
+        this API."`` — letters require an XML payload.
+
+        This test pins the symptom: the wire request MUST carry an XML
+        body with ``Content-Type: application/xml``. The assertions
+        below are intentionally tight so that any regression back to a
+        JSON body (e.g. ``data=letter_data`` without serialisation, or
+        ``json=letter_data``) fails this test loudly. The companion
+        test ``test_update_letter_calls_correct_endpoint_and_returns_response``
+        covers behavioural shape; this test is the bug-driven pin.
+
+        Pattern source: ``test_update_letter_calls_correct_endpoint_and_returns_response``
+        immediately above — same MockAlmaAPIClient / MockAlmaResponse
+        wiring, narrowed assertion surface.
+        """
+        import json as _json
+
+        from almaapitk.domains.configuration import Configuration
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.put_response = MockAlmaResponse(
+            body={"code": "OverdueAndLostLoanLetter"}
+        )
+        config = Configuration(mock_client)
+
+        payload = self._valid_payload()
+        config.update_letter("OverdueAndLostLoanLetter", payload)
+
+        # Exactly one PUT was issued.
+        assert len(mock_client.calls["put"]) == 1
+        call = mock_client.calls["put"][0]
+
+        # --- Content-Type pin -------------------------------------
+        # Must be application/xml. Any regression to the project-wide
+        # JSON default (None, "application/json", or unset) fails here.
+        assert call["content_type"] == "application/xml", (
+            "update_letter must send Content-Type: application/xml — "
+            "Alma error 60105 'JSON is not supported for this API.' "
+            "regresses if this flips back to JSON (issue #114)."
+        )
+
+        # --- Body shape pin ---------------------------------------
+        body = call["data"]
+        # The body must be a string (the serialised XML), NOT the raw
+        # dict that the caller passed in. A regression like
+        # ``self.client.put(..., data=letter_data)`` would leave a dict
+        # here.
+        assert isinstance(body, str), (
+            f"update_letter must serialise the payload to a string; "
+            f"got {type(body).__name__}. A regression that passes the "
+            f"caller's dict straight through (issue #114) trips here."
+        )
+
+        # The body must NOT be a JSON-encoded string. ``json.dumps`` of
+        # a dict starts with ``{`` — any string that round-trips through
+        # ``json.loads`` to the original dict is the regressed shape.
+        assert not body.lstrip().startswith("{"), (
+            "update_letter body looks like JSON, not XML — issue #114 "
+            "regression (Alma error 60105 'JSON is not supported')."
+        )
+        try:
+            decoded = _json.loads(body)
+        except (ValueError, TypeError):
+            decoded = None
+        assert decoded != payload, (
+            "update_letter body is JSON-encoded form of the caller's "
+            "dict — issue #114 regression."
+        )
+
+        # --- XML structural pin -----------------------------------
+        # The body must look like XML and must carry the letter code so
+        # the Alma backend can identify the target.
+        assert body.startswith("<"), (
+            "update_letter body must be XML and start with '<'."
+        )
+        assert "<letter>" in body and "</letter>" in body, (
+            "update_letter body must wrap the payload in a <letter> "
+            "element."
+        )
+        assert "<code>OverdueAndLostLoanLetter</code>" in body, (
+            "update_letter body must carry the letter code as XML."
+        )
+
     def test_update_letter_strips_whitespace_in_code(self):
         from almaapitk.domains.configuration import Configuration
 

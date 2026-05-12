@@ -1884,6 +1884,24 @@ class Users:
             AlmaAPIError: If the API request fails (e.g. error code
                 ``401129`` "No items can fulfill the submitted request"
                 or ``401895`` "Pickup circulation desk not found").
+
+        Known caveat:
+            Alma's availability cache is eventually consistent with
+            respect to holdings/item state. When this method is called
+            shortly after a mutation that changes whether an item can
+            fulfill a request — for example, after creating a loan via
+            ``POST /almaws/v1/users/{user_id}/loans`` — Alma may still
+            return error ``401129 "No items can fulfill"`` for a few
+            seconds, even though a manual retry succeeds. This is a
+            race in Alma's index, not in the wrapper.
+
+            Recommended caller-side mitigation: catch ``AlmaAPIError``,
+            check for ``"401129"`` (or the ``"No items can fulfill"``
+            message) in the error string, and retry a small number of
+            times with a brief sleep (e.g. 5 attempts spaced 2 seconds
+            apart) before bubbling the failure. See
+            ``chunks/users-requests/sandbox-tests/test_t-41-3.py``
+            (loan-then-hold flow) for a worked example.
         """
         # Pattern source: create_user_loan (issue #40) for "validate
         # ids, identifier query params, body verbatim". Swagger: POST

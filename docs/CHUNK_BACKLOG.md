@@ -1,6 +1,6 @@
 # Chunk Backlog
 
-_Last rendered: 2026-05-12T10:24:28Z_
+_Last rendered: 2026-05-12T11:17:51Z_
 
 > **Generated artifact** — do not hand-edit. Source: `docs/chunks-backlog.yaml`.
 > Regenerate with `scripts/agentic/chunks render-backlog`.
@@ -75,7 +75,7 @@ Filed from the 2026-05-12 0.4.x retrospective (`docs/reviews/2026-05-12-release-
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 12 | · planned | `release-quality-cluster` | #131, #132, #133, #134, #135, #136, #137, #138 | low | none | clean | Eight tickets from one review. #131 (meta-tests trio scope-widened), #132 (Users.__init__ alma_logging refactor), #133 (bare-except + ast guard), #134 (R10 backfill for #114), #135 (canonical R10 home), #136 (401129 race docstring), #137 (gitignore swagger caches), #138 (close-then-switch test). All small. Land together for one cohesive "harden next release" PR. Splitting is fine if scope review dictates, but the testing infrastructure (#131, #133, #135) wants to land in one file commit. |
+| 12 | ✅ merged | `release-quality-cluster` | #131, #132, #133, #134, #135, #136, #137, #138 | low | none | clean | Eight tickets from one review. #131 (meta-tests trio scope-widened), #132 (Users.__init__ alma_logging refactor), #133 (bare-except + ast guard), #134 (R10 backfill for #114), #135 (canonical R10 home), #136 (401129 race docstring), #137 (gitignore swagger caches), #138 (close-then-switch test). All small. Land together for one cohesive "harden next release" PR. Splitting is fine if scope review dictates, but the testing infrastructure (#131, #133, #135) wants to land in one file commit. |
 
 ## Phase 5 — Deprecation migrations (must precede related coverage)
 

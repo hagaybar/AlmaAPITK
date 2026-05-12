@@ -1,6 +1,6 @@
 # Getting Started with AlmaAPITK
 
-**Version:** 0.2.0 | **License:** MIT | **Author:** Hagay Bar
+**Version:** 0.4.3 | **License:** MIT | **Author:** Hagay Bar
 
 AlmaAPITK is a Python toolkit for interacting with the Ex Libris Alma ILS (Integrated Library System) API. It provides a structured approach to API operations with domain-specific classes and comprehensive error handling.
 
@@ -75,7 +75,7 @@ pip install -e .
 ```python
 import almaapitk
 print(almaapitk.__version__)
-# Expected output: 0.2.0
+# Expected output: 0.4.3
 ```
 
 ---

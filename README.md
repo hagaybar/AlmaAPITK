@@ -173,6 +173,7 @@ rows = analytics.fetch_report_rows(
 | `Users` | User management, email updates |
 | `BibliographicRecords` | Bib records, holdings, items, scan-in |
 | `Admin` | Sets management (BIB_MMS, USER sets) |
+| `Configuration` | Libraries/locations, code tables, letters, mapping tables (active growth area) |
 | `ResourceSharing` | Lending/borrowing via Partners API |
 
 ### Utilities

@@ -1811,7 +1811,13 @@ class Acquisitions:
                 # API returns XML for this endpoint, try JSON first, fall back to XML parsing
                 try:
                     return response.json()
-                except:
+                except ValueError:
+                    # AlmaResponse.json() raises ValueError on a non-JSON
+                    # body (requests.exceptions.JSONDecodeError is a
+                    # subclass). Mirrors the narrowing pattern used at
+                    # AlmaAPIClient._safe_response_body (issue #133 /
+                    # F-003: bare ``except:`` swallowed KeyboardInterrupt /
+                    # SystemExit and obscured real failures).
                     # Response is XML, parse it
                     import xml.etree.ElementTree as ET
                     # Get response text - response has _response attribute from requests library

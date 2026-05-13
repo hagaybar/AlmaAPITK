@@ -4427,7 +4427,7 @@ class TestAddUserNote:
         put_call = mock_client.calls["put"][0]
         assert put_call["endpoint"] == "almaws/v1/users/u1"
 
-        sent_notes = put_call["data"]["user_note"]["user_note"]
+        sent_notes = put_call["data"]["user_note"]
         assert len(sent_notes) == 2
         # The existing note is preserved.
         assert sent_notes[0]["note_text"] == "Existing"
@@ -4439,7 +4439,7 @@ class TestAddUserNote:
         assert new_note["popup_note"] is False
         assert response.data == {"primary_id": "u1"}
 
-    def test_add_user_note_creates_wrapper_when_missing(self):
+    def test_add_user_note_creates_flat_list_when_field_missing(self):
         from almaapitk.domains.users import Users
 
         mock_client = MockAlmaAPIClient()
@@ -4449,17 +4449,17 @@ class TestAddUserNote:
 
         users.add_user_note("u1", "First note", note_type="OTHER")
 
+        # Per Alma's JSON schema, user_note is a flat List<UserNote>.
+        # See issue #119 R10 regression for the wrapped-shape rejection.
         sent = mock_client.calls["put"][0]["data"]
-        assert sent["user_note"] == {
-            "user_note": [
-                {
-                    "note_type": {"value": "OTHER"},
-                    "note_text": "First note",
-                    "user_viewable": False,
-                    "popup_note": False,
-                }
-            ]
-        }
+        assert sent["user_note"] == [
+            {
+                "note_type": {"value": "OTHER"},
+                "note_text": "First note",
+                "user_viewable": False,
+                "popup_note": False,
+            }
+        ]
 
     def test_add_user_note_normalizes_single_dict_to_list_before_append(self):
         from almaapitk.domains.users import Users
@@ -4480,7 +4480,7 @@ class TestAddUserNote:
 
         users.add_user_note("u1", "Brand new note")
 
-        sent_notes = mock_client.calls["put"][0]["data"]["user_note"]["user_note"]
+        sent_notes = mock_client.calls["put"][0]["data"]["user_note"]
         assert len(sent_notes) == 2
         assert sent_notes[0]["note_text"] == "Pre-existing single note"
         assert sent_notes[1]["note_text"] == "Brand new note"
@@ -4501,7 +4501,7 @@ class TestAddUserNote:
             popup_note=True,
         )
 
-        appended = mock_client.calls["put"][0]["data"]["user_note"]["user_note"][0]
+        appended = mock_client.calls["put"][0]["data"]["user_note"][0]
         assert appended["user_viewable"] is True
         assert appended["popup_note"] is True
 
@@ -4588,7 +4588,7 @@ class TestRemoveUserNotes:
         assert len(mock_client.calls["get"]) == 1
         assert len(mock_client.calls["put"]) == 1
         put_call = mock_client.calls["put"][0]
-        kept = put_call["data"]["user_note"]["user_note"]
+        kept = put_call["data"]["user_note"]
         assert len(kept) == 1
         assert kept[0]["note_text"] == "Keep me"
         assert response.data == {"primary_id": "u1"}
@@ -4612,7 +4612,7 @@ class TestRemoveUserNotes:
 
         users.remove_user_notes("u1", predicate=lambda n: True)
 
-        kept = mock_client.calls["put"][0]["data"]["user_note"]["user_note"]
+        kept = mock_client.calls["put"][0]["data"]["user_note"]
         assert kept == []
 
     def test_remove_user_notes_with_no_existing_notes_puts_empty_list(self):
@@ -4626,7 +4626,7 @@ class TestRemoveUserNotes:
         users.remove_user_notes("u1", predicate=lambda n: True)
 
         sent = mock_client.calls["put"][0]["data"]
-        assert sent["user_note"] == {"user_note": []}
+        assert sent["user_note"] == []
 
     def test_remove_user_notes_raises_on_empty_user_id(self):
         from almaapitk.domains.users import Users

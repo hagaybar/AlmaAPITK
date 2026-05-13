@@ -2479,13 +2479,17 @@ class Users:
 
     @staticmethod
     def _normalize_user_notes(user_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Normalize the wrapped Alma user-note structure to a flat list.
+        """Extract user notes as a flat list, tolerant of legacy shapes.
 
-        Alma stores notes inside the user object as
-        ``user.user_note.user_note`` (a list). Per Alma quirk, when the
-        list has a single element the API sometimes serializes the
-        inner field as a single dict instead of a list — this helper
-        always returns a list.
+        Alma's JSON schema declares ``user.user_note`` as a flat
+        ``List<UserNote>`` and PUT requires that flat-list shape. The
+        modern GET response uses the same shape — ``user_note: []``
+        when empty, ``user_note: [{...}, ...]`` when notes exist.
+        However, some older Alma serialisations / XML-derived
+        responses wrap it as ``user_note: {user_note: [...]}`` and
+        single-note payloads occasionally arrive as a bare dict
+        instead of a list. This helper handles every observed shape
+        and always returns a flat list.
 
         Args:
             user_data: The user payload returned by
@@ -2493,16 +2497,17 @@ class Users:
 
         Returns:
             A list of note dictionaries. Returns an empty list if the
-            user has no notes or the wrapper key is missing.
+            user has no notes or the field is missing.
         """
-        # Wrapping-shape normalisation — see issue #119 "Alma quirk" note.
+        # Defensive read — issue #119 R10 test covers the four shapes seen.
         wrapper = user_data.get('user_note') if isinstance(user_data, dict) else None
         if not wrapper:
             return []
         if isinstance(wrapper, list):
-            # Some Alma responses skip the inner wrapper entirely.
+            # Canonical shape returned by the modern users API.
             inner = wrapper
         elif isinstance(wrapper, dict):
+            # Legacy wrapped shape ``{user_note: [...]}``.
             inner = wrapper.get('user_note', [])
         else:
             return []
@@ -2556,9 +2561,16 @@ class Users:
 
         Alma has no dedicated note endpoint, so this is a
         read-mutate-write composition: ``get_user`` to fetch the current
-        record, append the new note in-place to
-        ``user.user_note.user_note``, then ``update_user`` to PUT the
-        full record back. **Two HTTP requests per call.**
+        record, append the new note to the flat ``user.user_note``
+        list, then ``update_user`` to PUT the full record back. **Two
+        HTTP requests per call.**
+
+        The write shape MUST be a flat list — Alma's JSON schema
+        declares ``user_note`` as ``ArrayList<UserNote>``. Sending the
+        legacy wrapped shape ``{'user_note': [...]}`` triggers a 400
+        with ``Cannot deserialize value of type
+        java.util.ArrayList<...userwebservice.UserNote>``. See issue
+        #119 R10 regression test.
 
         Args:
             user_id: User identifier.
@@ -2597,7 +2609,8 @@ class Users:
             'user_viewable': bool(user_viewable),
             'popup_note': bool(popup_note),
         })
-        user_data['user_note'] = {'user_note': notes}
+        # Flat-list write shape per Alma's JSON schema; see issue #119.
+        user_data['user_note'] = notes
 
         self.logger.info(
             f"Adding note to user {user_id} "
@@ -2615,9 +2628,9 @@ class Users:
         Alma has no stable note id and no per-note delete endpoint, so
         deletion is performed via read-mutate-write: ``get_user``
         fetches the current record, every note where
-        ``predicate(note)`` returns truthy is dropped from
-        ``user.user_note.user_note``, then ``update_user`` PUTs the
-        full record back. **Two HTTP requests per call**, and the PUT
+        ``predicate(note)`` returns truthy is dropped from the flat
+        ``user.user_note`` list, then ``update_user`` PUTs the full
+        record back. **Two HTTP requests per call**, and the PUT
         is a full-object update, not a partial patch.
 
         Args:
@@ -2661,7 +2674,8 @@ class Users:
             else:
                 kept.append(note)
 
-        user_data['user_note'] = {'user_note': kept}
+        # Flat-list write shape per Alma's JSON schema; see issue #119.
+        user_data['user_note'] = kept
 
         self.logger.info(
             f"Removing {removed} note(s) from user {user_id} "

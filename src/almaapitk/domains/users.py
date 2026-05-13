@@ -2248,6 +2248,417 @@ class Users:
             )
             raise
 
+    # -----------------------------------------------------------------
+    # Resource-sharing requests (issue #42)
+    #
+    # Per the Alma users swagger (POST/GET/DELETE/POST on
+    # ``/almaws/v1/users/{user_id}/resource-sharing-requests`` and
+    # ``/.../resource-sharing-requests/{request_id}``), these are
+    # patron-side wrappers around the *requester's* view of a resource
+    # sharing request. The partner-side equivalent lives in
+    # ``ResourceSharing.create_lending_request`` and operates against
+    # the Partners API — NOT to be conflated with this domain.
+    # -----------------------------------------------------------------
+
+    def create_user_rs_request(
+        self,
+        user_id: str,
+        request_data: Dict[str, Any],
+        user_id_type: Optional[str] = None,
+        override_blocks: Optional[bool] = None,
+    ) -> AlmaResponse:
+        """Create a resource-sharing request for a user.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/resource-sharing-requests``.
+        Per the Alma users swagger, the body is a Resource Sharing
+        Request object (see
+        ``rest_user_resource_sharing_request-post.json``) and is
+        forwarded to Alma verbatim. ``user_id_type`` and
+        ``override_blocks`` are optional query parameters.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_data: Request body as a non-empty dict. Forwarded
+                to Alma verbatim. Typical fields include
+                ``citation_type``, ``format``, ``title``,
+                ``pickup_location_*``, and ``owner`` (resource sharing
+                library code).
+            user_id_type: Optional user identifier type (any value from
+                the Alma "User Identifier Type" code table). Forwarded
+                as a **query** parameter only when non-``None``.
+            override_blocks: Optional flag indicating whether the
+                request should be created even if patron-level blocks
+                exist. Forwarded as a **query** parameter only when
+                non-``None`` (the swagger lists this as required, but
+                in practice Alma applies the default ``false`` when
+                omitted — surfaced here as an optional kwarg so callers
+                can opt in to override semantics explicitly).
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the created
+            resource-sharing request body, including the new
+            ``request_id``).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty / not a string
+                or if ``request_data`` is empty / not a dict.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401768`` "Patron is not affiliated with a resource
+                sharing library", ``401607`` "Resource sharing library
+                (owner) is missing", or ``402362`` "Patron has
+                duplicate request").
+        """
+        # Mirrors Users.create_user_request (Refs #41) — same
+        # "validate id + non-empty body, POST body verbatim, optional
+        # query params" shape. The RS endpoint has its own swagger
+        # surface (no mms_id / item_pid / holding_id discriminator —
+        # the resource is described inside ``request_data``).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_data, dict) or not request_data:
+            raise AlmaValidationError(
+                "request_data must be a non-empty dictionary"
+            )
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {}
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+        if override_blocks is not None:
+            # Alma accepts the string form for booleans on query params
+            # (cf. cancel_user_rs_request's notify_user); normalise to
+            # lowercase string for consistency.
+            params["override_blocks"] = (
+                "true" if override_blocks else "false"
+            )
+
+        endpoint = (
+            f"almaws/v1/users/{clean_id}/resource-sharing-requests"
+        )
+        # Audit-log: only the user_id and the optional query flags —
+        # never the full request_data (carries title / citation /
+        # comments — treat as PII-adjacent).
+        self.logger.info(
+            f"Creating resource-sharing request for user {clean_id} "
+            f"(user_id_type={user_id_type!r}, "
+            f"override_blocks={override_blocks!r})"
+        )
+        try:
+            response = self.client.post(
+                endpoint,
+                data=request_data,
+                params=params if params else None,
+            )
+            request_id: Any = None
+            try:
+                request_id = (response.data or {}).get("request_id")
+            except (ValueError, AttributeError):
+                request_id = None
+            self.logger.info(
+                f"Created resource-sharing request for user "
+                f"{clean_id} (request_id={request_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating resource-sharing request for "
+                f"user {clean_id}: {e}"
+            )
+            raise
+
+    def get_user_rs_request(
+        self,
+        user_id: str,
+        request_id: str,
+        request_id_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Retrieve a single resource-sharing request's details.
+
+        Calls
+        ``GET /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}``
+        and returns the unwrapped request dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Resource-sharing request identifier. Must be a
+                non-empty string.
+            request_id_type: Optional. Forwarded as a query parameter
+                only when non-``None``. Use ``"external"`` to look up
+                by the external identifier instead of the internal id.
+
+        Returns:
+            The resource-sharing request dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``request_id`` is
+                empty or not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``40166450`` "No result found for given parameters" or
+                ``401890`` "User not found").
+        """
+        # Mirrors Users.get_user_request (Refs #41) — same
+        # "validate two ids, GET, return dict" shape, with the
+        # swagger-documented optional ``request_id_type`` query param.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+
+        params: Dict[str, Any] = {}
+        if request_id_type is not None:
+            params["request_id_type"] = request_id_type
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}"
+            f"/resource-sharing-requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Retrieving resource-sharing request {clean_request_id} "
+            f"for user {clean_user_id} "
+            f"(request_id_type={request_id_type!r})"
+        )
+        try:
+            response = self.client.get(
+                endpoint, params=params if params else None
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved resource-sharing request "
+                f"{clean_request_id} for user {clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving resource-sharing request "
+                f"{clean_request_id} for user {clean_user_id}: {e}"
+            )
+            raise
+
+    def cancel_user_rs_request(
+        self,
+        user_id: str,
+        request_id: str,
+        reason: Optional[str] = None,
+        note: Optional[str] = None,
+        remove_request: Optional[bool] = None,
+        notify_user: Optional[bool] = None,
+    ) -> AlmaResponse:
+        """Cancel a single resource-sharing request.
+
+        Calls
+        ``DELETE /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}``.
+        Per the swagger this endpoint returns ``204 No Content``, so
+        ``response.data`` will typically be empty. All cancellation
+        modifiers (``reason``, ``note``, ``remove_request``,
+        ``notify_user``) are forwarded as query parameters.
+
+        Note:
+            Unlike :meth:`cancel_user_request` (which requires
+            ``reason``), the RS DELETE endpoint marks ``reason`` as
+            **optional** in the swagger (default empty). It is kept
+            optional here to match Alma's contract.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Resource-sharing request identifier. Must be a
+                non-empty string.
+            reason: Optional cancel reason code from the
+                ``RequestCancellationReasons`` code table. Forwarded as
+                a query parameter only when non-``None``.
+            note: Optional free-text note with additional information
+                about the cancellation. Forwarded as a query parameter
+                only when non-``None``.
+            remove_request: Optional boolean flag to permanently delete
+                the resource-sharing request (vs. cancel it).
+                Forwarded as a query parameter only when non-``None``.
+                Defaults to Alma's ``false`` when omitted.
+            notify_user: Optional boolean flag controlling whether the
+                requester is notified of the cancellation. Forwarded as
+                a query parameter only when non-``None``. Defaults to
+                Alma's ``true`` when omitted.
+
+        Returns:
+            ``AlmaResponse`` wrapping the (typically empty 204)
+            response.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``request_id`` is
+                empty or not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401694`` "Request Identifier not found" or
+                ``401890`` "User not found").
+        """
+        # Mirrors Users.cancel_user_request (Refs #41) for the
+        # "validate ids / log / DELETE / log" shape; ``reason`` is
+        # downgraded to optional because the RS DELETE swagger marks
+        # it optional (in contrast to the regular cancel endpoint).
+        # Swagger response is 204 No Content — callers should not
+        # expect a body.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        if reason is not None and not isinstance(reason, str):
+            raise AlmaValidationError(
+                "reason must be a string when supplied"
+            )
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+
+        params: Dict[str, Any] = {}
+        if reason is not None:
+            params["reason"] = reason.strip()
+        if note is not None:
+            # Operator-supplied free text; forward verbatim (don't
+            # strip — Alma may treat trailing whitespace as
+            # significant). Don't audit-log the note value (PII-
+            # adjacent).
+            params["note"] = note
+        if remove_request is not None:
+            params["remove_request"] = (
+                "true" if remove_request else "false"
+            )
+        if notify_user is not None:
+            params["notify_user"] = (
+                "true" if notify_user else "false"
+            )
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}"
+            f"/resource-sharing-requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Cancelling resource-sharing request "
+            f"{clean_request_id} for user {clean_user_id} "
+            f"(reason={reason!r}, note_supplied={note is not None}, "
+            f"remove_request={remove_request!r}, "
+            f"notify_user={notify_user!r})"
+        )
+        try:
+            response = self.client.delete(
+                endpoint, params=params if params else None
+            )
+            self.logger.info(
+                f"Cancelled resource-sharing request "
+                f"{clean_request_id} for user {clean_user_id}"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error cancelling resource-sharing request "
+                f"{clean_request_id} for user {clean_user_id}: {e}"
+            )
+            raise
+
+    def perform_user_rs_request_action(
+        self,
+        user_id: str,
+        request_id: str,
+        op: str,
+        shipping_cost: Optional[str] = None,
+        fund_code: Optional[str] = None,
+        request_id_type: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Perform an action on a single resource-sharing request.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}?op=<op>``
+        with an empty request body. Per the swagger, ``op``
+        is currently documented only as ``"update_shipping"`` (used to
+        update the shipping cost / fund code on a borrowing request).
+        The wrapper does NOT enumerate / restrict the set: invalid ops
+        are rejected by Alma with its own error response (a future
+        Alma release may add new ops, and the wrapper should not be
+        the bottleneck).
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            request_id: Resource-sharing request identifier. Must be a
+                non-empty string.
+            op: Action to perform. Must be a non-empty string. Per
+                Alma docs, currently only ``"update_shipping"`` is
+                supported — not validated client-side.
+            shipping_cost: Optional updated shipping cost. Forwarded as
+                a query parameter only when non-``None``. Relevant for
+                ``op="update_shipping"``.
+            fund_code: Optional code of the updated fund. Forwarded as
+                a query parameter only when non-``None``. Relevant for
+                ``op="update_shipping"``.
+            request_id_type: Optional. Use ``"external"`` to address
+                the request by its external identifier. Forwarded as a
+                query parameter only when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (the updated
+            resource-sharing request body).
+
+        Raises:
+            AlmaValidationError: If ``user_id``, ``request_id``, or
+                ``op`` is empty / not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``40166411`` "Parameter value is invalid", ``40166425``
+                "Shipping cost cannot be lower than 0", or ``40166412``
+                "Failed to perform operation").
+        """
+        # Mirrors Users.perform_user_request_action (Refs #41) —
+        # same op-driven POST shape (op as query param, empty body).
+        # The wrapper is deliberately op-agnostic; per the same
+        # convention, "let Alma reject invalid ops with its own
+        # error". Swagger note: error code 40166411 also maps to
+        # AlmaInvalidPolModeError via ERROR_CODE_REGISTRY (a pre-
+        # existing cross-domain collision — out of scope here).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(request_id, str) or not request_id.strip():
+            raise AlmaValidationError("Request ID cannot be empty")
+        if not isinstance(op, str) or not op.strip():
+            raise AlmaValidationError("op must be a non-empty string")
+        clean_user_id = user_id.strip()
+        clean_request_id = request_id.strip()
+        clean_op = op.strip()
+
+        params: Dict[str, Any] = {"op": clean_op}
+        if shipping_cost is not None:
+            params["shipping_cost"] = shipping_cost
+        if fund_code is not None:
+            params["fund_code"] = fund_code
+        if request_id_type is not None:
+            params["request_id_type"] = request_id_type
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}"
+            f"/resource-sharing-requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Performing resource-sharing request action for user "
+            f"{clean_user_id} (request_id={clean_request_id!r}, "
+            f"op={clean_op!r}, shipping_cost={shipping_cost!r}, "
+            f"fund_code={fund_code!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Performed resource-sharing request action for user "
+                f"{clean_user_id} (request_id={clean_request_id!r}, "
+                f"op={clean_op!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error performing resource-sharing request "
+                f"action for user {clean_user_id} "
+                f"(request_id={clean_request_id!r}, op={clean_op!r}): "
+                f"{e}"
+            )
+            raise
+
     def create_user(self, user_data: Dict[str, Any]) -> AlmaResponse:
         """Create a new Alma user.
 

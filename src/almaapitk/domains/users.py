@@ -9,7 +9,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from almaapitk.alma_logging import get_logger
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError
@@ -2474,7 +2474,215 @@ class Users:
         except AlmaAPIError as e:
             self.logger.error(f"API error updating user {user_id}: {e}")
             raise
-    
+
+    # User Note Helpers (issue #119)
+
+    @staticmethod
+    def _normalize_user_notes(user_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract user notes as a flat list, tolerant of legacy shapes.
+
+        Alma's JSON schema declares ``user.user_note`` as a flat
+        ``List<UserNote>`` and PUT requires that flat-list shape. The
+        modern GET response uses the same shape — ``user_note: []``
+        when empty, ``user_note: [{...}, ...]`` when notes exist.
+        However, some older Alma serialisations / XML-derived
+        responses wrap it as ``user_note: {user_note: [...]}`` and
+        single-note payloads occasionally arrive as a bare dict
+        instead of a list. This helper handles every observed shape
+        and always returns a flat list.
+
+        Args:
+            user_data: The user payload returned by
+                ``GET /almaws/v1/users/{user_id}``.
+
+        Returns:
+            A list of note dictionaries. Returns an empty list if the
+            user has no notes or the field is missing.
+        """
+        # Defensive read — issue #119 R10 test covers the four shapes seen.
+        wrapper = user_data.get('user_note') if isinstance(user_data, dict) else None
+        if not wrapper:
+            return []
+        if isinstance(wrapper, list):
+            # Canonical shape returned by the modern users API.
+            inner = wrapper
+        elif isinstance(wrapper, dict):
+            # Legacy wrapped shape ``{user_note: [...]}``.
+            inner = wrapper.get('user_note', [])
+        else:
+            return []
+        if isinstance(inner, dict):
+            # Single-note responses sometimes arrive as a bare dict.
+            return [inner]
+        if isinstance(inner, list):
+            return [n for n in inner if isinstance(n, dict)]
+        return []
+
+    def list_user_notes(self, user_id: str) -> List[Dict[str, Any]]:
+        """Return the existing notes attached to a user.
+
+        Alma stores notes inside the user object itself (no dedicated
+        notes endpoint), so this method performs a single
+        ``GET /almaws/v1/users/{user_id}`` and unwraps the
+        ``user_note.user_note`` list. Read-only.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.).
+
+        Returns:
+            A list of note dictionaries as returned by Alma. Empty list
+            if the user has no notes.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the underlying GET request fails.
+        """
+        # Read-only delegation; mirrors Users.get_user wrapping + Users.extract_user_emails normalisation.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID must be a non-empty string")
+
+        user_response = self.get_user(user_id)
+        user_data = user_response.json() or {}
+        notes = self._normalize_user_notes(user_data)
+        self.logger.info(
+            f"Listed {len(notes)} note(s) for user {user_id}"
+        )
+        return notes
+
+    def add_user_note(
+        self,
+        user_id: str,
+        note_text: str,
+        note_type: str = 'CIRCULATION',
+        user_viewable: bool = False,
+        popup_note: bool = False,
+    ) -> AlmaResponse:
+        """Append a note to a user's note list.
+
+        Alma has no dedicated note endpoint, so this is a
+        read-mutate-write composition: ``get_user`` to fetch the current
+        record, append the new note to the flat ``user.user_note``
+        list, then ``update_user`` to PUT the full record back. **Two
+        HTTP requests per call.**
+
+        The write shape MUST be a flat list — Alma's JSON schema
+        declares ``user_note`` as ``ArrayList<UserNote>``. Sending the
+        legacy wrapped shape ``{'user_note': [...]}`` triggers a 400
+        with ``Cannot deserialize value of type
+        java.util.ArrayList<...userwebservice.UserNote>``. See issue
+        #119 R10 regression test.
+
+        Args:
+            user_id: User identifier.
+            note_text: Body of the note. Must be a non-empty string.
+            note_type: Alma note type code (e.g. ``CIRCULATION``,
+                ``OTHER``). Any non-empty string is accepted; Alma
+                rejects unknown values server-side.
+            user_viewable: Whether the patron can see the note.
+            popup_note: Whether the note should pop up in the staff UI.
+
+        Returns:
+            The :class:`AlmaResponse` from the PUT (updated user).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``note_text`` is not
+                a non-empty string, or ``note_type`` is empty.
+            AlmaAPIError: If either the GET or PUT request fails.
+        """
+        # Read-mutate-write pattern; mirrors Users.update_user_email's two-step composition (issue #119).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID must be a non-empty string")
+        if not isinstance(note_text, str) or not note_text.strip():
+            raise AlmaValidationError("Note text must be a non-empty string")
+        if not isinstance(note_type, str) or not note_type.strip():
+            raise AlmaValidationError("Note type must be a non-empty string")
+
+        user_response = self.get_user(user_id)
+        user_data = user_response.json() or {}
+
+        # Normalise the wrapping shape before mutating so we can write
+        # back a canonical structure regardless of Alma's serialisation.
+        notes = self._normalize_user_notes(user_data)
+        notes.append({
+            'note_type': {'value': note_type.strip()},
+            'note_text': note_text,
+            'user_viewable': bool(user_viewable),
+            'popup_note': bool(popup_note),
+        })
+        # Flat-list write shape per Alma's JSON schema; see issue #119.
+        user_data['user_note'] = notes
+
+        self.logger.info(
+            f"Adding note to user {user_id} "
+            f"(note_type={note_type}, total_notes={len(notes)})"
+        )
+        return self.update_user(user_id, user_data)
+
+    def remove_user_notes(
+        self,
+        user_id: str,
+        predicate: Callable[[Dict[str, Any]], bool],
+    ) -> AlmaResponse:
+        """Remove every note that matches ``predicate`` from a user.
+
+        Alma has no stable note id and no per-note delete endpoint, so
+        deletion is performed via read-mutate-write: ``get_user``
+        fetches the current record, every note where
+        ``predicate(note)`` returns truthy is dropped from the flat
+        ``user.user_note`` list, then ``update_user`` PUTs the full
+        record back. **Two HTTP requests per call**, and the PUT
+        is a full-object update, not a partial patch.
+
+        Args:
+            user_id: User identifier.
+            predicate: Callable taking a single note dict and returning
+                ``True`` for notes that should be removed.
+
+        Returns:
+            The :class:`AlmaResponse` from the PUT (updated user).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is not a non-empty
+                string or ``predicate`` is not callable.
+            AlmaAPIError: If either the GET or PUT request fails.
+        """
+        # Read-mutate-write pattern; mirrors Users.update_user_email (issue #119).
+        # Predicate-based remove + add-new is preferred over update-by-index
+        # because Alma exposes no stable note id (per #119 design notes).
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID must be a non-empty string")
+        if not callable(predicate):
+            raise AlmaValidationError("predicate must be callable")
+
+        user_response = self.get_user(user_id)
+        user_data = user_response.json() or {}
+
+        notes = self._normalize_user_notes(user_data)
+        kept: List[Dict[str, Any]] = []
+        removed = 0
+        for note in notes:
+            try:
+                should_remove = bool(predicate(note))
+            except Exception as e:
+                self.logger.error(
+                    f"Predicate raised while filtering notes for user "
+                    f"{user_id}: {e}"
+                )
+                raise
+            if should_remove:
+                removed += 1
+            else:
+                kept.append(note)
+
+        # Flat-list write shape per Alma's JSON schema; see issue #119.
+        user_data['user_note'] = kept
+
+        self.logger.info(
+            f"Removing {removed} note(s) from user {user_id} "
+            f"(remaining={len(kept)})"
+        )
+        return self.update_user(user_id, user_data)
+
     # Expiry Date Analysis Methods
     
     def get_user_expiry_date(self, user_data: Dict[str, Any]) -> Optional[str]:

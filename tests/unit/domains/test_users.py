@@ -4283,3 +4283,388 @@ class TestUpdateUserRequest:
             )
 
         assert exc_info.value.alma_code == "60330"
+
+
+# ---------------------------------------------------------------------------
+# User-note helpers (issue #119)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserNotes:
+    """Tests for ``Users.list_user_notes`` (issue #119)."""
+
+    def test_list_user_notes_returns_notes_from_wrapped_list(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "primary_id": "u1",
+                "user_note": {
+                    "user_note": [
+                        {
+                            "note_type": {"value": "CIRCULATION"},
+                            "note_text": "Returned damaged book",
+                        },
+                        {
+                            "note_type": {"value": "OTHER"},
+                            "note_text": "VIP patron",
+                        },
+                    ]
+                },
+            }
+        )
+        users = Users(mock_client)
+
+        notes = users.list_user_notes("u1")
+
+        assert len(notes) == 2
+        assert notes[0]["note_text"] == "Returned damaged book"
+        assert notes[1]["note_type"]["value"] == "OTHER"
+        # Read-only: exactly one GET, zero PUTs.
+        assert len(mock_client.calls["get"]) == 1
+        assert mock_client.calls["get"][0]["endpoint"] == "almaws/v1/users/u1"
+        assert mock_client.calls["put"] == []
+
+    def test_list_user_notes_normalizes_single_dict_to_list(self):
+        from almaapitk.domains.users import Users
+
+        # Alma quirk: single-note arrays sometimes serialize as a bare dict.
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_note": {
+                    "user_note": {
+                        "note_type": {"value": "CIRCULATION"},
+                        "note_text": "Only note",
+                    }
+                }
+            }
+        )
+        users = Users(mock_client)
+
+        notes = users.list_user_notes("u1")
+
+        assert isinstance(notes, list)
+        assert len(notes) == 1
+        assert notes[0]["note_text"] == "Only note"
+
+    def test_list_user_notes_returns_empty_when_wrapper_missing(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"primary_id": "u1"})
+        users = Users(mock_client)
+
+        assert users.list_user_notes("u1") == []
+
+    def test_list_user_notes_returns_empty_when_inner_missing(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_note": {}}
+        )
+        users = Users(mock_client)
+
+        assert users.list_user_notes("u1") == []
+
+    def test_list_user_notes_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_notes("")
+        with pytest.raises(AlmaValidationError):
+            users.list_user_notes("   ")
+
+    def test_list_user_notes_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_notes(123)  # type: ignore[arg-type]
+
+
+class TestAddUserNote:
+    """Tests for ``Users.add_user_note`` (issue #119)."""
+
+    def test_add_user_note_appends_to_existing_list(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "primary_id": "u1",
+                "user_note": {
+                    "user_note": [
+                        {
+                            "note_type": {"value": "OTHER"},
+                            "note_text": "Existing",
+                        }
+                    ]
+                },
+            }
+        )
+        mock_client.put_response = MockAlmaResponse(body={"primary_id": "u1"})
+        users = Users(mock_client)
+
+        response = users.add_user_note(
+            "u1",
+            "Returned damaged book on 2026-05-08",
+            note_type="CIRCULATION",
+        )
+
+        # Two HTTP requests: one GET (read), one PUT (write).
+        assert len(mock_client.calls["get"]) == 1
+        assert len(mock_client.calls["put"]) == 1
+        put_call = mock_client.calls["put"][0]
+        assert put_call["endpoint"] == "almaws/v1/users/u1"
+
+        sent_notes = put_call["data"]["user_note"]
+        assert len(sent_notes) == 2
+        # The existing note is preserved.
+        assert sent_notes[0]["note_text"] == "Existing"
+        # The new note carries the value-wrapped note_type idiom.
+        new_note = sent_notes[1]
+        assert new_note["note_type"] == {"value": "CIRCULATION"}
+        assert new_note["note_text"] == "Returned damaged book on 2026-05-08"
+        assert new_note["user_viewable"] is False
+        assert new_note["popup_note"] is False
+        assert response.data == {"primary_id": "u1"}
+
+    def test_add_user_note_creates_flat_list_when_field_missing(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"primary_id": "u1"})
+        mock_client.put_response = MockAlmaResponse(body={"primary_id": "u1"})
+        users = Users(mock_client)
+
+        users.add_user_note("u1", "First note", note_type="OTHER")
+
+        # Per Alma's JSON schema, user_note is a flat List<UserNote>.
+        # See issue #119 R10 regression for the wrapped-shape rejection.
+        sent = mock_client.calls["put"][0]["data"]
+        assert sent["user_note"] == [
+            {
+                "note_type": {"value": "OTHER"},
+                "note_text": "First note",
+                "user_viewable": False,
+                "popup_note": False,
+            }
+        ]
+
+    def test_add_user_note_normalizes_single_dict_to_list_before_append(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_note": {
+                    "user_note": {
+                        "note_type": {"value": "OTHER"},
+                        "note_text": "Pre-existing single note",
+                    }
+                }
+            }
+        )
+        mock_client.put_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.add_user_note("u1", "Brand new note")
+
+        sent_notes = mock_client.calls["put"][0]["data"]["user_note"]
+        assert len(sent_notes) == 2
+        assert sent_notes[0]["note_text"] == "Pre-existing single note"
+        assert sent_notes[1]["note_text"] == "Brand new note"
+
+    def test_add_user_note_honours_visibility_flags(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"primary_id": "u1"})
+        mock_client.put_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.add_user_note(
+            "u1",
+            "Public reminder",
+            note_type="OTHER",
+            user_viewable=True,
+            popup_note=True,
+        )
+
+        appended = mock_client.calls["put"][0]["data"]["user_note"][0]
+        assert appended["user_viewable"] is True
+        assert appended["popup_note"] is True
+
+    def test_add_user_note_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.add_user_note("", "text")
+
+    def test_add_user_note_raises_on_empty_note_text(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.add_user_note("u1", "")
+        with pytest.raises(AlmaValidationError):
+            users.add_user_note("u1", "   ")
+
+    def test_add_user_note_raises_on_non_string_note_text(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.add_user_note("u1", None)  # type: ignore[arg-type]
+
+    def test_add_user_note_raises_on_empty_note_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.add_user_note("u1", "text", note_type="")
+
+
+class TestRemoveUserNotes:
+    """Tests for ``Users.remove_user_notes`` (issue #119)."""
+
+    def test_remove_user_notes_filters_by_predicate(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "primary_id": "u1",
+                "user_note": {
+                    "user_note": [
+                        {
+                            "note_type": {"value": "CIRCULATION"},
+                            "note_text": "Stale circulation note",
+                        },
+                        {
+                            "note_type": {"value": "OTHER"},
+                            "note_text": "Keep me",
+                        },
+                        {
+                            "note_type": {"value": "CIRCULATION"},
+                            "note_text": "Another stale circ note",
+                        },
+                    ]
+                },
+            }
+        )
+        mock_client.put_response = MockAlmaResponse(body={"primary_id": "u1"})
+        users = Users(mock_client)
+
+        response = users.remove_user_notes(
+            "u1",
+            predicate=lambda n: n.get("note_type", {}).get("value") == "CIRCULATION",
+        )
+
+        # GET + PUT, in that order.
+        assert len(mock_client.calls["get"]) == 1
+        assert len(mock_client.calls["put"]) == 1
+        put_call = mock_client.calls["put"][0]
+        kept = put_call["data"]["user_note"]
+        assert len(kept) == 1
+        assert kept[0]["note_text"] == "Keep me"
+        assert response.data == {"primary_id": "u1"}
+
+    def test_remove_user_notes_handles_single_dict_form(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_note": {
+                    "user_note": {
+                        "note_type": {"value": "OTHER"},
+                        "note_text": "delete me",
+                    }
+                }
+            }
+        )
+        mock_client.put_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.remove_user_notes("u1", predicate=lambda n: True)
+
+        kept = mock_client.calls["put"][0]["data"]["user_note"]
+        assert kept == []
+
+    def test_remove_user_notes_with_no_existing_notes_puts_empty_list(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"primary_id": "u1"})
+        mock_client.put_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.remove_user_notes("u1", predicate=lambda n: True)
+
+        sent = mock_client.calls["put"][0]["data"]
+        assert sent["user_note"] == []
+
+    def test_remove_user_notes_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.remove_user_notes("", predicate=lambda n: True)
+
+    def test_remove_user_notes_raises_on_non_callable_predicate(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.remove_user_notes("u1", predicate="not callable")  # type: ignore[arg-type]
+
+    def test_remove_user_notes_propagates_predicate_exception(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_note": {
+                    "user_note": [{"note_text": "x"}]
+                }
+            }
+        )
+        users = Users(mock_client)
+
+        def broken(_note):
+            raise RuntimeError("boom")
+
+        with pytest.raises(RuntimeError):
+            users.remove_user_notes("u1", predicate=broken)
+        # PUT must not be issued when predicate explodes.
+        assert mock_client.calls["put"] == []

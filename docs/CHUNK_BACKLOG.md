@@ -1,6 +1,6 @@
 # Chunk Backlog
 
-_Last rendered: 2026-05-12T11:17:51Z_
+_Last rendered: 2026-05-13T09:29:43Z_
 
 > **Generated artifact** — do not hand-edit. Source: `docs/chunks-backlog.yaml`.
 > Regenerate with `scripts/agentic/chunks render-backlog`.
@@ -123,9 +123,9 @@ Diverse scope. Bootstrap exists already; #36–#45 each add a different user-sid
 | 29 | ✅ merged | `users-attachments` | #39 | med | none | #39 partially aligned (multipart vs JSON unclear at impl) | Open question flagged in body — verify response shape during impl. Round-trip with cleanup. |
 | 30 | ✅ merged | `users-loans` | #40 | high | none | #40 partially aligned (query vs body params, item_pid alternative, user_id_type) | Already rewritten. Round-trip needs test user + test item barcode. |
 | 31 | ✅ merged | `users-requests` | #41 | med | none | clean | Regular user requests (POST/GET/PUT/DELETE for `/users/{id}/requests`). Shipped 2026-05-10 via PR #125. #42 (RS) and #43 (purchase requests) split out into `users-requests-followup` to allow incremental delivery. |
-| 32 | · planned | `users-requests-followup` | #42, #43 | med | none | clean | Follow-up to `users-requests`. #42 (resource-sharing requests) and #43 (purchase requests) — both `priority:high`, same shape as #41. Mirrors the request/cancel/action pattern already shipped. Test user fixture reused. |
+| 32 | ▶ in-flight | `users-requests-followup` | #42, #43 | med | none | clean | Follow-up to `users-requests`. #42 (resource-sharing requests) and #43 (purchase requests) — both `priority:high`, same shape as #41. Mirrors the request/cancel/action pattern already shipped. Test user fixture reused. |
 | 33 | ✅ merged | `users-fines-and-deposits` | #44, #45 | med | none | #44 partially aligned (op=pay/amount=ALL fix) | Already rewritten. Action-driven (pay/waive/dispute/restore for #44). |
-| 34 | · planned | `users-notes` | #119 | med | none | clean | Post-0.4.x. Add `add_user_note` / `list_user_notes` / `remove_user_note` helpers. New surface; mirror existing Users patterns (validate inputs, log entry, raise `AlmaValidationError` / `AlmaAPIError`). |
+| 34 | ✅ merged | `users-notes` | #119 | med | none | clean | Post-0.4.x. Add `add_user_note` / `list_user_notes` / `remove_user_note` helpers. New surface; mirror existing Users patterns (validate inputs, log entry, raise `AlmaValidationError` / `AlmaAPIError`). |
 
 ## Phase 9 — Bibs domain (medium priority)
 

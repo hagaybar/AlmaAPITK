@@ -2659,6 +2659,366 @@ class Users:
             )
             raise
 
+    def list_user_purchase_requests(
+        self,
+        user_id: str,
+        status: Optional[str] = None,
+        user_id_type: Optional[str] = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """List a user's purchase requests.
+
+        Calls ``GET /almaws/v1/users/{user_id}/purchase-requests`` and
+        unwraps the Alma response envelope (``rest_purchase_requests``:
+        ``{"user_request": [...], "total_record_count": N}``) into a
+        flat list. Pagination parameters are forwarded to Alma;
+        ``status`` and ``user_id_type`` are forwarded only when
+        supplied.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            status: Optional filter by purchase-request status. Per the
+                swagger, valid values are ``"INREVIEW"``,
+                ``"APPROVED"``, ``"REJECTED"``, ``"DEFERRED"``.
+                Forwarded only when non-``None``.
+            user_id_type: Optional user identifier type (any value from
+                the Alma "User Identifier Type" code table). Forwarded
+                only when non-``None``. Note: the swagger marks this
+                parameter as ``required: true`` but the prose
+                description says "Optional. If this is not provided,
+                all unique identifier types are used." — surfaced here
+                as optional to match the documented behaviour.
+            limit: Page size (Alma default 10, valid range 0-100).
+                Forwarded as ``limit`` query parameter.
+            offset: Page offset (Alma default 0). Forwarded as
+                ``offset`` query parameter.
+
+        Returns:
+            List of purchase-request dicts as returned by Alma. Returns
+            an empty list when the user has no purchase requests (or
+            when the response envelope lacks the records array).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``60275`` "Purchase request status is not valid" or
+                ``401890`` "User not found").
+        """
+        # Mirrors Users.list_user_requests (Refs #41) for the
+        # "single GET, unwrap envelope, return list" idiom plus
+        # single-record-as-dict normalisation. Swagger:
+        # GET /almaws/v1/users/{user_id}/purchase-requests returns
+        # rest_purchase_requests; following the Alma convention the
+        # envelope key is the singular form (``user_request``), with a
+        # safe fallback to ``purchase_request`` should Alma deviate.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        if status is not None:
+            params["status"] = status
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+
+        endpoint = f"almaws/v1/users/{clean_id}/purchase-requests"
+        self.logger.info(
+            f"Listing purchase requests for user {clean_id} "
+            f"(limit={limit}, offset={offset}, status={status!r}, "
+            f"user_id_type={user_id_type!r})"
+        )
+        try:
+            response = self.client.get(endpoint, params=params)
+            payload = response.json() or {}
+            # Alma's rest_purchase_requests envelope: prefer
+            # ``user_request`` (observed key, parallel to
+            # ``list_user_requests``); fall back to
+            # ``purchase_request`` if the API returns the singular-form
+            # array key.
+            requests = (
+                payload.get("user_request")
+                or payload.get("purchase_request")
+                or []
+            )
+            if isinstance(requests, dict):
+                # Single-record responses can come back as a dict.
+                requests = [requests]
+            self.logger.info(
+                f"Retrieved {len(requests)} purchase requests for "
+                f"user {clean_id}"
+            )
+            return requests
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error listing purchase requests for user "
+                f"{clean_id}: {e}"
+            )
+            raise
+
+    def create_user_purchase_request(
+        self,
+        user_id: str,
+        purchase_request_data: Dict[str, Any],
+        user_id_type: Optional[str] = None,
+    ) -> AlmaResponse:
+        """Create a purchase request for a user.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/purchase-requests``. Per the
+        Alma users swagger, the body is a Purchase Request object (see
+        ``rest_purchase_request-post.json``) and is forwarded to Alma
+        verbatim. ``user_id_type`` is an optional query parameter.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            purchase_request_data: Request body as a non-empty dict.
+                Forwarded to Alma verbatim. Typical fields include
+                ``resource_metadata`` (title, author, isbn), ``format``,
+                ``library``, ``vendor``, ``currency``, ``fund``, and
+                ``material_type``.
+            user_id_type: Optional user identifier type (any value from
+                the Alma "User Identifier Type" code table). Forwarded
+                as a **query** parameter only when non-``None``.
+
+        Returns:
+            ``AlmaResponse`` wrapping the created purchase-request
+            body (including the new ``id`` / ``purchase_request_id``).
+
+        Raises:
+            AlmaValidationError: If ``user_id`` is empty / not a string
+                or if ``purchase_request_data`` is empty / not a dict.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``60273`` "Title is missing", ``60274`` "Resource
+                metadata is required", or ``60278`` "Purchase request
+                creation failed").
+        """
+        # Mirrors Users.create_user_rs_request (Refs #42) — same
+        # "validate id + non-empty body, POST body verbatim, optional
+        # query params" shape. The purchase-request endpoint has its
+        # own swagger surface (``rest_purchase_request-post``); no
+        # mms_id / item_pid / holding_id discriminator — the resource
+        # is described inside ``purchase_request_data``.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if (
+            not isinstance(purchase_request_data, dict)
+            or not purchase_request_data
+        ):
+            raise AlmaValidationError(
+                "purchase_request_data must be a non-empty dictionary"
+            )
+        clean_id = user_id.strip()
+
+        params: Dict[str, Any] = {}
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+
+        endpoint = f"almaws/v1/users/{clean_id}/purchase-requests"
+        # Audit-log: only the user_id and the optional query flag —
+        # never the full purchase_request_data (carries title /
+        # citation metadata; treat as PII-adjacent).
+        self.logger.info(
+            f"Creating purchase request for user {clean_id} "
+            f"(user_id_type={user_id_type!r})"
+        )
+        try:
+            response = self.client.post(
+                endpoint,
+                data=purchase_request_data,
+                params=params if params else None,
+            )
+            request_id: Any = None
+            try:
+                data = response.data or {}
+                request_id = data.get("id") or data.get(
+                    "purchase_request_id"
+                )
+            except (ValueError, AttributeError):
+                request_id = None
+            self.logger.info(
+                f"Created purchase request for user {clean_id} "
+                f"(purchase_request_id={request_id!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error creating purchase request for user "
+                f"{clean_id}: {e}"
+            )
+            raise
+
+    def get_user_purchase_request(
+        self,
+        user_id: str,
+        purchase_request_id: str,
+        user_id_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Retrieve a single purchase request's details.
+
+        Calls
+        ``GET /almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}``
+        and returns the unwrapped purchase-request dict.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            purchase_request_id: Purchase-request identifier. Must be a
+                non-empty string.
+            user_id_type: Optional user identifier type. Forwarded as
+                a query parameter only when non-``None``.
+
+        Returns:
+            The purchase-request dict as returned by Alma.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or
+                ``purchase_request_id`` is empty or not a string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``60276`` "The purchase request identifier is not
+                valid" or ``401890`` "User not found").
+        """
+        # Mirrors Users.get_user_rs_request (Refs #42) — same
+        # "validate two ids, GET, return dict" shape with an optional
+        # ``user_id_type`` query param.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if (
+            not isinstance(purchase_request_id, str)
+            or not purchase_request_id.strip()
+        ):
+            raise AlmaValidationError(
+                "Purchase request ID cannot be empty"
+            )
+        clean_user_id = user_id.strip()
+        clean_request_id = purchase_request_id.strip()
+
+        params: Dict[str, Any] = {}
+        if user_id_type is not None:
+            params["user_id_type"] = user_id_type
+
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}"
+            f"/purchase-requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Retrieving purchase request {clean_request_id} "
+            f"for user {clean_user_id} "
+            f"(user_id_type={user_id_type!r})"
+        )
+        try:
+            response = self.client.get(
+                endpoint, params=params if params else None
+            )
+            data: Dict[str, Any] = response.json() or {}
+            self.logger.info(
+                f"Retrieved purchase request {clean_request_id} "
+                f"for user {clean_user_id}"
+            )
+            return data
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error retrieving purchase request "
+                f"{clean_request_id} for user {clean_user_id}: {e}"
+            )
+            raise
+
+    def perform_user_purchase_request_action(
+        self,
+        user_id: str,
+        purchase_request_id: str,
+        op: str,
+    ) -> AlmaResponse:
+        """Perform an operation on a user's purchase request.
+
+        Calls
+        ``POST /almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}?op=<op>``
+        with an empty request body. Per the swagger, ``op`` is
+        currently documented only as ``"cancel"`` (the action that
+        marks the purchase request as cancelled — there is **no
+        separate DELETE endpoint**, and the swagger does not document
+        ``approve`` / ``reject`` operations even though the issue body
+        mentioned them). The wrapper does NOT enumerate / restrict the
+        set: invalid ops are rejected by Alma with its own error
+        response (error code ``401873`` "The operation is not
+        supported"). This keeps the wrapper forward-compatible if Alma
+        later documents additional ops.
+
+        Args:
+            user_id: User identifier (primary ID, barcode, etc.). Must
+                be a non-empty string.
+            purchase_request_id: Purchase-request identifier. Must be a
+                non-empty string.
+            op: Action to perform. Must be a non-empty string. Per the
+                Alma swagger, currently only ``"cancel"`` is supported
+                — not validated client-side.
+
+        Returns:
+            ``AlmaResponse`` wrapping the Alma response (typically an
+            empty acknowledgement body on success).
+
+        Raises:
+            AlmaValidationError: If ``user_id``,
+                ``purchase_request_id``, or ``op`` is empty / not a
+                string.
+            AlmaAPIError: If the API request fails (e.g. error code
+                ``401873`` "The operation is not supported", ``60276``
+                "The purchase request identifier is not valid", or
+                ``60277`` "The purchase request deletion failed").
+        """
+        # Mirrors Users.perform_user_rs_request_action (Refs #42) —
+        # same op-driven POST shape (op as query param, empty body).
+        # The wrapper is deliberately op-agnostic; per the same
+        # convention, "let Alma reject invalid ops with its own
+        # error". Swagger note: only ``cancel`` is documented today,
+        # and there is no DELETE endpoint for purchase requests —
+        # cancellation is the op-driven path.
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if (
+            not isinstance(purchase_request_id, str)
+            or not purchase_request_id.strip()
+        ):
+            raise AlmaValidationError(
+                "Purchase request ID cannot be empty"
+            )
+        if not isinstance(op, str) or not op.strip():
+            raise AlmaValidationError("op must be a non-empty string")
+        clean_user_id = user_id.strip()
+        clean_request_id = purchase_request_id.strip()
+        clean_op = op.strip()
+
+        params: Dict[str, Any] = {"op": clean_op}
+        endpoint = (
+            f"almaws/v1/users/{clean_user_id}"
+            f"/purchase-requests/{clean_request_id}"
+        )
+        self.logger.info(
+            f"Performing purchase request action for user "
+            f"{clean_user_id} "
+            f"(purchase_request_id={clean_request_id!r}, "
+            f"op={clean_op!r})"
+        )
+        try:
+            response = self.client.post(endpoint, params=params)
+            self.logger.info(
+                f"Performed purchase request action for user "
+                f"{clean_user_id} "
+                f"(purchase_request_id={clean_request_id!r}, "
+                f"op={clean_op!r})"
+            )
+            return response
+        except AlmaAPIError as e:
+            self.logger.error(
+                f"API error performing purchase request action for "
+                f"user {clean_user_id} "
+                f"(purchase_request_id={clean_request_id!r}, "
+                f"op={clean_op!r}): {e}"
+            )
+            raise
+
     def create_user(self, user_data: Dict[str, Any]) -> AlmaResponse:
         """Create a new Alma user.
 

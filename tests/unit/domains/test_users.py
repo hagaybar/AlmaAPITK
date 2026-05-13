@@ -5350,3 +5350,672 @@ class TestPerformUserRsRequestAction:
             )
 
         assert exc_info.value.alma_code == "40166425"
+
+
+# ---------------------------------------------------------------------------
+# list_user_purchase_requests  (issue #43)
+# ---------------------------------------------------------------------------
+
+
+class TestListUserPurchaseRequests:
+    """Tests for ``Users.list_user_purchase_requests`` (issue #43)."""
+
+    def test_list_user_purchase_requests_defaults(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_request": [
+                    {"id": "pr-1", "status": "INREVIEW"},
+                    {"id": "pr-2", "status": "APPROVED"},
+                ],
+                "total_record_count": 2,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_purchase_requests("u1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/purchase-requests"
+        # Default limit/offset are forwarded; status / user_id_type absent.
+        assert call["params"] == {"limit": 10, "offset": 0}
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["id"] == "pr-1"
+
+    def test_list_user_purchase_requests_forwards_status(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_request": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_purchase_requests("u1", status="INREVIEW")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "status": "INREVIEW",
+        }
+
+    def test_list_user_purchase_requests_forwards_user_id_type(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_request": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_purchase_requests("u1", user_id_type="all_unique")
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 10,
+            "offset": 0,
+            "user_id_type": "all_unique",
+        }
+
+    def test_list_user_purchase_requests_forwards_limit_offset(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_request": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_purchase_requests("u1", limit=50, offset=100)
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"limit": 50, "offset": 100}
+
+    def test_list_user_purchase_requests_forwards_all_filters(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_request": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_purchase_requests(
+            "u1",
+            status="APPROVED",
+            user_id_type="all_unique",
+            limit=25,
+            offset=50,
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {
+            "limit": 25,
+            "offset": 50,
+            "status": "APPROVED",
+            "user_id_type": "all_unique",
+        }
+
+    def test_list_user_purchase_requests_strips_whitespace_in_user_id(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"user_request": []}
+        )
+        users = Users(mock_client)
+
+        users.list_user_purchase_requests("  u1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == "almaws/v1/users/u1/purchase-requests"
+
+    def test_list_user_purchase_requests_returns_empty_list_on_missing_key(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"total_record_count": 0}
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_purchase_requests("u1")
+
+        assert result == []
+
+    def test_list_user_purchase_requests_handles_single_dict_response(self):
+        """A single record returned as dict (not list) is normalised."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "user_request": {"id": "only-pr"},
+                "total_record_count": 1,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_purchase_requests("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "only-pr"
+
+    def test_list_user_purchase_requests_falls_back_to_purchase_request_key(
+        self,
+    ):
+        """If Alma returns the singular-form key, the wrapper still
+        unwraps it."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={
+                "purchase_request": [
+                    {"id": "pr-1"},
+                ],
+                "total_record_count": 1,
+            }
+        )
+        users = Users(mock_client)
+
+        result = users.list_user_purchase_requests("u1")
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["id"] == "pr-1"
+
+    def test_list_user_purchase_requests_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_purchase_requests("")
+        assert mock_client.calls["get"] == []
+
+    def test_list_user_purchase_requests_raises_on_whitespace_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_purchase_requests("   ")
+
+    def test_list_user_purchase_requests_raises_on_non_string_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.list_user_purchase_requests(
+                None  # type: ignore[arg-type]
+            )
+
+    def test_list_user_purchase_requests_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Purchase request status is not valid",
+            status_code=400,
+            alma_code="60275",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.list_user_purchase_requests("u1", status="BOGUS")
+
+        assert exc_info.value.alma_code == "60275"
+
+
+# ---------------------------------------------------------------------------
+# create_user_purchase_request  (issue #43)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserPurchaseRequest:
+    """Tests for ``Users.create_user_purchase_request`` (issue #43)."""
+
+    def test_create_user_purchase_request_posts_body_verbatim(self):
+        from almaapitk.domains.users import Users
+
+        body = {
+            "resource_metadata": {
+                "title": "Sample title",
+                "author": "Ada Lovelace",
+                "isbn": "9780000000000",
+            },
+            "format": {"value": "PHYSICAL"},
+            "library": {"value": "MAIN"},
+        }
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"id": "pr-42", "status": "INREVIEW"}
+        )
+        users = Users(mock_client)
+
+        response = users.create_user_purchase_request(
+            "u1", purchase_request_data=body
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests"
+        )
+        # No optional kwargs => no query params forwarded.
+        assert call["params"] is None
+        # Body forwarded verbatim.
+        assert call["data"] == body
+        assert response.data["id"] == "pr-42"
+
+    def test_create_user_purchase_request_forwards_user_id_type(self):
+        from almaapitk.domains.users import Users
+
+        body = {"resource_metadata": {"title": "Sample"}}
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "pr-42"})
+        users = Users(mock_client)
+
+        users.create_user_purchase_request(
+            "u1", purchase_request_data=body, user_id_type="all_unique"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {"user_id_type": "all_unique"}
+
+    def test_create_user_purchase_request_strips_whitespace_in_user_id(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={"id": "pr-42"})
+        users = Users(mock_client)
+
+        users.create_user_purchase_request(
+            "  u1  ",
+            purchase_request_data={"resource_metadata": {"title": "x"}},
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests"
+        )
+
+    def test_create_user_purchase_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_purchase_request(
+                "",
+                purchase_request_data={
+                    "resource_metadata": {"title": "x"}
+                },
+            )
+        assert mock_client.calls["post"] == []
+
+    def test_create_user_purchase_request_raises_on_whitespace_user_id(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_purchase_request(
+                "   ",
+                purchase_request_data={
+                    "resource_metadata": {"title": "x"}
+                },
+            )
+
+    def test_create_user_purchase_request_raises_on_empty_request_data(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_purchase_request(
+                "u1", purchase_request_data={}
+            )
+
+    def test_create_user_purchase_request_raises_on_non_dict_request_data(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_purchase_request(
+                "u1",
+                purchase_request_data="not-a-dict",  # type: ignore[arg-type]
+            )
+
+    def test_create_user_purchase_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "Title is missing",
+            status_code=400,
+            alma_code="60273",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.create_user_purchase_request(
+                "u1",
+                purchase_request_data={
+                    "resource_metadata": {"author": "Anon"}
+                },
+            )
+
+        assert exc_info.value.alma_code == "60273"
+
+
+# ---------------------------------------------------------------------------
+# get_user_purchase_request  (issue #43)
+# ---------------------------------------------------------------------------
+
+
+class TestGetUserPurchaseRequest:
+    """Tests for ``Users.get_user_purchase_request`` (issue #43)."""
+
+    def test_get_user_purchase_request_calls_correct_endpoint(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(
+            body={"id": "pr-1", "status": "INREVIEW"}
+        )
+        users = Users(mock_client)
+
+        result = users.get_user_purchase_request("u1", "pr-1")
+
+        assert len(mock_client.calls["get"]) == 1
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests/pr-1"
+        )
+        # No optional kwargs => no query params.
+        assert call["params"] is None
+        assert isinstance(result, dict)
+        assert result["id"] == "pr-1"
+
+    def test_get_user_purchase_request_forwards_user_id_type(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "pr-1"})
+        users = Users(mock_client)
+
+        users.get_user_purchase_request(
+            "u1", "pr-1", user_id_type="all_unique"
+        )
+
+        call = mock_client.calls["get"][0]
+        assert call["params"] == {"user_id_type": "all_unique"}
+
+    def test_get_user_purchase_request_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={"id": "pr-1"})
+        users = Users(mock_client)
+
+        users.get_user_purchase_request("  u1  ", "  pr-1  ")
+
+        call = mock_client.calls["get"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests/pr-1"
+        )
+
+    def test_get_user_purchase_request_returns_empty_dict_on_empty_body(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.get_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        result = users.get_user_purchase_request("u1", "pr-1")
+
+        assert result == {}
+
+    def test_get_user_purchase_request_raises_on_empty_user_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_purchase_request("", "pr-1")
+
+    def test_get_user_purchase_request_raises_on_empty_request_id(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_purchase_request("u1", "")
+
+    def test_get_user_purchase_request_raises_on_non_string_request_id(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.get_user_purchase_request(
+                "u1", None  # type: ignore[arg-type]
+            )
+
+    def test_get_user_purchase_request_propagates_api_error(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "The purchase request identifier is not valid",
+            status_code=400,
+            alma_code="60276",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.get_user_purchase_request("u1", "pr-bogus")
+
+        assert exc_info.value.alma_code == "60276"
+
+
+# ---------------------------------------------------------------------------
+# perform_user_purchase_request_action  (issue #43)
+# ---------------------------------------------------------------------------
+
+
+class TestPerformUserPurchaseRequestAction:
+    """Tests for ``Users.perform_user_purchase_request_action`` (issue #43)."""
+
+    def test_perform_user_purchase_request_action_sends_op_as_param(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        response = users.perform_user_purchase_request_action(
+            "u1", "pr-1", op="cancel"
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests/pr-1"
+        )
+        assert call["params"] == {"op": "cancel"}
+        # Empty body — action is op-driven, not body-driven.
+        assert call["data"] is None
+        assert response.data == {}
+
+    def test_perform_user_purchase_request_action_accepts_arbitrary_op(
+        self,
+    ):
+        """Wrapper does not enumerate ops; Alma rejects invalid ones."""
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.perform_user_purchase_request_action(
+            "u1", "pr-1", op="some_future_op"
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["params"] == {"op": "some_future_op"}
+
+    def test_perform_user_purchase_request_action_strips_whitespace(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(body={})
+        users = Users(mock_client)
+
+        users.perform_user_purchase_request_action(
+            "  u1  ", "  pr-1  ", op="  cancel  "
+        )
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/purchase-requests/pr-1"
+        )
+        assert call["params"] == {"op": "cancel"}
+
+    def test_perform_user_purchase_request_action_raises_on_empty_user_id(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_purchase_request_action(
+                "", "pr-1", op="cancel"
+            )
+
+    def test_perform_user_purchase_request_action_raises_on_empty_request_id(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_purchase_request_action(
+                "u1", "", op="cancel"
+            )
+
+    def test_perform_user_purchase_request_action_raises_on_empty_op(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_purchase_request_action(
+                "u1", "pr-1", op=""
+            )
+
+    def test_perform_user_purchase_request_action_raises_on_whitespace_op(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_purchase_request_action(
+                "u1", "pr-1", op="   "
+            )
+
+    def test_perform_user_purchase_request_action_raises_on_non_string_op(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = MockAlmaAPIClient()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.perform_user_purchase_request_action(
+                "u1", "pr-1", op=None  # type: ignore[arg-type]
+            )
+
+    def test_perform_user_purchase_request_action_propagates_api_error(
+        self,
+    ):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaAPIError
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.next_exception = AlmaAPIError(
+            "The operation is not supported",
+            status_code=400,
+            alma_code="401873",
+        )
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaAPIError) as exc_info:
+            users.perform_user_purchase_request_action(
+                "u1", "pr-1", op="approve"
+            )
+
+        assert exc_info.value.alma_code == "401873"

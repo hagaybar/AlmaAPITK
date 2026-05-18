@@ -4,14 +4,14 @@
     42,
     43
   ],
-  "stage": "impl-done",
+  "stage": "merged",
   "branch": "chunk/users-requests-followup",
   "createdAt": "2026-05-12T11:23:38Z",
-  "updatedAt": "2026-05-13T07:20:18Z",
-  "lastEvent": "implementation complete; test-recommendation.json written",
-  "nextAction": "trigger `chunks run-test users-requests-followup` when ready",
+  "updatedAt": "2026-05-18T13:47:17Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/147)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
   "openBreakpoints": [],
   "implRunId": "01KRG2FWK9B7WWVZZ86WAYQKZS",
   "testRunId": null,
-  "prUrl": null
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/147"
 }

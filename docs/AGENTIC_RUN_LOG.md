@@ -37,3 +37,4 @@ Append-only log of chunk runs. One row per finished chunk.
 | users-requests | 2026-05-10 | #41 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/125 |
 | release-quality-cluster | 2026-05-12 | #131, #132, #133, #134, #135, #136, #137, #138 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/140 |
 | users-notes | 2026-05-13 | #119 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/141 |
+| users-requests-followup | 2026-05-18 | #42, #43 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/147 |

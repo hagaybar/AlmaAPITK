@@ -127,15 +127,22 @@ class TextFormatter(logging.Formatter):
         'RESET': '\033[0m'        # Reset
     }
 
-    def __init__(self, use_colors: bool = True):
+    def __init__(self, use_colors: bool = True, redact_patterns: Optional[list] = None):
         """
         Initialize text formatter.
 
         Args:
             use_colors: Whether to use ANSI color codes (default: True)
+            redact_patterns: List of field-name substrings to redact from
+                structured custom fields before rendering. Defaults to the
+                same list used by ``JSONFormatter`` so the two formatters
+                give identical redaction behavior (issue #142).
         """
         super().__init__()
         self.use_colors = use_colors
+        self.redact_patterns = redact_patterns or [
+            'apikey', 'api_key', 'password', 'token', 'secret', 'authorization'
+        ]
 
     def format(self, record: logging.LogRecord) -> str:
         """
@@ -176,13 +183,24 @@ class TextFormatter(logging.Formatter):
             'exc_info', 'exc_text', 'stack_info', 'getMessage', 'domain', 'environment'
         }
 
-        custom_fields = []
+        # Build a dict first so the recursive redactor can walk nested
+        # structures (e.g., headers={'Authorization': 'apikey ...'})
+        # exactly the way JSONFormatter does. Then render as text.
+        # Without this redaction step the formatter leaks API keys and
+        # other secrets to stderr — see issue #142.
+        custom_fields_dict = {}
         for key, value in record.__dict__.items():
             if key not in standard_attrs and not key.startswith('_'):
-                custom_fields.append(f"{key}={value}")
+                custom_fields_dict[key] = value
 
-        if custom_fields:
-            parts.append(f"({', '.join(custom_fields)})")
+        if custom_fields_dict:
+            custom_fields_dict = redact_sensitive_data(
+                custom_fields_dict, self.redact_patterns
+            )
+            rendered = ', '.join(
+                f"{k}={v}" for k, v in custom_fields_dict.items()
+            )
+            parts.append(f"({rendered})")
 
         result = " ".join(parts)
 
@@ -210,7 +228,11 @@ def redact_sensitive_data(data: Any, patterns: list = None) -> Any:
         {"apikey": "***REDACTED***", "user": "john"}
     """
     if patterns is None:
-        patterns = ['apikey', 'api_key', 'password', 'token', 'secret']
+        # Keep this list in lock-step with JSONFormatter/TextFormatter's
+        # default. Missing 'authorization' here would mean that direct
+        # callers of redact_sensitive_data() leak HTTP Authorization
+        # headers — see issue #142.
+        patterns = ['apikey', 'api_key', 'password', 'token', 'secret', 'authorization']
 
     # TODO: Phase 1.1 - Implement recursive redaction for dicts
     # TODO: Phase 1.1 - Implement recursive redaction for lists

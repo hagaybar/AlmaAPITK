@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# env-status — show env-var presence and length, never the value.
+#
+# Usage:
+#   scripts/env-status                  # default set (ALMA_*, AWS_*, OPEN_AI*, PRIMO_APIKEY, BOOKED_*, GOOGLE_API_KEY)
+#   scripts/env-status VAR1 VAR2 ...    # check specific vars
+#   scripts/env-status --hash VAR       # print a 12-char sha256 digest for verification
+#   scripts/env-status --all-alma       # all ALMA_* vars currently in env
+#
+# This script NEVER prints secret values. It is the safe path for Claude (or
+# any agent) to learn which env vars are populated without exposing contents.
+
+set -u
+
+print_status() {
+  local name="$1"
+  local val
+  val="$(printenv "$name" 2>/dev/null)"
+  if [ -z "${val:-}" ]; then
+    printf "  %-30s = <unset>\n" "$name"
+  else
+    printf "  %-30s = <set, len=%d>\n" "$name" "${#val}"
+  fi
+}
+
+print_hash() {
+  local name="$1"
+  local val
+  val="$(printenv "$name" 2>/dev/null)"
+  if [ -z "${val:-}" ]; then
+    printf "  %-30s = <unset>\n" "$name"
+  else
+    local digest
+    digest="$(printf '%s' "$val" | sha256sum | cut -c1-12)"
+    printf "  %-30s = <set, len=%d, sha256-12=%s>\n" "$name" "${#val}" "$digest"
+  fi
+}
+
+DEFAULT_VARS=(
+  ALMA_SB_API_KEY ALMA_PROD_API_KEY
+  ALMA_SB_BUCKET_NAME ALMA_PROD_BUCKET_NAME
+  AWS_ACCESS_KEY AWS_SECRET AWS_PROFILE
+  OPEN_AI OPEN_AI_ADMIN OPENAI_API_KEY OPENAI_ADMIN_KEY
+  PRIMO_APIKEY
+  BOOKED_API_BASE_URL BOOKED_API_ID BOOKED_API_KEY
+  GOOGLE_API_KEY
+)
+
+case "${1:-}" in
+  --hash)
+    shift
+    [ "$#" -gt 0 ] || { echo "usage: env-status --hash VAR [VAR...]" >&2; exit 2; }
+    echo "Env-var hash digests (sha256, first 12 chars):"
+    for v in "$@"; do print_hash "$v"; done
+    ;;
+  --all-alma)
+    echo "All ALMA_* env vars currently set:"
+    while IFS='=' read -r name _; do
+      print_status "$name"
+    done < <(env | grep -E '^ALMA_' | sort)
+    ;;
+  --help|-h)
+    sed -n '2,11p' "$0"
+    ;;
+  "")
+    echo "Env-var status (values never printed):"
+    for v in "${DEFAULT_VARS[@]}"; do print_status "$v"; done
+    ;;
+  *)
+    echo "Env-var status (values never printed):"
+    for v in "$@"; do print_status "$v"; done
+    ;;
+esac

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-05-18
+
+### Fixed
+
+- **Logging: `TextFormatter` no longer leaks `Authorization` header values
+  to stderr** (issue #142, problem #1). The toolkit's `redact_sensitive_data()`
+  helper was wired into `JSONFormatter` only — `TextFormatter` (the stderr
+  console handler) rendered structured fields straight from
+  `record.__dict__`, so every `api_client` DEBUG request line printed
+  `headers={'Authorization': 'apikey <real_key>', ...}` in plain text.
+  `TextFormatter.format()` now recursively redacts custom fields the same
+  way `JSONFormatter` does, using the same default pattern set
+  (`apikey`, `api_key`, `password`, `token`, `secret`, `authorization`).
+  The module-level default in `redact_sensitive_data()` was also expanded
+  to include `'authorization'` so direct callers of the helper get the
+  same protection. R10 regression suite:
+  `tests/unit/regressions/test_issue_142.py`.
+
+  **Strongly recommended for anyone running the toolkit with DEBUG-level
+  logging enabled.** This was the cause of the 2026-05-18 in-session
+  leaks documented in the rotation history of the maintainer's keys.
+
+  Note: this is the narrow patch fix for problem #1 from issue #142.
+  Problems #2 (CWD `FileHandler` default) and #3 (logger namespace
+  fragmentation) remain open and target 0.5.0.
+
+### Rollback
+
+If 0.4.5 misbehaves in your environment, three rollback paths are
+available:
+
+1. **PyPI yank** — maintainer-side, via the PyPI web UI's "Yank this
+   release" button on the 0.4.5 release page. Pinned consumers continue
+   to resolve 0.4.5; new installs see 0.4.4 as the latest.
+2. **Explicit downgrade** — `pip install almaapitk==0.4.4` (or
+   `poetry add almaapitk@0.4.4`). One command, immediate revert.
+3. **Git tag** — `git checkout v0.4.4` returns the source tree to the
+   previous release state.
+
+The 0.4.4 → 0.4.5 surface change is intentionally minimal (one method
+in `alma_logging/formatters.py` plus a regression test). If a downstream
+fault is observed, the rollback to 0.4.4 is safe; the only behavior
+change in 0.4.5 is *more redaction*, never less data fidelity for
+non-secret fields.
+
 ## [0.4.3] — 2026-05-11
 
 ### Fixed
@@ -137,7 +182,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.5...HEAD
+[0.4.5]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.5
 [0.4.3]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.3
 [0.4.2]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.2
 [0.3.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.3.1

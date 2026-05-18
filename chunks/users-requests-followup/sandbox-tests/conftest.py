@@ -46,27 +46,72 @@ DETAIL_LOG_PATH = OUTPUT_DIR / f"run-{RUN_STAMP}-detail.log"
 def pytest_configure(config):
     """Re-route alma_logging output to a detail log file only.
 
-    This runs before any test collects. AlmaAPIClient's module-level
-    ``logging.getLogger("almapi").addHandler(_stderr_handler)`` will run
-    when ``almaapitk`` is first imported; we then strip the stderr
-    handler and add our own file handler. From this point forward, every
-    alma_logging emission goes to the detail log file and nowhere else.
+    Aggressive isolation: clears handlers on EVERY logger whose name
+    starts with 'almapi' or is one of the known domain-style names
+    ('users', 'api_client', 'acquisitions', etc.). Sets propagate=False
+    so child loggers don't bubble back to root and re-emit. From this
+    point on, the only alma_logging output is the detail-log file.
+
+    The earlier version of this hook only handled the ``almapi`` parent
+    logger and missed handlers attached to children — leading to a
+    safety failure in the 2026-05-18 run where pytest's captured-output
+    display surfaced tenant identifiers. Don't trust the parent-only
+    approach; walk the tree.
     """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Force AlmaAPIClient import so its module-level logger setup runs first.
+    # Force the toolkit's logger setup to fire so we can override it.
     from almaapitk.client import AlmaAPIClient  # noqa: F401
     from almaapitk.alma_logging.formatters import TextFormatter
+
+    # Touching the domain modules forces their __init__ to register loggers.
+    from almaapitk.domains import users as _users_mod  # noqa: F401
 
     file_handler = logging.FileHandler(DETAIL_LOG_PATH)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(TextFormatter(use_colors=False))
 
-    almapi_logger = logging.getLogger("almapi")
-    # Strip every existing handler; we want sole control.
-    almapi_logger.handlers = [file_handler]
-    almapi_logger.setLevel(logging.DEBUG)
-    almapi_logger.propagate = False  # Don't bubble to root and re-emit.
+    # The set of logger names alma_logging actually uses (per the
+    # toolkit's get_logger() factory and AlmaAPIClient's module-level
+    # setup). Names that don't exist yet are a no-op — getLogger creates
+    # them implicitly.
+    target_loggers = {
+        "almapi",
+        "almapi.api_client",
+        "almapi.users",
+        "almapi.acquisitions",
+        "almapi.bibs",
+        "almapi.admin",
+        "almapi.analytics",
+        "almapi.configuration",
+        "almapi.resource_sharing",
+        # The toolkit also emits under bare names in some paths.
+        "api_client",
+        "users",
+    }
+    # Plus: walk the entire logger tree for anything starting with the
+    # toolkit prefix (defensive — handles names added in future releases).
+    all_loggers = logging.Logger.manager.loggerDict.keys()
+    for name in list(all_loggers):
+        if name.startswith("almapi") or name in {"api_client", "users"}:
+            target_loggers.add(name)
+
+    for name in target_loggers:
+        logger = logging.getLogger(name)
+        # Strip every handler — stream, file, anything.
+        logger.handlers = [file_handler]
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = False
+
+    # Also disable the root logger's stderr handler if any toolkit code
+    # has poked at it.
+    root = logging.getLogger()
+    # Don't nuke root entirely (pytest's caplog plugin uses it). Just
+    # ensure no StreamHandler at the root level can emit toolkit content.
+    root.handlers = [
+        h for h in root.handlers
+        if not isinstance(h, logging.StreamHandler) or isinstance(h, logging.FileHandler)
+    ]
 
 
 @pytest.fixture(scope="session")
@@ -189,13 +234,11 @@ class _StageContext:
         ok = True
         exception_class: Optional[str] = None
         alma_code: Optional[str] = self.alma_code
+        sanitized_error: Optional[str] = None
         if exc_type is not None:
             if self.expected_failure and (
                 exc_type is AlmaAPIError or issubclass(exc_type, AlmaAPIError)
             ):
-                # Caller marked this stage as expecting an AlmaAPIError
-                # (e.g., post-cancel-get must raise). That's a "pass" for
-                # the stage's purpose.
                 ok = True
                 alma_code = (
                     getattr(exc_val, "alma_code", None)
@@ -215,15 +258,46 @@ class _StageContext:
             ok = False
             exception_class = exc_type.__name__
             alma_code = getattr(exc_val, "alma_code", None) or alma_code
-        self._rec.stages.append(
-            {
-                "name": self._name,
-                "ok": ok,
-                "duration_ms": duration_ms,
-                "alma_code": alma_code,
-                "exception_class": exception_class,
-            }
-        )
+            sanitized_error = _sanitize_alma_error(exc_val)
+        entry = {
+            "name": self._name,
+            "ok": ok,
+            "duration_ms": duration_ms,
+            "alma_code": alma_code,
+            "exception_class": exception_class,
+        }
+        if sanitized_error:
+            entry["sanitized_error"] = sanitized_error
+        self._rec.stages.append(entry)
         # If unexpected exception, do NOT suppress — let pytest fail the test
         # but the exception class is already recorded in the stage list.
         return False
+
+
+def _sanitize_alma_error(exc: Any) -> Optional[str]:
+    """Extract a safe-to-share excerpt from an Alma error.
+
+    Strategy: keep STRUCTURAL diagnostic content (Java type names,
+    JAXB / Jackson error keywords, JSON keys, swagger field names).
+    Redact obvious tenant identifier shapes (long digit runs,
+    single-quoted values that look like operator-supplied codes,
+    embedded ${placeholders}).
+
+    Double-quoted strings are NOT redacted, because in Alma's standard
+    error envelope they are JSON keys (``"errorCode"``, ``"errorMessage"``)
+    and Java type names — both useful for diagnosis and identifier-free.
+    """
+    if exc is None:
+        return None
+    text = str(exc)
+    if not text:
+        return None
+    snippet = text[:600]
+    # Redact long digit runs (likely Alma internal IDs).
+    snippet = re.sub(r"\b\d{4,}\b", "<digits-redacted>", snippet)
+    # Redact single-quoted short tokens (most likely places for
+    # operator-supplied codes like 'RS_LIB' or 'AC_1').
+    snippet = re.sub(r"'[A-Z0-9_\-]{2,30}'", "'<code-redacted>'", snippet)
+    # Collapse whitespace.
+    snippet = " ".join(snippet.split())
+    return snippet[:400]

@@ -20,8 +20,6 @@ Agent-safety design (see conftest.py):
 
 from __future__ import annotations
 
-import time
-
 from almaapitk import AlmaAPIClient, Users
 from almaapitk.client.AlmaAPIClient import AlmaAPIError
 
@@ -48,125 +46,152 @@ def test_t_42_3(test_data, detail_log_path):
 
     request_id: str | None = None
     cleanup_ok = False
-
-    # --- CREATE -----------------------------------------------------------
-    with rec.stage("create") as st:
-        resp = users.create_user_rs_request(
-            test_data["existing_user_primary_id"],
-            {
-                "citation_type": "BOOK",
-                "format": {"value": "PHYSICAL"},
-                "title": "AlmaAPITK regression-smoke RS request",
-                "author": "AlmaAPITK",
-                "owner": {"value": test_data["rs_library_code"]},
-                "pickup_location": {"value": test_data["pickup_library_code"]},
-            },
-        )
-        request_id = _extract_request_id(resp)
-        rec.store("request_id", request_id)
-        if not getattr(resp, "success", False):
-            raise AlmaAPIError("create did not return success=True", 0, None)
-
-    # --- GET (round-trip the request_id) ----------------------------------
-    if request_id:
-        with rec.stage("get") as st:
-            resp = users.get_user_rs_request(
-                test_data["existing_user_primary_id"], request_id
+    ended_at = started_at  # initialised in case of early failure
+    try:
+        # --- CREATE -----------------------------------------------------------
+        # Body shape per the authoritative schema (rest_user_resource_sharing_request-post.json):
+        #   - owner: STRING (not wrapped — same quirk as ResourceSharing.create_lending_request)
+        #   - format: object {value} with code "P" (physical) or "E" (electronic) — NOT "PHYSICAL"
+        #   - citation_type: object {value} (e.g., "BOOK")
+        #   - pickup_location_type: STRING ("LIBRARY" or "CIRCULATION_DESK")
+        #   - pickup_location: object {value} with the pickup-library code
+        #   - agree_to_copyright_terms: boolean — mandatory for borrowing requests
+        with rec.stage("create") as st:
+            resp = users.create_user_rs_request(
+                test_data["existing_user_primary_id"],
+                {
+                    "citation_type": {"value": "BOOK"},
+                    "format": {"value": "P"},
+                    "title": "AlmaAPITK regression-smoke RS request",
+                    "author": "AlmaAPITK",
+                    "owner": test_data["rs_library_code"],
+                    "pickup_location_type": "LIBRARY",
+                    "pickup_location": {"value": test_data["pickup_library_code"]},
+                    "agree_to_copyright_terms": True,
+                },
             )
-            # Verify the get returns a dict with matching request_id, but
-            # never record the value itself in summary.
-            if not isinstance(resp, dict) or len(resp) == 0:
-                raise AlmaAPIError("get returned empty response", 0, None)
-            echo_id = str(resp.get("request_id") or resp.get("id") or "")
-            if echo_id != str(request_id):
-                raise AlmaAPIError("get response request_id mismatch", 0, None)
-    else:
-        rec.stages.append(
-            {
-                "name": "get",
-                "ok": False,
-                "duration_ms": 0,
-                "alma_code": None,
-                "exception_class": "no-request-id-from-create",
-            }
-        )
+            request_id = _extract_request_id(resp)
+            rec.store("request_id", request_id)
+            if not getattr(resp, "success", False):
+                raise AlmaAPIError("create did not return success=True", 0, None)
 
-    # --- UPDATE_SHIPPING action -------------------------------------------
-    if request_id:
-        with rec.stage("update_shipping") as st:
-            # Non-fatal: Alma may reject the update if the request is not
-            # yet in the right workflow state. Record outcome either way;
-            # don't raise so cancel still runs.
-            try:
-                resp = users.perform_user_rs_request_action(
+        # --- GET (round-trip the request_id) ------------------------------
+        if request_id:
+            with rec.stage("get") as st:
+                resp = users.get_user_rs_request(
+                    test_data["existing_user_primary_id"], request_id
+                )
+                if not isinstance(resp, dict) or len(resp) == 0:
+                    raise AlmaAPIError("get returned empty response", 0, None)
+                echo_id = str(resp.get("request_id") or resp.get("id") or "")
+                if echo_id != str(request_id):
+                    raise AlmaAPIError("get response request_id mismatch", 0, None)
+
+        # --- UPDATE_SHIPPING action --------------------------------------
+        # Per Alma swagger, both shipping_cost and fund_code are optional
+        # query params on op=update_shipping. The wrapper forwards each
+        # only when non-None. If neither fixture is filled the action is
+        # still called (op-only) — Alma accepts it as a no-op-but-valid.
+        if request_id:
+
+            def _opt(key: str) -> str | None:
+                """Return the fixture value, or None if the operator
+                wants to skip this field. Treated as "skip":
+                  - key missing / JSON null
+                  - empty / whitespace-only string
+                  - still the example placeholder (<...>)
+                  - the literal strings "None" / "null" (case-insensitive)
+                """
+                v = test_data.get(key)
+                if v is None:
+                    return None
+                sv = str(v).strip()
+                if not sv:
+                    return None
+                if sv.startswith("<") and sv.endswith(">"):
+                    return None
+                if sv.lower() in {"none", "null"}:
+                    return None
+                return sv
+
+            with rec.stage("update_shipping") as st:
+                kwargs = {}
+                sc = _opt("shipping_cost")
+                fc = _opt("fund_code")
+                if sc is not None:
+                    kwargs["shipping_cost"] = sc
+                if fc is not None:
+                    kwargs["fund_code"] = fc
+                # Non-fatal: Alma may reject the update if the request
+                # is not yet in the right workflow state. Record outcome
+                # either way; don't raise so cancel still runs.
+                try:
+                    resp = users.perform_user_rs_request_action(
+                        test_data["existing_user_primary_id"],
+                        request_id,
+                        op="update_shipping",
+                        **kwargs,
+                    )
+                    if not getattr(resp, "success", False):
+                        raise AlmaAPIError("update_shipping did not succeed", 0, None)
+                except AlmaAPIError as e:
+                    st.alma_code = getattr(e, "alma_code", None) or "soft-fail"
+                    st.expected_failure = True
+                    raise
+
+        # --- CANCEL (in-band cleanup happy path) -------------------------
+        if request_id:
+            with rec.stage("cancel") as st:
+                resp = users.cancel_user_rs_request(
                     test_data["existing_user_primary_id"],
                     request_id,
-                    op="update_shipping",
-                    shipping_cost=test_data.get("shipping_cost", "0.00"),
-                    fund_code=test_data["fund_code"],
+                    reason="AUTOMATED_REGRESSION_TEST_CLEANUP",
+                    notify_user=False,
                 )
                 if not getattr(resp, "success", False):
-                    raise AlmaAPIError("update_shipping did not succeed", 0, None)
-            except AlmaAPIError as e:
-                # Soft-fail: record but don't re-raise. The next stages still run.
-                st.alma_code = getattr(e, "alma_code", None) or "soft-fail"
-                # Re-raise within the context so the recorder marks ok=False
-                # for this stage; but use expected_failure to suppress propagation.
+                    raise AlmaAPIError("cancel did not succeed", 0, None)
+                cleanup_ok = True
+
+        # --- POST-CANCEL GET (must fail with AlmaAPIError) ---------------
+        if request_id:
+            with rec.stage("post_cancel_get") as st:
                 st.expected_failure = True
-                raise
+                users.get_user_rs_request(
+                    test_data["existing_user_primary_id"], request_id
+                )
+                # If we reach here, no exception was raised — that's a fail.
+                raise AssertionError(
+                    "post-cancel get unexpectedly succeeded; request not cancelled?"
+                )
 
-    # --- CANCEL (in-band cleanup happy path) ------------------------------
-    if request_id:
-        with rec.stage("cancel") as st:
-            resp = users.cancel_user_rs_request(
-                test_data["existing_user_primary_id"],
-                request_id,
-                reason="AUTOMATED_REGRESSION_TEST_CLEANUP",
-                notify_user=False,
-            )
-            if not getattr(resp, "success", False):
-                raise AlmaAPIError("cancel did not succeed", 0, None)
-            cleanup_ok = True
+    finally:
+        # Belt-and-braces finally-cancel (if in-band cancel didn't run).
+        if request_id and not cleanup_ok:
+            try:
+                users.cancel_user_rs_request(
+                    test_data["existing_user_primary_id"],
+                    request_id,
+                    reason="AUTOMATED_REGRESSION_TEST_CLEANUP",
+                    notify_user=False,
+                )
+                cleanup_ok = True
+            except AlmaAPIError:
+                # Operator must do manual cleanup via Alma staff UI. The
+                # detail log carries the request_id; the agent doesn't see
+                # it. The summary records cleanup_ok=False as the signal.
+                pass
 
-    # --- POST-CANCEL GET (must fail with AlmaAPIError) --------------------
-    if request_id:
-        with rec.stage("post_cancel_get") as st:
-            st.expected_failure = True
-            users.get_user_rs_request(
-                test_data["existing_user_primary_id"], request_id
-            )
-            # If we reach here, no exception was raised — that's a fail.
-            raise AssertionError(
-                "post-cancel get unexpectedly succeeded; request not cancelled?"
-            )
-
-    # --- Belt-and-braces finally-cancel (if in-band cancel didn't run) ---
-    if request_id and not cleanup_ok:
-        try:
-            users.cancel_user_rs_request(
-                test_data["existing_user_primary_id"],
-                request_id,
-                reason="AUTOMATED_REGRESSION_TEST_CLEANUP",
-                notify_user=False,
-            )
-            cleanup_ok = True
-        except AlmaAPIError:
-            # Operator must do manual cleanup. The detail log carries the
-            # request_id; the agent doesn't see it. The summary records
-            # cleanup_ok=False as the signal.
-            pass
-
-    ended_at = now_iso()
-    write_summary(
-        test_name=TEST_NAME,
-        stages=rec.stages,
-        started_at=started_at,
-        ended_at=ended_at,
-        cleanup_ok=cleanup_ok,
-        request_id_returned=request_id is not None,
-        detail_log_path=detail_log_path,
-    )
-    print(f"[{TEST_NAME}] done")
+        ended_at = now_iso()
+        write_summary(
+            test_name=TEST_NAME,
+            stages=rec.stages,
+            started_at=started_at,
+            ended_at=ended_at,
+            cleanup_ok=cleanup_ok,
+            request_id_returned=request_id is not None,
+            detail_log_path=detail_log_path,
+        )
+        print(f"[{TEST_NAME}] done")
 
     # Final assert for pytest: every stage must have ok=True for the test
     # itself to pass.

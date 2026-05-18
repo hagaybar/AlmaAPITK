@@ -6,9 +6,15 @@
     "  1. cp test-data.example.json test-data.json    (test-data.json is gitignored)",
     "  2. Open test-data.json in YOUR editor (NOT in chat). Replace each <placeholder>",
     "     with the real value. Save.",
-    "  3. Run the presence check: scripts/agentic/chunks-presence-check users-requests-followup",
-    "     (or directly: poetry run python chunks/users-requests-followup/sandbox-tests/check_fixtures.py).",
+    "  3. Run the presence check: poetry run python chunks/users-requests-followup/sandbox-tests/check_fixtures.py",
     "  4. Run the tests (see CLAUDE.md / issue #148).",
+    "",
+    "Required vs optional:",
+    "  - existing_user_primary_id, rs_library_code, pickup_library_code: REQUIRED.",
+    "  - fund_code, shipping_cost: OPTIONAL per Alma swagger (required=False on the",
+    "    update_shipping action). To opt out of either, set the value to one of:",
+    "      \"\" (empty string), null (JSON null), or the literal string \"None\".",
+    "    The test scripts will simply omit them from the API call.",
     "",
     "The agent (Claude) will NEVER Read this file. Only a presence check is performed.",
     "Real values stay on your disk and never enter the agent's context window."
@@ -20,7 +26,7 @@
 
   "pickup_library_code": "<library_code_from_alma_ui_rs_library_pickup_locations_tab>",
 
-  "fund_code": "<fund_code_the_rs_library_can_bill_against>",
+  "fund_code": "None",
 
   "shipping_cost": "0.00"
 }

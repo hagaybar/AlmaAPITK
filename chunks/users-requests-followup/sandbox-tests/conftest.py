@@ -189,19 +189,25 @@ class StageRecorder:
     ever exposing the wrapper's return value to the summary or stdout.
 
     Usage:
-        rec = StageRecorder()
+        rec = StageRecorder(fixture_values=[test_data["user_id"], ...])
         with rec.stage("create") as ctx:
             response = users.create_user_rs_request(...)
             ctx.result = response          # stored locally, never serialized
             ctx.request_id = extract_request_id(response)  # stored locally
         # After exit: rec.stages has one new entry with name='create',
         # ok=(no-exception), duration_ms, alma_code (if AlmaAPIError captured)
+
+    Pass operator-supplied fixture values via fixture_values so that any
+    sanitized_error in the summary JSON has them replaced with
+    <fixture-redacted> — direct value-match redaction is the most
+    reliable defense.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, fixture_values: Optional[List[str]] = None) -> None:
         self.stages: List[Dict[str, Any]] = []
         # Locally-stored values (NOT serialized to summary):
         self._scratch: Dict[str, Any] = {}
+        self._fixture_values = [v for v in (fixture_values or []) if v]
 
     def stage(self, name: str):
         return _StageContext(self, name)
@@ -258,7 +264,9 @@ class _StageContext:
             ok = False
             exception_class = exc_type.__name__
             alma_code = getattr(exc_val, "alma_code", None) or alma_code
-            sanitized_error = _sanitize_alma_error(exc_val)
+            sanitized_error = _sanitize_alma_error(
+                exc_val, fixture_values=self._rec._fixture_values
+            )
         entry = {
             "name": self._name,
             "ok": ok,
@@ -274,18 +282,23 @@ class _StageContext:
         return False
 
 
-def _sanitize_alma_error(exc: Any) -> Optional[str]:
+def _sanitize_alma_error(exc: Any, fixture_values: Optional[list] = None) -> Optional[str]:
     """Extract a safe-to-share excerpt from an Alma error.
 
     Strategy: keep STRUCTURAL diagnostic content (Java type names,
     JAXB / Jackson error keywords, JSON keys, swagger field names).
-    Redact obvious tenant identifier shapes (long digit runs,
-    single-quoted values that look like operator-supplied codes,
-    embedded ${placeholders}).
+    Redact:
+      - any literal fixture value passed in via ``fixture_values`` (the
+        most reliable redaction — direct value match)
+      - long digit runs (likely Alma internal IDs)
+      - quoted short uppercase tokens that look like operator-supplied codes
+      - bare uppercase-with-underscore tokens that follow trigger words
+        like "code", "library", "id" in the error message
 
-    Double-quoted strings are NOT redacted, because in Alma's standard
-    error envelope they are JSON keys (``"errorCode"``, ``"errorMessage"``)
-    and Java type names — both useful for diagnosis and identifier-free.
+    Double-quoted strings are NOT redacted broadly, because in Alma's
+    standard error envelope they are JSON keys (``"errorCode"``,
+    ``"errorMessage"``) and Java type names — both useful for diagnosis
+    and identifier-free.
     """
     if exc is None:
         return None
@@ -293,11 +306,21 @@ def _sanitize_alma_error(exc: Any) -> Optional[str]:
     if not text:
         return None
     snippet = text[:600]
-    # Redact long digit runs (likely Alma internal IDs).
+    # 1. Direct fixture-value matches (most reliable).
+    for v in (fixture_values or []):
+        if v and isinstance(v, str) and len(v) >= 2:
+            snippet = snippet.replace(v, "<fixture-redacted>")
+    # 2. Long digit runs (Alma internal IDs).
     snippet = re.sub(r"\b\d{4,}\b", "<digits-redacted>", snippet)
-    # Redact single-quoted short tokens (most likely places for
-    # operator-supplied codes like 'RS_LIB' or 'AC_1').
-    snippet = re.sub(r"'[A-Z0-9_\-]{2,30}'", "'<code-redacted>'", snippet)
-    # Collapse whitespace.
+    # 3. Quoted short code-shaped tokens.
+    snippet = re.sub(r"['\"][A-Z][A-Z0-9_\-]{1,30}['\"]", "'<code-redacted>'", snippet)
+    # 4. Bare code-shaped tokens after Alma's typical error vocabulary
+    #    ("code XXX was not found", "library XXX", "with id XXX", etc.).
+    snippet = re.sub(
+        r"\b(code|library|id|value|partner|owner|name)\s+([A-Z][A-Z0-9_\-]{1,30})\b",
+        r"\1 <code-redacted>",
+        snippet,
+        flags=re.IGNORECASE,
+    )
     snippet = " ".join(snippet.split())
     return snippet[:400]

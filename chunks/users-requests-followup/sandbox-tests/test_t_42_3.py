@@ -42,26 +42,40 @@ def test_t_42_3(test_data, detail_log_path):
 
     client = AlmaAPIClient("SANDBOX")
     users = Users(client)
-    rec = StageRecorder()
+    # Pass operator-supplied fixture values so sanitized_error in the
+    # summary JSON has them replaced with <fixture-redacted>.
+    rec = StageRecorder(
+        fixture_values=[
+            test_data.get("existing_user_primary_id"),
+            test_data.get("rs_library_code"),
+            test_data.get("pickup_library_code"),
+            test_data.get("fund_code"),
+        ]
+    )
 
     request_id: str | None = None
     cleanup_ok = False
     ended_at = started_at  # initialised in case of early failure
     try:
         # --- CREATE -----------------------------------------------------------
-        # Body shape per the authoritative schema (rest_user_resource_sharing_request-post.json):
-        #   - owner: STRING (not wrapped — same quirk as ResourceSharing.create_lending_request)
-        #   - format: object {value} with code "P" (physical) or "E" (electronic) — NOT "PHYSICAL"
-        #   - citation_type: object {value} (e.g., "BOOK")
-        #   - pickup_location_type: STRING ("LIBRARY" or "CIRCULATION_DESK")
-        #   - pickup_location: object {value} with the pickup-library code
-        #   - agree_to_copyright_terms: boolean — mandatory for borrowing requests
+        # Body shape per live SANDBOX experiments (2026-05-18):
+        #   - format.value = "PHYSICAL" (long form). DIFFERENT from purchase
+        #     request which uses short codes [E,P]. Sending "P" returns the
+        #     cryptic alma_code 401897 with a broken MessageFormat template.
+        #   - pickup_location_library = flat string field (same as HOLD
+        #     request), NOT the schema's documented pickup_location: {value}.
+        #     Missing this field returns alma_code 401894 "Missing mandatory
+        #     field: Pickup location library code."
+        #   - pickup_location_type = "LIBRARY" (plain string)
+        #   - owner = plain string (matches lending-side quirk)
+        #   - citation_type = object {value: "BOOK"}
+        #   - agree_to_copyright_terms = True (mandatory boolean for borrowing)
         with rec.stage("create") as st:
             resp = users.create_user_rs_request(
                 test_data["existing_user_primary_id"],
                 {
                     "citation_type": {"value": "BOOK"},
-                    "format": {"value": "P"},
+                    "format": {"value": "PHYSICAL"},
                     "title": "AlmaAPITK regression-smoke RS request",
                     "author": "AlmaAPITK",
                     "owner": test_data["rs_library_code"],

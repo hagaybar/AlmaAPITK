@@ -25,7 +25,7 @@ Resumption notes for the chunk-driven work paused mid-session on 2026-05-13.
 ## Chunk in flight — `users-requests-followup` (#42 + #43)
 
 - **Status:** `impl-done`, local-only branch `chunk/users-requests-followup`.
-- **Why deferred:** during this session the operator paused work to clear institutional policy on which RS partner is approved for automated regression use (`ANCA-TEST` / partner code `ANC` was the candidate). The deferral comments are on **#42** and **#43**.
+- **Why deferred:** during this session the operator paused work to clear institutional policy on which RS partner is approved for automated regression use (a sandbox test partner — code redacted per R9 — was the candidate). The deferral comments are on **#42** and **#43**.
 - **Implementation merged on chunk branch:**
   - #42 (commit `927fe8a`) — `create_user_rs_request`, `get_user_rs_request`, `cancel_user_rs_request`, `perform_user_rs_request_action`. 40 unit tests.
   - #43 (commit `9f58d42`) — `list_user_purchase_requests`, `create_user_purchase_request`, `get_user_purchase_request`, `perform_user_purchase_request_action`. 38 unit tests.
@@ -40,11 +40,11 @@ The session paused at the start of an empirical investigation into whether creat
 - The swagger's documented 400 catalog for this endpoint lists 10 error codes; none mention `partner`. Error 401607 ("Resource sharing library (owner) is missing") mentions `owner`, not partner.
 - A request created without a partner field sits in "Created" / "Locate" status. Partner gets attached later, during "Locate" / "Send Request" workflow steps. **As long as those workflow transitions aren't triggered, no partner is involved at any point.**
 
-**What was wrong before:** I conflated *sending* a request to a partner (the policy-sensitive workflow step) with *creating* a request. The CREATE endpoint never touches a partner. The previous "we need ANCA-TEST or a sandbox-isolated partner" framing was an over-cautious read of the workflow.
+**What was wrong before:** I conflated *sending* a request to a partner (the policy-sensitive workflow step) with *creating* a request. The CREATE endpoint never touches a partner. The previous "we need a sandbox-isolated partner" framing was an over-cautious read of the workflow.
 
 **What's still blocking the live `t-42-3` smoke (NOT partner policy):**
-- We need a library code that's **configured as a valid Borrowing Request pickup location for `RES_SHARE`** in this tenant. Tried `RES_SHARE`, `AC1`, `MEH`, `AS1`, `AH1` — all rejected with Alma error `401929 "The library selected is not a valid pickup location."` Pickup-library configuration is not visible via the simple `Configuration.list_libraries()` enumeration — it lives in the RS library's pickup-locations subform.
-- Resolution path: operator looks at **Alma UI → Configuration → Resource Sharing → Resource Sharing Library Setup → RES_SHARE → Pickup Locations tab** OR the "Pickup Location" dropdown when creating a BR via staff UI. Any code from that list will work as the `pickup_location.value`.
+- We need a library code that's **configured as a valid Borrowing Request pickup location for the tenant's RS library** (codes redacted per R9). Several candidate codes were tried and all rejected with Alma error `401929 "The library selected is not a valid pickup location."` Pickup-library configuration is not visible via the simple `Configuration.list_libraries()` enumeration — it lives in the RS library's pickup-locations subform.
+- Resolution path: operator looks at **Alma UI → Configuration → Resource Sharing → Resource Sharing Library Setup → `<rs_library_code>` → Pickup Locations tab** OR the "Pickup Location" dropdown when creating a BR via staff UI. Any code from that list will work as the `pickup_location.value`.
 
 **Once we have a valid pickup library code:**
 - The discriminating experiment (full body, no partner, valid pickup) should succeed with HTTP 200 — confirming the proof empirically.
@@ -69,11 +69,11 @@ The session paused at the start of an empirical investigation into whether creat
 
 ### Second Alma quirk discovered
 - **Quirk:** `PUT /almaws/v1/users/{user_id}` ("Swap All" mode) rejects GET-shaped bodies if the existing user has stale data. Concrete example: a user with `address.line2` set but `address.line1` missing GETs cleanly but PUTs fail with `400 "Mandatory field is missing: address line1"`. Per-tenant data quality, not a wrapper bug.
-- **Workaround for our test user:** during the session, we set `address[0].line1` to `"sourasky central library"` in the combined add-note PUT that finally succeeded. The fixture is now PUT-clean.
+- **Workaround for our test user:** during the session, we set `address[0].line1` to a synthetic placeholder string (library-branch name redacted per R9) in the combined add-note PUT that finally succeeded. The fixture is now PUT-clean.
 - **Skill row:** "User PUT rejects legacy GET shapes" in the same file (MEDIUM severity).
 
 ### Test user state (operator's `tau-test-*` user)
-- `contact_info.address[0].line1` was previously `None`; now set to `"sourasky central library"` (PUT'd successfully end-of-session).
+- `contact_info.address[0].line1` was previously `None`; now set to a synthetic placeholder string (library-branch name redacted per R9), PUT'd successfully end-of-session.
 - Has one new note: `type=CIRCULATION`, `text="test note from Alma API TK"`, `user_viewable=False`, `popup_note=False`, `created_by=System`. Operator may want to leave it as a verification artifact or remove via Alma UI or `users.remove_user_notes(predicate=lambda n: n['note_text'] == 'test note from Alma API TK')`.
 
 ### Backlog YAML

@@ -1,0 +1,7 @@
+{
+  "repoRoot": "/home/hagaybar/projects/AlmaAPITK",
+  "runsDir": ".a5c/runs",
+  "processesDir": ".a5c/processes",
+  "dryRun": false,
+  "keepRecentDays": 30
+}

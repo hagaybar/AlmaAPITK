@@ -1,0 +1,185 @@
+{
+  "chunk": "release-quality-cluster",
+  "schemaVersion": "v1",
+  "summary": "Release-machinery / test-infrastructure / docs / hygiene chunk. No new Alma API surface; 0 SANDBOX tests recommended. All 33 ACs are exercised by meta-tests, unit tests, docstring/doc edits, or repo-hygiene assertions — none require live SANDBOX behaviour.",
+  "tests": [],
+  "acceptanceMapping": {
+    "131": {},
+    "132": {},
+    "133": {},
+    "134": {},
+    "135": {},
+    "136": {},
+    "137": {},
+    "138": {}
+  },
+  "needsHumanInput": [],
+  "unmappable": [
+    {
+      "issue": 131,
+      "ac": "The three new meta-tests exist under `tests/meta/` and pass on `main`.",
+      "reason": "Meta-test addition (tests/meta/test_no_hardcoded_version.py, test_top_level_docs_match_all.py, test_docs_version_matches_pyproject.py). No Alma API surface — verified by `poetry run pytest tests/meta/`, not by a SANDBOX call."
+    },
+    {
+      "issue": 131,
+      "ac": "Each meta-test FAILS on a synthetic regression: re-add a hardcoded `__version__`, remove a `__all__` symbol from the README table, or downgrade a `Version:` heading to a stale value.",
+      "reason": "Meta-test mutation testing. Verified by locally injecting the regression and re-running pytest; no SANDBOX path."
+    },
+    {
+      "issue": 131,
+      "ac": "`docs/RELEASE_CHECKLIST.md` Phase F pytest line includes `tests/meta/`.",
+      "reason": "Documentation-only change. Verified by reading the file, not by an API call."
+    },
+    {
+      "issue": 131,
+      "ac": "The release plan template includes the wheel-version-matches-pyproject shell check between build and upload.",
+      "reason": "Release-plan documentation edit. No runtime / API behaviour."
+    },
+    {
+      "issue": 131,
+      "ac": "The TestPyPI smoke step in the release plan reads `almaapitk.__version__` dynamically; no hardcoded version string in the success message.",
+      "reason": "Release-plan documentation edit. Exercised at release time on TestPyPI, not against Alma SANDBOX."
+    },
+    {
+      "issue": 131,
+      "ac": "`poetry run pytest tests/meta/ -q` exits 0 and runs in < 5 seconds.",
+      "reason": "Local pytest invocation. No Alma SANDBOX endpoint involved."
+    },
+    {
+      "issue": 132,
+      "ac": "`Users(client_stub).logger.name` matches what `alma_logging.get_logger('users', ...)` returns.",
+      "reason": "Internal refactor; verified by the new unit test `tests/unit/domains/test_users_init.py` using a stub client. No SANDBOX path — the assertion is on logger configuration, not HTTP behaviour."
+    },
+    {
+      "issue": 132,
+      "ac": "Instantiating `Users` does NOT create `sb_log_file.log` or `prod_log_file.log` in the test's working directory.",
+      "reason": "Filesystem side-effect assertion. Verified by unit test using tmp_path / cwd inspection; not observable via any Alma endpoint."
+    },
+    {
+      "issue": 132,
+      "ac": "No INFO-or-higher records appear on `sys.stdout` when `Users` is instantiated.",
+      "reason": "Stdout-capture assertion (caplog / capsys). Unit-level concern; no SANDBOX call required."
+    },
+    {
+      "issue": 132,
+      "ac": "`grep -n 'sys.path.append' src/almaapitk/domains/users.py` returns nothing.",
+      "reason": "Source-tree grep assertion. Not testable against an API."
+    },
+    {
+      "issue": 132,
+      "ac": "Existing tests (`pytest tests/unit/domains/test_users.py`) still pass unchanged.",
+      "reason": "Existing-unit-test regression check. No new SANDBOX coverage needed."
+    },
+    {
+      "issue": 133,
+      "ac": "The narrowed `except` in `acquisition.py:1814` still passes existing `receive_item` tests.",
+      "reason": "Internal refactor in the JSON-fallback path of an existing method. The receive_item happy path is already covered by existing unit tests (mocked); the narrowed except clause only changes which exception types are caught — not observable via a fresh SANDBOX read. SANDBOX coverage of `receive_item` itself was established in the acquisitions chunk."
+    },
+    {
+      "issue": 133,
+      "ac": "The new ast guard test passes on the current tree (after the fix).",
+      "reason": "Meta-test (AST walker over src/almaapitk/). Verified by pytest, not by a SANDBOX call."
+    },
+    {
+      "issue": 133,
+      "ac": "The new ast guard test FAILS if a bare `except:` is reintroduced anywhere under `src/almaapitk/`.",
+      "reason": "Mutation-style assertion on a meta-test. Verified by locally re-introducing a bare except and re-running pytest."
+    },
+    {
+      "issue": 133,
+      "ac": "The existing `tests/meta/test_logging_policy.py` pattern is followed (same imports, same parametrize style).",
+      "reason": "Test-file structural convention. Verified by code review, not by an API call."
+    },
+    {
+      "issue": 134,
+      "ac": "New test named `test_update_letter_sends_xml_body_regression_114` (or in a per-issue file under `tests/unit/regressions/`).",
+      "reason": "Pure test-only addition (mocked unit test). The Configuration.update_letter behaviour was already shipped in v0.4.x and exercised against SANDBOX during the original chunk; this is R10 backfill, not a new endpoint."
+    },
+    {
+      "issue": 134,
+      "ac": "Docstring quotes the Alma `60105 \"JSON is not supported for this API.\"` error and references issue #114.",
+      "reason": "Docstring content of a unit test. Not observable via a SANDBOX call."
+    },
+    {
+      "issue": 134,
+      "ac": "Assertions: the captured request's content-type header equals `application/xml`; the body is a `str` (not a `dict` or `json.dumps`-encoded string with a JSON content-type).",
+      "reason": "Unit-test assertion on a mocked HTTP request. Verifies the request-construction layer; not a fresh SANDBOX behaviour the chunk introduced."
+    },
+    {
+      "issue": 134,
+      "ac": "The test FAILS on `git revert 2d20ab3` and PASSES on the current `main`.",
+      "reason": "R10 reproducer test, verified locally by reverting the fix commit. No SANDBOX path."
+    },
+    {
+      "issue": 135,
+      "ac": "`tests/unit/regressions/` exists as a directory with an `__init__.py`.",
+      "reason": "Source-tree structure assertion. Verified by `ls` / `find`, not by an API call."
+    },
+    {
+      "issue": 135,
+      "ac": "`CLAUDE.md` R10 section names the canonical home.",
+      "reason": "Documentation-only change in a project file. Not testable against an API."
+    },
+    {
+      "issue": 135,
+      "ac": "The cumulative regression suite is `pytest tests/unit/regressions/` (no further intersection logic).",
+      "reason": "Process / convention declaration. Verified by inspection of the test invocation; no SANDBOX behaviour."
+    },
+    {
+      "issue": 135,
+      "ac": "The t-41-3 comment exists at the top of the file.",
+      "reason": "Comment-only edit in an existing sandbox-test file. Not observable via API."
+    },
+    {
+      "issue": 136,
+      "ac": "The docstring has a \"Known caveat\" section that names Alma error `401129` and explains the cache lag.",
+      "reason": "Docstring-only change on Users.create_user_request. No behaviour change — no SANDBOX assertion to make."
+    },
+    {
+      "issue": 136,
+      "ac": "The docstring recommends a caller-side retry with a brief sleep (link to t-41-3 as a worked example).",
+      "reason": "Docstring content. Not observable via API."
+    },
+    {
+      "issue": 136,
+      "ac": "Existing tests still pass (this is doc-only).",
+      "reason": "Regression baseline. No new SANDBOX coverage required because no behaviour changed."
+    },
+    {
+      "issue": 137,
+      "ac": "`git status` after the cleanup commit shows zero `chunks/*/_swagger_errors_*.json` files tracked.",
+      "reason": "Repo-hygiene / .gitignore assertion. Verified via git, not via API."
+    },
+    {
+      "issue": 137,
+      "ac": "`find chunks -name '_swagger_errors_*.json'` still lists them on disk (regeneratable artifacts).",
+      "reason": "Filesystem assertion. Not testable against an API."
+    },
+    {
+      "issue": 137,
+      "ac": "A second invocation of any chunk's fetch-swagger-codes step regenerates the file without surfacing it in `git status`.",
+      "reason": "Chunk-pipeline / .gitignore behaviour. Verified by re-running fetch-swagger-codes locally; not an Alma SANDBOX call."
+    },
+    {
+      "issue": 138,
+      "ac": "A unit test deterministically asserts the close-then-switch outcome.",
+      "reason": "Client-internal contract (session lifecycle). Tested with a mocked unit test in `tests/unit/client/test_context_manager.py`; the close-then-switch path never reaches Alma — by design it is asserted to raise before any HTTP call."
+    },
+    {
+      "issue": 138,
+      "ac": "If the chosen outcome is \"re-init session\", a follow-up `client.get(...)` succeeds in the test (with a mocked session).",
+      "reason": "Conditional on a path not chosen here (implementation raises a clear error instead). Either branch is unit-level — the spec explicitly says 'with a mocked session'."
+    },
+    {
+      "issue": 138,
+      "ac": "If the chosen outcome is \"raise clear error\", the docstring of `switch_environment` documents it.",
+      "reason": "Docstring assertion on the chosen implementation. Not observable via API."
+    }
+  ],
+  "notes": [
+    "This chunk is release-quality / test-infrastructure / docs / hygiene work driven by the 2026-05-12 release-0.4.x review. By design it adds no new Alma API endpoint coverage — its value is preventing another 0.4.x-style yank cycle, not exercising new SANDBOX behaviour.",
+    "Diff scope confirms zero new endpoints: src/ changes are an AlmaAPIClient.switch_environment guard (#138, mocked), a narrowed except clause in Acquisitions.receive_item's XML fallback (#133, internal refactor — happy path already covered), and Users.__init__ logger refactor + create_user_request docstring (#132, #136 — no new endpoints).",
+    "All eight issues are covered by the unit / meta tests they themselves ship (tests/meta/, tests/unit/regressions/, tests/unit/domains/test_users_init.py, tests/unit/client/test_context_manager.py, tests/unit/regressions/test_issue_114.py). The R10 regression suite for the 0.4.x cycle is the deliverable.",
+    "Recommendation to operator: run `poetry run pytest tests/meta/ tests/unit/ -q` and `poetry run python scripts/smoke_import.py`; no SANDBOX session needed for this chunk."
+  ]
+}

@@ -172,6 +172,7 @@ research/
 .a5c/node_modules/
 .a5c/package.json
 .a5c/package-lock.json
+.a5c/issue-numbers/
 
 ###############################################################################
 #  Claude Code / project-local agent settings                                 #

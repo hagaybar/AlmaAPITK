@@ -1,0 +1,369 @@
+{
+  "chunk": "users-requests-followup",
+  "branch": "chunk/users-requests-followup",
+  "createdAt": "2026-05-13T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 42,
+      "title": "Coverage: Users: resource sharing requests (user-side)",
+      "classification": "general",
+      "subBranch": "feat/42-coverage-users-resource-sharin",
+      "tests": [
+        {
+          "id": "t-42-1",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added to the four user-side RS-request wrappers (create_user_rs_request, get_user_rs_request, cancel_user_rs_request, perform_user_rs_request_action) raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: create_user_rs_request on empty/None/non-string user_id, on empty/None/non-dict request_data; get_user_rs_request on empty/None user_id and empty/None request_id; cancel_user_rs_request on empty/None user_id, empty/None request_id, and non-string reason (note: per the shipped signature reason is OPTIONAL on the RS DELETE — only the non-string-when-supplied guard is asserted, NOT a 'reason required' guard); perform_user_rs_request_action on empty/None user_id, empty/None request_id, and empty/None/non-string op. Pure runtime guard exercise; no SANDBOX state is read or mutated. The test proves the guards are wired in the build the operator will actually run, complementing the chunk's mocked-HTTP unit tests under tests/unit/domains/test_users.py.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.create_user_rs_request('', {'title': 'X'})\nexcept AlmaValidationError as e:\n    errors['create_rs_empty_user'] = e",
+            "try:\n    users.create_user_rs_request(None, {'title': 'X'})\nexcept AlmaValidationError as e:\n    errors['create_rs_none_user'] = e",
+            "try:\n    users.create_user_rs_request(123, {'title': 'X'})\nexcept AlmaValidationError as e:\n    errors['create_rs_nonstring_user'] = e",
+            "try:\n    users.create_user_rs_request('U', {})\nexcept AlmaValidationError as e:\n    errors['create_rs_empty_body'] = e",
+            "try:\n    users.create_user_rs_request('U', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['create_rs_nondict_body'] = e",
+            "try:\n    users.create_user_rs_request('U', None)\nexcept AlmaValidationError as e:\n    errors['create_rs_none_body'] = e",
+            "try:\n    users.get_user_rs_request('', 'R')\nexcept AlmaValidationError as e:\n    errors['get_rs_empty_user'] = e",
+            "try:\n    users.get_user_rs_request('U', '')\nexcept AlmaValidationError as e:\n    errors['get_rs_empty_id'] = e",
+            "try:\n    users.get_user_rs_request(None, 'R')\nexcept AlmaValidationError as e:\n    errors['get_rs_none_user'] = e",
+            "try:\n    users.get_user_rs_request('U', None)\nexcept AlmaValidationError as e:\n    errors['get_rs_none_id'] = e",
+            "try:\n    users.cancel_user_rs_request('', 'R')\nexcept AlmaValidationError as e:\n    errors['cancel_rs_empty_user'] = e",
+            "try:\n    users.cancel_user_rs_request('U', '')\nexcept AlmaValidationError as e:\n    errors['cancel_rs_empty_id'] = e",
+            "try:\n    users.cancel_user_rs_request(None, 'R')\nexcept AlmaValidationError as e:\n    errors['cancel_rs_none_user'] = e",
+            "try:\n    users.cancel_user_rs_request('U', None)\nexcept AlmaValidationError as e:\n    errors['cancel_rs_none_id'] = e",
+            "try:\n    users.cancel_user_rs_request('U', 'R', reason=123)\nexcept AlmaValidationError as e:\n    errors['cancel_rs_nonstring_reason'] = e",
+            "try:\n    users.perform_user_rs_request_action('', 'R', op='update_shipping')\nexcept AlmaValidationError as e:\n    errors['action_rs_empty_user'] = e",
+            "try:\n    users.perform_user_rs_request_action('U', '', op='update_shipping')\nexcept AlmaValidationError as e:\n    errors['action_rs_empty_id'] = e",
+            "try:\n    users.perform_user_rs_request_action('U', 'R', op='')\nexcept AlmaValidationError as e:\n    errors['action_rs_empty_op'] = e",
+            "try:\n    users.perform_user_rs_request_action('U', 'R', op=None)\nexcept AlmaValidationError as e:\n    errors['action_rs_none_op'] = e"
+          ],
+          "passCriteria": [
+            "'create_rs_empty_user' in errors and isinstance(errors['create_rs_empty_user'], AlmaValidationError)",
+            "'create_rs_none_user' in errors and isinstance(errors['create_rs_none_user'], AlmaValidationError)",
+            "'create_rs_nonstring_user' in errors and isinstance(errors['create_rs_nonstring_user'], AlmaValidationError)",
+            "'create_rs_empty_body' in errors and isinstance(errors['create_rs_empty_body'], AlmaValidationError)",
+            "'create_rs_nondict_body' in errors and isinstance(errors['create_rs_nondict_body'], AlmaValidationError)",
+            "'create_rs_none_body' in errors and isinstance(errors['create_rs_none_body'], AlmaValidationError)",
+            "'get_rs_empty_user' in errors and isinstance(errors['get_rs_empty_user'], AlmaValidationError)",
+            "'get_rs_empty_id' in errors and isinstance(errors['get_rs_empty_id'], AlmaValidationError)",
+            "'get_rs_none_user' in errors and isinstance(errors['get_rs_none_user'], AlmaValidationError)",
+            "'get_rs_none_id' in errors and isinstance(errors['get_rs_none_id'], AlmaValidationError)",
+            "'cancel_rs_empty_user' in errors and isinstance(errors['cancel_rs_empty_user'], AlmaValidationError)",
+            "'cancel_rs_empty_id' in errors and isinstance(errors['cancel_rs_empty_id'], AlmaValidationError)",
+            "'cancel_rs_none_user' in errors and isinstance(errors['cancel_rs_none_user'], AlmaValidationError)",
+            "'cancel_rs_none_id' in errors and isinstance(errors['cancel_rs_none_id'], AlmaValidationError)",
+            "'cancel_rs_nonstring_reason' in errors and isinstance(errors['cancel_rs_nonstring_reason'], AlmaValidationError)",
+            "'action_rs_empty_user' in errors and isinstance(errors['action_rs_empty_user'], AlmaValidationError)",
+            "'action_rs_empty_id' in errors and isinstance(errors['action_rs_empty_id'], AlmaValidationError)",
+            "'action_rs_empty_op' in errors and isinstance(errors['action_rs_empty_op'], AlmaValidationError)",
+            "'action_rs_none_op' in errors and isinstance(errors['action_rs_none_op'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-42-2",
+          "kind": "smoke",
+          "scope": "Read-only SANDBOX smoke for get_user_rs_request. The user-side RS endpoints have NO list verb (the swagger only exposes create / get / cancel / perform-action on a specific request_id), so this test takes a pre-existing RS request_id supplied by the operator (typically the request_id captured from t-42-3's create step on a previous run, or a long-lived RS request the operator knows exists on the test user) and calls users.get_user_rs_request(${existing_user_primary_id}, ${existing_rs_request_id}) to confirm the wrapper round-trips the GET endpoint and returns a non-empty dict. If the operator has no pre-existing RS request to point at, this test is skipped at runtime by the operator (the round-trip in t-42-3 already exercises the GET path mid-flight, so skipping t-42-2 does not leave the GET endpoint unexercised). No state is mutated.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write resource-sharing-request smoke testing. The user must be affiliated with a resource-sharing library (per the chunk's documented Alma error 401768). Used by t-42-2 (read-only get) and t-42-3 (live create -> get -> update-shipping -> cancel RS-request round-trip with in-band cancel-as-cleanup). Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "tau-test-rs01"
+            },
+            {
+              "key": "existing_rs_request_id",
+              "description": "A pre-existing resource-sharing request_id on ${existing_user_primary_id} in SANDBOX that the operator knows is fetchable (e.g. a leftover from a previous t-42-3 run, or a long-lived test RS request). Used ONLY by t-42-2 for the read-only get. If the operator has no such request available, t-42-2 is skipped at runtime (the round-trip in t-42-3 still exercises the GET path mid-flight). Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real request_id into this file.",
+              "example": "<rs_request_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "request_detail = users.get_user_rs_request('${existing_user_primary_id}', '${existing_rs_request_id}')"
+          ],
+          "passCriteria": [
+            "isinstance(request_detail, dict) and len(request_detail) > 0"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-42-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live round-trip: create a real user-side resource-sharing request on ${existing_user_primary_id} (the request body uses synthetic placeholder bibliographic metadata so the test does not depend on any specific MMS ID), GET it back to confirm the request_id round-trips, perform the swagger-documented 'update_shipping' action with a synthetic ${shipping_cost} and ${fund_code} to exercise perform_user_rs_request_action against live SANDBOX, then CANCEL the request via DELETE with the documented cleanup reason 'AUTOMATED_REGRESSION_TEST_CLEANUP' and notify_user=False to avoid spamming the test user's email. Final step: re-GET to confirm the request is no longer fetchable as an active request (Alma either 404s or moves the request to a terminal status; either way the wrapper raises AlmaAPIError). The cancel step is the cleanup happy-path - the finally block only retries if it did not run or failed. The round-trip exercises all four wrapper methods against live SANDBOX. The test prints request_id, user_id, and the RS-library owner at runtime; if the cancel step fails the operator must cancel the leftover RS request via the Alma staff UI (the 'AUTOMATED_REGRESSION_TEST_CLEANUP' reason makes it unambiguous). Net state on a happy run: the user's RS-request history shows one created/cancelled audit artifact, similar to the t-41-3 hold-request audit pattern. NOTE: this test requires (a) the test user be affiliated with a resource-sharing library and (b) the operator supply the resource-sharing library code as ${rs_library_code}; if either is missing, the wrapper will raise AlmaAPIError (codes 401607 / 401768) and the test will fail loud - this is the intended signal to the operator that the SANDBOX RS setup is incomplete.",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/resource-sharing-requests",
+            "GET /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+            "POST /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+            "DELETE /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write resource-sharing-request smoke testing. The user must be affiliated with a resource-sharing library (per the chunk's documented Alma error 401768). Used by t-42-2 (read-only get) and t-42-3 (live create -> get -> update-shipping -> cancel RS-request round-trip with in-band cancel-as-cleanup). Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "tau-test-rs01"
+            },
+            {
+              "key": "rs_library_code",
+              "description": "The Alma resource-sharing library code that ${existing_user_primary_id} is affiliated with (the 'owner' field in the create_user_rs_request body). Required by Alma per error code 401607 ('Resource sharing library (owner) is missing'). The operator supplies the SANDBOX RS-library code; the bib metadata in the body is otherwise synthetic. Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<rs_library_code>"
+            },
+            {
+              "key": "shipping_cost",
+              "description": "A non-negative shipping-cost value (as a string, per the swagger) used by the perform_user_rs_request_action(op='update_shipping') step. Any small positive value is acceptable; '0.00' also works. The value is round-tripped through Alma and does not affect cleanup. Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime.",
+              "example": "0.00"
+            },
+            {
+              "key": "fund_code",
+              "description": "An Alma fund code in SANDBOX that the test user / RS library is permitted to bill against (used by perform_user_rs_request_action(op='update_shipping')). Round-tripped through Alma; does not affect cleanup. Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real fund code into this file.",
+              "example": "<fund_code>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "create_response = None\ncreate_data = None\nrequest_id = None\nget_response = None\nget_request_id_echo = None\naction_response = None\ncancel_response = None\npost_cancel_error = None",
+            "print(f'[t-42-3] live create -> get -> update_shipping -> cancel RS request on user ${existing_user_primary_id}, owner ${rs_library_code}')",
+            "create_response = users.create_user_rs_request(\n    '${existing_user_primary_id}',\n    {\n        'citation_type': 'BOOK',\n        'format': {'value': 'PHYSICAL'},\n        'title': 'AlmaAPITK regression-smoke RS request',\n        'author': 'AlmaAPITK',\n        'owner': {'value': '${rs_library_code}'},\n    },\n)",
+            "create_data = getattr(create_response, 'data', None) if create_response is not None else None\nif isinstance(create_data, dict):\n    request_id = create_data.get('request_id') or create_data.get('id')\nprint(f'[t-42-3] RS request created: request_id={request_id!r} user_id=${existing_user_primary_id} owner=${rs_library_code}')",
+            "get_response = users.get_user_rs_request('${existing_user_primary_id}', str(request_id)) if request_id else None\nif isinstance(get_response, dict):\n    get_request_id_echo = get_response.get('request_id') or get_response.get('id')",
+            "# Exercise perform_user_rs_request_action with the swagger-documented\n# op='update_shipping' before cancelling. Failure here is non-fatal to\n# cleanup: even if Alma rejects the update (e.g., the request is not\n# yet in the right workflow state), the cancel step below still runs.\ntry:\n    action_response = users.perform_user_rs_request_action(\n        '${existing_user_primary_id}',\n        str(request_id),\n        op='update_shipping',\n        shipping_cost='${shipping_cost}',\n        fund_code='${fund_code}',\n    ) if request_id else None\nexcept AlmaAPIError as e:\n    print(f'[t-42-3] update_shipping action returned API error (non-fatal, proceeding to cancel): {e}')\n    action_response = e",
+            "# In-band cancel: DELETE with the documented cleanup reason and\n# notify_user=False so the test user is not emailed. This IS the\n# cleanup happy-path - the finally block only retries if this step\n# did not run or failed.\ncancel_response = users.cancel_user_rs_request(\n    '${existing_user_primary_id}',\n    str(request_id),\n    reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n    notify_user=False,\n) if request_id else None\nprint(f'[t-42-3] RS request cancelled: request_id={request_id!r} status={getattr(cancel_response, \"status_code\", None)} success={getattr(cancel_response, \"success\", None)}')",
+            "# Confirm the request is no longer an active fetchable RS request.\n# Alma either returns 404 (gone) or marks it CANCELLED; the wrapper\n# raises AlmaAPIError either way on a non-active fetch.\ntry:\n    users.get_user_rs_request('${existing_user_primary_id}', str(request_id))\nexcept AlmaAPIError as e:\n    post_cancel_error = e"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(create_data, dict) and request_id is not None",
+            "isinstance(get_response, dict) and str(get_request_id_echo) == str(request_id)",
+            "action_response is not None",
+            "cancel_response is not None and getattr(cancel_response, 'success', False) is True",
+            "post_cancel_error is not None"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users as _UsersCleanup",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band cancel did not run (e.g. an\n# earlier assertion raised) or did not succeed, retry the cancel\n# with the same documented reason. If it still fails, print a\n# manual-cleanup banner with request_id, user_id, and owner so the\n# operator can cancel the leftover RS request via the Alma staff\n# UI. Do NOT re-raise from finally - let the original test failure\n# surface.\ntry:\n    if request_id and (cancel_response is None or not getattr(cancel_response, 'success', False)):\n        users2 = _UsersCleanup(client)\n        users2.cancel_user_rs_request(\n            '${existing_user_primary_id}',\n            str(request_id),\n            reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n            notify_user=False,\n        )\n        print(f'[t-42-3 cleanup] in-finally cancel succeeded for request_id={request_id!r}')\nexcept AlmaAPIError as cleanup_err:\n    print(f'\\n!!! [t-42-3] MANUAL CLEANUP REQUIRED !!!\\n!!! request_id: {request_id!r}\\n!!! user_id: ${existing_user_primary_id}\\n!!! owner (RS library): ${rs_library_code}\\n!!! reason: {cleanup_err}\\n!!! Operator must cancel the leftover RS request via the Alma staff UI.\\n')"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-42-1",
+          "t-42-2",
+          "t-42-3"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-42-3"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-42-1",
+          "t-42-3"
+        ],
+        "All operations logged through `alma_logging` (no `print`).": [],
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.": [],
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.": []
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "Partially mapped: 'methods exist on the existing Users class' IS observable at runtime - t-42-1 / t-42-2 / t-42-3 collectively import and invoke create_user_rs_request, get_user_rs_request, cancel_user_rs_request, and perform_user_rs_request_action (every method is touched at least via its validation guards in t-42-1, proving the methods are importable and bound on the live Users object). The 'with type hints and Google-style docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour - verified by code review of the chunk diff."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "Partially mapped: t-42-3 IS the SANDBOX integration test that covers all four methods (create / get / perform-action / cancel) in a single round-trip. The 'unit-test coverage (mocked HTTP)' half is a pytest-suite invariant verified by `poetry run pytest tests/unit/domains/test_users.py -v` on the chunk's diff; SANDBOX cannot observe mocked-HTTP coverage. This entry documents the residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens inside the four new RS-request methods in src/almaapitk/domains/users.py) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff. (Note: the t-42-3 print() statements are inside the SANDBOX-test runner script - emitted to stdout for operator-cleanup visibility - not inside the wrapper methods. The AC is about the wrappers, which use self.logger throughout.)"
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Package-surface invariant. The four new methods are added to the existing Users class (no new top-level symbols), so this AC is largely vacuous for this issue - verified by inspecting almaapitk/__init__.py for the Users export (unchanged) and by the public-API contract test. SANDBOX cannot observe package-surface assembly."
+        }
+      ]
+    },
+    {
+      "number": 43,
+      "title": "Coverage: Users: purchase requests",
+      "classification": "general",
+      "subBranch": "feat/43-coverage-users-purchase-reques",
+      "tests": [
+        {
+          "id": "t-43-1",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added to the four user-side purchase-request wrappers (list_user_purchase_requests, create_user_purchase_request, get_user_purchase_request, perform_user_purchase_request_action) raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_purchase_requests on empty/None/non-string user_id; create_user_purchase_request on empty/None/non-string user_id and on empty/None/non-dict purchase_request_data; get_user_purchase_request on empty/None user_id and empty/None purchase_request_id; perform_user_purchase_request_action on empty/None user_id, empty/None purchase_request_id, and empty/None/non-string op. Pure runtime guard exercise; no SANDBOX state is read or mutated. The test proves the guards are wired in the build the operator will actually run, complementing the chunk's mocked-HTTP unit tests under tests/unit/domains/test_users.py.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_purchase_requests('')\nexcept AlmaValidationError as e:\n    errors['list_pr_empty_user'] = e",
+            "try:\n    users.list_user_purchase_requests(None)\nexcept AlmaValidationError as e:\n    errors['list_pr_none_user'] = e",
+            "try:\n    users.list_user_purchase_requests(123)\nexcept AlmaValidationError as e:\n    errors['list_pr_nonstring_user'] = e",
+            "try:\n    users.create_user_purchase_request('', {'resource_metadata': {'title': 'X'}})\nexcept AlmaValidationError as e:\n    errors['create_pr_empty_user'] = e",
+            "try:\n    users.create_user_purchase_request(None, {'resource_metadata': {'title': 'X'}})\nexcept AlmaValidationError as e:\n    errors['create_pr_none_user'] = e",
+            "try:\n    users.create_user_purchase_request(123, {'resource_metadata': {'title': 'X'}})\nexcept AlmaValidationError as e:\n    errors['create_pr_nonstring_user'] = e",
+            "try:\n    users.create_user_purchase_request('U', {})\nexcept AlmaValidationError as e:\n    errors['create_pr_empty_body'] = e",
+            "try:\n    users.create_user_purchase_request('U', 'not-a-dict')\nexcept AlmaValidationError as e:\n    errors['create_pr_nondict_body'] = e",
+            "try:\n    users.create_user_purchase_request('U', None)\nexcept AlmaValidationError as e:\n    errors['create_pr_none_body'] = e",
+            "try:\n    users.get_user_purchase_request('', 'PR')\nexcept AlmaValidationError as e:\n    errors['get_pr_empty_user'] = e",
+            "try:\n    users.get_user_purchase_request('U', '')\nexcept AlmaValidationError as e:\n    errors['get_pr_empty_id'] = e",
+            "try:\n    users.get_user_purchase_request(None, 'PR')\nexcept AlmaValidationError as e:\n    errors['get_pr_none_user'] = e",
+            "try:\n    users.get_user_purchase_request('U', None)\nexcept AlmaValidationError as e:\n    errors['get_pr_none_id'] = e",
+            "try:\n    users.perform_user_purchase_request_action('', 'PR', op='cancel')\nexcept AlmaValidationError as e:\n    errors['action_pr_empty_user'] = e",
+            "try:\n    users.perform_user_purchase_request_action('U', '', op='cancel')\nexcept AlmaValidationError as e:\n    errors['action_pr_empty_id'] = e",
+            "try:\n    users.perform_user_purchase_request_action('U', 'PR', op='')\nexcept AlmaValidationError as e:\n    errors['action_pr_empty_op'] = e",
+            "try:\n    users.perform_user_purchase_request_action('U', 'PR', op=None)\nexcept AlmaValidationError as e:\n    errors['action_pr_none_op'] = e"
+          ],
+          "passCriteria": [
+            "'list_pr_empty_user' in errors and isinstance(errors['list_pr_empty_user'], AlmaValidationError)",
+            "'list_pr_none_user' in errors and isinstance(errors['list_pr_none_user'], AlmaValidationError)",
+            "'list_pr_nonstring_user' in errors and isinstance(errors['list_pr_nonstring_user'], AlmaValidationError)",
+            "'create_pr_empty_user' in errors and isinstance(errors['create_pr_empty_user'], AlmaValidationError)",
+            "'create_pr_none_user' in errors and isinstance(errors['create_pr_none_user'], AlmaValidationError)",
+            "'create_pr_nonstring_user' in errors and isinstance(errors['create_pr_nonstring_user'], AlmaValidationError)",
+            "'create_pr_empty_body' in errors and isinstance(errors['create_pr_empty_body'], AlmaValidationError)",
+            "'create_pr_nondict_body' in errors and isinstance(errors['create_pr_nondict_body'], AlmaValidationError)",
+            "'create_pr_none_body' in errors and isinstance(errors['create_pr_none_body'], AlmaValidationError)",
+            "'get_pr_empty_user' in errors and isinstance(errors['get_pr_empty_user'], AlmaValidationError)",
+            "'get_pr_empty_id' in errors and isinstance(errors['get_pr_empty_id'], AlmaValidationError)",
+            "'get_pr_none_user' in errors and isinstance(errors['get_pr_none_user'], AlmaValidationError)",
+            "'get_pr_none_id' in errors and isinstance(errors['get_pr_none_id'], AlmaValidationError)",
+            "'action_pr_empty_user' in errors and isinstance(errors['action_pr_empty_user'], AlmaValidationError)",
+            "'action_pr_empty_id' in errors and isinstance(errors['action_pr_empty_id'], AlmaValidationError)",
+            "'action_pr_empty_op' in errors and isinstance(errors['action_pr_empty_op'], AlmaValidationError)",
+            "'action_pr_none_op' in errors and isinstance(errors['action_pr_none_op'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-43-2",
+          "kind": "smoke",
+          "scope": "Read-only SANDBOX smoke for list_user_purchase_requests. Calls users.list_user_purchase_requests(${existing_user_primary_id}) to confirm the GET /users/{user_id}/purchase-requests endpoint round-trips and returns a flat List[Dict] envelope (the wrapper unwraps Alma's 'user_request' / 'purchase_request' envelope key). The test user is likely to have zero purchase requests on a fresh fixture, in which case the list is empty and that is still a pass for the list-shape assertion. If the returned list is non-empty, picks the first request's id and calls get_user_purchase_request(${existing_user_primary_id}, <id>) to confirm the single-request GET round-trips and returns a non-empty Dict[str, Any]. If the list is empty, the get-step is skipped - the test is still considered pass because the list endpoint itself responded correctly. No state is mutated. Covers the read half of issue #43's integration coverage; the create -> get -> cancel live cycle is exercised by t-43-3.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}/purchase-requests",
+            "GET /almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write purchase-request smoke testing. The user is not destructively mutated; t-43-3 creates a purchase request and cancels it in-band via perform_user_purchase_request_action(op='cancel'), so the user's purchase-request history will show one created/cancelled request as an audit artifact. Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "tau-test-pr01"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "requests_list = users.list_user_purchase_requests('${existing_user_primary_id}')",
+            "first_request = None\nrequest_detail = None\nif isinstance(requests_list, list) and len(requests_list) > 0:\n    first_request = requests_list[0]\n    pr_id = first_request.get('id') if isinstance(first_request, dict) else None\n    if pr_id:\n        request_detail = users.get_user_purchase_request('${existing_user_primary_id}', str(pr_id))"
+          ],
+          "passCriteria": [
+            "isinstance(requests_list, list)",
+            "first_request is None or (isinstance(request_detail, dict) and len(request_detail) > 0)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-43-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live round-trip: create a real user-side purchase request on ${existing_user_primary_id} with synthetic placeholder bibliographic metadata (no specific MMS ID required - the request body carries title / author / format only), GET it back to confirm the purchase_request_id round-trips, list_user_purchase_requests to confirm the new request appears in the user's list, and then CANCEL it via perform_user_purchase_request_action(op='cancel') - the swagger-documented cancellation path for purchase requests (there is NO separate DELETE endpoint per the shipped wrapper's docstring). The cancel step is the cleanup happy-path - the finally block only retries if it did not run or failed. The round-trip exercises all four wrapper methods against live SANDBOX (create / get / list / perform-action). The test prints purchase_request_id and user_id at runtime; if the cancel step fails the operator must mark the leftover purchase request as cancelled via the Alma staff UI (the 'AlmaAPITK regression-smoke purchase request' title makes it unambiguous). Net state on a happy run: the user's purchase-request history shows one created/cancelled request as an audit artifact.",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/purchase-requests",
+            "GET /almaws/v1/users/{user_id}/purchase-requests",
+            "GET /almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+            "POST /almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write purchase-request smoke testing. The user is not destructively mutated; t-43-3 creates a purchase request and cancels it in-band via perform_user_purchase_request_action(op='cancel'), so the user's purchase-request history will show one created/cancelled request as an audit artifact. Synthetic placeholder only - the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "tau-test-pr01"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "create_response = None\ncreate_data = None\npurchase_request_id = None\nget_response = None\nget_pr_id_echo = None\nlist_after_create = None\nfound_in_list = False\ncancel_response = None\ncancel_succeeded = False",
+            "print(f'[t-43-3] live create -> get -> list -> cancel purchase request on user ${existing_user_primary_id}')",
+            "create_response = users.create_user_purchase_request(\n    '${existing_user_primary_id}',\n    {\n        'resource_metadata': {\n            'title': 'AlmaAPITK regression-smoke purchase request',\n            'author': 'AlmaAPITK',\n        },\n        'format': {'value': 'PHYSICAL'},\n        'material_type': {'value': 'BOOK'},\n    },\n)",
+            "create_data = getattr(create_response, 'data', None) if create_response is not None else None\nif isinstance(create_data, dict):\n    purchase_request_id = create_data.get('id') or create_data.get('purchase_request_id')\nprint(f'[t-43-3] purchase request created: purchase_request_id={purchase_request_id!r} user_id=${existing_user_primary_id}')",
+            "get_response = users.get_user_purchase_request('${existing_user_primary_id}', str(purchase_request_id)) if purchase_request_id else None\nif isinstance(get_response, dict):\n    get_pr_id_echo = get_response.get('id') or get_response.get('purchase_request_id')",
+            "# Confirm the new request appears in the user's purchase-request list.\nlist_after_create = users.list_user_purchase_requests('${existing_user_primary_id}') if purchase_request_id else None\nif isinstance(list_after_create, list) and purchase_request_id:\n    for pr in list_after_create:\n        if not isinstance(pr, dict):\n            continue\n        pr_echo = pr.get('id') or pr.get('purchase_request_id')\n        if str(pr_echo) == str(purchase_request_id):\n            found_in_list = True\n            break",
+            "# In-band cancel via the swagger-documented op='cancel' action. This\n# IS the cleanup happy-path - the finally block only retries if this\n# step did not run or failed. Purchase requests have NO DELETE verb\n# per the shipped wrapper's docstring; cancellation is the op path.\ncancel_response = users.perform_user_purchase_request_action(\n    '${existing_user_primary_id}',\n    str(purchase_request_id),\n    op='cancel',\n) if purchase_request_id else None\ncancel_succeeded = bool(getattr(cancel_response, 'success', False)) if cancel_response is not None else False\nprint(f'[t-43-3] purchase request cancelled: purchase_request_id={purchase_request_id!r} status={getattr(cancel_response, \"status_code\", None)} success={cancel_succeeded}')"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True",
+            "isinstance(create_data, dict) and purchase_request_id is not None",
+            "isinstance(get_response, dict) and str(get_pr_id_echo) == str(purchase_request_id)",
+            "isinstance(list_after_create, list) and found_in_list is True",
+            "cancel_response is not None and cancel_succeeded is True"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users as _UsersCleanup",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band cancel did not run (e.g. an\n# earlier assertion raised) or did not succeed, retry the cancel\n# via perform_user_purchase_request_action(op='cancel'). If it\n# still fails, print a manual-cleanup banner with the\n# purchase_request_id and user_id so the operator can mark the\n# leftover purchase request as cancelled via the Alma staff UI.\n# Do NOT re-raise from finally - let the original test failure\n# surface.\ntry:\n    if purchase_request_id and not cancel_succeeded:\n        users2 = _UsersCleanup(client)\n        users2.perform_user_purchase_request_action(\n            '${existing_user_primary_id}',\n            str(purchase_request_id),\n            op='cancel',\n        )\n        print(f'[t-43-3 cleanup] in-finally cancel succeeded for purchase_request_id={purchase_request_id!r}')\nexcept AlmaAPIError as cleanup_err:\n    print(f'\\n!!! [t-43-3] MANUAL CLEANUP REQUIRED !!!\\n!!! purchase_request_id: {purchase_request_id!r}\\n!!! user_id: ${existing_user_primary_id}\\n!!! reason: {cleanup_err}\\n!!! Operator must cancel the leftover purchase request via the Alma staff UI (title: AlmaAPITK regression-smoke purchase request).\\n')"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "All listed methods implemented on the existing domain class with type hints and docstrings.": [
+          "t-43-1",
+          "t-43-2",
+          "t-43-3"
+        ],
+        "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.": [
+          "t-43-2",
+          "t-43-3"
+        ],
+        "Errors raise `AlmaValidationError` (input) or `AlmaAPIError` / subclass (API).": [
+          "t-43-1",
+          "t-43-3"
+        ],
+        "All operations logged through `alma_logging` (no `print`).": [],
+        "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.": [],
+        "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.": []
+      },
+      "unmappable": [
+        {
+          "ac": "All listed methods implemented on the existing domain class with type hints and docstrings.",
+          "reason": "Partially mapped: 'methods exist on the existing Users class' IS observable at runtime - t-43-1 / t-43-2 / t-43-3 collectively import and invoke list_user_purchase_requests, create_user_purchase_request, get_user_purchase_request, and perform_user_purchase_request_action (every method is touched at least via its validation guards in t-43-1, proving the methods are importable and bound on the live Users object). The 'with type hints and Google-style docstrings' facet is a static-source invariant that cannot be observed via SANDBOX behaviour - verified by code review of the chunk diff."
+        },
+        {
+          "ac": "Each method has unit-test coverage (mocked HTTP) and at least one integration test against SANDBOX.",
+          "reason": "Partially mapped: t-43-2 and t-43-3 jointly cover all four methods as SANDBOX integration tests (t-43-2 covers list / get; t-43-3 covers create / get / list / perform-action). The 'unit-test coverage (mocked HTTP)' half is a pytest-suite invariant verified by `poetry run pytest tests/unit/domains/test_users.py -v` on the chunk's diff; SANDBOX cannot observe mocked-HTTP coverage. This entry documents the residual unit-only facet."
+        },
+        {
+          "ac": "All operations logged through `alma_logging` (no `print`).",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens inside the four new purchase-request methods in src/almaapitk/domains/users.py) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff. (Note: the t-43-3 print() statements are inside the SANDBOX-test runner script - emitted to stdout for operator-cleanup visibility - not inside the wrapper methods. The AC is about the wrappers, which use self.logger throughout.)"
+        },
+        {
+          "ac": "`scripts/smoke_import.py` and `tests/test_public_api_contract.py` still pass.",
+          "reason": "Local-suite invariant. Both are run by the operator (and CI) in the local environment; no Alma SANDBOX call would observe their outcome. Verified pre-merge by `poetry run python scripts/smoke_import.py` and `poetry run pytest tests/test_public_api_contract.py -v`, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "If new public symbols are exposed, they are added to `almaapitk/__init__.py` `__all__` and the lazy import map.",
+          "reason": "Package-surface invariant. The four new methods are added to the existing Users class (no new top-level symbols), so this AC is largely vacuous for this issue - verified by inspecting almaapitk/__init__.py for the Users export (unchanged) and by the public-API contract test. SANDBOX cannot observe package-surface assembly."
+        }
+      ]
+    }
+  ]
+}

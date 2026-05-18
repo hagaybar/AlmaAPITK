@@ -1,0 +1,162 @@
+{
+  "chunk": "users-notes",
+  "branch": "chunk/users-notes",
+  "createdAt": "2026-05-13T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 119,
+      "title": "Users: add user-note helpers (add_user_note / list_user_notes / remove_user_note)",
+      "classification": "general",
+      "subBranch": "feat/119-users-notes-helpers",
+      "tests": [
+        {
+          "id": "t-119-1",
+          "kind": "smoke",
+          "scope": "Confirm every input-validation guard added in issue #119 raises AlmaValidationError BEFORE any HTTP call is issued. Exercises: list_user_notes on empty/whitespace/None/non-string user_id; add_user_note on empty user_id, empty/whitespace note_text, empty note_type, and non-string note_text; remove_user_notes on empty user_id and on a non-callable predicate (e.g. None, a string). Pure runtime guard exercise; no SANDBOX state is read or mutated. Maps the validation half of the chunk's ACs for list_user_notes, add_user_note, and remove_user_notes — these guards are pure Python but exercising them through the live Users object proves they are wired in the build the operator will actually use.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "errors = {}",
+            "try:\n    users.list_user_notes('')\nexcept AlmaValidationError as e:\n    errors['list_empty'] = e",
+            "try:\n    users.list_user_notes('   ')\nexcept AlmaValidationError as e:\n    errors['list_whitespace'] = e",
+            "try:\n    users.list_user_notes(None)\nexcept AlmaValidationError as e:\n    errors['list_none'] = e",
+            "try:\n    users.list_user_notes(123)\nexcept AlmaValidationError as e:\n    errors['list_nonstring'] = e",
+            "try:\n    users.add_user_note('', 'body')\nexcept AlmaValidationError as e:\n    errors['add_empty_user'] = e",
+            "try:\n    users.add_user_note(None, 'body')\nexcept AlmaValidationError as e:\n    errors['add_none_user'] = e",
+            "try:\n    users.add_user_note('U', '')\nexcept AlmaValidationError as e:\n    errors['add_empty_text'] = e",
+            "try:\n    users.add_user_note('U', '   ')\nexcept AlmaValidationError as e:\n    errors['add_whitespace_text'] = e",
+            "try:\n    users.add_user_note('U', 12345)\nexcept AlmaValidationError as e:\n    errors['add_nonstring_text'] = e",
+            "try:\n    users.add_user_note('U', 'body', note_type='')\nexcept AlmaValidationError as e:\n    errors['add_empty_type'] = e",
+            "try:\n    users.remove_user_notes('', lambda n: True)\nexcept AlmaValidationError as e:\n    errors['remove_empty_user'] = e",
+            "try:\n    users.remove_user_notes(None, lambda n: True)\nexcept AlmaValidationError as e:\n    errors['remove_none_user'] = e",
+            "try:\n    users.remove_user_notes('U', None)\nexcept AlmaValidationError as e:\n    errors['remove_none_predicate'] = e",
+            "try:\n    users.remove_user_notes('U', 'not-callable')\nexcept AlmaValidationError as e:\n    errors['remove_str_predicate'] = e"
+          ],
+          "passCriteria": [
+            "'list_empty' in errors and isinstance(errors['list_empty'], AlmaValidationError)",
+            "'list_whitespace' in errors and isinstance(errors['list_whitespace'], AlmaValidationError)",
+            "'list_none' in errors and isinstance(errors['list_none'], AlmaValidationError)",
+            "'list_nonstring' in errors and isinstance(errors['list_nonstring'], AlmaValidationError)",
+            "'add_empty_user' in errors and isinstance(errors['add_empty_user'], AlmaValidationError)",
+            "'add_none_user' in errors and isinstance(errors['add_none_user'], AlmaValidationError)",
+            "'add_empty_text' in errors and isinstance(errors['add_empty_text'], AlmaValidationError)",
+            "'add_whitespace_text' in errors and isinstance(errors['add_whitespace_text'], AlmaValidationError)",
+            "'add_nonstring_text' in errors and isinstance(errors['add_nonstring_text'], AlmaValidationError)",
+            "'add_empty_type' in errors and isinstance(errors['add_empty_type'], AlmaValidationError)",
+            "'remove_empty_user' in errors and isinstance(errors['remove_empty_user'], AlmaValidationError)",
+            "'remove_none_user' in errors and isinstance(errors['remove_none_user'], AlmaValidationError)",
+            "'remove_none_predicate' in errors and isinstance(errors['remove_none_predicate'], AlmaValidationError)",
+            "'remove_str_predicate' in errors and isinstance(errors['remove_str_predicate'], AlmaValidationError)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-119-2",
+          "kind": "smoke",
+          "scope": "Exercise the read-only list_user_notes wrapper against live SANDBOX. Calls list_user_notes(${existing_user_primary_id}) to confirm the GET /users/{user_id} round-trips, the wrapping-shape normalisation (user.user_note.user_note may be missing, a single dict, or a list) does not crash on the live payload, and the wrapper returns a list (possibly empty). State-not-changing. Covers the live half of the list_user_notes AC: 'returns [] if the user has no notes' is satisfied either by a zero-note user (assert len == 0) or by a user with notes (assert len > 0 AND every element is a dict).",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": false,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-119-2 (read-only list of user-notes) and t-119-3 (live add/list/remove round-trip with in-band cleanup via remove_user_notes predicate). The user is not deleted or otherwise destructively mutated; t-119-3 adds a single note tagged with a unique sentinel text and removes it in-band, so end-state of notes is identical to start-state. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "users = Users(client)",
+            "notes = users.list_user_notes('${existing_user_primary_id}')"
+          ],
+          "passCriteria": [
+            "isinstance(notes, list)",
+            "all(isinstance(n, dict) for n in notes)"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-119-3",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live add/list/remove round-trip on ${existing_user_primary_id}. Sequence: (1) snapshot = list_user_notes(${existing_user_primary_id}) — capture starting note count; (2) add_user_note(${existing_user_primary_id}, note_text='AlmaAPITK regression smoke 2026-05-13', note_type='CIRCULATION', user_viewable=False, popup_note=False) — exercise the read-mutate-write PUT; (3) after_add = list_user_notes(...) — assert count == snapshot + 1 AND the sentinel text is found among after_add; (4) remove_user_notes(${existing_user_primary_id}, predicate=lambda n: n.get('note_text') == 'AlmaAPITK regression smoke 2026-05-13') — in-band cleanup; (5) after_remove = list_user_notes(...) — assert count == snapshot AND the sentinel text is NOT present. The sentinel text is unique to this test so the predicate cannot accidentally drop a pre-existing operator note. Exercises both add_user_note and remove_user_notes end-to-end (the two GET-then-PUT compositions) and the wrapping-shape normalisation on every list call. The test prints user_id and sentinel text at the start so that if the remove step fails (e.g. the PUT errors), the operator has the exact predicate text needed to clean up manually from the Alma staff UI.",
+          "endpoints": [
+            "GET /almaws/v1/users/{user_id}",
+            "PUT /almaws/v1/users/{user_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read-only and write smoke testing. Used by t-119-2 (read-only list of user-notes) and t-119-3 (live add/list/remove round-trip with in-band cleanup via remove_user_notes predicate). The user is not deleted or otherwise destructively mutated; t-119-3 adds a single note tagged with a unique sentinel text and removes it in-band, so end-state of notes is identical to start-state. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaValidationError",
+            "users = Users(client)",
+            "sentinel_text = 'AlmaAPITK regression smoke 2026-05-13'",
+            "print(f'[t-119-3] live add/list/remove on user ${existing_user_primary_id} with sentinel text {sentinel_text!r}')",
+            "snapshot = users.list_user_notes('${existing_user_primary_id}')\nsnapshot_count = len(snapshot)\nprint(f'[t-119-3] snapshot: {snapshot_count} note(s) before add')",
+            "add_response = users.add_user_note(\n    '${existing_user_primary_id}',\n    note_text=sentinel_text,\n    note_type='CIRCULATION',\n    user_viewable=False,\n    popup_note=False,\n)",
+            "after_add = users.list_user_notes('${existing_user_primary_id}')\nafter_add_count = len(after_add)\nsentinel_present_after_add = any(isinstance(n, dict) and n.get('note_text') == sentinel_text for n in after_add)\nprint(f'[t-119-3] after add: {after_add_count} note(s); sentinel_present={sentinel_present_after_add}')",
+            "remove_response = users.remove_user_notes(\n    '${existing_user_primary_id}',\n    predicate=lambda n: isinstance(n, dict) and n.get('note_text') == sentinel_text,\n)",
+            "after_remove = users.list_user_notes('${existing_user_primary_id}')\nafter_remove_count = len(after_remove)\nsentinel_present_after_remove = any(isinstance(n, dict) and n.get('note_text') == sentinel_text for n in after_remove)\nprint(f'[t-119-3] after remove: {after_remove_count} note(s); sentinel_present={sentinel_present_after_remove}')"
+          ],
+          "passCriteria": [
+            "add_response is not None and getattr(add_response, 'success', False) is True",
+            "after_add_count == snapshot_count + 1",
+            "sentinel_present_after_add is True",
+            "remove_response is not None and getattr(remove_response, 'success', False) is True",
+            "after_remove_count == snapshot_count",
+            "sentinel_present_after_remove is False"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band remove_user_notes did not run\n# (e.g. an earlier assertion raised) or did not succeed, retry the\n# predicate-based removal once. If it still fails, print a\n# manual-cleanup banner with the user_id and sentinel text so the\n# operator can drop the leftover note via the Alma staff UI.\ntry:\n    users2 = Users(client)\n    current = users2.list_user_notes('${existing_user_primary_id}')\n    still_present = any(isinstance(n, dict) and n.get('note_text') == 'AlmaAPITK regression smoke 2026-05-13' for n in current)\n    if still_present:\n        users2.remove_user_notes(\n            '${existing_user_primary_id}',\n            predicate=lambda n: isinstance(n, dict) and n.get('note_text') == 'AlmaAPITK regression smoke 2026-05-13',\n        )\n        print(f'[t-119-3 cleanup] in-finally remove dropped the sentinel note OK')\nexcept AlmaAPIError as cleanup_err:\n    print(f'\\n!!! [t-119-3] MANUAL CLEANUP REQUIRED !!!\\n!!! user_id: ${existing_user_primary_id}\\n!!! sentinel note_text: AlmaAPITK regression smoke 2026-05-13\\n!!! reason: {cleanup_err}\\n!!! Operator must drop the leftover note via the Alma staff UI.\\n')"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "All three methods on the existing `Users` class with type hints + Google-style docstrings.": [],
+        "`add_user_note` validates `user_id` (non-empty string) and `note_text` (non-empty string). Allowed `note_type` values per Alma docs (`CIRCULATION`, `OTHER`, etc.) — accept any non-empty string and let Alma reject invalid values.": [
+          "t-119-1",
+          "t-119-3"
+        ],
+        "`list_user_notes` validates `user_id` and returns `[]` if the user has no notes.": [
+          "t-119-1",
+          "t-119-2"
+        ],
+        "`remove_user_notes` validates `user_id` and `predicate`. Documents the read-mutate-write semantics so callers know it's a full PUT, not a partial update.": [
+          "t-119-1",
+          "t-119-3"
+        ],
+        "All ops log through `self.logger`.": [],
+        "Unit-test coverage (mocked HTTP) for each method, including the wrapping-shape edge cases (`user_note.user_note` may be missing, may be a single dict instead of a list, etc.).": [],
+        "Live SANDBOX integration test (separate chunk via the chunks pipeline) that round-trips: read, add, list (assert added), remove-by-predicate, list (assert empty).": [
+          "t-119-3"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "All three methods on the existing `Users` class with type hints + Google-style docstrings.",
+          "reason": "Source-shape invariant (presence of methods, type-hint annotations, docstring style). SANDBOX returns identical bytes regardless of whether the wrapper carries type hints or a Google-style docstring. Observable only by inspecting src/almaapitk/domains/users.py (chunk diff shows all three methods on the Users class with full type hints and Google-style docstrings). Verified by code review of the chunk diff, not by SANDBOX behaviour."
+        },
+        {
+          "ac": "All ops log through `self.logger`.",
+          "reason": "Logging-call invariant on the source. SANDBOX returns identical bytes regardless of whether the wrapper logs or prints. Observable only by inspecting the source (no `print(` tokens in the three new methods; every code path emits an `self.logger.info(...)` line) and by reviewing the `logs/` directory after the chunk runs. Verified by code review of the chunk diff. (Note: the t-119-3 print() statements are inside the SANDBOX-test runner script — emitted to stdout for operator-cleanup visibility — not inside the wrapper methods on src/almaapitk/domains/users.py.)"
+        },
+        {
+          "ac": "Unit-test coverage (mocked HTTP) for each method, including the wrapping-shape edge cases (`user_note.user_note` may be missing, may be a single dict instead of a list, etc.).",
+          "reason": "Local pytest-suite deliverable (tests/unit/domains/test_users.py — 385 lines added by this chunk's diff). The wrapping-shape edge cases (`user_note` key missing entirely; `user_note.user_note` missing; `user_note.user_note` is a single dict instead of a list; `user_note` itself is a bare list instead of the wrapper dict) are pinned by mocked-HTTP unit tests, not by SANDBOX behaviour — Alma SANDBOX returns whatever shape the live user happens to have at runtime and the test cannot force it to produce all four serialisation variants. Verified pre-merge by `poetry run pytest tests/unit/domains/test_users.py -v`. The live half of the normalisation (whichever shape SANDBOX returns for the supplied user) IS exercised by t-119-2 and t-119-3."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "chunk": "release-quality-cluster",
+  "issues": [
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138
+  ],
+  "stage": "merged",
+  "branch": "chunk/release-quality-cluster",
+  "createdAt": "2026-05-12T10:34:55Z",
+  "updatedAt": "2026-05-12T11:17:19Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/140)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KRDW6WM571HYM7DJN12NH6XR",
+  "testRunId": null,
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/140"
+}

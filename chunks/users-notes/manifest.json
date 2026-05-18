@@ -1,0 +1,35 @@
+{
+  "chunk": "users-notes",
+  "issues": [
+    {
+      "number": 119,
+      "title": "Users: add user-note helpers (add_user_note / list_user_notes / remove_user_note)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/119",
+      "labels": [
+        "enhancement",
+        "priority:medium"
+      ],
+      "body_raw": "**Domain:** Users\n**Priority:** Medium\n**Effort:** S (\u2264\u00bd day)\n\n## Background\n\nAlma stores user notes inside the user object itself (\\`user_note\\` is a sub-field of the user dict returned by \\`GET /almaws/v1/users/{user_id}\\`), not on a dedicated endpoint. Today the toolkit has no convenience methods for managing notes; callers must do the read-mutate-write dance manually:\n\n\\`\\`\\`python\nuser = users.get_user(user_id)\nuser.setdefault('user_note', {}).setdefault('user_note', []).append({\n    'note_type': {'value': 'CIRCULATION'},\n    'note_text': 'Returned damaged book on 2026-05-08',\n    'user_viewable': False,\n    'popup_note': False,\n})\nusers.update_user(user_id, user)\n\\`\\`\\`\n\nThat's verbose and error-prone (the wrapping shape \\`user_note.user_note: list\\` is non-obvious; the field-level dicts use Alma's \\`{value: ..., desc: ...}\\` idiom for \\`note_type\\`).\n\n## Methods to add\n\n\\`\\`\\`python\ndef list_user_notes(self, user_id: str) -> List[Dict[str, Any]]:\n    \\\"\\\"\\\"Return the existing notes on a user. Empty list if none.\\\"\\\"\\\"\n\ndef add_user_note(\n    self,\n    user_id: str,\n    note_text: str,\n    note_type: str = 'CIRCULATION',\n    user_viewable: bool = False,\n    popup_note: bool = False,\n) -> AlmaResponse:\n    \\\"\\\"\\\"Append a note to the user's note list. Reads the user, appends, PUTs.\\\"\\\"\\\"\n\ndef remove_user_notes(\n    self,\n    user_id: str,\n    predicate: Callable[[Dict[str, Any]], bool],\n) -> AlmaResponse:\n    \\\"\\\"\\\"Remove every note matching the predicate. Returns the PUT response.\\\"\\\"\\\"\n\\`\\`\\`\n\nOpen question: whether to support \\`update_user_note(user_id, index, ...)\\`. Alma doesn't have a stable note id, so update-by-index is fragile in the face of concurrent edits. A predicate-based remove + add-new is safer than in-place update.\n\n## Files to touch\n\n- \\`src/almaapitk/domains/users.py\\` \u2014 add the three methods.\n- \\`tests/unit/domains/test_users.py\\` \u2014 unit tests with mocked HTTP.\n\n## Acceptance criteria\n\n- All three methods on the existing \\`Users\\` class with type hints + Google-style docstrings.\n- \\`add_user_note\\` validates \\`user_id\\` (non-empty string) and \\`note_text\\` (non-empty string). Allowed \\`note_type\\` values per Alma docs (\\`CIRCULATION\\`, \\`OTHER\\`, etc.) \u2014 accept any non-empty string and let Alma reject invalid values.\n- \\`list_user_notes\\` validates \\`user_id\\` and returns \\`[]\\` if the user has no notes.\n- \\`remove_user_notes\\` validates \\`user_id\\` and \\`predicate\\`. Documents the read-mutate-write semantics so callers know it's a full PUT, not a partial update.\n- All ops log through \\`self.logger\\`.\n- Unit-test coverage (mocked HTTP) for each method, including the wrapping-shape edge cases (\\`user_note.user_note\\` may be missing, may be a single dict instead of a list, etc.).\n- Live SANDBOX integration test (separate chunk via the chunks pipeline) that round-trips: read, add, list (assert added), remove-by-predicate, list (assert empty).\n\n## Notes for the implementing agent\n\n- The Alma user response shape for notes is wrapped: \\`user.user_note.user_note\\` is the array. When the array has a single element, Alma sometimes serializes it as a single dict instead of a list \u2014 the read/list/remove paths should normalise.\n- The PUT endpoint is the same \\`PUT /almaws/v1/users/{user_id}\\` used by \\`update_user\\`. Reuse the existing \\`update_user\\` rather than calling \\`client.put\\` directly.",
+      "domain": "Users",
+      "priority": "medium",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "\\`src/almaapitk/domains/users.py\\` \u2014 add the three methods.",
+        "\\`tests/unit/domains/test_users.py\\` \u2014 unit tests with mocked HTTP."
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "All three methods on the existing \\`Users\\` class with type hints + Google-style docstrings.",
+        "\\`add_user_note\\` validates \\`user_id\\` (non-empty string) and \\`note_text\\` (non-empty string). Allowed \\`note_type\\` values per Alma docs (\\`CIRCULATION\\`, \\`OTHER\\`, etc.) \u2014 accept any non-empty string and let Alma reject invalid values.",
+        "\\`list_user_notes\\` validates \\`user_id\\` and returns \\`[]\\` if the user has no notes.",
+        "\\`remove_user_notes\\` validates \\`user_id\\` and \\`predicate\\`. Documents the read-mutate-write semantics so callers know it's a full PUT, not a partial update.",
+        "All ops log through \\`self.logger\\`.",
+        "Unit-test coverage (mocked HTTP) for each method, including the wrapping-shape edge cases (\\`user_note.user_note\\` may be missing, may be a single dict instead of a list, etc.).",
+        "Live SANDBOX integration test (separate chunk via the chunks pipeline) that round-trips: read, add, list (assert added), remove-by-predicate, list (assert empty)."
+      ]
+    }
+  ]
+}

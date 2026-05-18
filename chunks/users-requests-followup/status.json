@@ -1,0 +1,17 @@
+{
+  "chunk": "users-requests-followup",
+  "issues": [
+    42,
+    43
+  ],
+  "stage": "impl-done",
+  "branch": "chunk/users-requests-followup",
+  "createdAt": "2026-05-12T11:23:38Z",
+  "updatedAt": "2026-05-13T07:20:18Z",
+  "lastEvent": "implementation complete; test-recommendation.json written",
+  "nextAction": "trigger `chunks run-test users-requests-followup` when ready",
+  "openBreakpoints": [],
+  "implRunId": "01KRG2FWK9B7WWVZZ86WAYQKZS",
+  "testRunId": null,
+  "prUrl": null
+}

@@ -1,0 +1,16 @@
+{
+  "chunk": "users-notes",
+  "issues": [
+    119
+  ],
+  "stage": "merged",
+  "branch": "chunk/users-notes",
+  "createdAt": "2026-05-13T08:21:33Z",
+  "updatedAt": "2026-05-13T09:29:32Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/141)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KRG6W5PV7GWGGXVE0WMMYF6C",
+  "testRunId": null,
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/141"
+}

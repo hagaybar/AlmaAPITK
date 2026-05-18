@@ -1,0 +1,26 @@
+{
+  "_README": [
+    "Operator-supplied fixtures for the users-requests-followup SANDBOX tests (issue #148).",
+    "",
+    "How to use:",
+    "  1. cp test-data.example.json test-data.json    (test-data.json is gitignored)",
+    "  2. Open test-data.json in YOUR editor (NOT in chat). Replace each <placeholder>",
+    "     with the real value. Save.",
+    "  3. Run the presence check: scripts/agentic/chunks-presence-check users-requests-followup",
+    "     (or directly: poetry run python chunks/users-requests-followup/sandbox-tests/check_fixtures.py).",
+    "  4. Run the tests (see CLAUDE.md / issue #148).",
+    "",
+    "The agent (Claude) will NEVER Read this file. Only a presence check is performed.",
+    "Real values stay on your disk and never enter the agent's context window."
+  ],
+
+  "existing_user_primary_id": "<user_primary_id_authorized_for_rs_and_purchase_request_smoke>",
+
+  "rs_library_code": "<rs_library_code_the_test_user_is_affiliated_with>",
+
+  "pickup_library_code": "<library_code_from_alma_ui_rs_library_pickup_locations_tab>",
+
+  "fund_code": "<fund_code_the_rs_library_can_bill_against>",
+
+  "shipping_cost": "0.00"
+}

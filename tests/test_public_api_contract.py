@@ -189,6 +189,21 @@ class TestPublicAPIContract(unittest.TestCase):
             "Expected domain symbol 'Configuration' to be in __all__",
         )
 
+    def test_electronic_importable(self):
+        """Test that Electronic domain class is importable from almaapitk (issue #66)."""
+        from almaapitk import Electronic
+        self.assertIsNotNone(Electronic)
+        self.assertTrue(callable(Electronic))
+
+    def test_electronic_in_all(self):
+        """Test that Electronic is in __all__ (issue #66)."""
+        import almaapitk
+        self.assertIn(
+            'Electronic',
+            almaapitk.__all__,
+            "Expected domain symbol 'Electronic' to be in __all__",
+        )
+
     def test_stdlib_logging_not_shadowed(self):
         """Test that stdlib logging is not shadowed by internal modules."""
         import logging

@@ -31,6 +31,7 @@ from .domains import (
     ResourceSharing,
     Analytics,
     Configuration,
+    Electronic,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     "ResourceSharing",
     "Analytics",
     "Configuration",
+    "Electronic",
 ]

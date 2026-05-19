@@ -1,6 +1,6 @@
 schema_version: 1
-total_chunks: 70
-total_issues: 96
+total_chunks: 67
+total_issues: 93
 
 intro: |
   **Status:** Suggested groupings — revise freely. The chunking is your call; this doc removes the "what do I chunk next" decision fatigue.
@@ -514,32 +514,6 @@ phases:
         audit: "#78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented)"
         notes: |
           Already rewritten — bodyless POST. Solo. Same `#120` prereq as `rs-partners`.
-
-  - id: 14
-    title: Courses
-    description: ""
-    chunks:
-      - name: courses-bootstrap
-        issues: [75]
-        risk: low
-        prereqs: []
-        audit: clean
-        notes: |
-          Foundation. **Blocks #76, #77.**
-      - name: courses-crud-enrollment
-        issues: [76]
-        risk: high
-        prereqs: [75]
-        audit: "#76 NOT ALIGNED (POST is op-driven via query params: `op` + `user_ids`/`list_ids`, NOT a JSON body)"
-        notes: |
-          Already rewritten. Method signature is now `enroll_users_in_course(user_ids)` and `associate_reading_lists(list_ids)`.
-      - name: courses-reading-lists
-        issues: [77]
-        risk: med
-        prereqs: [75]
-        audit: "#77 partially aligned (citation file removal needs `op`; tags are objects not strings)"
-        notes: |
-          Already rewritten.
 
   - id: 15
     title: Analytics

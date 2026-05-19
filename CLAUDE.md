@@ -203,6 +203,7 @@ The primary deliverable - a clean, importable Python package.
 | **Analytics** | `analytics.py` | Analytics reports (headers, rows with pagination) |
 | **BibliographicRecords** | `bibs.py` | Bib records, holdings, items, scan-in |
 | **Configuration** | `configuration.py` | Configuration API foundation skeleton (issue #22; concrete methods land in sibling tickets 24-35) |
+| **Electronic** | `electronic.py` | Electronic API foundation skeleton (issue #66; e-collection/e-service/portfolio methods land in sibling tickets 67-69) |
 | **ResourceSharing** | `resource_sharing.py` | Lending/borrowing via Partners API |
 | **Users** | `users.py` | User management, email updates |
 

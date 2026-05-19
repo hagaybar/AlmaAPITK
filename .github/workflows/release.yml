@@ -1,0 +1,77 @@
+# Tag-triggered release pipeline for almaapitk.
+#
+# Runs the full Phase F validation suite from docs/RELEASE_CHECKLIST.md, verifies
+# the built wheel filename matches pyproject.toml (the #131 + 0.4.2 yank guard),
+# then publishes to PyPI via Trusted Publishing (OIDC, no token in repo secrets).
+#
+# Design source: docs/superpowers/specs/2026-05-10-release-0.4.0-design.md
+# Implements: issue #128, supersedes #1.
+#
+# PyPI-side setup (one-time, manual): configure almaapitk as a Trusted Publisher
+# on pypi.org pointing at this repo + workflow filename `release.yml`.
+# See docs/RELEASE_CHECKLIST.md Phase J for the dashboard URL.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: validate and publish
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write   # required for PyPI Trusted Publishing (OIDC)
+      contents: read
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project (locked)
+        run: poetry install --sync
+
+      - name: Smoke import
+        run: poetry run python scripts/smoke_import.py
+
+      - name: Public API contract
+        run: poetry run pytest tests/test_public_api_contract.py -v
+
+      - name: Version drift guard
+        run: poetry run pytest tests/test_version.py -v
+
+      - name: Full local validation suite
+        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/client/ tests/meta/ tests/agentic/ -q
+
+      - name: Regression smoke (SANDBOX, skips cleanly when no key)
+        env:
+          ALMA_SB_API_KEY: ${{ secrets.ALMA_SB_API_KEY }}
+        run: poetry run scripts/agentic/chunks regression-smoke
+
+      - name: Build distributions
+        run: |
+          rm -rf dist/
+          poetry build
+
+      - name: Verify wheel filename matches pyproject.toml
+        run: |
+          expected="$(poetry version --short)"
+          wheel="$(ls dist/almaapitk-*-py3-none-any.whl)"
+          case "$wheel" in
+            "dist/almaapitk-${expected}-py3-none-any.whl") echo "wheel version OK: ${expected}";;
+            *) echo "wheel filename ${wheel} does not match pyproject version ${expected}"; exit 1;;
+          esac
+
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1

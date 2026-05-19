@@ -1,13 +1,13 @@
 # Chunk Backlog
 
-_Last rendered: 2026-05-18T13:47:42Z_
+_Last rendered: 2026-05-19T04:24:02Z_
 
 > **Generated artifact** — do not hand-edit. Source: `docs/chunks-backlog.yaml`.
 > Regenerate with `scripts/agentic/chunks render-backlog`.
 > CI runs `--check`; PRs that touch the YAML must include the regenerated markdown.
 
-**Total chunks:** 70
-**Total issues:** 96
+**Total chunks:** 67
+**Total issues:** 93
 
 **Status:** Suggested groupings — revise freely. The chunking is your call; this doc removes the "what do I chunk next" decision fatigue.
 **Inputs used:** `docs/issue-finalization-report-2026-05-01.md`, `docs/issue-audit-2026-05-01.md`, handbook §10.1 wave structure, CLAUDE.md priority/prereq notes, `docs/reviews/2026-05-12-release-0.4.x-review.md` (post-0.4.3 retrospective).
@@ -180,19 +180,11 @@ Three of four tickets in this phase are previously-flagged. Take care.
 | 57 | · planned | `rs-partners` | #74 | med | #120 | #74 partially aligned (no `q`/`type_filter`; documented filter is `status`) | Already rewritten. **Hard prereq: `partners-rename` (#120) must land first** — otherwise this chunk ships partner CRUD into a name that's about to be deprecated. |
 | 58 | · planned | `rs-directory-members` | #78 | high | #120 | #78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented) | Already rewritten — bodyless POST. Solo. Same `#120` prereq as `rs-partners`. |
 
-## Phase 14 — Courses
-
-| # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
-|---|---|---|---|---|---|---|---|
-| 59 | · planned | `courses-bootstrap` | #75 | low | none | clean | Foundation. **Blocks #76, #77.** |
-| 60 | · planned | `courses-crud-enrollment` | #76 | high | #75 | #76 NOT ALIGNED (POST is op-driven via query params: `op` + `user_ids`/`list_ids`, NOT a JSON body) | Already rewritten. Method signature is now `enroll_users_in_course(user_ids)` and `associate_reading_lists(list_ids)`. |
-| 61 | · planned | `courses-reading-lists` | #77 | med | #75 | #77 partially aligned (citation file removal needs `op`; tags are objects not strings) | Already rewritten. |
-
 ## Phase 15 — Analytics
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 62 | · planned | `analytics-paths` | #79 | low | none | #79 partially aligned (root `/paths` endpoint — `{path}` is optional) | Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand. |
+| 59 | · planned | `analytics-paths` | #79 | low | none | #79 partially aligned (root `/paths` endpoint — `{path}` is optional) | Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand. |
 
 ## Phase 16 — Pipeline & dev-experience improvements
 
@@ -200,8 +192,8 @@ Improvements to the chunk pipeline itself, surfaced from running it at scale acr
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 63 | · planned | `pipeline-swagger-enrich` | #123 | med | none | clean | Enrich `_swagger_*.json` sidecars with per-endpoint description/requestBody/responses so the implement agent has structured context instead of just error codes. Pipeline internals only. |
-| 64 | · planned | `re-verify-create-user-request` | #129 | low | none | clean | Calendar-tied: re-verify `Users.create_user_request` live SANDBOX behavior around 2026-05-25. Not really a chunk — surface here so it isn't forgotten; execute as a one-shot when the date arrives. |
+| 60 | · planned | `pipeline-swagger-enrich` | #123 | med | none | clean | Enrich `_swagger_*.json` sidecars with per-endpoint description/requestBody/responses so the implement agent has structured context instead of just error codes. Pipeline internals only. |
+| 61 | · planned | `re-verify-create-user-request` | #129 | low | none | clean | Calendar-tied: re-verify `Users.create_user_request` live SANDBOX behavior around 2026-05-25. Not really a chunk — surface here so it isn't forgotten; execute as a one-shot when the date arrives. |
 
 ## Phase 17 — Advanced architecture (deferred until coverage stabilizes)
 
@@ -209,12 +201,12 @@ The handbook recommends doing these in wave 7, after most of the high-priority c
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 65 | · planned | `rate-limiting` | #8 | high | #3, #4, #5 | clean | Rolling-window throttler. Hard to validate in SANDBOX. |
-| 66 | · planned | `async-bulk` | #18 | high | #3, #4 | clean | Sibling async client + `bulk_call`. Big surface; mostly mock-tested. |
-| 67 | · planned | `marc-layer` | #19 | high | #46 | clean | Optional `pymarc` integration; needs careful design review. |
-| 68 | · planned | `openapi-validation` | #20 | high | none | clean | Optional opt-in validator vendoring Ex Libris specs. Defer until specs are stable. |
-| 69 | · planned | `batch-runner` | #21 | high | #18 | clean | DataFrame batch orchestrator built on #18 async. |
-| 70 | · planned | `pydantic-models` | #12 | high | none | clean | Schema-derived models. Defer to last; benefits most from real fixtures. |
+| 62 | · planned | `rate-limiting` | #8 | high | #3, #4, #5 | clean | Rolling-window throttler. Hard to validate in SANDBOX. |
+| 63 | · planned | `async-bulk` | #18 | high | #3, #4 | clean | Sibling async client + `bulk_call`. Big surface; mostly mock-tested. |
+| 64 | · planned | `marc-layer` | #19 | high | #46 | clean | Optional `pymarc` integration; needs careful design review. |
+| 65 | · planned | `openapi-validation` | #20 | high | none | clean | Optional opt-in validator vendoring Ex Libris specs. Defer until specs are stable. |
+| 66 | · planned | `batch-runner` | #21 | high | #18 | clean | DataFrame batch orchestrator built on #18 async. |
+| 67 | · planned | `pydantic-models` | #12 | high | none | clean | Schema-derived models. Defer to last; benefits most from real fixtures. |
 
 ## Blocked — resolve before chunking
 

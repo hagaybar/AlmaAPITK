@@ -113,17 +113,31 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 
 ---
 
-## Phase J — Real PyPI publish (irreversible)
+## Phase J — Real PyPI publish (automated by tag push)
 
-- [ ] **Rebuild on main** to confirm artifacts match the merged code. `rm -rf dist/ && poetry build`. Filename version should match `pyproject.toml`.
+As of `0.4.x` post-cycle (issue #128), pushing a `v<version>` tag triggers `.github/workflows/release.yml`, which re-runs the full Phase F validation, rebuilds the wheel, verifies the wheel filename matches `pyproject.toml`, and publishes to PyPI via Trusted Publishing (OIDC, no token in repo secrets).
+
+- [ ] **Tag the merged commit.** `git tag -a v<version> -m "Release <version>" && git push origin v<version>`. This triggers the workflow.
+- [ ] **Watch the workflow run.** `gh run watch` (or the **Actions** tab). If the `release` GitHub Environment has required reviewers, the publish step waits for approval — click **Review deployments → Approve and deploy**.
+- [ ] **Verify on `https://pypi.org/project/almaapitk/<version>/`** — version listed, README renders. The workflow's publish step is the gate; this is the human confirmation.
+
+**Manual fallback** (Trusted Publishing breaks, or you want to publish out-of-band):
+
+- [ ] **Rebuild on main.** `rm -rf dist/ && poetry build`. Filename version should match `pyproject.toml`.
 - [ ] **`twine upload dist/almaapitk-<version>*`** — to real PyPI. **Once this returns success, the version cannot be re-uploaded under any circumstances.** Yanking is possible but only discourages new installs; pinned consumers still get the artifact.
 - [ ] **Verify on `https://pypi.org/project/almaapitk/<version>/`** — version is listed, README renders.
 
+**One-time PyPI-side setup for Trusted Publishing** (already done as of #128 — re-do only if the PyPI project, repo, or workflow filename changes):
+
+1. Log in at https://pypi.org and open `https://pypi.org/manage/project/almaapitk/settings/publishing/`.
+2. Add a GitHub Trusted Publisher: Owner `hagaybar`, Repository `AlmaAPITK`, Workflow filename `release.yml`, Environment name `release` (if the GitHub `release` environment is configured for approval gates; otherwise leave blank).
+
 ---
 
-## Phase K — Tag + GitHub Release
+## Phase K — GitHub Release
 
-- [ ] **Tag the merged commit.** `git tag -a v<version> -m "Release <version>" && git push origin v<version>`.
+The Phase J tag push already triggers the publish workflow. This phase just publishes the human-readable release notes.
+
 - [ ] **Extract the CHANGELOG excerpt** to a file: `awk '/^## \[<version>\]/,/^## \[<prev>\]/' CHANGELOG.md | head -n -1 > /tmp/release-<version>-notes.md`. Verify it's non-empty and starts with the version heading.
 - [ ] **Create the GitHub Release.** `gh release create v<version> --title "v<version>" --notes-file /tmp/release-<version>-notes.md`.
 

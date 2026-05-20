@@ -223,6 +223,13 @@ class AlmaLogger:
         """
         Log error with full context and stack trace.
 
+        The exception text is attached as structured ``exception_message``
+        in ``extra`` (where the redactor can scrub credential-shaped
+        fields) and the traceback is captured via ``exc_info``. The
+        message string itself only names the exception type so a future
+        ``str(exception)`` carrying a URL with credentials cannot bypass
+        the redactor (issue #154, F-003).
+
         Args:
             error: Exception that occurred
             **context: Additional context about the error
@@ -230,7 +237,6 @@ class AlmaLogger:
         Example:
             logger.log_error(exception, invoice_number="INV-001", operation="create")
         """
-        # Log with exception info (exc_info handled separately, not in extra)
         extra = {
             'domain': self.domain,
             'environment': self.environment,
@@ -240,10 +246,36 @@ class AlmaLogger:
         extra.update(context)
 
         self.logger.error(
-            f"Exception: {type(error).__name__}: {str(error)}",
+            f"Exception: {type(error).__name__}",
             extra=extra,
-            exc_info=True  # This triggers stack trace logging
+            exc_info=True
         )
+
+    def exception(self, message: str, **kwargs):
+        """
+        Log ``message`` at ERROR level with the current exception
+        attached via ``exc_info``.
+
+        Mirrors stdlib ``logging.Logger.exception`` so callers can write
+        ``self.logger.exception("operation failed", ...)`` from inside
+        an ``except`` block. The traceback (including the exception's
+        ``__str__``) is captured by ``exc_info`` automatically — do NOT
+        interpolate the exception text into ``message``. Pass
+        exception-derived detail as structured kwargs so
+        ``redact_sensitive_data`` can scrub credential-shaped fields
+        (issue #154, F-003).
+
+        Args:
+            message: Log message describing the operation that failed.
+            **kwargs: Additional context fields attached as redactable
+                ``extra`` data.
+        """
+        extra = {
+            'domain': self.domain,
+            'environment': self.environment,
+        }
+        extra.update(kwargs)
+        self.logger.error(message, extra=extra, exc_info=True)
 
 
 # Logger cache to reuse instances

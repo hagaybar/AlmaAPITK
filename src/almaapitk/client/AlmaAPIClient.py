@@ -1109,14 +1109,26 @@ class AlmaAPIClient:
             response = self.get('almaws/v1/conf/libraries')
             success = response.status_code == 200
             if success:
-                self.logger.info(f"Successfully connected to Alma API ({self.environment})")
+                self.logger.info(
+                    "Successfully connected to Alma API",
+                    environment=self.environment,
+                )
             else:
+                # Issue #154 F-002: response.text used to be interpolated
+                # into the message string, bypassing redact_sensitive_data
+                # (which only walks structured kwargs). Pass status and
+                # body through as redactable extra fields instead.
                 self.logger.error(
-                    f"Connection failed: {response.status_code} - {response.text}"
+                    "Connection failed",
+                    status_code=response.status_code,
+                    body_preview=(response.text or "")[:200],
                 )
             return success
-        except Exception as e:
-            self.logger.exception(f"Connection error: {e}")
+        except Exception:
+            # Issue #154 F-003: do NOT interpolate ``{e}`` into the message
+            # — logger.exception already attaches the traceback via
+            # exc_info, and the interpolation would defeat the redactor.
+            self.logger.exception("Connection error")
             return False
     
     def switch_environment(self, new_environment: str) -> None:

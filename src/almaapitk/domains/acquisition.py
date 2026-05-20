@@ -853,8 +853,13 @@ class Acquisitions:
                                 'pol_id': pol_id,
                                 'existing_invoices': check['invoices']
                             })
-                    except Exception as e:
-                        self.logger.exception(f"  ⚠️  Could not check {pol_id}: {e}")
+                    except Exception:
+                        # Issue #154 F-003: traceback is captured via exc_info;
+                        # do not interpolate the exception text into the message.
+                        self.logger.exception(
+                            "Could not check POL for duplicate invoicing",
+                            pol_id=pol_id,
+                        )
 
                 if duplicates_found:
                     error_msg = f"Duplicate invoicing detected for {len(duplicates_found)} POL(s)"
@@ -895,7 +900,14 @@ class Acquisitions:
                 except Exception as e:
                     error_msg = f"Line {idx} (POL {pol_id}): {str(e)}"
                     result['errors'].append(error_msg)
-                    self.logger.exception(f"✗ {error_msg}")
+                    # Issue #154 F-003: pass the error text as a redactable
+                    # kwarg instead of interpolating it into the message.
+                    self.logger.exception(
+                        "Invoice line failed",
+                        line_index=idx,
+                        pol_id=pol_id,
+                        error_message=str(e),
+                    )
                     # Continue with remaining lines
 
             # Check if all lines succeeded
@@ -956,7 +968,15 @@ class Acquisitions:
                 except Exception as e:
                     error_msg = f"Failed to process invoice: {str(e)}"
                     result['errors'].append(error_msg)
-                    self.logger.exception(f"✗ {error_msg}")
+                    # Issue #154 F-003: drop the message-level interpolation
+                    # of error_msg; the structured logger.error call below
+                    # already carries the same information via the
+                    # redactable ``error_message`` kwarg.
+                    self.logger.exception(
+                        "Failed to process invoice (see exc_info)",
+                        invoice_id=invoice_id,
+                        invoice_number=invoice_number,
+                    )
                     self.logger.error(
                         "Failed to process invoice",
                         invoice_id=invoice_id,
@@ -1004,7 +1024,14 @@ class Acquisitions:
                     except Exception as e:
                         error_msg = f"Failed to mark invoice as paid: {str(e)}"
                         result['errors'].append(error_msg)
-                        self.logger.exception(f"✗ {error_msg}")
+                        # Issue #154 F-003: as above; rely on the
+                        # structured error log line for the redactable
+                        # ``error_message`` field.
+                        self.logger.exception(
+                            "Failed to mark invoice as paid (see exc_info)",
+                            invoice_id=invoice_id,
+                            invoice_number=invoice_number,
+                        )
                         self.logger.error(
                             "Failed to mark invoice as paid",
                             invoice_id=invoice_id,
@@ -1113,8 +1140,11 @@ class Acquisitions:
             self.logger.info(f"✓ Successfully retrieved invoice {invoice_id}")
             return invoice_data
             
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to retrieve invoice {invoice_id}: {str(e)}")
+        except Exception:
+            # Issue #154 F-003: traceback via exc_info; no message interpolation.
+            self.logger.exception(
+                "Failed to retrieve invoice", invoice_id=invoice_id
+            )
             raise
     
     def process_invoice_service(self, invoice_id: str, operation: str) -> Dict[str, Any]:
@@ -1168,8 +1198,12 @@ class Acquisitions:
             self.logger.info(f"✓ Successfully processed invoice service {operation} for invoice {invoice_id}")
             return result_data
             
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to process invoice service {operation} for invoice {invoice_id}: {str(e)}")
+        except Exception:
+            self.logger.exception(
+                "Failed to process invoice service operation",
+                operation=operation,
+                invoice_id=invoice_id,
+            )
             raise
     
     def check_invoice_payment_status(self, invoice_id: str) -> Dict[str, Any]:
@@ -1387,8 +1421,10 @@ class Acquisitions:
             self.logger.info(f"✓ Generated summary for invoice {invoice_id}")
             return summary
             
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to generate summary for invoice {invoice_id}: {str(e)}")
+        except Exception:
+            self.logger.exception(
+                "Failed to generate invoice summary", invoice_id=invoice_id
+            )
             raise
     
     def list_invoices(self, limit: int = 10, offset: int = 0,
@@ -1475,8 +1511,8 @@ class Acquisitions:
                 "total_record_count": total_count,
             }
 
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to list invoices: {str(e)}")
+        except Exception:
+            self.logger.exception("Failed to list invoices")
             raise
     
     def search_invoices(self, query: str, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
@@ -1551,8 +1587,8 @@ class Acquisitions:
                 "total_record_count": total_count,
             }
 
-        except Exception as e:
-            self.logger.exception(f"✗ Invoice search failed: {str(e)}")
+        except Exception:
+            self.logger.exception("Invoice search failed")
             raise
     
     def get_invoice_lines(self, invoice_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
@@ -1598,8 +1634,10 @@ class Acquisitions:
             self.logger.info(f"✓ Retrieved {len(invoice_lines)} line(s) for invoice {invoice_id} (total: {total_count})")
             return invoice_lines
 
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to get invoice lines for {invoice_id}: {str(e)}")
+        except Exception:
+            self.logger.exception(
+                "Failed to get invoice lines", invoice_id=invoice_id
+            )
             raise
 
     def get_pol(self, pol_id: str) -> Dict[str, Any]:
@@ -1837,8 +1875,12 @@ class Acquisitions:
 
         except AlmaAPIError:
             raise
-        except Exception as e:
-            self.logger.exception(f"✗ Failed to receive item {item_id} for POL {pol_id}: {str(e)}")
+        except Exception:
+            self.logger.exception(
+                "Failed to receive item for POL",
+                item_id=item_id,
+                pol_id=pol_id,
+            )
             raise
 
     def receive_and_keep_in_department(self,
@@ -2055,8 +2097,10 @@ class Acquisitions:
 
             return vendor_code
 
-        except AlmaAPIError as e:
-            self.logger.exception(f"✗ Failed to get vendor from POL {pol_id}: {e}")
+        except AlmaAPIError:
+            self.logger.exception(
+                "Failed to get vendor from POL", pol_id=pol_id
+            )
             raise
 
     def get_fund_from_pol(self, pol_id: str) -> Optional[str]:
@@ -2126,8 +2170,10 @@ class Acquisitions:
             self.logger.warning(f"⚠️ No fund distribution found in POL {pol_id}")
             return None
 
-        except AlmaAPIError as e:
-            self.logger.exception(f"✗ Failed to get fund from POL {pol_id}: {e}")
+        except AlmaAPIError:
+            self.logger.exception(
+                "Failed to get fund from POL", pol_id=pol_id
+            )
             raise
 
     def get_price_from_pol(self, pol_id: str) -> Optional[float]:
@@ -2193,11 +2239,15 @@ class Acquisitions:
             self.logger.warning(f"⚠️ No price found in POL {pol_id}")
             return None
 
-        except (ValueError, TypeError) as e:
-            self.logger.exception(f"⚠️ Could not parse price from POL {pol_id}: {e}")
+        except (ValueError, TypeError):
+            self.logger.exception(
+                "Could not parse price from POL", pol_id=pol_id
+            )
             return None
-        except AlmaAPIError as e:
-            self.logger.exception(f"✗ Failed to get price from POL {pol_id}: {e}")
+        except AlmaAPIError:
+            self.logger.exception(
+                "Failed to get price from POL", pol_id=pol_id
+            )
             raise
 
     def check_pol_invoiced(self, pol_id: str) -> Dict[str, Any]:
@@ -2336,14 +2386,16 @@ class Acquisitions:
                     result['search_error'] = f"API returned status {response.status_code}"
 
             except Exception as e:
-                self.logger.exception(f"  ⚠️ Could not complete invoice search: {e}")
+                self.logger.exception("Could not complete invoice search")
                 # Return inconclusive result
                 result['search_error'] = str(e)
 
             return result
 
-        except AlmaAPIError as e:
-            self.logger.exception(f"✗ Failed to check if POL {pol_id} is invoiced: {e}")
+        except AlmaAPIError:
+            self.logger.exception(
+                "Failed to check if POL is invoiced", pol_id=pol_id
+            )
             raise
 
     # =========================================================================
@@ -2373,8 +2425,8 @@ class Acquisitions:
             
             return success
             
-        except Exception as e:
-            self.logger.exception(f"✗ Acquisitions API connection error: {e}")
+        except Exception:
+            self.logger.exception("Acquisitions API connection error")
             return False
 
 

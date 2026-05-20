@@ -285,8 +285,10 @@ class TSVGenerator:
             
             return tsv_path
             
-        except Exception as e:
-            self.logger.exception(f"\n✗ TSV Generation Failed: {e}")
+        except Exception:
+            # Issue #154 F-003: logger.exception attaches the traceback
+            # via exc_info; do not interpolate ``{e}`` into the message.
+            self.logger.exception("TSV Generation Failed")
             raise
     
     def preview_config(self) -> None:

@@ -1,0 +1,5 @@
+{
+  "projectsRoot": "/home/hagaybar/projects",
+  "issueBodyPath": "/home/hagaybar/projects/AlmaAPITK/docs/security-audit-issue.md",
+  "issueTitle": "Security audit: sensitive data leaks to terminal or files"
+}

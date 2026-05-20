@@ -24,13 +24,12 @@ def test_environment_setup():
     sb_key = os.getenv('ALMA_SB_API_KEY')
     prod_key = os.getenv('ALMA_PROD_API_KEY')
     
-    print(f"ALMA_SB_API_KEY: {'Set' if sb_key else 'NOT SET'}")
-    if sb_key:
-        print(f"  Partial key: {sb_key[:10]}...")
-    
-    print(f"ALMA_PROD_API_KEY: {'Set' if prod_key else 'NOT SET'}")
-    if prod_key:
-        print(f"  Partial key: {prod_key[:10]}...")
+    # Print presence + length only. Even a 10-character prefix of an
+    # Alma API key is too much to surface to stdout — it gets captured
+    # by terminal scrollback, tmux logs, and Claude Code / Codex
+    # history snapshots (issue #154, F-001).
+    print(f"ALMA_SB_API_KEY: {'set, len=' + str(len(sb_key)) if sb_key else 'NOT SET'}")
+    print(f"ALMA_PROD_API_KEY: {'set, len=' + str(len(prod_key)) if prod_key else 'NOT SET'}")
     
     return sb_key, prod_key
 

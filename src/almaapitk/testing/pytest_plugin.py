@@ -39,8 +39,15 @@ def alma(request):
     if live and not os.getenv(_ENV_KEYS[env]):
         pytest.skip(f"live smoke needs {_ENV_KEYS[env]}; not set")
 
+    # Dry-run sends nothing, so it must never require real credentials
+    # (R-H3: runnable anywhere, including credential-free CI). Hand the
+    # client a placeholder key in dry-run; in live mode pass None so the
+    # client resolves the real key from the environment.
     client, transport = build_smoke_client(
-        environment=env, readonly=readonly, dry_run=not live
+        environment=env,
+        readonly=readonly,
+        dry_run=not live,
+        api_key=None if live else "dry-run-no-network",
     )
     # Stash run context so the workflow body can branch dry-run vs live and
     # inspect recorded requests.

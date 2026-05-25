@@ -832,14 +832,10 @@ class AlmaAPIClient:
             method, endpoint, params=params, headers=headers, body=data
         )
 
-        # Detailed request body trace (DEBUG only). Mirrors the previous
-        # per-verb behaviour so log volume is unchanged.
+        # Detailed request body trace (DEBUG, opt-in). The helper no-ops
+        # unless ``log_bodies`` is enabled, since bodies carry PII (#142).
         if isinstance(data, dict) and not content_type:
-            self.logger.debug(
-                f"{method} request body to {endpoint}",
-                endpoint=endpoint,
-                request_data=data,
-            )
+            self.logger.log_request_body(method, endpoint, data)
 
         # Build the kwargs for ``Session.request``. Dict bodies without an
         # explicit content_type go via ``json=`` so requests sets the
@@ -871,14 +867,16 @@ class AlmaAPIClient:
         # which caches on first call.
         alma_response = AlmaResponse(response)
 
-        response_body = alma_response._safe_body()
-        if response_body:
-            self.logger.debug(
-                f"{method} response body from {endpoint}",
-                endpoint=endpoint,
-                status_code=response.status_code,
-                response_data=response_body,
-            )
+        # Detailed response body trace (DEBUG, opt-in). The helper no-ops
+        # unless ``log_bodies`` is enabled; a single user lookup returns
+        # the whole patron record (#142). ``_safe_body()`` is cached, so
+        # ``_handle_response`` below reuses this parse.
+        if self.logger.should_log_bodies():
+            response_body = alma_response._safe_body()
+            if response_body:
+                self.logger.log_response_body(
+                    method, endpoint, response.status_code, response_body
+                )
 
         return self._handle_response(alma_response)
 

@@ -34,6 +34,10 @@ class LoggingConfig:
     # Default configuration
     DEFAULT_CONFIG = {
         "log_level": "INFO",
+        # Full request/response bodies are the largest PII source (a user
+        # lookup returns the whole patron record). Off by default; opt in
+        # explicitly when debugging — see issue #142.
+        "log_bodies": False,
         "domains": {
             "acquisitions": {
                 "enabled": True,
@@ -198,6 +202,19 @@ class LoggingConfig:
             List of field name patterns to redact
         """
         return self.redact_patterns
+
+    def get_log_bodies(self) -> bool:
+        """
+        Whether full request/response bodies may be logged.
+
+        Off by default (issue #142): bodies are the largest PII source, so
+        a consumer must opt in explicitly. Honoured by
+        ``AlmaLogger.should_log_bodies``.
+
+        Returns:
+            ``True`` if body logging is enabled, ``False`` otherwise.
+        """
+        return bool(self.config.get("log_bodies", False))
 
     def get_rotation_settings(self) -> Dict[str, int]:
         """

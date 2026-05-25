@@ -179,6 +179,14 @@ class AlmaLogger:
         """
         self._log(logging.CRITICAL, message, **kwargs)
 
+    def should_log_bodies(self) -> bool:
+        """Whether full request/response bodies may be logged.
+
+        Off by default (issue #142): bodies are the largest PII source.
+        Gated by the ``log_bodies`` config flag.
+        """
+        return self.config.get_log_bodies()
+
     def log_request(self, method: str, endpoint: str, **kwargs):
         """
         Log API request with full context.
@@ -194,11 +202,44 @@ class AlmaLogger:
                               headers={'Content-Type': 'application/json'},
                               body={'invoice_number': 'INV-001'})
         """
+        # Bodies are PII-heavy; drop unless the consumer opted in (#142).
+        if not self.should_log_bodies():
+            kwargs.pop('body', None)
         self.debug(
             f"API Request: {method} {endpoint}",
             method=method,
             endpoint=endpoint,
             **kwargs
+        )
+
+    def log_request_body(self, method: str, endpoint: str, request_data):
+        """Log the full outgoing request body at DEBUG.
+
+        No-op unless body logging is explicitly enabled (issue #142):
+        request bodies can carry personal data (e.g. user-note text).
+        """
+        if not self.should_log_bodies():
+            return
+        self.debug(
+            f"{method} request body to {endpoint}",
+            endpoint=endpoint,
+            request_data=request_data,
+        )
+
+    def log_response_body(self, method: str, endpoint: str,
+                          status_code, response_data):
+        """Log the full response body at DEBUG.
+
+        No-op unless body logging is explicitly enabled (issue #142): a
+        single user lookup returns the entire patron record.
+        """
+        if not self.should_log_bodies():
+            return
+        self.debug(
+            f"{method} response body from {endpoint}",
+            endpoint=endpoint,
+            status_code=status_code,
+            response_data=response_data,
         )
 
     def log_response(self, response, duration_ms: float):

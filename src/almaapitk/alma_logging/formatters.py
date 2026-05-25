@@ -16,6 +16,7 @@ Features:
 
 import logging
 import json
+import re
 from typing import Any, Dict, Optional
 from datetime import datetime, timezone
 
@@ -69,7 +70,9 @@ class JSONFormatter(logging.Formatter):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            # Redact user ids embedded in the message (e.g. a request URL
+            # like ``users/123456789``) — issue #142.
+            "message": redact_url_ids(record.getMessage()),
         }
 
         # Extract custom fields from record
@@ -171,8 +174,9 @@ class TextFormatter(logging.Formatter):
         if hasattr(record, 'domain'):
             parts.append(f"[{record.domain}]")
 
-        # Add message
-        parts.append(record.getMessage())
+        # Add message — redact user ids embedded in the message (e.g. a
+        # request URL like ``users/123456789``) — issue #142.
+        parts.append(redact_url_ids(record.getMessage()))
 
         # Extract custom fields for display.
         # `taskName` was added in Python 3.12 — must be filtered (issue #2).
@@ -211,44 +215,124 @@ class TextFormatter(logging.Formatter):
         return result
 
 
+# Credential field-name patterns -> fully replaced with the credential
+# placeholder. Keep this list in lock-step with the formatters' default.
+_CREDENTIAL_PATTERNS = [
+    'apikey', 'api_key', 'password', 'token', 'secret', 'authorization'
+]
+_CREDENTIAL_PLACEHOLDER = '***REDACTED***'
+
+# Personal name / contact field-name patterns -> blanked entirely. These
+# have no safe partial form. Substrings are chosen so they don't match
+# non-personal fields (e.g. 'first_name' won't match 'vendor_name', and
+# there is deliberately no bare 'name' entry) — see issue #142.
+_PII_NAME_PATTERNS = [
+    'first_name', 'last_name', 'middle_name', 'full_name',
+    'preferred_first_name', 'preferred_middle_name', 'preferred_last_name',
+    'birth_date', 'birthdate', 'email', 'phone', 'address', 'gender',
+]
+_PII_PLACEHOLDER = '<redacted>'
+
+# User-identifier field-name patterns -> partially redacted (last three
+# characters kept). Deliberately excludes generic identifiers such as
+# mms_id / pol_id / invoice_id, which are not personal data: issue #142 is
+# scoped to *user* PII.
+_PII_USER_ID_PATTERNS = [
+    'user_id', 'user_primary_id', 'primary_id', 'userid', 'user_name',
+    'username',
+]
+
+# Matches the id segment immediately after ``users/`` in an Alma API path,
+# so identifiers embedded in request URLs (which land in the log *message*,
+# not a labeled field) get the same partial redaction. Excludes '<' '>' so
+# doc/test placeholders like ``users/<user_id>`` are left intact, and stops
+# at path/query separators.
+_USER_ID_IN_PATH = re.compile(r'(users/)([^/?#&\s"\'<>]+)')
+
+
+def _partial_redact_id(value: Any) -> str:
+    """Keep only the last three characters of an identifier.
+
+    ``"123456789"`` -> ``"<...>789"``. Values of three characters or fewer
+    are blanked entirely (``"<...>"``) so a short id is never revealed in
+    full. Works for numeric and alphanumeric ids alike.
+    """
+    s = str(value)
+    if len(s) <= 3:
+        return '<...>'
+    return '<...>' + s[-3:]
+
+
+def redact_url_ids(text: Any) -> Any:
+    """Partially redact user identifiers embedded in Alma API paths.
+
+    ``"almaws/v1/users/123456789"`` -> ``"almaws/v1/users/<...>789"``.
+    Bibliographic and other non-user paths are left untouched. Non-string
+    input is returned unchanged.
+    """
+    if not isinstance(text, str):
+        return text
+    return _USER_ID_IN_PATH.sub(
+        lambda m: m.group(1) + _partial_redact_id(m.group(2)), text
+    )
+
+
 def redact_sensitive_data(data: Any, patterns: list = None) -> Any:
     """
-    Recursively redact sensitive data from dictionaries and lists.
+    Recursively redact sensitive data from dictionaries, lists and strings.
+
+    Three classes of sensitive data are handled (issue #142):
+
+    - **Credentials** (field name matches ``patterns``): fully replaced
+      with ``***REDACTED***``.
+    - **Personal names / contact info** (first/last/full name, email,
+      phone, address, birth date, gender): blanked as ``<redacted>``.
+    - **User identifiers** (``user_id``, ``primary_id``, ...): partially
+      redacted, keeping the last three characters (``<...>789``).
+
+    String *values* are additionally scanned for user identifiers embedded
+    in ``users/<id>`` URL paths, so ids that ride inside an endpoint string
+    are redacted too.
 
     Args:
-        data: Data structure to redact (dict, list, or primitive)
-        patterns: List of field name patterns to redact (e.g., ['apikey', 'password'])
+        data: Data structure to redact (dict, list, str, or primitive)
+        patterns: Credential field-name patterns (defaults to the standard
+            credential list)
 
     Returns:
-        Data structure with sensitive fields replaced by '***REDACTED***'
+        Data structure with sensitive fields redacted.
 
     Example:
-        >>> data = {"apikey": "abc123", "user": "john"}
-        >>> redact_sensitive_data(data, patterns=['apikey'])
-        {"apikey": "***REDACTED***", "user": "john"}
+        >>> redact_sensitive_data({"apikey": "abc123", "user_id": "123456789"})
+        {'apikey': '***REDACTED***', 'user_id': '<...>789'}
     """
     if patterns is None:
-        # Keep this list in lock-step with JSONFormatter/TextFormatter's
-        # default. Missing 'authorization' here would mean that direct
-        # callers of redact_sensitive_data() leak HTTP Authorization
-        # headers — see issue #142.
-        patterns = ['apikey', 'api_key', 'password', 'token', 'secret', 'authorization']
-
-    # TODO: Phase 1.1 - Implement recursive redaction for dicts
-    # TODO: Phase 1.1 - Implement recursive redaction for lists
-    # TODO: Phase 1.1 - Handle nested structures
-    # TODO: Phase 1.1 - Case-insensitive pattern matching
+        # Missing 'authorization' here would mean that direct callers of
+        # redact_sensitive_data() leak HTTP Authorization headers — see
+        # issue #142.
+        patterns = _CREDENTIAL_PATTERNS
 
     if isinstance(data, dict):
-        return {
-            k: '***REDACTED***' if any(p in k.lower() for p in patterns)
-            else redact_sensitive_data(v, patterns)
-            for k, v in data.items()
-        }
+        out = {}
+        for k, v in data.items():
+            kl = k.lower()
+            if any(p in kl for p in patterns):
+                out[k] = _CREDENTIAL_PLACEHOLDER
+            elif any(p in kl for p in _PII_NAME_PATTERNS):
+                out[k] = _PII_PLACEHOLDER
+            elif any(p in kl for p in _PII_USER_ID_PATTERNS):
+                out[k] = _partial_redact_id(v)
+            else:
+                out[k] = redact_sensitive_data(v, patterns)
+        return out
     elif isinstance(data, list):
         return [redact_sensitive_data(item, patterns) for item in data]
+    elif isinstance(data, str):
+        return redact_url_ids(data)
     else:
         return data
 
 
-__all__ = ['JSONFormatter', 'TextFormatter', 'redact_sensitive_data']
+__all__ = [
+    'JSONFormatter', 'TextFormatter', 'redact_sensitive_data', 'redact_url_ids'
+]

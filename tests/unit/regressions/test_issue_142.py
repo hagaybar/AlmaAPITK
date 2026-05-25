@@ -25,12 +25,15 @@ Pattern source: ``tests/unit/regressions/test_issue_119_user_note_write_shape.py
 from __future__ import annotations
 
 import logging
+from io import StringIO
 
+from almaapitk.alma_logging.config import LoggingConfig
 from almaapitk.alma_logging.formatters import (
     JSONFormatter,
     TextFormatter,
     redact_sensitive_data,
 )
+from almaapitk.alma_logging.logger import AlmaLogger
 
 
 # A clearly-fake API key string. Synthetic; matches the *shape* of an
@@ -171,3 +174,185 @@ def test_redactor_default_patterns_cover_authorization():
     )
     assert result["Authorization"] == "***REDACTED***"
     assert result["User-Agent"] == "almaapitk/test"
+
+
+# --- PII redaction (issue #142 expansion, 2026-05-25) ---------------------
+# Personal data must be scrubbed from logs by default, regardless of log
+# level. User identifiers keep only their last three characters
+# (123456789 -> <...>789) so operators can still correlate a record in a
+# support context; names/emails/addresses/phones are blanked entirely.
+# Bibliographic identifiers (mms_id) are NOT personal and must stay
+# visible — see test_text_formatter_keeps_non_secret_fields_visible above.
+
+# Synthetic, clearly-fake user id (R9: never a real tenant identifier).
+# Last three characters are distinctive so the partial-redaction format
+# is easy to assert.
+SYNTH_USER_ID = "550000000123"
+SYNTH_USER_ID_REDACTED = "<...>123"
+
+
+def test_redactor_partial_redacts_user_id_field():
+    """A ``user_id`` field keeps only its last three characters."""
+    out = redact_sensitive_data({"user_id": SYNTH_USER_ID})
+    assert out["user_id"] == SYNTH_USER_ID_REDACTED
+
+
+def test_redactor_partial_redacts_primary_id_field():
+    """The Alma user ``primary_id`` field is partially redacted too."""
+    out = redact_sensitive_data({"primary_id": SYNTH_USER_ID})
+    assert out["primary_id"] == SYNTH_USER_ID_REDACTED
+
+
+def test_redactor_short_user_id_is_fully_hidden():
+    """An id of three characters or fewer must not reveal the whole
+    value — keeping 'last 3' of a 3-char id would leak all of it."""
+    out = redact_sensitive_data({"user_id": "12"})
+    assert "12" not in out["user_id"]
+    assert out["user_id"] == "<...>"
+
+
+def test_redactor_full_redacts_personal_name_and_contact_fields():
+    """Names, emails, addresses and phone numbers have no safe partial
+    form, so they are blanked entirely."""
+    out = redact_sensitive_data(
+        {
+            "first_name": "Jane",
+            "last_name": "Patron",
+            "email_address": "jane.patron@example.org",
+            "phone_number": "555-0100",
+        }
+    )
+    blob = str(out)
+    assert "Jane" not in blob
+    assert "Patron" not in blob
+    assert "jane.patron@example.org" not in blob
+    assert "555-0100" not in blob
+
+
+def test_redactor_does_not_over_redact_non_personal_names():
+    """Vendor/fund names are not personal data and must stay readable so
+    the redactor doesn't gut operationally-useful logs."""
+    out = redact_sensitive_data({"vendor_name": "ACME Books", "fund_name": "GEN"})
+    assert out["vendor_name"] == "ACME Books"
+    assert out["fund_name"] == "GEN"
+
+
+def test_text_formatter_redacts_user_id_in_message():
+    """The user id frequently rides inside the request URL, which lands
+    in the log *message* (not a labeled field). It must be redacted
+    there too."""
+    record = logging.LogRecord(
+        name="almapi.api_client",
+        level=logging.DEBUG,
+        pathname=__file__,
+        lineno=1,
+        msg=f"API Request: GET almaws/v1/users/{SYNTH_USER_ID}",
+        args=(),
+        exc_info=None,
+    )
+    out = TextFormatter(use_colors=False).format(record)
+    assert SYNTH_USER_ID not in out, "user id leaked in message. Output:\n" + out
+    assert SYNTH_USER_ID_REDACTED in out
+
+
+def test_text_formatter_redacts_user_id_in_endpoint_field():
+    """A user id inside a string field value (e.g. ``endpoint``) is also
+    redacted."""
+    record = _make_record(
+        {"method": "GET", "endpoint": f"almaws/v1/users/{SYNTH_USER_ID}"}
+    )
+    out = TextFormatter(use_colors=False).format(record)
+    assert SYNTH_USER_ID not in out, "user id leaked in endpoint field. Output:\n" + out
+    assert SYNTH_USER_ID_REDACTED in out
+
+
+def test_json_formatter_redacts_user_id_in_message():
+    """JSON formatter must redact the user id in the message too."""
+    record = logging.LogRecord(
+        name="almapi.api_client",
+        level=logging.DEBUG,
+        pathname=__file__,
+        lineno=1,
+        msg=f"API Request: GET almaws/v1/users/{SYNTH_USER_ID}",
+        args=(),
+        exc_info=None,
+    )
+    out = JSONFormatter().format(record)
+    assert SYNTH_USER_ID not in out, "user id leaked in JSON message. Output:\n" + out
+    assert SYNTH_USER_ID_REDACTED in out
+
+
+def test_bib_mms_id_is_not_treated_as_personal():
+    """Guard: bibliographic identifiers are not PII and stay fully
+    visible, so the user-id redactor must not touch ``bibs/`` paths."""
+    bib_endpoint = "almaws/v1/bibs/990000000000000000"
+    record = _make_record({"endpoint": bib_endpoint})
+    out = TextFormatter(use_colors=False).format(record)
+    assert bib_endpoint in out
+
+
+# --- bodies off by default (issue #142 expansion, 2026-05-25) -------------
+# Full request/response bodies are the single largest PII source (a user
+# lookup returns the entire patron record). They must NOT be logged unless
+# a consumer explicitly opts in via the ``log_bodies`` config flag — the
+# always-on redactor is the belt, bodies-off is the braces.
+
+SENTINEL_BODY = {"note_text": "SENTINEL_BODY_VALUE_DO_NOT_LOG"}
+
+
+def _capturing_body_logger(domain_suffix: str, log_bodies: bool):
+    """Build an ``AlmaLogger`` on a private domain with a single
+    in-memory capture handler and a controllable ``log_bodies`` setting.
+    No console/file handlers so the test leaves no artifacts."""
+    cfg = LoggingConfig()
+    cfg.output = {"console": False, "file": False}
+    cfg.config["log_bodies"] = log_bodies
+    alma_logger = AlmaLogger(
+        f"test_issue_142_{domain_suffix}", environment="SANDBOX", config=cfg
+    )
+    buf = StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(TextFormatter(use_colors=False))
+    alma_logger.logger.handlers = [handler]
+    alma_logger.logger.setLevel(logging.DEBUG)
+    return alma_logger, buf
+
+
+def test_default_config_disables_body_logging():
+    """Out of the box, body logging is off."""
+    assert LoggingConfig().get_log_bodies() is False
+
+
+def test_request_body_not_logged_by_default():
+    """``log_request`` must drop the body when bodies are disabled."""
+    alma_logger, buf = _capturing_body_logger("req_off", log_bodies=False)
+    alma_logger.log_request(
+        "POST", "almaws/v1/bibs/990000000000000000", body=SENTINEL_BODY
+    )
+    assert "SENTINEL_BODY_VALUE_DO_NOT_LOG" not in buf.getvalue()
+
+
+def test_request_body_logged_when_explicitly_enabled():
+    """With ``log_bodies`` on, the body is logged (opt-in works)."""
+    alma_logger, buf = _capturing_body_logger("req_on", log_bodies=True)
+    alma_logger.log_request(
+        "POST", "almaws/v1/bibs/990000000000000000", body=SENTINEL_BODY
+    )
+    assert "SENTINEL_BODY_VALUE_DO_NOT_LOG" in buf.getvalue()
+
+
+def test_log_request_body_helper_is_noop_by_default():
+    """The dedicated request-body trace helper emits nothing by default."""
+    alma_logger, buf = _capturing_body_logger("rbody_off", log_bodies=False)
+    alma_logger.log_request_body("POST", "almaws/v1/bibs/x", SENTINEL_BODY)
+    assert buf.getvalue() == ""
+
+
+def test_log_response_body_helper_logs_when_enabled():
+    """The response-body trace helper emits when explicitly enabled."""
+    alma_logger, buf = _capturing_body_logger("respbody_on", log_bodies=True)
+    alma_logger.log_response_body(
+        "GET", "almaws/v1/bibs/x", 200, {"k": "SENTINEL_RESP_XYZ"}
+    )
+    assert "SENTINEL_RESP_XYZ" in buf.getvalue()

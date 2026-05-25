@@ -72,12 +72,25 @@ except AlmaAPIError as e:
 
 ### Using Default Configuration
 
-The module works out-of-the-box with sensible defaults:
-- INFO level for most domains
-- DEBUG level for acquisitions and api_client
-- JSON format output
-- 10MB rotation with 10 backups
-- Standard redaction patterns
+The module works out-of-the-box with safe, quiet defaults:
+- **INFO** level for every domain (verbosity is opt-in)
+- **Console only** — file output is off by default, so nothing is written
+  to `logs/` under your working directory unless you enable it
+- **Request/response bodies are not logged** unless `log_bodies` is enabled
+- PII and credentials are redacted automatically (see Security below)
+- 10MB rotation with 10 backups (when file output is enabled)
+
+To turn the whole toolkit up or down, set the level on the shared parent
+logger — one line, no need to know individual logger names:
+
+```python
+import logging
+logging.getLogger("almapi").setLevel(logging.WARNING)  # quiet
+logging.getLogger("almapi").setLevel(logging.DEBUG)    # verbose
+```
+
+To enable file output and/or body logging, load a custom config with
+`"output": {"file": true}` and/or `"log_bodies": true`.
 
 ### Custom Configuration
 
@@ -150,11 +163,21 @@ The module works out-of-the-box with sensible defaults:
 
 ### Automatic Redaction
 
-Sensitive data is automatically redacted from logs:
-- API keys → `***REDACTED***`
-- Passwords → `***REDACTED***`
-- Tokens → `***REDACTED***`
-- Authorization headers → `***REDACTED***`
+Sensitive data is automatically redacted from every log record (console
+and file), regardless of log level:
+
+**Credentials** → `***REDACTED***`
+- API keys, passwords, tokens, `Authorization` headers
+
+**Personal data (PII)** — redacted by default (issue #142):
+- User identifiers (`user_id`, `primary_id`, …) keep only their last three
+  characters: `123456789` → `<...>789`. This includes ids embedded in
+  `users/<id>` request URLs. Bibliographic ids (`mms_id`) are not personal
+  and stay visible.
+- Names, emails, addresses and phone numbers → `<redacted>`
+
+**Bodies** — full request/response bodies are the largest PII source, so
+they are not logged at all unless `log_bodies` is explicitly enabled.
 
 Redaction patterns are configurable in `logging_config.json`:
 ```json

@@ -67,25 +67,35 @@ class AlmaLogger:
 
     def _configure_logger(self):
         """Configure logger with handlers and formatters."""
-        # Get domain-specific configuration
-        domain_config = self.config.get_domain_config(self.domain)
+        # The level gate lives on the shared ``almapi`` parent, not on the
+        # per-domain child, so a consumer can quiet (or open up) the whole
+        # toolkit with a single call -- ``logging.getLogger("almapi")
+        # .setLevel(logging.WARNING)`` -- instead of having to know and
+        # reconfigure every ``almapi.<domain>`` logger by name (issue #142).
+        parent = logging.getLogger("almapi")
+        if parent.level == logging.NOTSET:
+            # Honour a consumer who set the level before first use; only
+            # seed the default when nobody has touched it.
+            parent.setLevel(
+                getattr(logging, self.config.log_level, logging.INFO)
+            )
 
-        # Set log level
-        log_level = domain_config.get('level', 'INFO')
-        self.logger.setLevel(getattr(logging, log_level))
+        # Leave the child level unset so it inherits the parent's level.
+        self.logger.setLevel(logging.NOTSET)
 
-        # Prevent propagation to root logger (avoid duplicate logs)
+        # Prevent propagation to root logger (avoid duplicate logs); the
+        # handlers below live on this child logger.
         self.logger.propagate = False
 
-        # Add console handler with text formatter
+        # Add console handler with text formatter. No explicit handler
+        # level: the parent logger's level is the single gate.
         if self.config.output.get('console', True):
             console_handler = logging.StreamHandler(sys.stdout)
-            console_handler.setLevel(getattr(logging, log_level))
             console_handler.setFormatter(TextFormatter(use_colors=True))
             self.logger.addHandler(console_handler)
 
-        # Add file handler with JSON formatter
-        if self.config.output.get('file', True):
+        # Add file handler with JSON formatter (opt-in; off by default).
+        if self.config.output.get('file', False):
             # Create log directory structure
             date_str = datetime.now().strftime("%Y-%m-%d")
             log_dir = Path("logs") / "api_requests" / date_str
@@ -101,7 +111,6 @@ class AlmaLogger:
                 maxBytes=rotation_settings['max_bytes'],
                 backupCount=rotation_settings['backup_count']
             )
-            file_handler.setLevel(getattr(logging, log_level))
             file_handler.setFormatter(JSONFormatter(
                 redact_patterns=self.config.get_redact_patterns()
             ))

@@ -356,3 +356,70 @@ def test_log_response_body_helper_logs_when_enabled():
         "GET", "almaws/v1/bibs/x", 200, {"k": "SENTINEL_RESP_XYZ"}
     )
     assert "SENTINEL_RESP_XYZ" in buf.getvalue()
+
+
+# --- safe defaults + one-line opt-out (issue #142 expansion, 2026-05-25) --
+# A consumer who configures nothing should get quiet, file-free logging
+# they can silence with a single call.
+
+
+def test_default_domain_levels_are_info():
+    """Verbosity is opt-in: no domain ships at DEBUG by default, so a
+    bare ``get_logger`` call never dumps request/response detail."""
+    cfg = LoggingConfig()
+    assert cfg.get_domain_level("api_client") == "INFO"
+    assert cfg.get_domain_level("acquisitions") == "INFO"
+
+
+def test_default_config_disables_file_output():
+    """No surprise logfile under the consumer's CWD: file output is
+    opt-in."""
+    assert LoggingConfig().output.get("file") is False
+
+
+def test_get_logger_attaches_no_file_handler_by_default():
+    """A bare ``get_logger`` must not wire up a rotating file handler
+    (which would create ``logs/api_requests/<date>/<domain>.log`` under
+    the consumer's working directory)."""
+    from almaapitk.alma_logging import get_logger
+    from almaapitk.alma_logging.handlers import AlmaRotatingFileHandler
+
+    alma_logger = get_logger("test_issue_142_nofile", environment="SANDBOX")
+    file_handlers = [
+        h for h in alma_logger.logger.handlers
+        if isinstance(h, AlmaRotatingFileHandler)
+    ]
+    assert file_handlers == []
+
+
+def test_parent_logger_setlevel_silences_domain_loggers():
+    """The whole toolkit can be quieted with one line:
+    ``logging.getLogger("almapi").setLevel(logging.WARNING)``. This works
+    only if domain loggers leave their level unset and defer to the
+    shared ``almapi`` parent."""
+    from almaapitk.alma_logging import get_logger
+
+    alma_logger = get_logger("test_issue_142_optout", environment="SANDBOX")
+    child = alma_logger.logger
+    buf = StringIO()
+    handler = logging.StreamHandler(buf)
+    handler.setFormatter(TextFormatter(use_colors=False))
+    # Replace the framework's console/file handlers with our capture
+    # handler, but do NOT touch the child's level — the whole point is
+    # that it inherits from the parent.
+    child.handlers = [handler]
+
+    parent = logging.getLogger("almapi")
+    previous = parent.level
+    try:
+        parent.setLevel(logging.WARNING)
+        alma_logger.info("info noise", endpoint="almaws/v1/bibs/x")
+        assert buf.getvalue() == "", (
+            "Setting almapi -> WARNING did not silence a domain INFO log; "
+            "the child logger is pinning its own level. Output:\n"
+            + buf.getvalue()
+        )
+        alma_logger.warning("audible warning")
+        assert "audible warning" in buf.getvalue()
+    finally:
+        parent.setLevel(previous)

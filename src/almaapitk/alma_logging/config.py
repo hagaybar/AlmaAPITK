@@ -41,7 +41,7 @@ class LoggingConfig:
         "domains": {
             "acquisitions": {
                 "enabled": True,
-                "level": "DEBUG",
+                "level": "INFO",
                 "log_requests": True,
                 "log_responses": True
             },
@@ -65,7 +65,7 @@ class LoggingConfig:
             },
             "api_client": {
                 "enabled": True,
-                "level": "DEBUG",
+                "level": "INFO",
                 "log_requests": True,
                 "log_responses": True
             }
@@ -84,7 +84,10 @@ class LoggingConfig:
         ],
         "output": {
             "console": True,
-            "file": True,
+            # File output is opt-in: enabling it by default drops a
+            # ``logs/api_requests/<date>/<domain>.log`` file under the
+            # consumer's working directory without their say-so (#142).
+            "file": False,
             "format": "json"  # or "text"
         }
     }

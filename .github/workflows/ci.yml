@@ -1,0 +1,58 @@
+name: CI
+
+# Push-time packaging + security guards (issues #150, #151). These run on
+# every push to main and every PR targeting main, days/weeks before any
+# release tag, so regressions are caught on the PR that introduces them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  artifact-contents:
+    name: Verify wheel + sdist contents
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Build sdist + wheel
+        run: poetry build
+
+      # Stdlib-only checker: no project deps needed.
+      - name: Check artifact contents
+        run: python scripts/ci/check_artifact_contents.py
+
+  bandit:
+    name: Block new High-severity bandit findings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install bandit
+        run: pip install bandit
+
+      # Scan to JSON (all severities). bandit exits non-zero whenever it
+      # finds anything at all, including the Medium/Low findings we do NOT
+      # want to block on, so swallow its exit code and let the script be
+      # the gate -- it fails only on HIGH severity.
+      - name: Run bandit
+        run: bandit -r src/almaapitk/ -f json -o bandit.json || true
+
+      - name: Fail on High-severity findings
+        run: python scripts/ci/check_bandit.py bandit.json

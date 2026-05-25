@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`AlmaAPIClient(api_key=...)` constructor injection** (issue #143). The
+  client now accepts an optional keyword-only `api_key`, mirroring the
+  `OpenAI(api_key=...)` / `Anthropic(api_key=...)` pattern. An explicit key
+  is used verbatim and takes precedence; when omitted the client falls back
+  to the existing environment variables (`ALMA_SB_API_KEY` /
+  `ALMA_PROD_API_KEY`), so all existing callers are unchanged. Enables
+  injecting keys from a secrets manager, keyring, or CLI argument, and
+  running two clients with different keys in one process.
+- **`CredentialError`** exception, exported from the public package (issue
+  #143). Raised when no API key can be resolved from either the `api_key`
+  argument or the environment-variable fallback, with a message naming both
+  options. Subclasses `AlmaValidationError` (and therefore `ValueError`), so
+  code that previously caught the bare `ValueError` on a missing key keeps
+  working.
+
+### Changed
+
+- **Logging defaults are now safe and quiet** (issue #142, problems #2/#3):
+  - All domains default to `INFO`. Previously `acquisitions` and
+    `api_client` defaulted to `DEBUG`, so a bare `get_logger()` call dumped
+    request/response detail. Verbosity is now opt-in.
+  - File output is **off by default** — the toolkit no longer creates a
+    `logs/api_requests/<date>/<domain>.log` file under the consumer's
+    working directory unprompted. Enable it with `output.file = true`.
+  - The level gate moved to the shared `almapi` parent logger, so the whole
+    toolkit can be quieted (or opened up) with a single call —
+    `logging.getLogger("almapi").setLevel(logging.WARNING)` — instead of
+    reconfiguring each `almapi.<domain>` logger by name. This resolves the
+    logger-namespace fragmentation noted in 0.4.5 and completes issue #142.
+
+### Security
+
+- **Personal data (PII) is now redacted from all log output by default**
+  (issue #142), at every level, on both the console and file handlers. User
+  identifiers (`user_id`, `primary_id`, …) keep only their last three
+  characters (`123456789` → `<...>789`), including ids embedded in
+  `users/<id>` request URLs; names, emails, addresses and phone numbers are
+  blanked entirely. Bibliographic identifiers (`mms_id`) are not personal
+  and remain visible. The credential redaction shipped in 0.4.5 is unchanged.
+- **Full request/response bodies are no longer logged** unless the new
+  `log_bodies` configuration flag is explicitly enabled (issue #142). A
+  single user lookup returns the entire patron record, so bodies were the
+  largest single PII source.
+
+  R10 regression suites for the above: `tests/unit/regressions/test_issue_142.py`,
+  `tests/unit/regressions/test_issue_143.py`.
+
+### CI
+
+- Added a push-time CI workflow (`.github/workflows/ci.yml`) with two guards
+  on every push to `main` and every PR (issues #150, #151): a wheel/sdist
+  **contents check** (catches packaging regressions such as the pre-0.3.1
+  empty wheel, or stray `tests/`/`docs/`/secrets leaking into a release) and
+  a **bandit** scan that fails on any High-severity finding (adoption
+  baseline: 0 High). Neither affects the installed package.
+
 ## [0.4.5] — 2026-05-18
 
 ### Fixed

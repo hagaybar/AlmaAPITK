@@ -1,5 +1,16 @@
 # Workflow Smoke-Test Harness Implementation Plan
 
+> **STATUS (2026-05-25): DELIVERED & MERGED in PR #159.** This plan built the
+> harness, which — after reading the first real consumer — is now understood
+> as the **Infrastructure layer** of the broader consumer-safety testing
+> strategy (see the revised spec,
+> `docs/superpowers/specs/2026-05-25-workflow-smoke-harness-design.md`).
+> The `tests/smoke/` analytics example here is a **self-demo of the kit**,
+> not a consumer's live test. The next build — **L1 Analytics contract
+> tests** in `almaapitk` (plain unit tests; no harness, no credentials) — is
+> tracked under meta-issue #158 and gets its own plan; it is intentionally
+> NOT covered below. Tasks 1–9 are complete; kept as the build record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a reusable, pytest-based workflow smoke-test harness in `almaapitk[smoke]` with dry-run + live (read-only) modes, a PRODUCTION=read-only safety rail, and one worked pilot (`analytics-report-fetch`).

@@ -58,6 +58,13 @@ REGION_HOSTS: Dict[str, str] = {
 }
 DEFAULT_REGION = "EU"
 
+# Environment -> the env var consulted as the api_key fallback when no
+# explicit ``api_key=`` is passed to ``AlmaAPIClient`` (issue #143).
+DEFAULT_API_KEY_ENV_VAR: Dict[str, str] = {
+    "SANDBOX": "ALMA_SB_API_KEY",
+    "PRODUCTION": "ALMA_PROD_API_KEY",
+}
+
 
 def _safe_response_body(response):
     """Best-effort JSON body extraction from a ``requests.Response``.
@@ -273,6 +280,19 @@ class AlmaInvalidPolModeError(AlmaAPIError):
     pass
 
 
+class CredentialError(AlmaValidationError):
+    """No API key could be resolved for the client (issue #143).
+
+    Raised by ``AlmaAPIClient`` when neither an explicit ``api_key=``
+    argument nor the environment-variable fallback supplies a key.
+
+    Subclasses ``AlmaValidationError`` (and therefore ``ValueError``) so
+    that callers who caught the old bare ``ValueError`` on a missing key
+    continue to work unchanged.
+    """
+    pass
+
+
 # Mapping of Alma-specific error codes to typed exception subclasses.
 # When the Alma response payload carries an ``errorList.error[].errorCode``
 # entry that lives in this registry, ``_classify_error`` routes the raised
@@ -318,6 +338,7 @@ class AlmaAPIClient:
         self,
         environment: str = 'SANDBOX',
         *,
+        api_key: Optional[str] = None,
         max_retries: int = DEFAULT_RETRY_TOTAL,
         backoff_factor: float = DEFAULT_RETRY_BACKOFF_FACTOR,
         retry: Optional[Retry] = None,
@@ -329,6 +350,15 @@ class AlmaAPIClient:
 
         Args:
             environment: 'SANDBOX' or 'PRODUCTION'.
+            api_key: Explicit API key. When given it is used verbatim and
+                takes precedence over the environment variable. When
+                ``None`` (the default) the key is read from the
+                environment-variable fallback for ``environment``
+                (``ALMA_SB_API_KEY`` for SANDBOX, ``ALMA_PROD_API_KEY``
+                for PRODUCTION). Mirrors the ``OpenAI(api_key=...)`` /
+                ``Anthropic(api_key=...)`` pattern and lets callers inject
+                keys from a secrets manager, keyring, or CLI arg, or run
+                two clients with different keys in one process (issue #143).
             max_retries: Total number of retries the mounted HTTPAdapter
                 should attempt on retryable responses (429 and 5xx).
                 Must be an ``int >= 0``. Ignored when ``retry`` is given.
@@ -370,6 +400,9 @@ class AlmaAPIClient:
         region/host configurable).
         """
         self.environment = environment.upper()
+        # Explicit key injection wins over the env-var fallback; resolved
+        # in ``_load_configuration`` (issue #143).
+        self._api_key_arg = api_key
         # Default per-request timeout. Per-call ``timeout=`` kwargs in
         # ``_request`` override this on a request-by-request basis. The
         # constructor kwarg lets callers opt into a longer ceiling for
@@ -532,27 +565,32 @@ class AlmaAPIClient:
     def _load_configuration(self) -> None:
         """Load configuration based on environment.
 
-        Resolves ``self.api_key`` from ``ALMA_SB_API_KEY`` /
-        ``ALMA_PROD_API_KEY`` and ``self.base_url`` from either an
+        Resolves ``self.api_key`` from the explicit ``api_key=``
+        constructor argument when given, otherwise from the
+        environment-variable fallback (``ALMA_SB_API_KEY`` /
+        ``ALMA_PROD_API_KEY``), and ``self.base_url`` from either an
         explicit ``host`` override or a ``region`` lookup against
-        ``REGION_HOSTS`` (issue #7).
+        ``REGION_HOSTS`` (issues #7, #143).
 
         Raises:
-            ValueError: If the environment-specific API key env var is
-                not set, or if ``environment`` is not SANDBOX/PRODUCTION.
+            ValueError: If ``environment`` is not SANDBOX/PRODUCTION.
+            CredentialError: If no API key is supplied via ``api_key=``
+                or the environment-variable fallback.
             AlmaValidationError: If ``region`` is not a known
                 ``REGION_HOSTS`` key and no ``host`` override was given.
         """
-        if self.environment == 'SANDBOX':
-            self.api_key = os.getenv('ALMA_SB_API_KEY')
-            if not self.api_key:
-                raise ValueError("ALMA_SB_API_KEY environment variable not set")
-        elif self.environment == 'PRODUCTION':
-            self.api_key = os.getenv('ALMA_PROD_API_KEY')
-            if not self.api_key:
-                raise ValueError("ALMA_PROD_API_KEY environment variable not set")
-        else:
+        env_var = DEFAULT_API_KEY_ENV_VAR.get(self.environment)
+        if env_var is None:
             raise ValueError("Environment must be 'SANDBOX' or 'PRODUCTION'")
+        # Explicit injection beats the ambient env var; either satisfies
+        # the requirement. A missing key is a clear, named error rather
+        # than a silent surprise on the first request (issue #143).
+        self.api_key = self._api_key_arg or os.getenv(env_var)
+        if not self.api_key:
+            raise CredentialError(
+                f"No API key for {self.environment}. Pass api_key=... to "
+                f"AlmaAPIClient(...) or set the {env_var} environment variable."
+            )
 
         # Base URL resolution (issue #7):
         # - ``host`` (when set) wins outright; advanced callers passing

@@ -20,6 +20,7 @@ from .exceptions import (
     AlmaResourceNotFoundError,
     AlmaDuplicateInvoiceError,
     AlmaInvalidPolModeError,
+    CredentialError,
 )
 
 # Domain classes
@@ -47,6 +48,7 @@ __all__ = [
     "AlmaResourceNotFoundError",
     "AlmaDuplicateInvoiceError",
     "AlmaInvalidPolModeError",
+    "CredentialError",
     # Domains
     "Admin",
     "Users",

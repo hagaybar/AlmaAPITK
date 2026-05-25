@@ -86,6 +86,8 @@ NON_DOMAIN_EXPORTS: frozenset[str] = frozenset(
         "AlmaResourceNotFoundError",
         "AlmaDuplicateInvoiceError",
         "AlmaInvalidPolModeError",
+        # Raised when no API key can be resolved for the client (issue #143)
+        "CredentialError",
         # Utilities (TODO(#118): see above)
         "TSVGenerator",
         "CitationMetadataError",

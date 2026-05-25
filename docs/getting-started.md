@@ -139,6 +139,26 @@ client = AlmaAPIClient('SANDBOX')
 
 > **Important:** Always add `.env` to your `.gitignore` file to prevent accidentally committing API keys.
 
+#### Passing the Key Directly (constructor argument)
+
+You can also pass the key explicitly, the same way as the OpenAI/Anthropic
+SDKs. The explicit argument takes precedence; the environment variable
+remains the fallback when you omit it:
+
+```python
+from almaapitk import AlmaAPIClient
+
+# Explicit key — e.g. pulled from a secrets manager, keyring, or CLI arg
+client = AlmaAPIClient('SANDBOX', api_key=my_secret_store.get('alma'))
+
+# Omit it to fall back to ALMA_SB_API_KEY / ALMA_PROD_API_KEY (unchanged)
+client = AlmaAPIClient('SANDBOX')
+```
+
+If neither the argument nor the environment variable supplies a key, the
+constructor raises `CredentialError` (a `ValueError` subclass) naming both
+options.
+
 ---
 
 ## Quick Start (5-minute tutorial)

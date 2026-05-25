@@ -98,6 +98,14 @@ class TestPublicAPIContract(unittest.TestCase):
         # It should be a ValueError subclass
         self.assertTrue(issubclass(AlmaValidationError, ValueError))
 
+    def test_credential_error_importable(self):
+        """CredentialError is public (issue #143) and stays a ValueError
+        subclass so code catching the old bare ValueError keeps working."""
+        from almaapitk import CredentialError, AlmaValidationError
+        self.assertIsNotNone(CredentialError)
+        self.assertTrue(issubclass(CredentialError, AlmaValidationError))
+        self.assertTrue(issubclass(CredentialError, ValueError))
+
     def test_typed_error_subclasses_importable(self):
         """Test that typed AlmaAPIError subclasses are importable from almaapitk (issue #9)."""
         from almaapitk import (

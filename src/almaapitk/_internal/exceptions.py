@@ -13,6 +13,7 @@ from almaapitk.client.AlmaAPIClient import (
     AlmaResourceNotFoundError,
     AlmaDuplicateInvoiceError,
     AlmaInvalidPolModeError,
+    CredentialError,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "AlmaResourceNotFoundError",
     "AlmaDuplicateInvoiceError",
     "AlmaInvalidPolModeError",
+    "CredentialError",
 ]

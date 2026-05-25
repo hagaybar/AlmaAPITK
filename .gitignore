@@ -218,3 +218,7 @@ scripts/error_codes/swagger_cache/
 
 # bandit JSON report produced by the CI security guard (scripts/ci/check_bandit.py)
 bandit.json
+
+# Smoke-test inputs hold synthetic-but-environment-specific values (R9).
+# Copy smoke-data.example.json -> smoke-data.json and fill in locally.
+smoke-data.json

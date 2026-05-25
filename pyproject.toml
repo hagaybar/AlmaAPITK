@@ -35,6 +35,18 @@ dependencies = [
     "requests>=2.32.0,<3.0.0"
 ]
 
+[project.optional-dependencies]
+# Install with: pip install almaapitk[smoke]
+# Pulls the test runner used by the workflow smoke-test harness
+# (almaapitk.testing). Kept out of the core install so normal users
+# don't pay for pytest.
+smoke = ["pytest>=8.0.0,<9.0.0"]
+
+# Auto-load the `alma` fixture when almaapitk[smoke] is installed —
+# consumers get the harness fixture without writing a conftest.
+[project.entry-points.pytest11]
+almaapitk_smoke = "almaapitk.testing.pytest_plugin"
+
 [project.urls]
 Homepage = "https://github.com/hagaybar/AlmaAPITK"
 Repository = "https://github.com/hagaybar/AlmaAPITK"

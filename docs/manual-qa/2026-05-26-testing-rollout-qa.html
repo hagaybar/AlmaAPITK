@@ -69,6 +69,8 @@
   .pill.must { color:#ffd479; border-color:#6b5410; }
   .pill.ro { color:#8fe3b0; border-color:#22573a; }
   .pill.mut { color:#ff9a9a; border-color:#6b2222; }
+  .pill.sched { color:#ffd479; border-color:#6b5410; }
+  .pill.manual { color:#9aa3b2; border-color:#3a4150; }
   .mini-prog { margin-left:auto; font-size:11px; color:var(--dim); }
   .test-badge { min-width:18px; text-align:center; font-size:11px; color:var(--dim); }
   .test-badge.show { color:#fff; background:var(--accent); border-radius:6px; padding:1px 7px; }
@@ -193,7 +195,7 @@
   </article>
 
   <!-- ================= ANALYTICS ================= -->
-  <h2 class="section">Fetch_Alma_Analytics_Reports <span class="repo-tag">read-only · pilot</span><span class="repo-prog" data-repo-prog="an"></span></h2>
+  <h2 class="section">Fetch_Alma_Analytics_Reports <span class="repo-tag">read-only</span><span class="pill sched">scheduled</span><span class="repo-tag">pilot</span><span class="repo-prog" data-repo-prog="an"></span></h2>
 
   <article class="test" data-test-id="an-audit" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
@@ -305,42 +307,22 @@
     </div>
   </article>
 
-  <!-- ================= OTHER REPOS ================= -->
-  <h2 class="section">Other production repos <span class="repo-tag">start when ready</span><span class="repo-prog" data-repo-prog="other"></span></h2>
-
-  <article class="test" data-test-id="repo-users" data-status="pending" data-action="1" data-group="other">
-    <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-check">✓</div>
-      <div><div class="test-title">Alma-update-expired-users-emails</div>
-        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
-      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div class="test-body"><div class="replies"></div>
-      <p class="lead">When you want to tackle this repo, ping me and I'll expand its 5 steps (like analytics).</p>
-      <ul class="todos">
-        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm it's read-only or mutating, and its current almaapitk version</span></label></li>
-        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
-      </ul>
-      <div class="controls"><span class="lbl">Mark:</span>
-        <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
-      <div class="notes-label">Notes</div><textarea class="notes"></textarea>
-    </div>
-  </article>
+  <!-- ================= OTHER REPOS (scheduled first) ================= -->
+  <h2 class="section">Other production repos <span class="repo-tag">scheduled first</span><span class="repo-prog" data-repo-prog="other"></span></h2>
+  <div class="info" style="margin:0 0 12px"><p style="margin:0"><b>Scheduled</b> repos run unattended — a bad bump fails silently in prod, so they're the priority. <b>Manual</b> repos run with you watching, so you're the backstop. Ordered accordingly. (read-only/mutating still to confirm per repo.)</p></div>
 
   <article class="test" data-test-id="repo-rs" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">Alma-RS-lending-request-automation</div>
-        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+        <div class="test-meta"><span class="pill sched">scheduled</span><span class="pill mut">mutating?</span> ping to start its steps</div></div>
       <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body"><div class="replies"></div>
-      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <p class="lead">Scheduled + likely mutating → high-value target. Ping me and I'll expand its 5 steps (like analytics).</p>
       <ul class="todos">
-        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm read-only or mutating + current almaapitk version</span></label></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
       </ul>
       <div class="controls"><span class="lbl">Mark:</span>
@@ -350,18 +332,18 @@
     </div>
   </article>
 
-  <article class="test" data-test-id="repo-acq" data-status="pending" data-action="1" data-group="other">
+  <article class="test" data-test-id="repo-digcoll" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
-      <div><div class="test-title">Alma-Acquisitions-Automation</div>
-        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+      <div><div class="test-title">Update_Digital_Collections</div>
+        <div class="test-meta"><span class="pill sched">scheduled</span><span class="pill mut">mutating?</span> ping to start its steps</div></div>
       <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body"><div class="replies"></div>
-      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <p class="lead">Scheduled → unattended, so worth protecting. Ping me and I'll expand its 5 steps.</p>
       <ul class="todos">
-        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm read-only or mutating + current almaapitk version</span></label></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
       </ul>
       <div class="controls"><span class="lbl">Mark:</span>
@@ -375,14 +357,35 @@
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">Alma-Digital-Upload</div>
-        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+        <div class="test-meta"><span class="pill manual">manual</span><span class="pill mut">mutating?</span> lower urgency — you're at the keyboard</div></div>
       <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body"><div class="replies"></div>
-      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <p class="lead">Manual → you'd see a break when you run it. Ping me when you want its 5 steps anyway.</p>
       <ul class="todos">
-        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm read-only or mutating + current almaapitk version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
+        <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
+      <div class="notes-label">Notes</div><textarea class="notes"></textarea>
+    </div>
+  </article>
+
+  <article class="test" data-test-id="repo-users" data-status="pending" data-action="1" data-group="other">
+    <div class="test-header" onclick="toggleTest(this)">
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Alma-update-expired-users-emails</div>
+        <div class="test-meta"><span class="pill manual">manual</span><span class="pill mut">mutating?</span> lower urgency — you're at the keyboard</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">Manual → you'd see a break when you run it. Ping me when you want its 5 steps.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm read-only or mutating + current almaapitk version</span></label></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
       </ul>
       <div class="controls"><span class="lbl">Mark:</span>

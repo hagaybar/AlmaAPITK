@@ -263,14 +263,16 @@
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body"><div class="replies"></div>
-      <p class="lead">On masedet, pull the repo and run the live smoke against real Alma. Copy each command:</p>
+      <p class="lead">On masedet, run the smoke <b>in the repo's poetry venv</b> (so it tests the almaapitk that's actually installed). This is your <b>"before" run</b> — on the version prod uses today; you'll run it again after the bump in Step 5. Copy each command:</p>
       <ul class="todos">
         <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>Pull the latest analytics repo</span></label>
           <div class="cmd"><code>cd ~/projects/Fetch_Alma_Analytics_Reports && git pull</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Make sure your prod key is set (this shell)</span></label>
           <div class="cmd"><code>export ALMA_PROD_API_KEY=&lt;your-key&gt;</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="tv" onchange="onTodo(this)"><span>Set up the venv and see which version you're testing (your baseline = what prod runs now)</span></label>
+          <div class="cmd"><code>poetry install &amp;&amp; poetry run python -c "import almaapitk; print(almaapitk.__version__)"</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
         <li><label><input type="checkbox" class="todo" data-todo="t3" onchange="onTodo(this)"><span>No new config needed — the smoke reuses your existing <code>reports_config.json</code> (first ACTIVE task). <span class="sub">To target a specific one: <code>export ALMA_SMOKE_TASK=&lt;task name&gt;</code></span></span></label></li>
-        <li><label><input type="checkbox" class="todo" data-todo="t4" onchange="onTodo(this)"><span>Run the live smoke (downloads a few real rows, read-only)</span></label>
+        <li><label><input type="checkbox" class="todo" data-todo="t4" onchange="onTodo(this)"><span>Run the live smoke on the <b>current</b> version — your baseline (read-only, a few real rows)</span></label>
           <div class="cmd"><code>RUN_LIVE_SMOKE=1 poetry run pytest tests/test_live_smoke.py -v</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
         <li><label><input type="checkbox" class="todo" data-todo="t5" onchange="onTodo(this)"><span>Note the row count below, then mark ✓ (or ✗ if it failed)</span></label></li>
       </ul>
@@ -298,6 +300,8 @@
           <div class="cmd"><code>cd ~/projects/Fetch_Alma_Analytics_Reports && poetry update almaapitk</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Confirm the installed version is 0.4.5</span></label>
           <div class="cmd"><code>poetry run python -c "import almaapitk; print(almaapitk.__version__)"</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="ta" onchange="onTodo(this)"><span>Run the live smoke <b>again</b> on 0.4.5 — it must still pass (your "after")</span></label>
+          <div class="cmd"><code>RUN_LIVE_SMOKE=1 poetry run pytest tests/test_live_smoke.py -v</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
         <li><label><input type="checkbox" class="todo" data-todo="t3" onchange="onTodo(this)"><span>Deploy / restart the production job as you normally do, then mark ✓</span></label></li>
       </ul>
       <div class="controls"><span class="lbl">Mark:</span>

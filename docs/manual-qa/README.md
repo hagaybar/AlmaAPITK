@@ -15,8 +15,8 @@ A tiny localhost tool to **organize the consumer-safety testing rollout** and
 ## You (in the browser)
 
 ```bash
-# from the repo root
-python docs/manual-qa/qa-server.py        # serves the newest *-qa.html on :8765
+# from the repo root (this environment has python3, not `python`)
+python3 docs/manual-qa/qa-server.py       # serves the newest *-qa.html on :8765
 ```
 Open <http://localhost:8765/>. Work the cards; click **Ping Claude** when you
 want me to act on one. My replies appear inline in that card.

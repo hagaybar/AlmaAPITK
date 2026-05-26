@@ -3,69 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AlmaAPITK — Consumer-Safety Testing Rollout</title>
+<title>AlmaAPITK — Testing Rollout</title>
 <style>
   :root {
     --bg:#0f1117; --panel:#171a23; --panel2:#1e222d; --line:#2a2f3a;
     --ink:#e6e9ef; --dim:#9aa3b2; --accent:#4f8cff; --accent2:#7c5cff;
-    --pass:#2ec26b; --fail:#ff5c5c; --blocked:#ffb020; --skip:#6b7280;
-    --pending:#3a4150;
+    --pass:#2ec26b; --fail:#ff5c5c; --blocked:#ffb020; --skip:#6b7280; --pending:#3a4150;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
     font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-  header { position:sticky; top:0; z-index:5; background:linear-gradient(180deg,#11141c,#0f1117);
-    border-bottom:1px solid var(--line); padding:14px 22px; display:flex;
-    align-items:center; gap:14px; }
-  header h1 { font-size:17px; margin:0; font-weight:650; }
-  header .sub { color:var(--dim); font-size:13px; }
+  header { position:sticky; top:0; z-index:5; background:#11141c; border-bottom:1px solid var(--line);
+    padding:12px 22px; display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:16px; margin:0; font-weight:650; }
   .conn-status { margin-left:auto; font-size:12px; padding:4px 10px; border-radius:999px;
     border:1px solid var(--line); display:flex; align-items:center; gap:6px; }
   .conn-status::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--skip); }
   .conn-status.online::before { background:var(--pass); }
   .conn-status.syncing::before { background:var(--blocked); }
   .conn-status.offline::before { background:var(--fail); }
-  main { max-width:920px; margin:0 auto; padding:22px; }
+  .progress-wrap { padding:0 22px; background:#11141c; border-bottom:1px solid var(--line); }
+  .progress-bar { height:6px; background:var(--panel2); border-radius:999px; overflow:hidden; margin:0 0 10px; }
+  .progress-fill { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--pass)); transition:width .3s; }
+  .progress-label { font-size:11px; color:var(--dim); padding-bottom:8px; }
+  main { max-width:880px; margin:0 auto; padding:18px 22px 60px; }
   .banner { display:none; background:#2a230f; border:1px solid #6b5410; color:#ffe2a8;
-    padding:12px 16px; border-radius:10px; margin-bottom:18px; font-size:14px; }
+    padding:12px 16px; border-radius:10px; margin-bottom:16px; font-size:13.5px; }
   .banner.show { display:block; }
-  .banner code { background:#000; padding:2px 6px; border-radius:5px; color:#ffd479; }
-  .info { background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; margin-bottom:18px; }
-  .info h2 { margin:0 0 8px; font-size:15px; }
-  .info p, .info li { color:var(--dim); font-size:13.5px; }
-  .info code { background:#000; padding:1px 5px; border-radius:4px; color:#cfe0ff; font-size:12.5px; }
-  .layers { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:8px; }
-  .layer { background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
-  .layer b { color:var(--ink); }
-  h2.section { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim);
-    margin:26px 0 10px; border-bottom:1px solid var(--line); padding-bottom:6px; }
-  .repo-tag { font-size:11px; color:var(--accent); border:1px solid #25406e; background:#13203a;
-    border-radius:6px; padding:1px 7px; margin-left:8px; }
-  .test { background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    margin-bottom:12px; overflow:hidden; }
+  code { background:#000; padding:1px 5px; border-radius:4px; color:#cfe0ff; font-size:12.5px; }
+
+  /* Next-step spotlight */
+  .nextstep { background:linear-gradient(135deg,#15203a,#1a1730); border:1px solid #314a7a;
+    border-radius:12px; padding:14px 16px; margin-bottom:18px; }
+  .nextstep .kicker { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#8fb4ff; }
+  .nextstep .ns-title { font-size:16px; font-weight:650; margin:4px 0 2px; }
+  .nextstep .ns-sub { font-size:13px; color:var(--dim); }
+  .nextstep button { margin-top:10px; background:var(--accent); color:#04122e; border:0;
+    border-radius:8px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+  .nextstep.done { background:#11241a; border-color:#22573a; }
+  .nextstep.done .kicker { color:#8fe3b0; }
+
+  h2.section { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim);
+    margin:24px 0 10px; border-bottom:1px solid var(--line); padding-bottom:6px;
+    display:flex; align-items:center; gap:8px; }
+  .repo-tag { font-size:11px; color:var(--accent); border:1px solid #25406e; background:#13203a; border-radius:6px; padding:1px 7px; }
+  .repo-prog { margin-left:auto; font-size:11px; color:var(--dim); font-weight:400; text-transform:none; letter-spacing:0; }
+
+  .test { background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
   .test[data-status="pass"]    { border-left:4px solid var(--pass); }
   .test[data-status="fail"]    { border-left:4px solid var(--fail); }
   .test[data-status="blocked"] { border-left:4px solid var(--blocked); }
   .test[data-status="skip"]    { border-left:4px solid var(--skip); }
   .test[data-status="pending"] { border-left:4px solid var(--pending); }
-  .test-header { display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer; }
-  .test-num { width:26px; height:26px; flex:0 0 26px; border-radius:7px; background:var(--panel2);
-    border:1px solid var(--line); display:grid; place-items:center; font-size:12px; color:var(--dim); }
+  .test.spotlight { box-shadow:0 0 0 2px var(--accent); }
+  .test-header { display:flex; align-items:center; gap:12px; padding:12px 15px; cursor:pointer; }
+  .test-check { width:24px; height:24px; flex:0 0 24px; border-radius:50%; border:2px solid var(--line);
+    display:grid; place-items:center; font-size:13px; color:transparent; }
+  .test[data-status="pass"] .test-check { background:var(--pass); border-color:var(--pass); color:#04150b; }
+  .test[data-status="skip"] .test-check { background:var(--skip); border-color:var(--skip); color:#fff; }
+  .test[data-status="fail"] .test-check { border-color:var(--fail); color:var(--fail); }
+  .test[data-status="blocked"] .test-check { border-color:var(--blocked); color:var(--blocked); }
   .test-title { font-weight:600; font-size:14.5px; }
   .test-meta { font-size:12px; color:var(--dim); margin-top:2px; }
   .pill { font-size:10.5px; padding:1px 7px; border-radius:5px; border:1px solid var(--line); margin-right:6px; }
   .pill.must { color:#ffd479; border-color:#6b5410; }
   .pill.ro { color:#8fe3b0; border-color:#22573a; }
   .pill.mut { color:#ff9a9a; border-color:#6b2222; }
-  .test-badge { margin-left:auto; min-width:20px; text-align:center; font-size:11px; color:var(--dim); }
+  .mini-prog { margin-left:auto; font-size:11px; color:var(--dim); }
+  .test-badge { min-width:18px; text-align:center; font-size:11px; color:var(--dim); }
   .test-badge.show { color:#fff; background:var(--accent); border-radius:6px; padding:1px 7px; }
-  .chev { width:18px; height:18px; transition:transform .15s; color:var(--dim); }
+  .chev { width:16px; height:16px; transition:transform .15s; color:var(--dim); }
   .test[data-expanded="true"] .chev { transform:rotate(180deg); }
-  .test-body { display:none; padding:0 16px 16px; }
+  .test-body { display:none; padding:0 15px 15px; }
   .test[data-expanded="true"] .test-body { display:block; }
-  .why { color:var(--dim); font-size:13.5px; margin:4px 0 10px; }
-  .why code, .test-body code { background:#000; padding:1px 5px; border-radius:4px; color:#cfe0ff; font-size:12.5px; }
+  .lead { font-size:13.5px; color:var(--ink); margin:2px 0 12px; }
+
+  /* Checklists */
+  .todos { list-style:none; padding:0; margin:0 0 12px; }
+  .todos li { padding:3px 0; }
+  .todos label { display:flex; gap:9px; align-items:flex-start; font-size:13.5px; color:var(--ink); cursor:pointer; }
+  .todos input { margin-top:3px; width:16px; height:16px; flex:0 0 16px; accent-color:var(--pass); cursor:pointer; }
+  .todos input:checked + span { color:var(--dim); text-decoration:line-through; }
+  .todos .sub { display:block; font-size:12px; color:var(--dim); margin-top:1px; }
+
+  /* Copyable command blocks */
+  .cmd { display:flex; align-items:center; gap:8px; background:#0b0d13; border:1px solid var(--line);
+    border-radius:8px; padding:7px 9px; margin:6px 0; }
+  .cmd code { background:transparent; color:#aee0c0; flex:1; white-space:pre-wrap; word-break:break-all; padding:0; }
+  .cmd .copy { flex:0 0 auto; background:var(--panel2); border:1px solid var(--line); color:var(--dim);
+    border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
+  .cmd .copy:hover { color:#fff; border-color:var(--accent); }
+  .cmd .copy.done { color:var(--pass); border-color:var(--pass); }
+
+  details.why { margin:4px 0 12px; }
+  details.why summary { cursor:pointer; color:var(--dim); font-size:12.5px; }
+  details.why p { color:var(--dim); font-size:13px; }
+
   .replies:empty { display:none; }
   .reply { background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--accent);
     border-radius:8px; padding:9px 12px; margin:8px 0; }
@@ -75,8 +108,9 @@
   .reply[data-level="question"]{ border-left-color:var(--accent2); }
   .reply-meta { font-size:11px; color:var(--dim); display:flex; gap:8px; margin-bottom:4px; }
   .reply-text { font-size:13.5px; }
-  .reply-text code { background:#000; padding:1px 5px; border-radius:4px; color:#cfe0ff; }
-  .controls { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0; }
+
+  .controls { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0 8px; align-items:center; }
+  .controls .lbl { font-size:11px; color:var(--dim); margin-right:2px; }
   .status-btn, .ping-btn { background:var(--panel2); color:var(--ink); border:1px solid var(--line);
     border-radius:7px; padding:6px 11px; font-size:12.5px; cursor:pointer; }
   .status-btn:hover { border-color:var(--accent); }
@@ -84,453 +118,421 @@
   .test[data-status="fail"]    .status-btn[data-status="fail"]    { background:var(--fail); color:#1a0404; border-color:var(--fail); }
   .test[data-status="blocked"] .status-btn[data-status="blocked"] { background:var(--blocked); color:#1a1304; border-color:var(--blocked); }
   .test[data-status="skip"]    .status-btn[data-status="skip"]    { background:var(--skip); color:#fff; border-color:var(--skip); }
-  .ping-btn { margin-left:auto; background:#13203a; border-color:#25406e; color:#cfe0ff; }
-  .ping-btn.pinged { opacity:.7; }
+  .ping-btn { margin-left:auto; background:#13203a; border-color:#25406e; color:#cfe0ff; font-weight:600; }
+  .ping-btn.pinged { opacity:.6; }
   .notes-label { font-size:11px; color:var(--dim); margin:6px 0 3px; }
-  .notes { width:100%; min-height:54px; background:#0b0d13; color:var(--ink); border:1px solid var(--line);
+  .notes { width:100%; min-height:46px; background:#0b0d13; color:var(--ink); border:1px solid var(--line);
     border-radius:8px; padding:8px; font:13px/1.5 inherit; resize:vertical; }
-  #global-replies { margin-top:8px; }
+  .info { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+  .info h2 { margin:0 0 6px; font-size:14px; } .info p { color:var(--dim); font-size:13px; margin:6px 0; }
+  #global-replies { margin-top:6px; }
   .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#000;
     border:1px solid var(--line); color:#fff; padding:10px 16px; border-radius:9px; font-size:13px;
     opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; }
-  .toast.show { opacity:1; }
-  .toast.err { border-color:var(--fail); }
+  .toast.show { opacity:1; } .toast.err { border-color:var(--fail); }
 </style>
 </head>
 <body>
 <header>
-  <h1>AlmaAPITK · Consumer-Safety Testing Rollout</h1>
-  <span class="sub">manage the plan · ping me from any card</span>
+  <h1>AlmaAPITK · Testing Rollout</h1>
   <span class="conn-status" id="conn-status"><span class="conn-text">local only</span></span>
 </header>
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="overall-fill"></div></div>
+  <div class="progress-label" id="overall-label">—</div>
+</div>
 
 <main>
   <div class="banner" id="setup-banner">
-    <strong>Local-only mode.</strong> This page is mirroring to <code>localStorage</code> only.
-    To enable the live link (ping me / inline replies), run from the repo root:
-    <br><code>python3 docs/manual-qa/qa-server.py</code> &nbsp;then open&nbsp; <code>http://localhost:8765/</code>
+    <strong>Local-only mode.</strong> Live link is off. From the repo root run
+    <code>python3 docs/manual-qa/qa-server.py</code> then open <code>http://localhost:8765/</code>.
+  </div>
+
+  <!-- NEXT STEP SPOTLIGHT (computed by JS) -->
+  <div class="nextstep" id="nextstep">
+    <div class="kicker">▶ Your next step</div>
+    <div class="ns-title" id="ns-title">…</div>
+    <div class="ns-sub" id="ns-sub"></div>
+    <button id="ns-go" onclick="goNext()">Take me there →</button>
   </div>
 
   <div class="info">
-    <h2>How this works</h2>
-    <p>Work the cards below: set a status, jot notes, and hit <b>💬 Ping Claude</b> on any card when you
-    want me to act on it. Your ping (card + status + notes) reaches me, I do the work and reply <b>inline in that card</b>.
-    Statuses/notes persist locally; when the server is running they also sync to me.</p>
-    <p>Each card is one concrete step. Sections are grouped by repo. Anything tagged
-    <span class="pill ro">read-only</span> is safe; <span class="pill mut">mutating</span> needs care (teardown/no-writes-to-prod).</p>
+    <h2>How to use this</h2>
+    <p>Each card is one step. Open it, <b>tick the checklist</b> as you go, <b>copy commands</b> with the 📋 button,
+    and mark the card ✓ when done. Hit <b>💬 Ping Claude</b> on a card to hand it to me — I reply inside that card.
+    The bar up top tracks overall progress; the panel above always shows your single next step.</p>
   </div>
 
-  <div class="info">
-    <h2>Strategy at a glance</h2>
-    <div class="layers">
-      <div class="layer"><b>Infra</b> — the harness toolkit in <code>almaapitk[smoke]</code> (read-only rail, dry-run, retry). <em>Shipped, unreleased.</em></div>
-      <div class="layer"><b>L1 — Contract tests</b> — in <code>almaapitk</code>; pin behaviours consumers rely on; run every change. <em>Analytics done.</em></div>
-      <div class="layer"><b>L2 — Mock/golden</b> — per repo, offline. <em>Analytics has it.</em></div>
-      <div class="layer"><b>L3 — Live smoke</b> — per repo, real read-only Alma; the masedet replacement.</div>
-    </div>
-    <p style="margin-top:10px"><b>Per-repo loop:</b> audit usage → add L1 contract tests (almaapitk) → self-contained live test (repo) → run on masedet → bump prod to 0.4.5. Adopt the harness later, only where it earns its keep (mutating repos).</p>
-  </div>
+  <!-- ================= PROGRAM ================= -->
+  <h2 class="section">Program <span class="repo-prog" data-repo-prog="prog"></span></h2>
 
-  <!-- ======================= PROGRAM-LEVEL ======================= -->
-  <h2 class="section">Program</h2>
-
-  <article class="test" data-test-id="prog-repo-list" data-status="pending">
+  <article class="test" data-test-id="prog-repo-list" data-status="pending" data-action="1" data-group="prog">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">P1</div>
-      <div>
-        <div class="test-title">Confirm the production repo list</div>
-        <div class="test-meta"><span class="pill must">needed</span> the rollout below is seeded from memory — confirm/correct it</div>
-      </div>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Give me the production repo list</div>
+        <div class="test-meta"><span class="pill must">do first</span> so I can fill in every repo's steps</div></div>
+      <span class="mini-prog" data-mini></span>
       <span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body">
       <div class="replies"></div>
-      <p class="why">I seeded the repo sections from the AlmaAPITK CLAUDE.md (the extracted projects) + the analytics repo. <b>Ping me with the authoritative list</b> — for each prod repo: its name, whether its workflows are read-only or mutating, and which almaapitk version it's on. I'll then fill in the per-repo cards.</p>
+      <p class="lead">Tell me which repos run in production, so the cards below match reality.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes below, list each prod repo: <code>name — read-only or mutating — almaapitk version</code><span class="sub">e.g. <code>Fetch_Alma_Analytics_Reports — read-only — 0.4.5</code></span></span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Click <b>💬 Ping Claude</b> to send it to me</span></label></li>
+      </ul>
       <div class="controls">
-        <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
-        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Blocked</button>
-        <button class="ping-btn" onclick="pingClaude(this)" title="Send me the repo list">💬 Ping Claude</button>
-      </div>
-      <div class="notes-label">Notes (paste the repo list / corrections here)</div>
-      <textarea class="notes" placeholder="e.g. Fetch_Alma_Analytics_Reports — read-only — on 0.4.5; Alma-update-expired-users-emails — mutating — on 0.3.1; ..."></textarea>
-    </div>
-  </article>
-
-  <!-- ======================= ANALYTICS REPO ======================= -->
-  <h2 class="section">Fetch_Alma_Analytics_Reports <span class="repo-tag">read-only · pilot</span></h2>
-
-  <article class="test" data-test-id="an-audit" data-status="pass">
-    <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">A1</div>
-      <div>
-        <div class="test-title">Audit almaapitk usage</div>
-        <div class="test-meta"><span class="pill ro">read-only</span> done — <code>docs/almaapitk-0.4.5-audit.md</code></div>
-      </div>
-      <span class="test-badge">0</span>
-      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">The repo already has a hand-written audit of its almaapitk surface (the source for the L1 tests). Marked done.</p>
-      <div class="controls">
+        <span class="lbl">Mark:</span>
         <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
         <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
       </div>
-      <div class="notes-label">Notes</div><textarea class="notes"></textarea>
+      <div class="notes-label">Repo list / notes</div>
+      <textarea class="notes" placeholder="name — read-only/mutating — version (one per line)"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="an-l1" data-status="pass">
+  <!-- ================= ANALYTICS ================= -->
+  <h2 class="section">Fetch_Alma_Analytics_Reports <span class="repo-tag">read-only · pilot</span><span class="repo-prog" data-repo-prog="an"></span></h2>
+
+  <article class="test" data-test-id="an-audit" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">A2</div>
-      <div>
-        <div class="test-title">L1 contract tests in almaapitk</div>
-        <div class="test-meta"><span class="pill ro">read-only</span> done — issue #160, on main</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">1 · Audit how the repo uses almaapitk</div>
+        <div class="test-meta">done — already written in the repo</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">8 contract tests pin the Analytics surface (sized-list return, kwargs, error types). They run in almaapitk CI on every change. Done.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">✅ Done. The repo has <code>docs/almaapitk-0.4.5-audit.md</code> — the list of exactly what it relies on.</p>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="an-live" data-status="pending">
+  <article class="test" data-test-id="an-l1" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">A3</div>
-      <div>
-        <div class="test-title">Self-contained live smoke (#157)</div>
-        <div class="test-meta"><span class="pill ro">read-only</span> <span class="pill must">next</span> calls real run_report against PROD, read-only</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">2 · Contract tests in almaapitk</div>
+        <div class="test-meta">done — issue #160, on main</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">A live pytest smoke in the repo that runs the real <code>run_report(test_mode=True)</code> against PROD analytics, skips without a key, retries on transient 500s. No harness dependency — works with PyPI 0.4.5. <b>Ping me to build it.</b></p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">✅ Done. 8 tests pin the Analytics behaviour the repo depends on; they run in almaapitk's CI on every change.</p>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
-        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Blocked</button>
-        <button class="ping-btn" onclick="pingClaude(this)" title="Ask me to build the live smoke">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="an-masedet" data-status="pending">
+  <article class="test" data-test-id="an-live" data-status="pending" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">A4</div>
-      <div>
-        <div class="test-title">Run the live smoke on masedet</div>
-        <div class="test-meta"><span class="pill ro">read-only</span> update clone, set key + report path, run</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">3 · Build the live smoke test</div>
+        <div class="test-meta"><span class="pill must">next</span> <span class="pill ro">read-only</span> I write it — you just ping</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">On masedet: pull the repo, set <code>ALMA_PROD_API_KEY</code>, put a real report path in the gitignored smoke config, run the live smoke. Confirms a real report downloads with data on 0.4.5.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">A small test that downloads a real report (a few rows) and checks data came back. This one's on me.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>Click <b>💬 Ping Claude</b> — I'll write the live smoke into the repo</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Read my reply, then mark this card ✓</span></label></li>
+      </ul>
+      <details class="why"><summary>why this matters</summary><p>This is the only check with real-Alma certainty — the automated replacement for eyeballing a download on masedet. No prod key needed to <em>build</em> it.</p></details>
+      <div class="controls"><span class="lbl">Mark:</span>
+        <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
+        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Stuck</button>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
+      <div class="notes-label">Notes</div><textarea class="notes"></textarea>
+    </div>
+  </article>
+
+  <article class="test" data-test-id="an-masedet" data-status="pending" data-action="1" data-group="an">
+    <div class="test-header" onclick="toggleTest(this)">
+      <div class="test-check">✓</div>
+      <div><div class="test-title">4 · Run it on masedet</div>
+        <div class="test-meta"><span class="pill ro">read-only</span> needs your prod key + a report path</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">On masedet, pull the repo and run the live smoke against real Alma. Copy each command:</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>Pull the latest analytics repo</span></label>
+          <div class="cmd"><code>cd ~/projects/Fetch_Alma_Analytics_Reports && git pull</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Make sure your prod key is set (this shell)</span></label>
+          <div class="cmd"><code>export ALMA_PROD_API_KEY=&lt;your-key&gt;</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t3" onchange="onTodo(this)"><span>Put a real report path in the gitignored smoke config <span class="sub">(I'll give you the exact file + format when I build step 3)</span></span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t4" onchange="onTodo(this)"><span>Run the live smoke <span class="sub">(exact command lands here once step 3 is built)</span></span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t5" onchange="onTodo(this)"><span>Note the row count below, then mark ✓ (or ✗ if it failed)</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Passed</button>
         <button class="status-btn" data-status="fail" onclick="setStatus(this)">✗ Failed</button>
-        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Blocked</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
-      <div class="notes-label">Notes (rows downloaded, anything odd — no real IDs)</div><textarea class="notes"></textarea>
+        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Stuck</button>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
+      <div class="notes-label">Result (rows downloaded, anything odd — no real IDs)</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="an-bump" data-status="pending">
+  <article class="test" data-test-id="an-bump" data-status="pending" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">A5</div>
-      <div>
-        <div class="test-title">Bump prod to almaapitk 0.4.5</div>
-        <div class="test-meta"><span class="pill ro">read-only</span> after A4 passes</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">5 · Bump production to almaapitk 0.4.5</div>
+        <div class="test-meta">only after step 4 passes</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">Re-resolve the lock to 0.4.5 and deploy. The audit says 0.4.5 is byte-identical-safe for this repo; the live smoke is the final gate.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">Move the locked version to 0.4.5 and deploy. The audit says it's safe; step 4 is the final proof.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>Update the lock to 0.4.5</span></label>
+          <div class="cmd"><code>cd ~/projects/Fetch_Alma_Analytics_Reports && poetry update almaapitk</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Confirm the installed version is 0.4.5</span></label>
+          <div class="cmd"><code>poetry run python -c "import almaapitk; print(almaapitk.__version__)"</code><button class="copy" onclick="copyCmd(this)">📋 copy</button></div></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t3" onchange="onTodo(this)"><span>Deploy / restart the production job as you normally do, then mark ✓</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="pass" onclick="setStatus(this)">✓ Done</button>
-        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Blocked</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="status-btn" data-status="blocked" onclick="setStatus(this)">⚠ Stuck</button>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <!-- ======================= OTHER REPOS (intake) ======================= -->
-  <h2 class="section">Other production repos <span class="repo-tag">awaiting details</span></h2>
+  <!-- ================= OTHER REPOS ================= -->
+  <h2 class="section">Other production repos <span class="repo-tag">start when ready</span><span class="repo-prog" data-repo-prog="other"></span></h2>
 
-  <article class="test" data-test-id="repo-users" data-status="pending">
+  <article class="test" data-test-id="repo-users" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">R</div>
-      <div>
-        <div class="test-title">Alma-update-expired-users-emails</div>
-        <div class="test-meta"><span class="pill mut">likely mutating</span> intake — confirm + provide details</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Alma-update-expired-users-emails</div>
+        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">Updates user emails → mutating, so it needs teardown care (and is a candidate for the harness later). Ping me with: its almaapitk usage, current version, and how it's run on masedet — I'll expand its per-repo cards.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">When you want to tackle this repo, ping me and I'll expand its 5 steps (like analytics).</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm it's read-only or mutating, and its current almaapitk version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="repo-rs" data-status="pending">
+  <article class="test" data-test-id="repo-rs" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">R</div>
-      <div>
-        <div class="test-title">Alma-RS-lending-request-automation</div>
-        <div class="test-meta"><span class="pill mut">likely mutating</span> intake — confirm + provide details</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Alma-RS-lending-request-automation</div>
+        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">Resource-sharing lending automation → mutating. Ping me with details to expand its cards.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="repo-acq" data-status="pending">
+  <article class="test" data-test-id="repo-acq" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">R</div>
-      <div>
-        <div class="test-title">Alma-Acquisitions-Automation</div>
-        <div class="test-meta"><span class="pill mut">likely mutating</span> intake — confirm + provide details</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Alma-Acquisitions-Automation</div>
+        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">Rialto POL processing + invoicing → mutating. Ping me with details to expand its cards.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <article class="test" data-test-id="repo-digital" data-status="pending">
+  <article class="test" data-test-id="repo-digital" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
-      <div class="test-num">R</div>
-      <div>
-        <div class="test-title">Alma-Digital-Upload</div>
-        <div class="test-meta"><span class="pill mut">likely mutating</span> intake — confirm + provide details</div>
-      </div>
-      <span class="test-badge">0</span>
+      <div class="test-check">✓</div>
+      <div><div class="test-title">Alma-Digital-Upload</div>
+        <div class="test-meta"><span class="pill mut">mutating?</span> ping to start its steps</div></div>
+      <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="test-body">
-      <div class="replies"></div>
-      <p class="why">Digital file uploads (S3) → mutating. Ping me with details to expand its cards.</p>
-      <div class="controls">
+    <div class="test-body"><div class="replies"></div>
+      <p class="lead">When ready, ping me and I'll expand its 5 steps.</p>
+      <ul class="todos">
+        <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: read-only or mutating + current version</span></label></li>
+        <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>
+      </ul>
+      <div class="controls"><span class="lbl">Mark:</span>
         <button class="status-btn" data-status="skip" onclick="setStatus(this)">— Not now</button>
-        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button>
-      </div>
+        <button class="ping-btn" onclick="pingClaude(this)">💬 Ping Claude</button></div>
       <div class="notes-label">Notes</div><textarea class="notes"></textarea>
     </div>
   </article>
 
-  <h2 class="section">General messages</h2>
-  <div class="info">
-    <p style="margin:0 0 6px">Replies not tied to a specific card show up here.</p>
-    <div id="global-replies"></div>
-  </div>
+  <h2 class="section">Messages from Claude</h2>
+  <div class="info"><p style="margin:0 0 6px">Replies not tied to a card appear here.</p><div id="global-replies"></div></div>
 </main>
 
 <div class="toast" id="toast"></div>
 
 <script>
-  const STORAGE_KEY = 'almaapitk-testing-rollout-v1';
+  const STORAGE_KEY = 'almaapitk-testing-rollout-v2';
+  function load() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e){ return {}; } }
+  function save(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
 
-  function load() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-    catch (e) { return {}; }
-  }
-  function save(state) { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-
+  /* ---- status, todos, progress ---- */
   function setStatus(btn) {
-    const test = btn.closest('.test');
-    const id = test.dataset.testId;
-    const status = btn.dataset.status;
-    test.dataset.status = status;
-    const state = load();
-    state[id] = Object.assign({}, state[id], { status });
-    save(state);
-    scheduleStateSync();
+    const test = btn.closest('.test'); const id = test.dataset.testId;
+    test.dataset.status = btn.dataset.status;
+    const s = load(); s[id] = Object.assign({}, s[id], { status: btn.dataset.status }); save(s);
+    refresh(); scheduleStateSync();
+  }
+  function onTodo(box) {
+    const test = box.closest('.test'); const id = test.dataset.testId;
+    const s = load(); const t = Object.assign({}, (s[id]||{}).todos);
+    t[box.dataset.todo] = box.checked;
+    s[id] = Object.assign({}, s[id], { todos: t }); save(s);
+    refresh(); scheduleStateSync();
+  }
+  function toggleTest(h){ const t=h.closest('.test'); t.dataset.expanded = t.dataset.expanded==='true'?'false':'true'; }
+
+  function cardDone(test){ return ['pass','skip'].includes(test.dataset.status); }
+
+  function refresh() {
+    // per-card mini progress (todos done) + per-repo + overall
+    const groups = {};
+    let total=0, done=0;
+    document.querySelectorAll('.test[data-action="1"]').forEach(test => {
+      const g = test.dataset.group; groups[g] = groups[g] || {t:0,d:0};
+      groups[g].t++; total++;
+      if (cardDone(test)) { groups[g].d++; done++; }
+      // mini todo count
+      const boxes = test.querySelectorAll('.todo');
+      const mini = test.querySelector('[data-mini]');
+      if (mini && boxes.length) {
+        const checked = [...boxes].filter(b=>b.checked).length;
+        mini.textContent = checked + '/' + boxes.length;
+      } else if (mini) { mini.textContent=''; }
+    });
+    Object.keys(groups).forEach(g => {
+      const el = document.querySelector('[data-repo-prog="'+g+'"]');
+      if (el) el.textContent = groups[g].d + '/' + groups[g].t + ' done';
+    });
+    const pct = total ? Math.round(done/total*100) : 0;
+    document.getElementById('overall-fill').style.width = pct + '%';
+    document.getElementById('overall-label').textContent = done + ' of ' + total + ' steps done (' + pct + '%)';
+    computeNext();
   }
 
-  function toggleTest(headerEl) {
-    const test = headerEl.closest('.test');
-    test.dataset.expanded = test.dataset.expanded === 'true' ? 'false' : 'true';
+  function computeNext() {
+    document.querySelectorAll('.test.spotlight').forEach(e=>e.classList.remove('spotlight'));
+    const next = [...document.querySelectorAll('.test[data-action="1"]')].find(t => !cardDone(t));
+    const box = document.getElementById('nextstep');
+    if (!next) {
+      box.classList.add('done');
+      document.getElementById('ns-title').textContent = '🎉 All steps done';
+      document.getElementById('ns-sub').textContent = 'Nothing pending. Ping me if you want to add more repos.';
+      document.getElementById('ns-go').style.display='none';
+      return;
+    }
+    box.classList.remove('done');
+    next.classList.add('spotlight');
+    window._nextId = next.dataset.testId;
+    document.getElementById('ns-go').style.display='';
+    document.getElementById('ns-title').textContent = next.querySelector('.test-title').textContent.trim();
+    const grp = next.closest('main').querySelector('h2.section'); // best-effort
+    document.getElementById('ns-sub').textContent = (next.querySelector('.test-meta')?.textContent || '').trim();
+  }
+  function goNext(){
+    const t = document.querySelector('.test[data-test-id="'+window._nextId+'"]');
+    if (!t) return; t.dataset.expanded='true';
+    t.scrollIntoView({behavior:'smooth', block:'center'});
   }
 
-  function showToast(msg, isErr) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (isErr ? ' err' : '');
-    setTimeout(() => { t.className = 'toast'; }, 3200);
+  function copyCmd(btn){
+    const code = btn.parentElement.querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(()=>{
+      const o=btn.textContent; btn.textContent='✓ copied'; btn.classList.add('done');
+      setTimeout(()=>{btn.textContent=o; btn.classList.remove('done');},1500);
+    }).catch(()=>showToast('Copy failed — select the text manually.', true));
   }
 
-  // Hydrate from localStorage + wire notes persistence
+  function showToast(msg,isErr){ const t=document.getElementById('toast'); t.textContent=msg;
+    t.className='toast show'+(isErr?' err':''); setTimeout(()=>t.className='toast',3000); }
+
+  /* ---- hydrate ---- */
   document.querySelectorAll('.test').forEach(test => {
-    const id = test.dataset.testId;
-    const state = load()[id] || {};
-    if (state.status) test.dataset.status = state.status;
+    const id = test.dataset.testId; const st = load()[id] || {};
+    if (st.status) test.dataset.status = st.status;
+    if (st.todos) test.querySelectorAll('.todo').forEach(b => { if (st.todos[b.dataset.todo]) b.checked = true; });
     const notes = test.querySelector('.notes');
     if (notes) {
-      if (state.notes) notes.value = state.notes;
-      notes.addEventListener('input', () => {
-        const s = load();
-        s[id] = Object.assign({}, s[id], { notes: notes.value });
-        save(s);
-        scheduleStateSync();
-      });
+      if (st.notes) notes.value = st.notes;
+      notes.addEventListener('input', () => { const s=load(); s[id]=Object.assign({},s[id],{notes:notes.value}); save(s); scheduleStateSync(); });
     }
   });
 
-  /* ── Collaboration layer (only when served by qa-server.py) ── */
+  /* ---- collaboration layer (server only) ---- */
   const SERVER_ACTIVE = location.protocol.startsWith('http');
-  const POLL_INTERVAL_MS = 2000;
-  const SYNC_DEBOUNCE_MS = 500;
-  let lastReplyId = '0';
-  let _syncTimer = null, _syncInFlight = false, _connKnown = null;
+  const POLL_INTERVAL_MS = 2000, SYNC_DEBOUNCE_MS = 500;
+  let lastReplyId='0', _syncTimer=null, _syncInFlight=false, _connKnown=null;
+  function setConn(s,t){ const el=document.getElementById('conn-status'); if(!el)return;
+    el.className='conn-status '+s; el.querySelector('.conn-text').textContent=t||s; _connKnown=s; }
+  async function postState(){ if(!SERVER_ACTIVE||_syncInFlight)return; _syncInFlight=true; setConn('syncing','syncing');
+    try{ const r=await fetch('/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(load())});
+      if(!r.ok)throw 0; setConn('online','in sync'); }catch(e){ setConn('offline','offline'); }finally{ _syncInFlight=false; } }
+  function scheduleStateSync(){ if(!SERVER_ACTIVE)return; clearTimeout(_syncTimer); _syncTimer=setTimeout(postState,SYNC_DEBOUNCE_MS); }
+  async function pollReplies(){ if(!SERVER_ACTIVE)return;
+    try{ const r=await fetch('/replies/since/'+encodeURIComponent(lastReplyId)); if(!r.ok)throw 0;
+      (await r.json()).forEach(rep=>{ renderReply(rep); if(String(rep.id)>lastReplyId)lastReplyId=String(rep.id); });
+      if(_connKnown==='offline')setConn('online','online'); }catch(e){ setConn('offline','offline'); } }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function md(s){ let h=escapeHtml(s); h=h.replace(/`([^`]+)`/g,(_,c)=>'<code>'+c+'</code>'); h=h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); return h.replace(/\n/g,'<br>'); }
+  function renderReply(rep){ const id=String(rep.id||Date.now()); let host=null,testEl=null;
+    if(rep.testId){ testEl=document.querySelector('.test[data-test-id="'+rep.testId+'"]'); if(testEl)host=testEl.querySelector('.replies'); }
+    if(!host)host=document.getElementById('global-replies');
+    if(!host||host.querySelector('[data-reply-id="'+id+'"]'))return;
+    const d=document.createElement('div'); d.className='reply'; d.dataset.replyId=id; d.dataset.level=rep.level||'info';
+    const time=new Date((rep.ts||Date.now()/1000)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const L={info:'Claude',success:'Looks good',warn:'Heads up',error:'Blocker',question:'Need input'};
+    d.innerHTML='<div class="reply-meta"><span>'+escapeHtml(L[rep.level]||'Claude')+'</span><span>'+escapeHtml(time)+'</span></div><div class="reply-text">'+md(rep.text||'')+'</div>';
+    host.appendChild(d);
+    if(testEl){ testEl.dataset.expanded='true'; const b=testEl.querySelector('.ping-btn'); if(b){b.classList.remove('pinged');b.disabled=false;b.innerHTML='💬 Ping Claude';}
+      const bd=testEl.querySelector('.test-badge'); if(bd){bd.textContent='!';bd.classList.add('show');setTimeout(()=>bd.classList.remove('show'),6000);}
+      d.scrollIntoView({behavior:'smooth',block:'center'}); } }
+  async function pingClaude(btn){ if(!SERVER_ACTIVE){ showToast('Ping needs the local server — see the banner.',true); return; }
+    const test=btn.closest('.test'); const orig=btn.innerHTML; btn.classList.add('pinged'); btn.disabled=true; btn.innerHTML='⏳ Waiting for Claude…';
+    try{ await postState(); const r=await fetch('/ping',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({testId:test.dataset.testId,title:test.querySelector('.test-title').textContent.trim(),status:test.dataset.status,notes:(test.querySelector('.notes')?.value||'').slice(0,2000)})});
+      if(!r.ok)throw 0; showToast('Ping sent — I’ll reply inside this card.'); }
+    catch(e){ btn.classList.remove('pinged'); btn.disabled=false; btn.innerHTML=orig; showToast('Ping failed.',true); } }
 
-  function setConn(status, text) {
-    const el = document.getElementById('conn-status');
-    if (!el) return;
-    el.className = 'conn-status ' + status;
-    el.querySelector('.conn-text').textContent = text || status;
-    _connKnown = status;
-  }
-
-  async function postState() {
-    if (!SERVER_ACTIVE || _syncInFlight) return;
-    _syncInFlight = true; setConn('syncing', 'syncing');
-    try {
-      const r = await fetch('/state', { method:'POST',
-        headers:{'Content-Type':'application/json'}, body:JSON.stringify(load()) });
-      if (!r.ok) throw new Error('http ' + r.status);
-      setConn('online', 'in sync');
-    } catch (e) { setConn('offline', 'offline'); }
-    finally { _syncInFlight = false; }
-  }
-  function scheduleStateSync() {
-    if (!SERVER_ACTIVE) return;
-    clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(postState, SYNC_DEBOUNCE_MS);
-  }
-
-  async function pollReplies() {
-    if (!SERVER_ACTIVE) return;
-    try {
-      const r = await fetch('/replies/since/' + encodeURIComponent(lastReplyId));
-      if (!r.ok) throw new Error('http ' + r.status);
-      (await r.json()).forEach(reply => {
-        renderReply(reply);
-        if (String(reply.id) > lastReplyId) lastReplyId = String(reply.id);
-      });
-      if (_connKnown === 'offline') setConn('online', 'online');
-    } catch (e) { setConn('offline', 'offline'); }
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c =>
-      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function renderMarkdownLite(s) {
-    let h = escapeHtml(s);
-    h = h.replace(/`([^`]+)`/g, (_, c) => '<code>' + c + '</code>');
-    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    return h.replace(/\n/g, '<br>');
-  }
-
-  function renderReply(reply) {
-    const id = String(reply.id || Date.now());
-    let host = null, testEl = null;
-    if (reply.testId) {
-      testEl = document.querySelector('.test[data-test-id="' + reply.testId + '"]');
-      if (testEl) host = testEl.querySelector('.replies');
-    }
-    if (!host) host = document.getElementById('global-replies');
-    if (!host || host.querySelector('[data-reply-id="' + id + '"]')) return;
-
-    const div = document.createElement('div');
-    div.className = 'reply';
-    div.dataset.replyId = id;
-    div.dataset.level = reply.level || 'info';
-    const tsMs = (reply.ts || Date.now()/1000) * 1000;
-    const time = new Date(tsMs).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    const labels = {info:'Claude', success:'Looks good', warn:'Heads up', error:'Blocker', question:'Need input'};
-    div.innerHTML = '<div class="reply-meta"><span>' + escapeHtml(labels[reply.level] || 'Claude') +
-      '</span><span>' + escapeHtml(time) + '</span></div><div class="reply-text">' +
-      renderMarkdownLite(reply.text || '') + '</div>';
-    host.appendChild(div);
-
-    if (testEl) {
-      testEl.dataset.expanded = 'true';
-      const btn = testEl.querySelector('.ping-btn');
-      if (btn) { btn.classList.remove('pinged'); btn.disabled = false; btn.innerHTML = '💬 Ping Claude'; }
-      const badge = testEl.querySelector('.test-badge');
-      if (badge) { badge.textContent = '!'; badge.classList.add('show'); setTimeout(() => badge.classList.remove('show'), 6000); }
-      div.scrollIntoView({ behavior:'smooth', block:'center' });
-    }
-  }
-
-  async function pingClaude(btn) {
-    if (!SERVER_ACTIVE) { showToast('Ping needs the local server — see the banner above.', true); return; }
-    const test = btn.closest('.test');
-    const orig = btn.innerHTML;
-    btn.classList.add('pinged'); btn.disabled = true; btn.innerHTML = '⏳ Waiting for Claude…';
-    try {
-      await postState();
-      const r = await fetch('/ping', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          testId: test.dataset.testId,
-          title: test.querySelector('.test-title').textContent.trim(),
-          status: test.dataset.status,
-          notes: (test.querySelector('.notes')?.value || '').slice(0, 2000),
-        }) });
-      if (!r.ok) throw new Error('http ' + r.status);
-      showToast('Ping sent — I’ll reply inside this card.');
-    } catch (e) {
-      btn.classList.remove('pinged'); btn.disabled = false; btn.innerHTML = orig;
-      showToast('Ping failed: ' + e.message, true);
-    }
-  }
-
-  if (SERVER_ACTIVE) {
-    setConn('syncing', 'connecting');
-    postState(); pollReplies();
-    setInterval(pollReplies, POLL_INTERVAL_MS);
-  } else {
-    document.getElementById('setup-banner').classList.add('show');
-  }
+  refresh();
+  if (SERVER_ACTIVE) { setConn('syncing','connecting'); postState(); pollReplies(); setInterval(pollReplies,POLL_INTERVAL_MS); }
+  else { document.getElementById('setup-banner').classList.add('show'); }
 </script>
 </body>
 </html>

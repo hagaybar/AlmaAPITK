@@ -110,6 +110,11 @@
   .reply[data-level="question"]{ border-left-color:var(--accent2); }
   .reply-meta { font-size:11px; color:var(--dim); display:flex; gap:8px; margin-bottom:4px; }
   .reply-text { font-size:13.5px; }
+  /* History collapse: show only the latest reply; older ones behind a toggle. */
+  .has-history:not(.show-history) .reply:not(.latest) { display:none; }
+  .history-toggle { font-size:11px; color:var(--accent); cursor:pointer; margin:2px 0 6px; user-select:none; }
+  .has-history:not(.show-history) .history-toggle::after { content:"▸ show " attr(data-count) " earlier"; }
+  .has-history.show-history .history-toggle::after { content:"▾ hide earlier"; }
 
   .controls { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0 8px; align-items:center; }
   .controls .lbl { font-size:11px; color:var(--dim); margin-right:2px; }
@@ -168,7 +173,7 @@
   <!-- ================= PROGRAM ================= -->
   <h2 class="section">Program <span class="repo-prog" data-repo-prog="prog"></span></h2>
 
-  <article class="test" data-test-id="prog-repo-list" data-status="pending" data-action="1" data-group="prog">
+  <article class="test" data-test-id="prog-repo-list" data-status="pass" data-action="1" data-group="prog">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">Give me the production repo list</div>
@@ -231,7 +236,7 @@
     </div>
   </article>
 
-  <article class="test" data-test-id="an-live" data-status="pending" data-action="1" data-group="an">
+  <article class="test" data-test-id="an-live" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">3 · Build the live smoke test</div>
@@ -254,7 +259,7 @@
     </div>
   </article>
 
-  <article class="test" data-test-id="an-masedet" data-status="pending" data-action="1" data-group="an">
+  <article class="test" data-test-id="an-masedet" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">4 · Run it on masedet</div>
@@ -285,7 +290,7 @@
     </div>
   </article>
 
-  <article class="test" data-test-id="an-bump" data-status="pending" data-action="1" data-group="an">
+  <article class="test" data-test-id="an-bump" data-status="pass" data-action="1" data-group="an">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
       <div><div class="test-title">5 · Bump production to almaapitk 0.4.5</div>
@@ -529,6 +534,10 @@
     const L={info:'Claude',success:'Looks good',warn:'Heads up',error:'Blocker',question:'Need input'};
     d.innerHTML='<div class="reply-meta"><span>'+escapeHtml(L[rep.level]||'Claude')+'</span><span>'+escapeHtml(time)+'</span></div><div class="reply-text">'+md(rep.text||'')+'</div>';
     host.appendChild(d);
+    // History collapse: only the latest reply shows; older ones fold behind a toggle.
+    host.querySelectorAll('.reply.latest').forEach(e=>e.classList.remove('latest')); d.classList.add('latest');
+    const _n=host.querySelectorAll('.reply').length;
+    if(_n>1){ let tg=host.querySelector('.history-toggle'); if(!tg){ tg=document.createElement('div'); tg.className='history-toggle'; tg.onclick=()=>host.classList.toggle('show-history'); host.insertBefore(tg,host.firstChild); } tg.dataset.count=_n-1; host.classList.add('has-history'); }
     if(testEl){ testEl.dataset.expanded='true'; const b=testEl.querySelector('.ping-btn'); if(b){b.classList.remove('pinged');b.disabled=false;b.innerHTML='💬 Ping Claude';}
       const bd=testEl.querySelector('.test-badge'); if(bd){bd.textContent='!';bd.classList.add('show');setTimeout(()=>bd.classList.remove('show'),6000);}
       d.scrollIntoView({behavior:'smooth',block:'center'}); } }
@@ -539,8 +548,27 @@
       if(!r.ok)throw 0; showToast('Ping sent — I’ll reply inside this card.'); }
     catch(e){ btn.classList.remove('pinged'); btn.disabled=false; btn.innerHTML=orig; showToast('Ping failed.',true); } }
 
+  // On load, let the SERVER state win (that's where Claude's marks live), then
+  // mirror into localStorage. Falls back silently to localStorage on any error.
+  async function hydrateFromServer(){
+    if(!SERVER_ACTIVE) return;
+    try{
+      const r=await fetch('/state'); if(!r.ok) return;
+      const server=(await r.json())||{}; const local=load(); let changed=false;
+      Object.keys(server).forEach(id=>{
+        const test=document.querySelector('.test[data-test-id="'+id+'"]'); if(!test) return;
+        const sv=server[id]||{}; local[id]=Object.assign({},local[id],sv);
+        if(sv.status) test.dataset.status=sv.status;
+        if(sv.todos) test.querySelectorAll('.todo').forEach(b=>{ b.checked=!!sv.todos[b.dataset.todo]; });
+        const notes=test.querySelector('.notes'); if(notes && sv.notes!=null) notes.value=sv.notes;
+        changed=true;
+      });
+      if(changed){ save(local); refresh(); }
+    }catch(e){ /* keep localStorage state already applied */ }
+  }
+
   refresh();
-  if (SERVER_ACTIVE) { setConn('syncing','connecting'); postState(); pollReplies(); setInterval(pollReplies,POLL_INTERVAL_MS); }
+  if (SERVER_ACTIVE) { setConn('syncing','connecting'); hydrateFromServer(); pollReplies(); setInterval(pollReplies,POLL_INTERVAL_MS); }
   else { document.getElementById('setup-banner').classList.add('show'); }
 </script>
 </body>

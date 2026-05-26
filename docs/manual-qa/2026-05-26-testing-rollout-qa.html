@@ -336,13 +336,13 @@
   <article class="test" data-test-id="repo-digcoll" data-status="pending" data-action="1" data-group="other">
     <div class="test-header" onclick="toggleTest(this)">
       <div class="test-check">✓</div>
-      <div><div class="test-title">Update_Digital_Collections</div>
-        <div class="test-meta"><span class="pill sched">scheduled</span><span class="pill mut">mutating</span> ping to start its steps</div></div>
+      <div><div class="test-title">Update_Alma_Digital_Collections</div>
+        <div class="test-meta"><span class="pill sched">scheduled</span><span class="pill mut">mutating</span> prod name: <code>Update_Digital_Collections</code></div></div>
       <span class="mini-prog" data-mini></span><span class="test-badge">0</span>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="test-body"><div class="replies"></div>
-      <p class="lead">Scheduled → unattended, so worth protecting. Ping me and I'll expand its 5 steps.</p>
+      <p class="lead">Scheduled + mutating (adds MMS IDs to collections) → unattended and changes data; top-stakes tier. Local clone is <code>Update_Alma_Digital_Collections</code>; prod is <code>Update_Digital_Collections</code> (name drift you'll tidy later). Ping me and I'll expand its 5 steps.</p>
       <ul class="todos">
         <li><label><input type="checkbox" class="todo" data-todo="t1" onchange="onTodo(this)"><span>In Notes: confirm its current almaapitk version</span></label></li>
         <li><label><input type="checkbox" class="todo" data-todo="t2" onchange="onTodo(this)"><span>Ping me to generate its steps</span></label></li>

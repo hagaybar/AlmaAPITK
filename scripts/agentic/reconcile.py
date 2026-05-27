@@ -4,21 +4,27 @@ Issue #93: detect drift between the YAML/Markdown world and what GitHub thinks
 is open, closed, or merged. Suitable for an operator hygiene check or a CI
 gate. Exits non-zero on any drift.
 
-Two checks (per design §3.4):
+Three checks:
 
 1. **Backlog freshness** — runs the equivalent of ``render-backlog --check``.
 2. **Run-log coverage** — flags chunk PRs that are merged on GitHub but have
    no row in ``docs/AGENTIC_RUN_LOG.md``.
+3. **Untracked artifacts** — flags *merged* chunks whose run artifacts were
+   never committed to git (the gap that left ``chunks/electronic-bootstrap/``
+   untracked after PR #152 merged; added 2026-05-27).
 
-The data fetcher is injectable so unit tests don't shell out to ``gh``.
+The data fetcher and the git-untracked query are both injectable so unit
+tests don't shell out to ``gh`` or ``git``.
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from scripts.agentic.render_backlog import (
     GHFetcher,
@@ -43,12 +49,16 @@ class ReconcileReport:
             absent from the run-log.
         unreferenced_merged_prs: Numbers of merged PRs whose titles look like
             chunk PRs but don't match any YAML chunk.
+        untracked_artifact_chunks: Names of merged chunks whose run artifacts
+            are still untracked (non-gitignored) on disk, i.e. were never
+            committed to record the run.
         notes: Free-form human-readable notes appended by the various checks.
     """
 
     backlog_stale: bool = False
     missing_run_log_rows: list[str] = field(default_factory=list)
     unreferenced_merged_prs: list[int] = field(default_factory=list)
+    untracked_artifact_chunks: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -58,6 +68,7 @@ class ReconcileReport:
             not self.backlog_stale
             and not self.missing_run_log_rows
             and not self.unreferenced_merged_prs
+            and not self.untracked_artifact_chunks
         )
 
     def to_text(self) -> str:
@@ -81,6 +92,12 @@ class ReconcileReport:
                 lines.append(
                     f"  - merged PR #{pr} looks chunk-shaped but matches no "
                     f"chunk in docs/chunks-backlog.yaml."
+                )
+            for chunk in self.untracked_artifact_chunks:
+                lines.append(
+                    f"  - merged chunk {chunk!r} has untracked artifacts on "
+                    f"disk; run `git add chunks/{chunk}/ && git commit` to "
+                    f"record the run (see docs/CHUNK_PLAYBOOK.md)."
                 )
         for note in self.notes:
             lines.append(f"  note: {note}")
@@ -204,6 +221,81 @@ def check_run_log_coverage(
     return missing, sorted(orphans)
 
 
+def _git_untracked_under(chunks_root: Path) -> list[str]:
+    """Return untracked, non-gitignored paths under ``chunks_root``.
+
+    Shells out to ``git ls-files --others --exclude-standard`` with the chunks
+    directory as the working dir, so returned paths are relative to it (the
+    first path segment is the chunk name) and ``.gitignore`` is honoured
+    (test-data.json, sandbox-test-output/, __pycache__/, etc. are excluded).
+    Returns an empty list when git is unavailable or the directory is outside
+    a repo, so the check degrades to "no drift" rather than crashing reconcile.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(chunks_root), "ls-files",
+             "--others", "--exclude-standard", "."],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, ValueError):  # git missing / bad path
+        return []
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def check_untracked_chunk_artifacts(
+    chunks_root: Path | None,
+    *,
+    untracked_fn: Callable[[Path], Iterable[str]] | None = None,
+) -> list[str]:
+    """Find *merged* chunks whose run artifacts are still untracked on disk.
+
+    A merged chunk's run artifacts (manifest.json, status.json, test-results
+    .json, sandbox-tests/) are expected to be committed to record the run
+    (docs/CHUNK_PLAYBOOK.md). ``chunks complete`` does not commit them — that
+    is a manual operator step (R3) — so a forgotten commit leaves the directory
+    untracked with no other warning (the gap that left
+    ``chunks/electronic-bootstrap/`` untracked after PR #152 merged). This
+    surfaces that drift. In-flight (non-merged) chunks are ignored because
+    uncommitted work-in-progress there is expected.
+
+    Args:
+        chunks_root: The ``chunks/`` directory, or ``None``.
+        untracked_fn: Injectable query returning untracked (non-gitignored)
+            paths relative to ``chunks_root`` (first path segment = chunk
+            name). Defaults to a ``git ls-files --others`` shell-out; injected
+            in tests so they never touch real git.
+
+    Returns:
+        Sorted names of chunks whose ``status.json`` stage is ``"merged"`` and
+        which own at least one untracked artifact path.
+    """
+    if chunks_root is None or not chunks_root.is_dir():
+        return []
+    query = untracked_fn or _git_untracked_under
+    candidates: set[str] = set()
+    for rel in query(chunks_root):
+        parts = Path(rel).parts
+        if parts:
+            candidates.add(parts[0])
+
+    flagged: list[str] = []
+    for name in sorted(candidates):
+        status_path = chunks_root / name / "status.json"
+        if not status_path.exists():
+            continue
+        try:
+            stage = json.loads(status_path.read_text()).get("stage")
+        except (OSError, json.JSONDecodeError):
+            continue
+        if stage == "merged":
+            flagged.append(name)
+    return flagged
+
+
 # ---------------------------------------------------------------------------
 # Top-level entry point
 # ---------------------------------------------------------------------------
@@ -217,6 +309,7 @@ def reconcile(
     chunks_root: Path | None = None,
     fetcher: GHFetcherLike | None = None,
     template_path: Path | None = None,
+    untracked_fn: Callable[[Path], Iterable[str]] | None = None,
 ) -> ReconcileReport:
     """Run all reconcile checks and return a structured report.
 
@@ -259,6 +352,9 @@ def reconcile(
         backlog_stale=not fresh,
         missing_run_log_rows=missing,
         unreferenced_merged_prs=orphans,
+        untracked_artifact_chunks=check_untracked_chunk_artifacts(
+            chunks_root, untracked_fn=untracked_fn
+        ),
     )
     if not run_log_path.exists():
         report.notes.append(

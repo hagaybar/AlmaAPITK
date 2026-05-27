@@ -1,6 +1,7 @@
 """Tests for scripts.agentic.reconcile (issue #93)."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -257,3 +258,61 @@ def test_report_drift_text_lists_specifics():
     assert "stale" in text
     assert "alpha" in text
     assert "#200" in text
+
+
+# ---------------------------------------------------------------------------
+# Untracked merged-chunk artifacts (guardrail added 2026-05-27)
+# ---------------------------------------------------------------------------
+
+
+def test_reconcile_flags_untracked_merged_chunk_artifacts(tmp_path):
+    """reconcile() surfaces a merged chunk whose artifacts were never committed."""
+    yaml_path = _write_yaml(tmp_path)
+    md_path = tmp_path / "BACKLOG.md"
+    md_path.write_text("# whatever\n")
+    log_path = tmp_path / "RUN_LOG.md"
+    log_path.write_text("\n")
+    chunks_root = tmp_path / "chunks"
+    (chunks_root / "alpha").mkdir(parents=True)
+    (chunks_root / "alpha" / "status.json").write_text(
+        json.dumps({"chunk": "alpha", "stage": "merged"}) + "\n"
+    )
+    fetcher = FakeFetcher(issue_states={3: "OPEN", 4: "OPEN"})
+
+    report = reconcile(
+        yaml_path=yaml_path,
+        backlog_md_path=md_path,
+        run_log_path=log_path,
+        chunks_root=chunks_root,
+        fetcher=fetcher,
+        untracked_fn=lambda root: ["alpha/manifest.json", "alpha/status.json"],
+    )
+
+    assert report.untracked_artifact_chunks == ["alpha"]
+    assert report.is_clean is False
+
+
+def test_reconcile_no_untracked_artifacts_contributes_no_drift(tmp_path):
+    """When the chunk's artifacts are all tracked, the check adds no drift."""
+    yaml_path = _write_yaml(tmp_path)
+    md_path = tmp_path / "BACKLOG.md"
+    md_path.write_text("# whatever\n")
+    log_path = tmp_path / "RUN_LOG.md"
+    log_path.write_text("\n")
+    chunks_root = tmp_path / "chunks"
+    (chunks_root / "alpha").mkdir(parents=True)
+    (chunks_root / "alpha" / "status.json").write_text(
+        json.dumps({"chunk": "alpha", "stage": "merged"}) + "\n"
+    )
+    fetcher = FakeFetcher(issue_states={3: "OPEN", 4: "OPEN"})
+
+    report = reconcile(
+        yaml_path=yaml_path,
+        backlog_md_path=md_path,
+        run_log_path=log_path,
+        chunks_root=chunks_root,
+        fetcher=fetcher,
+        untracked_fn=lambda root: [],
+    )
+
+    assert report.untracked_artifact_chunks == []

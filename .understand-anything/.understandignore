@@ -1,0 +1,124 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+# Lines below are suggestions — uncomment to activate.
+# Use ! prefix to force-include something excluded by defaults.
+#
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+#
+# --- From .gitignore (uncomment to exclude) ---
+
+# *.py[cod]
+# *$py.class
+# *.so
+# wheels/
+# *.egg-info/
+# .eggs/
+# *.egg
+# *.whl
+# env/
+# ENV/
+# *.spec
+# .pytest_cache/
+# .hypothesis/
+# .coverage
+# coverage.xml
+# *.cover
+# htmlcov/
+# .mypy_cache/
+# .dmypy.json
+# __pydantic_schema_cache__/
+# *.tmp
+# *.temp
+# *.bak
+# *.orig
+# *.patch
+# logs/
+# logs/**/*
+# *.sublime-project
+# *.sublime-workspace
+# .ipynb_checkpoints/
+# .DS_Store
+# .AppleDouble
+# .LSOverride
+# Thumbs.db
+# ehthumbs.db
+# Desktop.ini
+# $RECYCLE.BIN/
+# *~
+# .env
+# .env.*
+# *.env
+# data/
+# output/*.log
+# output/*.csv
+# output/*.json
+# output/*.tsv
+# output/*.xlsx
+# output/*.pdf
+# output/*.html
+# backups/
+# tests/**/test_results_*.json
+# tests/**/test_output_*.json
+# tests/**/*_results_*.csv
+# tests/**/*.log
+# scripts/**/output/
+# scripts/**/*.tmp.json
+# scripts/**/*.tmp.tsv
+# scripts/**/*.tmp.csv
+# scripts/post_publish/smoke_config.json
+# *.faiss
+# *.index
+# .a5c/node_modules/
+# .a5c/logs/
+# research/
+# .a5c/runs/
+# .a5c/cache/
+# .a5c/logs/
+# .a5c/inputs/
+# .a5c/inputs-phase-f.json
+# .a5c/.a5c/
+# .a5c/node_modules/
+# .a5c/package.json
+# .a5c/package-lock.json
+# .a5c/issue-numbers/
+# .claude/settings.local.json
+# .claude/skills/
+# backups/
+# *_tmp.html
+# *_tmp.md
+# archive/
+# *:Zone.Identifier
+# chunks/*/sandbox-test-output/
+# chunks/*/test-data.json
+# chunks/*/_pr_open_result.json
+# chunks/*/_swagger_errors_*.json
+# scripts/error_codes/swagger_cache/
+# bandit.json
+# smoke-data.json
+
+# --- Detected directories (uncomment to exclude) ---
+
+# tests/
+# docs/
+# scripts/
+
+# --- Test file patterns (uncomment to exclude) ---
+
+# *.test.*
+# *.spec.*
+# *.snap
+
+# --- ACTIVE: code-focused scope (chosen 2026-05-27) ---
+archive/
+research/
+.a5c/
+chunks/
+.understand-anything/
+*:Zone.Identifier
+*_tmp.html
+*_tmp.md
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+bandit.json

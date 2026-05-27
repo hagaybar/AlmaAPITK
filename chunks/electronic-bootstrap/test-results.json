@@ -1,0 +1,24 @@
+{
+  "chunk": "electronic-bootstrap",
+  "testRunStartedAt": "2026-05-19T11:17:50Z",
+  "testRunFinishedAt": "2026-05-19T11:18:14Z",
+  "perTest": [
+    {
+      "id": "T1-electronic-smoke",
+      "outcome": "passed",
+      "issueNumber": 66,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "pytest: 1 passed in 0.62s. chunks/electronic-bootstrap/sandbox-tests/test_T1_electronic_smoke.py::test_T1_electronic_smoke PASSED. Asserted Electronic importable from public API, instantiable with SANDBOX AlmaAPIClient; electronic.get_environment() == 'SANDBOX' and electronic.test_connection() returned True against the live SANDBOX tenant."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 66,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

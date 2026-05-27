@@ -1,0 +1,16 @@
+{
+  "chunk": "electronic-bootstrap",
+  "issues": [
+    66
+  ],
+  "stage": "merged",
+  "branch": "chunk/electronic-bootstrap",
+  "createdAt": "2026-05-19T10:47:58Z",
+  "updatedAt": "2026-05-19T11:26:00Z",
+  "lastEvent": "PR #152 squash-merged 2026-05-19; #66 closed",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KRZXMZJZNG3KWCKJEJ69FJQW",
+  "testRunId": "01KRZZ45HYDP8VP2CN5GZY2VA6",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/152"
+}

@@ -8,8 +8,15 @@ This project's primary mode of work is the **chunk-driven implementation pipelin
 
 1. **Run `scripts/agentic/chunks list`** to surface any chunks not in a terminal stage (`merged` / `aborted`).
 2. **If any chunks are active**, include a one-paragraph dashboard in your first message: chunk name, current stage, last event, and recommended next action (each chunk's `nextAction` field).
-3. **If no chunks are active**, mention the recommended next pickup from `docs/CHUNK_BACKLOG.md` — the lowest-numbered phase whose hard prereqs are merged in `main`, and within it the first chunk that isn't already done. Cross-reference recent rows in `docs/AGENTIC_RUN_LOG.md` to know what's already shipped.
+3. **If no chunks are active**, mention the recommended next pickup from `docs/CHUNK_BACKLOG.md` — the lowest-numbered phase whose hard prereqs are merged in `main`, and within it the first chunk that isn't already done. Cross-reference recent rows in `docs/AGENTIC_RUN_LOG.md` to know what's already shipped. **⚠️ Gate override (R11): while the consumer-rollout gate is OPEN, do NOT surface a next pickup for blocked work — surface the gate instead.**
 4. **Then await the user's instruction.** Do NOT auto-trigger any chunk action; the pipeline is human-paced (R3).
+
+**🚧 Hard rule R11 — consumer-rollout gate (OPEN since 2026-05-28).** A change to `almaapitk` can silently break the production consumer repos (most run unattended on the `masedet` box). Until every production consumer repo is bumped to the current released `almaapitk` and verified — tracked by **meta-issue #158** and the board at `docs/manual-qa/` (`python3 docs/manual-qa/qa-server.py`) — the repo is under a **feature freeze**:
+- **Blocked:** all `enhancement` and `api-coverage` work (issues carry the `blocked:consumer-rollout` label) and every `· planned` chunk in `docs/CHUNK_BACKLOG.md`. Do NOT recommend, `define`, or run a chunk for blocked work — even if the session-start step 3 would otherwise surface it.
+- **Allowed through:** only `priority:high` / production-affecting **bugs** (e.g., #144). Non-critical bugs (e.g., #161) wait too.
+- **At session start (step 3):** when no chunks are active, surface THIS gate as the blocker (with the `docs/manual-qa/` board + #158) instead of the next backlog pickup.
+- **Rollout state (2026-05-28):** `Fetch_Alma_Analytics_Reports` ✅ done (0.4.5 in prod, reports verified). Remaining, scheduled first: `Alma-RS-lending-request-automation` (next) → `Update_Alma_Digital_Collections` → `Alma-Digital-Upload` → `Alma-update-expired-users-emails`.
+- **To lift:** when #158 is complete, remove the label from all issues (`gh issue list --label blocked:consumer-rollout --json number` → `gh issue edit … --remove-label blocked:consumer-rollout`) and flip this rule to CLOSED. Entry point: `docs/session-handoff-2026-05-27.md`.
 
 **Drift check:** `docs/CHUNK_BACKLOG.md` is now a generated artifact (source: `docs/chunks-backlog.yaml`). If you suspect the backlog or run-log is out of sync with GitHub, run `scripts/agentic/chunks reconcile`. To rebuild the markdown after editing the YAML, run `scripts/agentic/chunks render-backlog`. CI gates with `chunks render-backlog --check`.
 

@@ -150,6 +150,15 @@
 </div>
 
 <main>
+  <div id="rollout-gate-banner" style="background:#fff3f3;border:2px solid #b60205;border-radius:8px;padding:14px 16px;margin:0 0 14px;">
+    <strong style="color:#b60205;">🚧 GATE OPEN — consumer-repo rollout blocks all enhancement/coverage work.</strong>
+    Until every production consumer repo is bumped to the current released <code>almaapitk</code> and verified
+    (meta-issue <a href="https://github.com/hagaybar/AlmaAPITK/issues/158">#158</a>), the toolkit repo is under a feature freeze:
+    only <b>priority:high / production bugs</b> proceed. Enforced by <code>CLAUDE.md</code> R11 + the
+    <code>blocked:consumer-rollout</code> label on 51 issues.
+    <div style="margin-top:6px;font-size:.92em;">Analytics pilot ✅ done (0.4.5 in prod, reports verified). <b>Next:</b> Alma-RS-lending-request-automation.</div>
+  </div>
+
   <div class="banner" id="setup-banner">
     <strong>Local-only mode.</strong> Live link is off. From the repo root run
     <code>python3 docs/manual-qa/qa-server.py</code> then open <code>http://localhost:8765/</code>.

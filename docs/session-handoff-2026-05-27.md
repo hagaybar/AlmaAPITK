@@ -42,8 +42,10 @@ Tracking: **meta-issue #158**.
 - **Validated 0.4.5**: live smoke passed + full ~15k-row biggest report (`e_titles_for_usage`) fetched with no timeout.
 - **Promoted**: analytics `main` → `prod` (fast-forward; lock pins almaapitk 0.4.5).
 
-**In the user's hands / verify first next session:**
-- **masedet prod activation** of the analytics repo: on the masedet **prod** folder, `git pull` + `poetry install` → almaapitk 0.4.5, then **watch the first scheduled run** (runs as the service account). Confirm whether this was completed.
+**✅ Analytics consumer CLOSED (2026-05-28):**
+- **masedet prod activation confirmed** — operator ran `git pull` in the prod folder (already up to date; `main`/`prod` both at `25fc206`) and the scheduled reports downloaded flawlessly. The analytics pilot is fully done.
+
+**🚧 GATE NOW OPEN (2026-05-28) — repo-wide feature freeze.** Until the remaining four consumer repos are bumped to the current released `almaapitk` and verified (this initiative, meta #158), all `enhancement` + `api-coverage` work in the toolkit is blocked (GitHub label `blocked:consumer-rollout` on 51 issues; only `priority:high`/production bugs proceed). Enforced by `CLAUDE.md` **R11** (session-start gate) + the board banner. Next repo: **Alma-RS-lending-request-automation**.
 
 ## 4. The production consumer repos
 
@@ -51,7 +53,7 @@ S = scheduled (unattended → prioritize), M = manual (you're the backstop). All
 
 | Repo (local name) | Run | I/O | Status |
 |---|---|---|---|
-| Fetch_Alma_Analytics_Reports | S | read-only | **DONE** (validated + promoted; masedet activation = last mile) |
+| Fetch_Alma_Analytics_Reports | S | read-only | **✅ DONE 2026-05-28** (0.4.5 validated + promoted + masedet prod verified — reports downloading) |
 | Alma-RS-lending-request-automation | S | mutating | not started — **next** |
 | Update_Alma_Digital_Collections *(prod name: Update_Digital_Collections)* | S | mutating | not started |
 | Alma-Digital-Upload | M | mutating | not started |

@@ -1,0 +1,3504 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Users"
+    },
+    {
+      "name": "Loans"
+    },
+    {
+      "name": "Requests"
+    },
+    {
+      "name": "Purchase Requests"
+    },
+    {
+      "name": "Fines and Fees"
+    },
+    {
+      "name": "Deposits"
+    },
+    {
+      "name": "Leganto Notifications"
+    },
+    {
+      "name": "Staff Login Report"
+    },
+    {
+      "name": "Test"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This API returns a list of Users, sorted by last name.",
+        "summary": "Retrieve users",
+        "operationId": "get/almaws/v1/users",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words from: primary_id, first_name, last_name, middle_name, email, phone_number, job_category, identifiers, birth_date, user_group, campus_code, block_type, id_type, note_text, note_type, statistic_category, fines_fees_sum, general_info (keywords from all fields except emails, birth_date and identifiers) and ALL (words from all fields but without support for the AND operator). Example (note the tilde between the code and text): q=last_name~Smith (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "last_name, first_name, primary_id",
+              "type": "string"
+            },
+            "description": "A few sort options are available: last_name, first_name and primary_id. One sort option may be used at a time. A secondary sort key, primary_id, is added if last_name or first_name is the primary sort. Default sorting is by all three in the following order: last_name, first_name, primary_id. If the query option is used, the result will not sort by primary_id."
+          },
+          {
+            "name": "source_institution_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the source institution from which the user was linked. Optional"
+          },
+          {
+            "name": "source_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The ID of the user in the source institution. Optional."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding all user information.  To have all the user fields in the output use expand=full."
+          },
+          {
+            "name": "modify_date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Filter users modified after the given date. Optional. This parameter is mutually exclusive with the 'q' parameter — only one of them may be used in a request. If both are provided, the request will be rejected. The expected date format is yyyy-MM-dd."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401651 - 'Source institution not valid or not part of fulfillment network.'\n\n401861 - 'Source institution user with given identifier not found.'\n\n4019990 - 'Local copied user information not found.'\n\n60224 - 'Organization institution not found.'\n\n60225 - 'Fulfillment network not found.'\n\n60226 - 'Fulfillment network copied user not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_users.xsd. See [here](/alma/apis/docs/xsd/rest_users.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_users.json#/rest_users"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_users.json#/rest_users"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service creates a new user.",
+        "summary": "Create user",
+        "operationId": "post/almaws/v1/users",
+        "parameters": [
+          {
+            "name": "social_authentication",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "When customer parameter social_authentication='True': Send social authentication email to patron. Default value: False."
+          },
+          {
+            "name": "send_pin_number_letter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "The email notification for PIN setting change will be sent"
+          },
+          {
+            "name": "source_institution_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the source institution to which the user should be linked. Optional"
+          },
+          {
+            "name": "source_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The ID of the user in the source institution. Optional."
+          },
+          {
+            "name": "registration_rules",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Apply registration rules in the context of the library. True or false. Optional."
+          },
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the library. For use with registration rules. Optional."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a User object. See [here](/alma/apis/docs/xsd/rest_user.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user-post.json#/rest_user-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user-post.json#/rest_user-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401676 - 'No valid XML was given.'\n\n401851 - 'User with identifier  of type Y already exists.'\n\n401664 - 'Mandatory field is missing: X'\n\n401852 - 'Given user group is not legal.'\n\n401853 - 'External Id must be empty for internal user.'\n\n401854 - 'External Id must be given for external user.'\n\n401855 - 'The account type 'Internal with external authentication' is currently not supported.'\n\n500038 - 'New password must be at least 8 characters long and must not include the user-name or any commonly used password.'\n\n401857 - 'The given user account type is illegal (must be INTERNAL/EXTERNAL).'\n\n401658 - 'General Error - Failed to create new user'\n\n401863 - 'Given X type (Y) is not supported for given user record type (Z).'\n\n401864 - 'Given X type (Y) is invalid.'\n\n401651 - 'Source institution not valid or not part of fulfillment network.'\n\n60224 - 'Organization institution not found.'\n\n60225 - 'Fulfillment network not found.'\n\n60226 - 'Fulfillment network copied user not found.'\n\n60227 - 'Linked account for user already exists.'\n\n60228 - 'Failed to create linked user account.'\n\n60231 - 'Failed to link user due to identifier issues.'\n\n60232 - 'Failed to link user due to user group empty.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user.xsd. See [here](/alma/apis/docs/xsd/rest_user.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/ME": {
+      "get": {
+        "tags": [
+          ""
+        ],
+        "description": "Returns details for the logged-in user.",
+        "summary": "Get my details",
+        "operationId": "get/almaws/v1/users/ME",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60101 - 'General Error: An error has occurred while processing the request.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user.xsd. See [here](/alma/apis/docs/xsd/rest_user.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/operation/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.",
+        "summary": "GET User Test API",
+        "operationId": "get/almaws/v1/users/operation/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.",
+        "summary": "POST User Test API",
+        "operationId": "post/almaws/v1/users/operation/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/staff-login-report": {
+      "get": {
+        "tags": [
+          "Staff Login Report"
+        ],
+        "description": "This Web service retrieves a list of login events.",
+        "summary": "Retrieve Staff Login Report.",
+        "operationId": "get/almaws/v1/users/staff-login-report",
+        "parameters": [
+          {
+            "name": "login_date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Retrieve events from this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "login_date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Retrieve events until this Date, included (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "successful",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "string"
+            },
+            "description": "Filters successful attempts or failed login attempts.Optional values: all, true and failed-login-attempts. optional. By default this is true."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional.Default value: 0, which means that the first results will be returned. "
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_login_events.xsd. See [here](/alma/apis/docs/xsd/rest_login_events.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_login_events.json#/rest_login_events"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_login_events.json#/rest_login_events"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service deletes a specific user.",
+        "summary": "Delete user",
+        "operationId": "delete/almaws/v1/users/{user_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401850 - 'Failed to delete user with identifier X of type Y.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service returns a specific user's details.\n\n\n\nNote: When the users are managed in the Network Zone, getting a user from a local institution is equivalent to localizing the record based on the NZ.",
+        "summary": "Get user details",
+        "operationId": "get/almaws/v1/users/{user_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table. The value may also be linking_id.  To search for users which have linked accounts in other institutions according to the linking_id use user_id_type=linking_id."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "type": "string"
+            },
+            "description": "Special view of User object. Optional. Possible values: full - full User object will be returned. brief - only user's core information, emails, identifiers and statistics are returned. By default, the full User object will be returned."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding on some user information. Three options are available: loans-Include the total number of loans; requests-Include the total number of requests; fees-Include the balance of fees. To have more than one option, use a comma separator."
+          },
+          {
+            "name": "source_institution_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The source institution Code. Optional. When used the user_id is used to locate a copied user (linked account) based on source_link_id."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401861 - 'User with identifier X was not found.'\n\n4019990 - 'User with source identifier X of institution Y was not found.'\n\n4019998 - 'User with linking ID not found.'\n\n60101 - 'General Error: An error has occurred while processing the request.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user.xsd. See [here](/alma/apis/docs/xsd/rest_user.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service runs a user authentication process or refreshes a linked user in Alma. \n\nRefresh operation requires a user at the local institution that is linked to a user at another institution.\n\nAuthentication operation requires a password which may be entered as a parameter or with the header: Exl-User-Pw\n\nAuthentication is meant for internal users that have passwords in the Ex Libris Identity Service.\n\nSuccessful authentication or refresh will result with an HTTP 204 (success - no content) response.\n\nNote: Unlike other POST APIs, the authentication operation is allowed also for API-keys which are configured to allow read-only access, as this API does not alter the data.",
+        "summary": "Authenticate or refresh user",
+        "operationId": "post/almaws/v1/users/{user_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "auth",
+              "type": "string"
+            },
+            "description": "The operation to be performed on the user. Mandatory. Currently op=auth or op=refresh are supported.  The default is auth."
+          },
+          {
+            "name": "password",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The user's password. Relevant for op=auth. Alternatively the password can be sent, URL-encoded, in the header named Exl-User-Pw."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401866 - 'User authentication failed'\n\n401890 - 'User was not found.'\n\n401861 - 'Refresh user with given identifier not found.'\n\n60229 - 'Failed to find linked account for user.'\n\n60226 - 'Fulfillment network copied user not found.'\n\n60230 - 'Failed to refresh linked user.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service updates a specific user's details. \n\n\n\nThe update is done in a 'Swap All' mode: existing fields' information will be replaced with the incoming information. Incoming lists will replace existing lists. \n\nException for this are the following fields: \n\nroles - if the incoming list does not contain roles, existing roles will be kept.  \n\nExternal users: Preferred first name, Preferred middle name, Preferred last name, User group, Job category, PIN number, User language, Resource sharing libraries, Campus code and User title: these fields will not be replaced if updated manually (or if empty in the incoming user record), unless 'override' parameter is sent with the field's name.",
+        "summary": "Update User Details",
+        "operationId": "put/almaws/v1/users/{user_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The following fields of the user object are not replaced if they were updated manually: \n\nuser_group, job_category, pin_number, preferred_language, campus_code, rs_libraries, user_title, library_notices, pref_first_name, pref_middle_name, pref_last_name, cataloger_level. \n\nTo update these fields, specify the fields you want to replace in this parameter. \n\nFor example override=user_group,job_category. Default is empty."
+          },
+          {
+            "name": "send_pin_number_letter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "The email notification for PIN setting change will be sent"
+          },
+          {
+            "name": "recalculate_roles",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Recalculate the roles based on role assignment rules."
+          },
+          {
+            "name": "registration_rules",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Apply registration rules in the context of the library. True or false. Optional."
+          },
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the library. For use with registration rules. Optional."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a User object. See [here](/alma/apis/docs/xsd/rest_user.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user-put.json#/rest_user-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user-put.json#/rest_user-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401859 - 'Action currently not supported.'\n\n401676 - 'No valid XML was given.'\n\n401858 - 'The external id in DB does not fit the given value in xml - external id cannot be updated.'\n\n401855 - 'The account type 'Internal with external authentication' is currently not supported.'\n\n500038 - 'New password must be at least 8 characters long and must not include the user-name or any commonly used password.'\n\n401860 - 'Failed to update user.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n401863 - 'Given X type (Y) is not supported for given user record type (Z).'\n\n401864 - 'Given X type (Y) is invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user.xsd. See [here](/alma/apis/docs/xsd/rest_user.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user.json#/rest_user"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/attachments": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This API creates a user's attachment.",
+        "summary": "Create User Attachment",
+        "operationId": "post/almaws/v1/users/{user_id}/attachments",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "requestBody": {
+          "description": "The Attachment info to create.  See [here](/alma/apis/docs/xsd/rest_attachment.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/attachments/{attachment_id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This API returns a users attachment.",
+        "summary": "Get User Attachment",
+        "operationId": "get/almaws/v1/users/{user_id}/attachments/{attachment_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user."
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Attachment id."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The expand parameter. Optional. Possible values: 'content' or 'content_no_encoding'."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60321 - 'Attachment X not found.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/deposits": {
+      "get": {
+        "tags": [
+          "Deposits"
+        ],
+        "description": "This Web service retrieves the user deposits for a particular user id ",
+        "summary": "Deposits by user id",
+        "operationId": "get/almaws/v1/users/{user_id}/deposits",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "filter deposits by status"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "type": "string"
+            },
+            "description": "Few sort options are available: name, modification_date. One sort option may be used at a time. Default sorting is by name"
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ASC",
+              "type": "string"
+            },
+            "description": "Sorting direction: ASC/DESC. Default: ASC."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402238 - 'Failed to get deposits.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_deposits.xsd. See [here](/alma/apis/docs/xsd/rest_user_deposits.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposits.json#/rest_user_deposits"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposits.json#/rest_user_deposits"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Deposits"
+        ],
+        "description": "This API performs creation of a deposit object. Currently supported: submitting deposit, submitting deposit as a draft.",
+        "summary": "Create deposit",
+        "operationId": "post/almaws/v1/users/{user_id}/deposits",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "draft",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Boolean flag for indicating whether submit as draft."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Deposit object. See [here](/alma/apis/docs/xsd/rest_user_deposit.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit-post.json#/rest_user_deposit-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit-post.json#/rest_user_deposit-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401652 - 'General Error - An error has occurred while creating the deposit.'\n\n402205 - 'Input parameter X (Y) is not numeric.'\n\n401666 - 'X parameter is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_deposit.xsd. See [here](/alma/apis/docs/xsd/rest_user_deposit.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/deposits/{deposit_id}": {
+      "get": {
+        "tags": [
+          "Deposits"
+        ],
+        "description": "This Web service retrieves the user deposit for a particular user id and deposit id.",
+        "summary": "Deposit by user id and deposit id",
+        "operationId": "get/almaws/v1/users/{user_id}/deposits/{deposit_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "deposit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the deposit"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402238 - 'Failed to get deposit.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_deposit.xsd. See [here](/alma/apis/docs/xsd/rest_user_deposit.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Deposits"
+        ],
+        "description": "This API performs an update of a deposit. Currently supported: withdraw and submit of a returned/draft deposit.",
+        "summary": "Action on a deposit",
+        "operationId": "post/almaws/v1/users/{user_id}/deposits/{deposit_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "deposit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the deposit"
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The operation to be performed on the deposit. Mandatory. Currently submit and withdraw are supported."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Request object. See [here](/alma/apis/docs/xsd/rest_user_deposit.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit-post.json#/rest_user_deposit-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit-post.json#/rest_user_deposit-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401652 - 'General Error - An error has occurred while updating the deposit.'\n\n401666 - 'X parameter is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_deposit.xsd. See [here](/alma/apis/docs/xsd/rest_user_deposit.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_deposit.json#/rest_user_deposit"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/fees": {
+      "get": {
+        "tags": [
+          "Fines and Fees"
+        ],
+        "description": "This API returns a user's fines and fees.",
+        "summary": "Get user fines/fees",
+        "operationId": "get/almaws/v1/users/{user_id}/fees",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ACTIVE",
+              "type": "string"
+            },
+            "description": "Return fees of this status only. Optional. If this is not provided, all active fees will be returned. The values that can be used are {ACTIVE|INDISPUTE|EXPORTED|CLOSED}."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401651 - 'Identifier not found.'\n\n401666 - 'Parameter is not valid.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fees.xsd. See [here](/alma/apis/docs/xsd/rest_fees.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fines and Fees"
+        ],
+        "description": "This API creates a fine or fee for a user.",
+        "summary": "Create user fine/fee",
+        "operationId": "post/almaws/v1/users/{user_id}/fees",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a fee object See [here](/alma/apis/docs/xsd/rest_fee.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee-post.json#/rest_fee-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee-post.json#/rest_fee-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401861 - 'User with identifier X was not found.'\n\n4019991 - 'User fine/fee type is required.'\n\n4019992 - 'User fine/fee type invalid entry.'\n\n4019994 - 'User fine/fee original amount is required.'\n\n4019993 - 'User item barcode invalid entry.'\n\n4019996 - 'User fine/fee owner is required.'\n\n4019999 - 'User fine/fee owner must be an institution.'\n\n4019997 - 'User fine/fee owner must be a library and not institution.'\n\n402119 - 'General error.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fee.xsd. See [here](/alma/apis/docs/xsd/rest_fee.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/fees/all": {
+      "post": {
+        "tags": [
+          "Fines and Fees"
+        ],
+        "description": "This API posts a payment against a specific user's fines and fees as a whole.",
+        "summary": "Pay user fines/fees",
+        "operationId": "post/almaws/v1/users/{user_id}/fees/all",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to be performed on the user's specified fee. Mandatory. Currently only op=pay is supported"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The amount of the payment to be made on the user's specified fees. To pay the entire balance use amount=ALL"
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The Payment method. Relevant and mandatory if op=pay. Options are CREDIT_CARD, ONLINE, or CASH"
+          },
+          {
+            "name": "comment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "A note that can be attached to the payment action. Optional."
+          },
+          {
+            "name": "external_transaction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An external payment system transaction ID. Optional."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401651 - 'Identifier not found.'\n\n401666 - 'Parameter is not valid.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fees.xsd. See [here](/alma/apis/docs/xsd/rest_fees.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/fees/{fee_id}": {
+      "get": {
+        "tags": [
+          "Fines and Fees"
+        ],
+        "description": "This API returns a specific fine or fee for a user.",
+        "summary": "Get user fine/fee",
+        "operationId": "get/almaws/v1/users/{user_id}/fees/{fee_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "fee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fine/fee identifier"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401665 - 'Fine not found.'\n\n401651 - 'Identifier not found.'\n\n401666 - 'Parameter is not valid.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fee.xsd. See [here](/alma/apis/docs/xsd/rest_fee.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fines and Fees"
+        ],
+        "description": "This API applies the specified operation to a specific fine/fee.",
+        "summary": "Pay/waive/dispute/restore user fine/fee",
+        "operationId": "post/almaws/v1/users/{user_id}/fees/{fee_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "fee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fine/fee identifier"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in UserIdentifierTypes code table."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to be performed on the user's specified fee. Mandatory. Options are pay, waive, dispute or restore"
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The amount of the payment to be made on the user's specified fees. Relevant for op=pay,waive"
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The Payment method. Relevant and mandatory if op=pay. Options are CREDIT_CARD, ONLINE, or CASH"
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The reason for waiving the fine/fee. Relevant and mandatory for op=waive. The value should be one of the codes from the FineFeeTransactionReason code table."
+          },
+          {
+            "name": "comment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "A note that can be attached to the action. Optional."
+          },
+          {
+            "name": "external_transaction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An external payment system transaction ID. Relevant for op=pay"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401665 - 'Fine not found.'\n\n401651 - 'Identifier not found.'\n\n401666 - 'Parameter is not valid.'\n\n60340 - 'The fee is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fee.xsd. See [here](/alma/apis/docs/xsd/rest_fee.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fee.json#/rest_fee"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/loans": {
+      "get": {
+        "tags": [
+          "Loans"
+        ],
+        "description": "This Web service retrieves a list of active loans for a user.",
+        "summary": "Retrieve user loans",
+        "operationId": "get/almaws/v1/users/{user_id}/loans",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned. "
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "id",
+              "type": "string"
+            },
+            "description": "A few sort options are available (only one can be sent): loan_date, due_date, barcode, title, author and return_date (relevant only for historical loans). A secondary sort key, id, is added to the single sort option chosen. Default sorting is by id."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ASC",
+              "type": "string"
+            },
+            "description": "Sorting direction: ASC/DESC. Default: ASC."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Comma separated list of values for expansion of results. Possible values: 'renewable'"
+          },
+          {
+            "name": "loan_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "Active",
+              "type": "string"
+            },
+            "description": "Active or Completeloan status. Default: Active. The Complete loan status is only relevant if historic loans haven't been anonymized."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401861 - 'User with identifier X was not found.'\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item_loans.xsd. See [here](/alma/apis/docs/xsd/rest_item_loans.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loans.json#/rest_item_loans"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loans.json#/rest_item_loans"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Loans"
+        ],
+        "description": "This Web service loans an item to a user. The loan will be created according to the library's policy.",
+        "summary": "Create user loan",
+        "operationId": "post/almaws/v1/users/{user_id}/loans",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "item_pid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The Item ID. This parameter or the item_barcode parameter must be supplied."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "item_barcode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The Item barcode. This parameter or the item_pid parameter must be supplied."
+          },
+          {
+            "name": "generate_linked_user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Boolean flag to indicate whether to search the user in the network and create a linked user. This is only supported for networks that have fully unique patron identifiers. To enable this parameter, please contact Ex Libris customer support."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Loan object. See [here](/alma/apis/docs/xsd/rest_item_loan.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan-post.json#/rest_item_loan-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan-post.json#/rest_item_loan-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401153 - 'Item cannot be loaned from this circulation desk.'\n\n401651 - 'Item is not loanable.'\n\n401672 - 'PID field is empty.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60340 - 'The loan is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item_loan.xsd. See [here](/alma/apis/docs/xsd/rest_item_loan.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/loans/{loan_id}": {
+      "get": {
+        "tags": [
+          "Loans"
+        ],
+        "description": "This Web service retrieves the user loan for a particular user id and loan id.",
+        "summary": "Loan by user id and loan id",
+        "operationId": "get/almaws/v1/users/{user_id}/loans/{loan_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the loan"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60340 - 'The loan is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item_loan.xsd. See [here](/alma/apis/docs/xsd/rest_item_loan.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Loans"
+        ],
+        "description": "This Web service renews a loan.",
+        "summary": "Renew loan",
+        "operationId": "post/almaws/v1/users/{user_id}/loans/{loan_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the loan"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Operation. Currently only op=renew is supported"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401823 - 'Loan ID XXX does not exist.'\n\n401822 - 'Cannot renew loan: Loan ID XXX.'\n\n60340 - 'The loan is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item_loan.xsd. See [here](/alma/apis/docs/xsd/rest_item_loan.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Loans"
+        ],
+        "description": "This Web service changes a loan due date.",
+        "summary": "Change loan due date",
+        "operationId": "put/almaws/v1/users/{user_id}/loans/{loan_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the loan"
+          },
+          {
+            "name": "notify_user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Boolean flag for notifying the borrower of changes in loan due date. Defaults to 'false'."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an item loan object See [here](/alma/apis/docs/xsd/rest_item_loan.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan-put.json#/rest_item_loan-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan-put.json#/rest_item_loan-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401823 - 'Loan ID XXX does not exist.'\n\n401824 - 'Due date is not in loan object.'\n\n401681 - 'Due date cannot be in the past.'\n\n60340 - 'The loan is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item_loan.xsd. See [here](/alma/apis/docs/xsd/rest_item_loan.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item_loan.json#/rest_item_loan"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/personal-data": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "description": "This Web service returns a specific user's full details, including all loans, requets etc.This API is intended to be used to comply with GDPR data portability.",
+        "summary": "Get user - data portability",
+        "operationId": "get/almaws/v1/users/{user_id}/personal-data",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table. The value may also be linking_id.  To search for users which have linked accounts in other institutions according to the linking_id use user_id_type=linking_id."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401861 - 'User with identifier X was not found.'\n\n4019990 - 'User with source identifier X of institution Y was not found.'\n\n4019998 - 'User with linking ID not found.'\n\n60101 - 'General Error: An error has occurred while processing the request.'\n\n401861 - 'The user ID is not valid.'\n\n401890 - 'The user can not be found using this identifier.'\n\n60349 - 'The user data could not be added.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_personal.xsd. See [here](/alma/apis/docs/xsd/rest_user_personal.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_personal.json#/rest_user_personal"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_personal.json#/rest_user_personal"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/purchase-requests": {
+      "get": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web service retrieves a user's purchase requests.",
+        "summary": "Retrieve user's purchase requests.",
+        "operationId": "get/almaws/v1/users/{user_id}/purchase-requests",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional.Default value: 0, which means that the first results will be returned. "
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "For filtering based on the purchase request's status. Optional. Possible values:  INREVIEW, APPROVED, REJECTED, DEFERRED. Default is no status."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60275 - 'Purchase request status is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_requests.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_requests.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_requests.json#/rest_purchase_requests"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_requests.json#/rest_purchase_requests"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This API creates a new purchase request.",
+        "summary": "Create Purchase Request",
+        "operationId": "post/almaws/v1/users/{user_id}/purchase-requests",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Purchase Request object. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-post.json#/rest_purchase_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-post.json#/rest_purchase_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401890 - 'User with identifier X of type Y was not found.'\n\n60221 - 'Mms ID is not valid.'\n\n60270 - 'Requested format is not valid.'\n\n402469 - 'Library is not valid.'\n\n60271 - 'Currency is not valid.'\n\n402880 - 'Vendor is not valid.'\n\n60272 - 'Vendor account is not valid.'\n\n60279 - 'Fund is not valid.'\n\n60273 - 'Title is missing.'\n\n60274 - 'Resource metadata is required.'\n\n60278 - 'Purchase request creation failed.'\n\n60280 - 'Purchase request citation not valid.'\n\n60281 - 'Purchase request location's library not valid.'\n\n60282 - 'Purchase request location's shelving location not valid.'\n\n60283 - 'Purchase request location's quantity not valid.'\n\n60329 - 'Purchase requested material type is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_request.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}": {
+      "get": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web service retrieves a user's purchase request.",
+        "summary": "Retrieve user's purchase request.",
+        "operationId": "get/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "purchase_request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the purchase request."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60276 - 'The purchase request identifier is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_request.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web service performs an operation on a user's purchase request.",
+        "summary": "Operation on a user's purchase request.",
+        "operationId": "post/almaws/v1/users/{user_id}/purchase-requests/{purchase_request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "purchase_request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the purchase request."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The operation to be performed on the purchase request. Mandatory. Currently cancel is supported."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60276 - 'The purchase request identifier is not valid.'\n\n60277 - 'The purchase request deletion failed.'\n\n401873 - 'The operation is not supported.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/requests": {
+      "get": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service returns list of requests for a specific user.",
+        "summary": "Retrieve user requests",
+        "operationId": "get/almaws/v1/users/{user_id}/requests",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Filter results by request type. Optional. Possible values: HOLD, DIGITIZATION, BOOKING. If not supplied, all request types will be returned."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            },
+            "description": "Offset of the results returned. Optional.Default value: 0, which means that the first results will be returned. "
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "type": "string"
+            },
+            "description": "Active or History request status. Default is active. The 'history' option is only available if the 'should_anonymize_requests' customer parameter is set to 'false' at the time the request was completed."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error - An error has occurred while processing the request.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_requests.xsd. See [here](/alma/apis/docs/xsd/rest_user_requests.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_requests.json#/rest_user_requests"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_requests.json#/rest_user_requests"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service creates a user's request for a library resource. The request can be for a physical item (request types: hold, booking), or a request for digitizing a file (request type: digitization). The request can be placed on title level or on  item level.",
+        "summary": "Create user request",
+        "operationId": "post/almaws/v1/users/{user_id}/requests",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched.  Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "mms_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The requested title. This parameter is mandatory if the request is in title level."
+          },
+          {
+            "name": "item_pid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The requested item ID. This parameter is mandatory if the request is in item level."
+          },
+          {
+            "name": "allow_same_request",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Allow placing requests for items of the same title by the same user. Optional. Default and recommended: false"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Request object. See [here](/alma/apis/docs/xsd/rest_user_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request-post.json#/rest_user_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request-post.json#/rest_user_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401129 - 'No items can fulfill the submitted request.'\n\n401895 - 'Pickup circulation desk with code X and library code Y was not found.'\n\n401136 - 'Failed to save the request: Patron has active request for selected item.'\n\n60308 - 'Delivery to personal address is not supported.'\n\n60309 - 'User does not have address for personal delivery.'\n\n60310 - 'Delivery is not supported for this type of personal address.'\n\n60324 - 'Fulfillment network is not configured.'\n\n60325 - 'Fulfillment network institution is not valid.'\n\n60326 - 'Fulfillment network pickup library or pickup circulation desk is not valid.'\n\n60327 - 'Fulfillment network pickup library or pickup circulation desk is required.'\n\n401684 - 'Search for request physical item failed.'\n\n60328 - 'Item for request was not found.'\n\n60330 - 'Invalid partial digitization volume or issue.'\n\n60331 - 'Failed to create request.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service cancels a specific user request.",
+        "summary": "Cancel user request",
+        "operationId": "delete/almaws/v1/users/{user_id}/requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier of the request that should be canceled."
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Code of the cancel reason. Must be a value from the code table 'RequestCancellationReasons'"
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Note with additional information regarding the cancellation."
+          },
+          {
+            "name": "notify_user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "boolean"
+            },
+            "description": "Boolean flag for notifying the requester of the cancellation (when relevant). Defaults to 'true'."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401694 - 'Request Identifier not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service returns a request by a specific request id.",
+        "summary": "Retrieve user request",
+        "operationId": "get/almaws/v1/users/{user_id}/requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier of the request that should be canceled."
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all_unique",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error - An error has occurred while processing the request.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This API performs an action on a request. Currently supported: moving digitization requests to their next step.",
+        "summary": "Action on a request",
+        "operationId": "post/almaws/v1/users/{user_id}/requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier of the request that should be canceled."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The operation to be performed on the request. Mandatory. Currently only next_step is supported."
+          },
+          {
+            "name": "release_item",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Boolean flag for indicating whether to release the item from the request."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401652 - 'General Error - An error has occurred while processing the request.'\n\n401907 - 'Failed to find a request for the given request ID.'\n\n402205 - 'Input parameter X (Y) is not numeric.'\n\n401932 - 'Request X is not a Digitization request'\n\n401933 - 'Cannot move forward in workflow. Request ID: X, Step: Y'\n\n401934 - 'Move digitization request to next step in workflow has failed. Request ID: X'\n\n401666 - 'X parameter is not valid.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service updates a user's request for a library resource.",
+        "summary": "Update request",
+        "operationId": "put/almaws/v1/users/{user_id}/requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier of the request that should be canceled."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a User Request object. See [here](/alma/apis/docs/xsd/rest_user_request.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request-put.json#/rest_user_request-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request-put.json#/rest_user_request-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60330 - 'Invalid partial digitization volume or issue.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_request.json#/rest_user_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/resource-sharing-requests": {
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service creates a user's request for resource sharing.",
+        "summary": "Create user request for resource sharing",
+        "operationId": "post/almaws/v1/users/{user_id}/resource-sharing-requests",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "user_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The type of identifier that is being searched. Optional. If this is not provided, all unique identifier types are used. The values that can be used are any of the values in the User Identifier Type code table."
+          },
+          {
+            "name": "override_blocks",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Indication whether the request should be created even if blocks exist. optional. By default this is false."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Resource Sharing Request object. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401604 - 'Warning: The institutional inventory has services for the requested title.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n402039 - 'Could not create request, default item location is not defined for the resource sharing library'\n\n401768 - 'Patron is not affiliated with a resource sharing library'\n\n402362 - 'Failed to save the request: Patron has duplicate request'\n\n401607 - 'Resource sharing library (owner) is missing'\n\n401608 - 'The given resource sharing library (owner) is not defined in the patron record'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_resource_sharing_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}": {
+      "delete": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service cancels a specific user resource sharing request.",
+        "summary": "Cancel user resource sharing request",
+        "operationId": "delete/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the resource sharing request."
+          },
+          {
+            "name": "remove_request",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Boolean flag permanently delete the resource sharing request. Defaults to 'false'."
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Code of the cancel reason. Must be a value from the code table 'RequestCancellationReasons'"
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Note with additional information regarding the cancellation."
+          },
+          {
+            "name": "notify_user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "boolean"
+            },
+            "description": "Boolean flag for notifying the requester of the cancellation (when relevant). Defaults to 'true'."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401694 - 'Request Identifier not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This Web service retrieves a user's resource sharing request.",
+        "summary": "Retrieve user's resource sharing request.",
+        "operationId": "get/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the resource sharing request."
+          },
+          {
+            "name": "request_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Request ID type. Optional. Use request_id_type=external to search by external identifier."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401890 - 'User with identifier X of type Y was not found.'\n\n401652 - 'General Error: An error has occurred while processing the request.'\n\n40166450 - 'No result found for given parameters.'\n\n40166422 - 'Value of parameter is invalid given other parameter.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_resource_sharing_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Requests"
+        ],
+        "description": "This web service performs an operation on a user's request for resource sharing.",
+        "summary": "Operation on request for resource sharing.",
+        "operationId": "post/almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A unique identifier for the user"
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the resource sharing request."
+          },
+          {
+            "name": "request_id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Request ID type. Optional. Use request_id_type=external to search by external identifier."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The operation to be performed on the request. Mandatory. Currently only update_shipping is supported."
+          },
+          {
+            "name": "shipping_cost",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The updated shipping cost."
+          },
+          {
+            "name": "fund_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the updated fund."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Resource Sharing Request object. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401608 - 'The given resource sharing library (owner) is not defined in the patron record'\n\n40166411 - 'Parameter value is invalid.'\n\n40166425 - 'Shipping cost cannot be lower than 0.'\n\n40166426 - 'Parameter value is invalid (with error message).'\n\n40166412 - 'Failed to perform operation.'\n\n60340 - 'The request is API Restricted by library.'\n\n60258 - 'The API Restricted profile is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_resource_sharing_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/users/{user_name}/leganto-notifications": {
+      "get": {
+        "tags": [
+          "Leganto Notifications"
+        ],
+        "description": "This Web service returns list of leganto notifications for a specific user.",
+        "summary": "Retrieve user leganto notifications",
+        "operationId": "get/almaws/v1/users/{user_name}/leganto-notifications",
+        "parameters": [
+          {
+            "name": "user_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The user_name of the user"
+          },
+          {
+            "name": "notificationType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter results by notification type. Optional. Possible values are listed in code_table_SystemEventTypes"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "string"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "From this Date (YYYY-MM-DD). Optional. Defaults to today."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "To this date (YYYY-MM-DD). Optional. Defaults to the From Date plus one week."
+          },
+          {
+            "name": "unread",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Boolean flag for indicating whether to bring the notifications by to date or leganto last notification viewd date . Optional ."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_leganto_notifications.xsd. See [here](/alma/apis/docs/xsd/rest_leganto_notifications.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_leganto_notifications.json#/rest_leganto_notifications"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_leganto_notifications.json#/rest_leganto_notifications"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

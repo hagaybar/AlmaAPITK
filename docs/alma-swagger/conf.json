@@ -1,0 +1,4273 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Organization Units"
+    },
+    {
+      "name": "General"
+    },
+    {
+      "name": "Jobs"
+    },
+    {
+      "name": "Sets"
+    },
+    {
+      "name": "Deposit Profiles"
+    },
+    {
+      "name": "Import Profiles"
+    },
+    {
+      "name": "Integration Profiles"
+    },
+    {
+      "name": "Utilities"
+    },
+    {
+      "name": "Reminders"
+    },
+    {
+      "name": "Printers"
+    },
+    {
+      "name": "Letter"
+    },
+    {
+      "name": "License Terms"
+    },
+    {
+      "name": "Test"
+    },
+    {
+      "name": "Library Open Workflows"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/conf": {},
+    "/almaws/v1/conf/code-tables": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This API returns a list of all Code Tables for the configuration API.",
+        "summary": "Retrieve Code Tables",
+        "operationId": "get/almaws/v1/conf/code-tables",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Failed to find scope.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_code_tables.xsd. See [here](/alma/apis/docs/xsd/rest_code_tables.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_tables.json#/rest_code_tables"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_tables.json#/rest_code_tables"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/code-tables/{codeTableName}": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This API returns all rows defined for a code-table.",
+        "summary": "Retrieve Code-table",
+        "operationId": "get/almaws/v1/conf/code-tables/{codeTableName}",
+        "parameters": [
+          {
+            "name": "codeTableName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Code table name."
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Requested language."
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "Institution Code",
+              "type": "string"
+            },
+            "description": "Institution or Library code"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Param value is invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_code_table.xsd. See [here](/alma/apis/docs/xsd/rest_code_table.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table.json#/rest_code_table"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table.json#/rest_code_table"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "General"
+        ],
+        "description": "This Web service updates a code-table.\n\nIt doesn't currently support restoring a row, and 'Manage in Network' functionality.",
+        "summary": "Update Code-table",
+        "operationId": "put/almaws/v1/conf/code-tables/{codeTableName}",
+        "parameters": [
+          {
+            "name": "codeTableName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Code table name."
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "en",
+              "type": "string"
+            },
+            "description": "Requested language."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a code-table object. See [here](/alma/apis/docs/xsd/rest_code_table.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table-put.json#/rest_code_table-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table-put.json#/rest_code_table-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n90100 - 'Code table name is empty.'\n\n90101 - 'Table does not exist.'\n\n90102 - 'Requested table is hidden.'\n\n90121 - 'Requested table scope is not legal.'\n\n90122 - 'Multiple default codes.'\n\n90123 - 'Requested table is not customizable'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_code_table.xsd. See [here](/alma/apis/docs/xsd/rest_code_table.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table.json#/rest_code_table"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_code_table.json#/rest_code_table"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/departments": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a list of all Departments configured for the Institution.",
+        "summary": "Retrieve Departments",
+        "operationId": "get/almaws/v1/conf/departments",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Department type. The type DIGI (digitization) or ALL is supported. Default is ALL."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "FULL",
+              "type": "string"
+            },
+            "description": "Add optional parameter view=brief to get a list of departments without operators."
+          },
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Library code. Optional. Default: The institutional level."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_departments.xsd. See [here](/alma/apis/docs/xsd/rest_departments.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_departments.json#/rest_departments"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_departments.json#/rest_departments"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/deposit-profiles": {
+      "get": {
+        "tags": [
+          "Deposit Profiles"
+        ],
+        "description": "This web service returns a list of Deposit Profiles.",
+        "summary": "Retrieve Deposit Profiles",
+        "operationId": "get/almaws/v1/conf/deposit-profiles",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "user_group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An option to filter by user group. Optional. Default value: Empty String which means that all the results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_deposit_profiles.xsd. See [here](/alma/apis/docs/xsd/rest_deposit_profiles.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_deposit_profiles.json#/rest_deposit_profiles"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_deposit_profiles.json#/rest_deposit_profiles"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/deposit-profiles/{deposit_profile_id}": {
+      "get": {
+        "tags": [
+          "Deposit Profiles"
+        ],
+        "description": "This web service returns a specific Deposit Profile.",
+        "summary": "Retrieve Deposit Profile",
+        "operationId": "get/almaws/v1/conf/deposit-profiles/{deposit_profile_id}",
+        "parameters": [
+          {
+            "name": "deposit_profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Deposit Profile ID."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_deposit_profile.xsd. See [here](/alma/apis/docs/xsd/rest_deposit_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_deposit_profile.json#/rest_deposit_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_deposit_profile.json#/rest_deposit_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/general": {
+      "get": {
+        "tags": [
+          "General General"
+        ],
+        "description": "This Web service returns the general configuration of the institution.",
+        "summary": "Retrieve General Configuration",
+        "operationId": "get/almaws/v1/conf/general",
+        "parameters": [
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Parameter for enhancing result with additional information. Currently supported: ingest_form"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General Error - An error has occurred while processing the request.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_general.xsd. See [here](/alma/apis/docs/xsd/rest_general.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_general.json#/rest_general"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_general.json#/rest_general"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/integration-profiles": {
+      "get": {
+        "tags": [
+          "Integration Profiles"
+        ],
+        "description": "This Web service returns a list of Integration Profiles.\n\n",
+        "summary": "Retrieve a list of Integration Profiles",
+        "operationId": "get/almaws/v1/conf/integration-profiles",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Type for filtering. Optional. Valid values are from the IntegrationTypes code table"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words in created_by or name (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter value invalid.'\n\n40166404 - 'Invalid type.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_integration_profile.xsd. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Integration Profiles"
+        ],
+        "description": "This Web service creates an Integration Profile",
+        "summary": "Retrieve an Integration Profile",
+        "operationId": "post/almaws/v1/conf/integration-profiles",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a Integration-Profile object. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile-post.json#/rest_integration_profile-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile-post.json#/rest_integration_profile-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60304 - 'Invalid profile ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_integration_profile.xsd. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/integration-profiles/{id}": {
+      "delete": {
+        "tags": [
+          ""
+        ],
+        "description": "This Web service deletes an Integration Profile.",
+        "summary": "Delete an Integration Profile",
+        "operationId": "delete/almaws/v1/conf/integration-profiles/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Integration Profile ID"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60304 - 'Invalid profile ID.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Integration Profiles"
+        ],
+        "description": "This Web service returns an Integration Profile given an Integration Profile ID.\n\n",
+        "summary": "Retrieve an Integration Profile",
+        "operationId": "get/almaws/v1/conf/integration-profiles/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Integration Profile ID"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60304 - 'Invalid profile ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_integration_profile.xsd. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Integration Profiles"
+        ],
+        "description": "This Web service updates an Integration Profile.",
+        "summary": "Update an Integration Profile",
+        "operationId": "put/almaws/v1/conf/integration-profiles/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Integration Profile ID"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Integration-Profile object. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile-put.json#/rest_integration_profile-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile-put.json#/rest_integration_profile-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60304 - 'Invalid profile ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_integration_profile.xsd. See [here](/alma/apis/docs/xsd/rest_integration_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_integration_profile.json#/rest_integration_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns a list of jobs that can be submitted.\n\nThe Jobs API supports 2 job types:\n\nManual jobs - Perform actions on a pre-defined set of records. Available in the Run a job list in the Alma UI.\n\nScheduled jobs  - Jobs that might be running periodically. In the Alma UI, it is possible to see these jobs (if they have a defined schedule) in the Scheduled tab of the Monitor Jobs page.\n\nSee [Working with the Alma Jobs API](https://developers.exlibrisgroup.com/blog/Working-with-the-Alma-Jobs-API) for more details.",
+        "summary": "Retrieve Jobs",
+        "operationId": "get/almaws/v1/conf/jobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "For filtering jobs by their category. Optional. For manual, possible values are from HPaTaskChain.type code table. For scheduled and other, possible values are from the systemJobsGroups code table. By default, all jobs will be retrieved."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "For filtering jobs by their type. Optional. Possible values are MANUAL/SCHEDULED/OTHER. If no type is given, all types of jobs will be retrieved."
+          },
+          {
+            "name": "profile_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "For filtering jobs by their profile ID. Optional. Relevant only for scheduled jobs."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Invalid category.'\n\n40166410 - 'Invalid type.'\n\n402219 - 'Failed to retrieve jobs list.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_jobs.xsd. See [here](/alma/apis/docs/xsd/rest_jobs.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_jobs.json#/rest_jobs"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_jobs.json#/rest_jobs"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns job details for a given job id.",
+        "summary": "Retrieve Job Details",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. Mandatory."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402249 - 'Invalid scheduled job category.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_job.xsd. See [here](/alma/apis/docs/xsd/rest_job.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job.json#/rest_job"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job.json#/rest_job"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service submits a job according to a given job id.\n\nThe Jobs API supports 2 job types:\n\nManual jobs - Perform actions on a pre-defined set of records. Available in the Run a job list in the Alma UI.\n\nScheduled jobs  - Jobs that might be running periodically. In the Alma UI, it is possible to see these jobs (if they have a defined schedule) in the Scheduled tab of the Monitor Jobs page.\n\nIn order to submit a manual job by API, the relevant parameters should be supplied in the input.\n\nSee [Working with the Alma Jobs API](https://developers.exlibrisgroup.com/blog/Working-with-the-Alma-Jobs-API) for more details.\n\n To maintain optimum performance the following threshold will be used: The job will run only if: \n\n a. not more than 3 jobs initiated by the API are running currently. \n\n b. not more of 5 of the specific job were started in the previous hour.\n\n The submission of scheduled jobs is supported for: ERP (Export Invoices, Import confirmation), Metadata Import, Remote Storage (Inventory Update, Send Requests to Remote Storage), Export/Import to Bursar,Finance (Funds Allocation Loader)General Publishing ('republish' action is currently not supported), Activate/Deactivate Courses and Student Information System (Import, Synchronize and Export).",
+        "summary": "Submit a manual or scheduled job",
+        "operationId": "post/almaws/v1/conf/jobs/{job_id}",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. Mandatory."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the job. Currently op=run is supported for manual and scheduled jobs."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Job object. See [here](/alma/apis/docs/xsd/rest_job.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job-post.json#/rest_job-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job-post.json#/rest_job-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402220 - 'Operation was not provided.'\n\n402221 - 'Operation is not supported.'\n\n402222/402223 - 'Execution threshold reached.'\n\n402224/402225/402226 - 'An internal error occured.'\n\n402228 - 'Mandatory parameter is missing from input.'\n\n402229 - 'Mandatory parameter value is empty.'\n\n402248 - 'Cannot submit scheduled job.'\n\n402249 - 'Invalid scheduled job category.'\n\n402231 - 'Job in consisted of more than one task - executing such job is currently not supported via the API.'\n\n60347 - 'Job overlapps with running job - cannot execute.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_job.xsd. See [here](/alma/apis/docs/xsd/rest_job.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job.json#/rest_job"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job.json#/rest_job"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}/instances": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns all the job instances (runs) for a given job id.",
+        "summary": "Retrieve Job Instances",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}/instances",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. Mandatory."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "submit_date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Retrieve instances from this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "submit_date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Retrieve instances until this Date, included (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only instances with the specified status will be retrieved. Optional."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402217 - 'Invalid date format.'\n\n40166410 - 'Invalid status.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_job_instances.xsd. See [here](/alma/apis/docs/xsd/rest_job_instances.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job_instances.json#/rest_job_instances"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job_instances.json#/rest_job_instances"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns a job instance for given job id and instance id. [info!Note: It is possible to retrieve a job instance by using 'ALL' in place of a job id. ]",
+        "summary": "Retrieve Job Instance Details",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. May be ALL to retrieve instance id for a job. Mandatory."
+          },
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the specific job instance. Mandatory."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402218 - 'Invalid job instance id.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_job_instance.xsd. See [here](/alma/apis/docs/xsd/rest_job_instance.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job_instance.json#/rest_job_instance"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_job_instance.json#/rest_job_instance"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/download": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service download a file which contains the loaded records of MARC MD import job instance for given job id and instance id, the file content can be XML/binary MARC records",
+        "summary": "Download MD import input file",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/download",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. May be ALL to retrieve instance id for a job. Mandatory."
+          },
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the specific job instance. Mandatory."
+          },
+          {
+            "name": "download_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "XML",
+              "type": "string"
+            },
+            "description": "MARC format XML/BINARY"
+          },
+          {
+            "name": "line_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "TOTAL_RECORDS_IMPORTED",
+              "type": "string"
+            },
+            "description": "Line Type as appears in /jobs/{job_id}/instances/{instance_id} api result"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402218 - 'Invalid job instance id.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns a list of events for a job-instance for the given job id and instance id.  For now it accepts jobs in the category and type of USERS/SIS and returns events only for rejected entries.",
+        "summary": "Retrieve Job Instance Event Details",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/events",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. Mandatory."
+          },
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the specific job instance. Mandatory."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402218 - 'Invalid job instance id.'\n\n60333 - 'Error retrieving events.'\n\n60332 - 'This service will only work for the job category and type of USERS/SIS.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_events.xsd. See [here](/alma/apis/docs/xsd/rest_events.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_events.json#/rest_events"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_events.json#/rest_events"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "description": "This Web service returns single and multi match details for an import job.",
+        "summary": "Retrieve Job Matching Details",
+        "operationId": "get/almaws/v1/conf/jobs/{job_id}/instances/{instance_id}/matches",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the job. Mandatory."
+          },
+          {
+            "name": "instance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the specific job instance. Mandatory."
+          },
+          {
+            "name": "population",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The population of match results to return. Valid values are SINGLE_MATCHES and MULTI_MATCHES. Mandatory."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402215 - 'Invalid job id format.'\n\n402216 - 'Invalid job id.'\n\n402218 - 'Invalid job instance id.'\n\n402119 - 'General error.'\n\n40166410 - 'Population value is invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_matches.xsd. See [here](/alma/apis/docs/xsd/rest_matches.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_matches.json#/rest_matches"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_matches.json#/rest_matches"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/letters": {
+      "get": {
+        "tags": [
+          "Letter"
+        ],
+        "description": "This API returns a list of all Letters configured for the Institution.",
+        "summary": "Retrieve Letters",
+        "operationId": "get/almaws/v1/conf/letters",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "LETTER",
+              "type": "string"
+            },
+            "description": "Type of letters (LETTER or COMPONENT)"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60344 - 'Problem retrieving letter data.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_letters.xsd. See [here](/alma/apis/docs/xsd/rest_letters.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letters.json#/rest_letters"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letters.json#/rest_letters"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/letters/{letterCode}": {
+      "get": {
+        "tags": [
+          "Letter"
+        ],
+        "description": "This API retrieves details for a single Letter.",
+        "summary": "Retrieve Letter",
+        "operationId": "get/almaws/v1/conf/letters/{letterCode}",
+        "parameters": [
+          {
+            "name": "letterCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the letter."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Letter code is not valid.'\n\n60344 - 'Problem retrieving letter data.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_letter.xsd. See [here](/alma/apis/docs/xsd/rest_letter.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter.json#/rest_letter"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter.json#/rest_letter"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Letter"
+        ],
+        "description": "This API updates a Letter. Note: JSON is not supported",
+        "summary": "Update Letter",
+        "operationId": "put/almaws/v1/conf/letters/{letterCode}",
+        "parameters": [
+          {
+            "name": "letterCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the letter."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a letter object. See [here](/alma/apis/docs/xsd/rest_letter.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter-put.json#/rest_letter-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter-put.json#/rest_letter-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60105 - 'JSON is not supported for this API.'\n\n402119 - 'General error.'\n\n40166411 - 'Letter code or other parameter is not valid.'\n\n60344 - 'Problem retrieving letter data.'\n\n60343 - 'The update failed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_letter.xsd. See [here](/alma/apis/docs/xsd/rest_letter.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter.json#/rest_letter"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_letter.json#/rest_letter"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a list of all Libraries configured for the Institution.",
+        "summary": "Retrieve Libraries",
+        "operationId": "get/almaws/v1/conf/libraries",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_libraries.xsd. See [here](/alma/apis/docs/xsd/rest_libraries.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_libraries.json#/rest_libraries"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_libraries.json#/rest_libraries"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API retrieves details for a single Library.",
+        "summary": "Retrieve Library",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_library.xsd. See [here](/alma/apis/docs/xsd/rest_library.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_library.json#/rest_library"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_library.json#/rest_library"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}/circ-desks/": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a list of Circulation Desk at a specific library.",
+        "summary": "Retrieve Circulation Desks",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}/circ-desks/",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the location belongs to."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_circ_desks.xsd. See [here](/alma/apis/docs/xsd/rest_circ_desks.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_circ_desks.json#/rest_circ_desks"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_circ_desks.json#/rest_circ_desks"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a Circulation Desk.",
+        "summary": "Retrieve Circulation Desk",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the location belongs to."
+          },
+          {
+            "name": "circDeskCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Circulation Desk to be retrieved."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401664 - 'Parameter value missing or invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_circ_desk.xsd. See [here](/alma/apis/docs/xsd/rest_circ_desk.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_circ_desk.json#/rest_circ_desk"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_circ_desk.json#/rest_circ_desk"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}/locations": {
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a list of Physical Locations for a given Library.",
+        "summary": "Retrieve Locations",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}/locations",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the locations should be retrieved."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_locations.xsd. See [here](/alma/apis/docs/xsd/rest_locations.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_locations.json#/rest_locations"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_locations.json#/rest_locations"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This Web service creates a Physical Location.\n\n",
+        "summary": "Create a Location",
+        "operationId": "post/almaws/v1/conf/libraries/{libraryCode}/locations",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the locations should be retrieved."
+          }
+        ],
+        "requestBody": {
+          "description": " See [here](/alma/apis/docs/xsd/rest_location.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location-post.json#/rest_location-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location-post.json#/rest_location-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401664 - 'Parameter value invalid.'\n\n60297 - 'Location type is not valid.'\n\n60298 - 'Remote storage code is not valid.'\n\n60299 - 'Fulfillment unit is not valid.'\n\n60300 - 'Accession placement is not valid.'\n\n60301 - 'Call number type is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_location.xsd. See [here](/alma/apis/docs/xsd/rest_location.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}": {
+      "delete": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This Web service deletes a Physical Location.",
+        "summary": "Delete Location",
+        "operationId": "delete/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the location belongs to."
+          },
+          {
+            "name": "locationCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Location CODE. Required."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This API returns a Physical Location.",
+        "summary": "Retrieve Location",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the location belongs to."
+          },
+          {
+            "name": "locationCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Location CODE. Required."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_location.xsd. See [here](/alma/apis/docs/xsd/rest_location.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Organization Units"
+        ],
+        "description": "This Web service updates a Physical Location.\n\n",
+        "summary": "Update a Location",
+        "operationId": "put/almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library for which the location belongs to."
+          },
+          {
+            "name": "locationCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Location CODE. Required."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a location object. See [here](/alma/apis/docs/xsd/rest_location.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location-put.json#/rest_location-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location-put.json#/rest_location-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401664 - 'Parameter value invalid.'\n\n60297 - 'Location type is not valid.'\n\n60298 - 'Remote storage code is not valid.'\n\n60299 - 'Fulfillment unit is not valid.'\n\n60300 - 'Accession placement is not valid.'\n\n60301 - 'Call number type is not valid.'\n\n60302 - 'Update of location failed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_location.xsd. See [here](/alma/apis/docs/xsd/rest_location.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_location.json#/rest_location"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/libraries/{libraryCode}/open-hours": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This API returns a list of open days and hours for a given library.\n\nNote that the library-hours do not necessarily reflect when the library doors are actually open, but rather start and end times that effect loan period.\n\nThis API is limited to one month of days from 1 year ago to 3 years ahead for a single request.",
+        "summary": "Retrieve Library Open Hours",
+        "operationId": "get/almaws/v1/conf/libraries/{libraryCode}/open-hours",
+        "parameters": [
+          {
+            "name": "libraryCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code for the institution from which the open hours should be retrieved."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "today",
+              "type": "string"
+            },
+            "description": "From this Date (YYYY-MM-DD). Defaults to today."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "To this Date (YYYY-MM-DD). Defaults to the From Date plus one week."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_open_days.xsd. See [here](/alma/apis/docs/xsd/rest_open_days.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_days.json#/rest_open_days"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_days.json#/rest_open_days"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/license-terms": {
+      "get": {
+        "tags": [
+          ""
+        ],
+        "description": "This API returns a list of all license terms.",
+        "summary": "Retrieve License Terms",
+        "operationId": "get/almaws/v1/conf/license-terms",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n403401 - 'Failed to retrieve license.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license_terms.xsd. See [here](/alma/apis/docs/xsd/rest_license_terms.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_terms.json#/rest_license_terms"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_terms.json#/rest_license_terms"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "License Terms"
+        ],
+        "description": "This API creates license term.",
+        "summary": "Create License Term",
+        "operationId": "post/almaws/v1/conf/license-terms",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a License Term object. See [here](/alma/apis/docs/xsd/rest_license_term.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term-post.json#/rest_license_term-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term-post.json#/rest_license_term-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n500021 - 'Mandatory field is missing.'\n\n60198 - 'License code not unique.'\n\n60195 - 'License term codes not valid.'\n\n60190 - 'License licensor not valid.'\n\n60196 - 'License not created.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license_term.xsd. See [here](/alma/apis/docs/xsd/rest_license_term.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/license-terms/{license_term_code}": {
+      "delete": {
+        "tags": [
+          "License Terms"
+        ],
+        "description": "This Web service deletes a license term.\n\n",
+        "summary": "Delete License Term",
+        "operationId": "delete/almaws/v1/conf/license-terms/{license_term_code}",
+        "parameters": [
+          {
+            "name": "license_term_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the license term."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n403400 - 'License with code not found.'\n\n60200 - 'License could not be deleted.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "License Terms"
+        ],
+        "description": "This API retrieves license term.",
+        "summary": "Retrieve License Term:",
+        "operationId": "get/almaws/v1/conf/license-terms/{license_term_code}",
+        "parameters": [
+          {
+            "name": "license_term_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the license term."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n403400 - 'License with code not found.'\n\n403401 - 'Failed to retrieve license.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license_term.xsd. See [here](/alma/apis/docs/xsd/rest_license_term.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "License Terms"
+        ],
+        "description": "This API updates a license term.",
+        "summary": "Update License Term",
+        "operationId": "put/almaws/v1/conf/license-terms/{license_term_code}",
+        "parameters": [
+          {
+            "name": "license_term_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the license term."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a License Term object. See [here](/alma/apis/docs/xsd/rest_license_term.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term-put.json#/rest_license_term-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term-put.json#/rest_license_term-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n403400 - 'License with code not found.'\n\n500021 - 'Mandatory field is missing.'\n\n60198 - 'License code not unique.'\n\n60195 - 'License term codes not valid.'\n\n60190 - 'License licensor not valid.'\n\n60202 - 'License not updated.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license_term.xsd. See [here](/alma/apis/docs/xsd/rest_license_term.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license_term.json#/rest_license_term"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/mapping-tables": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This API returns a list of all mapping tables.",
+        "summary": "Retrieve Mapping Tables",
+        "operationId": "get/almaws/v1/conf/mapping-tables",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Failed to find scope.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_mapping_tables.xsd. See [here](/alma/apis/docs/xsd/rest_mapping_tables.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_tables.json#/rest_mapping_tables"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_tables.json#/rest_mapping_tables"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/mapping-tables/{mappingTableName}": {
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This API returns all rows defined for a mapping-table.",
+        "summary": "Retrieve Mapping-table",
+        "operationId": "get/almaws/v1/conf/mapping-tables/{mappingTableName}",
+        "parameters": [
+          {
+            "name": "mappingTableName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mapping table name."
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "Institution Code",
+              "type": "string"
+            },
+            "description": "Institution or Library code"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Param value is invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_mapping_table.xsd. See [here](/alma/apis/docs/xsd/rest_mapping_table.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table.json#/rest_mapping_table"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table.json#/rest_mapping_table"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "General"
+        ],
+        "description": "This Web service updates a mapping-table.",
+        "summary": "Update Mapping-table",
+        "operationId": "put/almaws/v1/conf/mapping-tables/{mappingTableName}",
+        "parameters": [
+          {
+            "name": "mappingTableName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Mapping table name."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a mapping-table object. See [here](/alma/apis/docs/xsd/rest_mapping_table.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table-put.json#/rest_mapping_table-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table-put.json#/rest_mapping_table-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n90126 - 'Mapping table name is empty.'\n\n90101 - 'Table does not exist.'\n\n90102 - 'Requested table is hidden.'\n\n90127 - 'Requested table scope is not legal.'\n\n90125 - 'Requested table is not customizable'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_mapping_table.xsd. See [here](/alma/apis/docs/xsd/rest_mapping_table.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table.json#/rest_mapping_table"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_mapping_table.json#/rest_mapping_table"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/md-import-profiles": {
+      "get": {
+        "tags": [
+          "Import Profiles"
+        ],
+        "description": "This Web service returns a list of Import Profiles. In default mode, with no query parameters, all import profiles are returned.",
+        "summary": "Retrieve Import Profiles",
+        "operationId": "get/almaws/v1/conf/md-import-profiles",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The Import Profile Type. Optional. Default is no Import Type."
+          },
+          {
+            "name": "ie_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "The type of IE Entity created by this import. Optional. Default is to include all entities."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General Error - An error has occurred while processing the request.'\n\n402123 - 'Invalid parameter value.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_import_profiles.xsd. See [here](/alma/apis/docs/xsd/rest_import_profiles.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profiles.json#/rest_import_profiles"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profiles.json#/rest_import_profiles"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/md-import-profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "Import Profiles"
+        ],
+        "description": "This web service returns an Import profile given a Profile ID.",
+        "summary": "Retrieve Import Profile",
+        "operationId": "get/almaws/v1/conf/md-import-profiles/{profile_id}",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The profile identifier."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401871 - 'Failed to find the Profile ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_import_profile.xsd. See [here](/alma/apis/docs/xsd/rest_import_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profile.json#/rest_import_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profile.json#/rest_import_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Import Profiles"
+        ],
+        "description": "DEPRECATED - use the 'Submit Job' API instead.\n\n This web service runs an MD import according to a defined Import Profile. Supported for FTP, OAI and Digital.",
+        "summary": "MD Import op - Deprecated",
+        "operationId": "post/almaws/v1/conf/md-import-profiles/{profile_id}",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The profile identifier."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the import profile. The operation op=run is supported."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401871 - 'Failed to find the Profile ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_import_profile.xsd. See [here](/alma/apis/docs/xsd/rest_import_profile.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profile.json#/rest_import_profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_import_profile.json#/rest_import_profile"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/open-hours": {
+      "delete": {
+        "tags": [
+          "General"
+        ],
+        "description": "This Web service delete a open-hours as configured in Alma.",
+        "summary": "Delete Open Hours",
+        "operationId": "delete/almaws/v1/conf/open-hours",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "This optional parameter specifies a library scope. Default will be institution, e.g. 01AAA_INST."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "This Web service returns the open-hours as configured in Alma.",
+        "summary": "Retrieve Open Hours",
+        "operationId": "get/almaws/v1/conf/open-hours",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "This optional parameter specifies a library scope. Default will be institution, e.g. 01AAA_INST."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_open_hours.xsd. See [here](/alma/apis/docs/xsd/rest_open_hours.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours.json#/rest_open_hours"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours.json#/rest_open_hours"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "General"
+        ],
+        "description": "This Web service updates a open-hours as configured in Alma.",
+        "summary": "Update Open Hours",
+        "operationId": "put/almaws/v1/conf/open-hours",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "This optional parameter specifies a library scope. Default will be institution, e.g. 01AAA_INST."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an openHours object. See [here](/alma/apis/docs/xsd/rest_open_hours.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours-put.json#/rest_open_hours-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours-put.json#/rest_open_hours-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_open_hours.xsd. See [here](/alma/apis/docs/xsd/rest_open_hours.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours.json#/rest_open_hours"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_open_hours.json#/rest_open_hours"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/printers": {
+      "get": {
+        "tags": [
+          "Printers"
+        ],
+        "description": "This API returns a list of Printers.",
+        "summary": "Retrieve Printers",
+        "operationId": "get/almaws/v1/conf/printers",
+        "parameters": [
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Printer library code. Optional. "
+          },
+          {
+            "name": "printout_queue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Printer printout queue indication. Optional. "
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Printer Name. Optional. "
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Printer Code. Optional. "
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402469 - 'The library code is not valid.'\n\n40166410 - 'Invalid parameter.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_printers.xsd. See [here](/alma/apis/docs/xsd/rest_printers.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_printers.json#/rest_printers"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_printers.json#/rest_printers"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/printers/{printer_id}": {
+      "get": {
+        "tags": [
+          "Printers"
+        ],
+        "description": "This Web service returns a Printer given a Printer ID.",
+        "summary": "Retrieve a Printer",
+        "operationId": "get/almaws/v1/conf/printers/{printer_id}",
+        "parameters": [
+          {
+            "name": "printer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": ""
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402899 - 'Invalid Printer ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_printer.xsd. See [here](/alma/apis/docs/xsd/rest_printer.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_printer.json#/rest_printer"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_printer.json#/rest_printer"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/relations": {
+      "delete": {
+        "tags": [
+          "General"
+        ],
+        "description": "Delete a library's relations with other libraries.",
+        "summary": "Delete Relations",
+        "operationId": "delete/almaws/v1/conf/relations",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the source library. Can be All. Mandatory."
+          },
+          {
+            "name": "libraryCode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the target library. To delete more than one, use a comma separator."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166413 - 'Parameter value is mandatory.'\n\n40166411 - 'Parameter value invalid.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "General"
+        ],
+        "description": "List of all library's relations with other libraries.",
+        "summary": "Retrieve Relation List",
+        "operationId": "get/almaws/v1/conf/relations",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the library. Can be All. Mandatory."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166413 - 'Parameter value is mandatory.'\n\n40166411 - 'Parameter value invalid.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "General"
+        ],
+        "description": "Create or replace a library's relations with other libraries.",
+        "summary": "Create / Replace Relations",
+        "operationId": "put/almaws/v1/conf/relations",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the source library. Can be All. Mandatory."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Relations object. See [here](/alma/apis/docs/xsd/?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166413 - 'Parameter value is mandatory.'\n\n40166411 - 'Parameter value invalid.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/reminders": {
+      "get": {
+        "tags": [
+          "Reminders"
+        ],
+        "description": "This Web service returns a list of Reminders.\n\n",
+        "summary": "Retrieve a list of Reminders",
+        "operationId": "get/almaws/v1/conf/reminders",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Type for filtering. Optional. Valid values are from the ReminderTypes code table"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Status for filtering. Optional. Valid values are from the ReminderStatuses code table"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "From this Date (YYYY-MM-DD). Optional. Defaults to today."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "To this Date (YYYY-MM-DD). Optional. Defaults to the From Date."
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "type",
+              "type": "string"
+            },
+            "description": "Order by parameter. Optional. Valid values are type, status, reminder_date."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "type": "string"
+            },
+            "description": "Direction parameter. Optional. Valid values are asc, desc."
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Entity ID parameter. Optional. Valid value is an entity id."
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "BIB_MMS",
+              "type": "string"
+            },
+            "description": "Entity Type parameter. Optional. Valid value is BIB_MMS."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter value invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reminders.xsd. See [here](/alma/apis/docs/xsd/rest_reminders.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminders.json#/rest_reminders"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminders.json#/rest_reminders"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reminders"
+        ],
+        "description": "This Web service creates a Reminder.\n\n",
+        "summary": "Create a Reminder",
+        "operationId": "post/almaws/v1/conf/reminders",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a reminder object. See [here](/alma/apis/docs/xsd/rest_reminder.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder-post.json#/rest_reminder-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder-post.json#/rest_reminder-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter value invalid.'\n\n60178 - 'Reminder Type is not valid.'\n\n60179 - 'Reminder Status is not valid.'\n\n60180 - 'Reminder not created.'\n\n60182 - 'Reminder Entity ID is not valid.'\n\n60183 - 'Reminder Entity Type is not valid.'\n\n60184 - 'Reminder Entity Id is required.'\n\n60185 - 'Reminder Date is required.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reminder.xsd. See [here](/alma/apis/docs/xsd/rest_reminder.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/reminders/{reminder_id}": {
+      "delete": {
+        "tags": [
+          "Reminders"
+        ],
+        "description": "This Web service deletes a Reminder.\n\n",
+        "summary": "Delete a Reminder",
+        "operationId": "delete/almaws/v1/conf/reminders/{reminder_id}",
+        "parameters": [
+          {
+            "name": "reminder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reminder ID. Required."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60177 - 'Reminder ID is not valid.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Reminders"
+        ],
+        "description": "This Web service returns a Reminder.\n\n",
+        "summary": "Retrieve a Reminder",
+        "operationId": "get/almaws/v1/conf/reminders/{reminder_id}",
+        "parameters": [
+          {
+            "name": "reminder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reminder ID. Required."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60177 - 'Reminder ID is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reminder.xsd. See [here](/alma/apis/docs/xsd/rest_reminder.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Reminders"
+        ],
+        "description": "This Web service updates a Reminder.\n\n",
+        "summary": "Update a Reminder",
+        "operationId": "put/almaws/v1/conf/reminders/{reminder_id}",
+        "parameters": [
+          {
+            "name": "reminder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Reminder ID. Required."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a reminder object. See [here](/alma/apis/docs/xsd/rest_reminder.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder-put.json#/rest_reminder-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder-put.json#/rest_reminder-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter value invalid.'\n\n60177 - 'Reminder ID is not valid.'\n\n60178 - 'Reminder Type is not valid.'\n\n60179 - 'Reminder Status is not valid.'\n\n60181 - 'Reminder not updated.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reminder.xsd. See [here](/alma/apis/docs/xsd/rest_reminder.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reminder.json#/rest_reminder"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/sets": {
+      "get": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "This Web service returns a list of Sets.\n\n",
+        "summary": "Retrieve a list of Sets",
+        "operationId": "get/almaws/v1/conf/sets",
+        "parameters": [
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Content type for filtering. Optional. Valid values are from the SetContentType code table"
+          },
+          {
+            "name": "set_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Set type for filtering. Optional. Valid values are 'ITEMIZED' or 'LOGICAL'."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words in created_by or name (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "set_origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "UI",
+              "type": "string"
+            },
+            "description": "Set origin for filtering. Optional. Valid values are 'UI' or 'UI_CZ'."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter value invalid.'\n\n60106 - 'Invalid query format.'\n\n60107 - 'Invalid set ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_sets.xsd. See [here](/alma/apis/docs/xsd/rest_sets.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_sets.json#/rest_sets"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_sets.json#/rest_sets"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "Web service for creating or combining a set.\n\nIf you are creating a new set, you can use this API to create 2 types of sets: Itemized set, Logical set\n\nIn order to create an itemized set, first create an empty set using this API, and then use the [Manage Members](https://developers.exlibrisgroup.com/alma/apis/docs/conf/UE9TVCAvYWxtYXdzL3YxL2NvbmYvc2V0cy97c2V0X2lkfQ==/) API to populate it.\n\nCreating logical sets is supported for Inventory related entities, Users and Vendors (not supported for PO-Lines, etc).\n\n Details regarding the syntax for creating Logical Sets can be found [here](https://developers.exlibrisgroup.com/alma/integrations/indexdoc-technical).\n\nIn addtion, it is possible to create an itemized set and populate it from a logical set by setting the logical set id in the from_logical_set parameter.\n\nIt is also possible to create an itemized Bib record set which is based on MD Import job by providing job instance id and population.\n\nFor more details about MD import based itemized set [see here](https://developers.exlibrisgroup.com/blog/Creating-sets-from-MD-import-job-results-using-Alma-API).\n\nIf you are combining sets, then set1 and set2 must be provided. Those two sets will be combined with a new combined set created.\n\n",
+        "summary": "Create a Set",
+        "operationId": "post/almaws/v1/conf/sets",
+        "parameters": [
+          {
+            "name": "population",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The population on which a set should be created. Optional."
+          },
+          {
+            "name": "job_instance_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The id of MD Import Job instance from which a set should be created. Supported for sets of Bib records. Optional."
+          },
+          {
+            "name": "from_logical_set",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An id of a logical set to create an Itemized Set based on it. Optional."
+          },
+          {
+            "name": "combine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "None",
+              "type": "string"
+            },
+            "description": "The logical operator. Choose between AND, OR, NOT. Default is AND. Optional"
+          },
+          {
+            "name": "set1",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "None",
+              "type": "string"
+            },
+            "description": "The primary combining set. Optional."
+          },
+          {
+            "name": "set2",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "None",
+              "type": "string"
+            },
+            "description": "The secondary combining set. Optional."
+          },
+          {
+            "name": "nz_set_from_iz_set",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An id of an Institution Zone set which will be used as a base to create a set in the Network Zone. The new set will include the Network Zone records to which the Institution Zone records are linked. Optional."
+          },
+          {
+            "name": "filter_set",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An id of a set to create a new filtered set based on it, according to the indication_rule parameter. Optional."
+          },
+          {
+            "name": "indication_rule",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The name of the Indication Rule to be used to filter the set defined in filter_set. Relevant if filter_set is used."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Set object. See [here](/alma/apis/docs/xsd/rest_set.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-post.json#/rest_set-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-post.json#/rest_set-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General Error - An error has occurred while processing the request.'\n\n500127 - ''job_instance_id' and 'population' must be provided together.'\n\n402262 - 'Set type is invalid. Only 'ITEMIZED' and 'LOGICAL' sets are supported.'\n\n402263 - 'The set name already exists. Please choose a different name.'\n\n402264 - 'Set ID is invalid.'\n\n402265 - 'Failed to create a set.'\n\n402266 - 'Population value is invalid.'\n\n402267 - 'Job instance type for the provided job_instance_id is not MD_IMPORT - the operation is not supported.'\n\n60204 - 'Set combine operator not valid.'\n\n60205 - 'Combining sets are not the same type.'\n\n60206 - 'Sets combine operation failed.'\n\n60209 - 'Set private value not valid.'\n\n60210 - 'Set status not valid.'\n\n60311 - 'Combining sets are not the same origin.'\n\n402218 - 'Invalid job instance id.'\n\n60334 - 'Failed to create a set in Network.'\n\n60335 - 'The From Institution Zone is not allowed for institution not in Network.'\n\n60107 - 'The set ID provided for the Institution Zone set is not valid.'\n\n60336 - 'The set type is not allowed for creation as network set.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_set.xsd. See [here](/alma/apis/docs/xsd/rest_set.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/sets/{set_id}": {
+      "delete": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "Web service for deleting a set.",
+        "summary": "Delete a Set",
+        "operationId": "delete/almaws/v1/conf/sets/{set_id}",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the set. Mandatory."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402264 - 'Invalid Set ID.'\n\n402282 - 'Delete of Set Failed.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "This Web service returns a Set given a Set ID.\n\n",
+        "summary": "Retrieve a Set",
+        "operationId": "get/almaws/v1/conf/sets/{set_id}",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the set. Mandatory."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60107 - 'Invalid set ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_set.xsd. See [here](/alma/apis/docs/xsd/rest_set.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "This Web service manages the operations of add, delete and replace for members of a Set given a Set ID.\n\n",
+        "summary": "Manage Members",
+        "operationId": "post/almaws/v1/conf/sets/{set_id}",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the set. Mandatory."
+          },
+          {
+            "name": "id_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The type of the identifier that is used to identify members. Optional. \n\nFor physical items: BARCODE. \n\nFor Bib records: SYSTEM_NUMBER, OCLC_NUMBER, ISBN, ISSN. For regular MMS-IDs no need to defined this parameter. \n\nFor users: any type that is defined in UserIdentifierTypes Code Table"
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the set. Mandatory. The supported operations are add_members, delete_members or replace_members."
+          },
+          {
+            "name": "fail_on_invalid_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "boolean"
+            },
+            "description": "If false, the API will ignore invalid IDs. Relevant for sets of Bibs, Items and Users."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Set object including list of members to add/remove. Up to 1000 members can be supplied. See [here](/alma/apis/docs/xsd/rest_set.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-post.json#/rest_set-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-post.json#/rest_set-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60107 - 'Invalid set ID.'\n\n60111 - 'Invalid operation.'\n\n60112 - 'Invalid set type.'\n\n60113 - 'Input set with no members.'\n\n60114 - 'Input set with no member ID.'\n\n60115 - 'A member ID is already in the set.'\n\n60116 - 'A member ID is not valid for the content.'\n\n60117 - 'Input set member ID is not in set.'\n\n60118 - 'Input set member list exceeds limit.'\n\n60119 - 'Input set with duplicate member.'\n\n60120 - 'A member ID is not valid for the content and identifier.'\n\n60176 - 'A member ID which is represented by an id_type identifier is already in the set.'\n\n40166410 - 'Invalid parameter identifier type.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_set.xsd. See [here](/alma/apis/docs/xsd/rest_set.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "This Web service updates a Set.\n\n",
+        "summary": "Update a Set",
+        "operationId": "put/almaws/v1/conf/sets/{set_id}",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique id of the set. Mandatory."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Set object. See [here](/alma/apis/docs/xsd/rest_set.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-put.json#/rest_set-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set-put.json#/rest_set-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60107 - 'Invalid set ID.'\n\n402261 - 'Invalid Set object.'\n\n402228 - 'Mandatory parameter is missing from input.'\n\n402263 - 'The set name already exists. Please choose a different name.'\n\n402269 - 'Invalid query content type in query string.'\n\n402270 - 'Failed parsing quer.'\n\n40166408 - 'Failed updating set.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_set.xsd. See [here](/alma/apis/docs/xsd/rest_set.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_set.json#/rest_set"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/sets/{set_id}/members": {
+      "get": {
+        "tags": [
+          "Sets"
+        ],
+        "description": "This Web service returns the members of a Set given a Set ID.\n\n",
+        "summary": "Retrieve Set Members",
+        "operationId": "get/almaws/v1/conf/sets/{set_id}/members",
+        "parameters": [
+          {
+            "name": "set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The set ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60107 - 'Invalid set ID.'\n\n60108 - 'Invalid set member.'\n\n60110 - 'Invalid set member details.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_members.xsd. See [here](/alma/apis/docs/xsd/rest_members.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_members.json#/rest_members"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_members.json#/rest_members"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>GET - OK - institutionCode: 01ABC_INST</test>",
+        "summary": "GET Conf Test API",
+        "operationId": "get/almaws/v1/conf/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>POST - OK</test>",
+        "summary": "POST Conf Test API",
+        "operationId": "post/almaws/v1/conf/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/utilities/fee-transactions": {
+      "get": {
+        "tags": [
+          "Utilities"
+        ],
+        "description": "This API returns a fine and fee report.",
+        "summary": "Retrieve Fine Fee Report",
+        "operationId": "get/almaws/v1/conf/utilities/fee-transactions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of fees not transactions. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "transaction_from_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "today",
+              "type": "string"
+            },
+            "description": "From this Date (YYYY-MM-DD). Defaults to today."
+          },
+          {
+            "name": "transaction_to_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "To this Date (YYYY-MM-DD). Defaults to from date. Limit of 7 days period."
+          },
+          {
+            "name": "transaction_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "BOTH",
+              "type": "string"
+            },
+            "description": "Add fine fee transaction type filter.  This defaults to both payment and waived."
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Add fine owner filter.  This is a library or the institution code."
+          },
+          {
+            "name": "received_by_circ_library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Add circulation library filter. May be used in conjunction with received_by_circ_desk to filter results."
+          },
+          {
+            "name": "received_by_circ_desk",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Add circulation desk filter. Must be used in conjunction with received_by_circ_library to filter results."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'An error has occurred in setting from and/or to dates.'\n\n40166419 - 'An error has occurred in setting transaction type.'\n\n40166410 - 'An error has occurred in setting circ library or circ desk.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fees.xsd. See [here](/alma/apis/docs/xsd/rest_fees.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fees.json#/rest_fees"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/conf/workflows/{workflow_id}": {
+      "post": {
+        "tags": [
+          "Library Open Workflows"
+        ],
+        "description": "Triggers the execution of a LibOW workflow using the provided workflow ID.\n\nThe request JSON body is forwarded as the REST trigger payload to the workflow's Alma Trigger node.\n\nFor production mode, the workflow must be active and must include an Alma Trigger node with 'Execute via REST API' selected.\n\nFor test mode, use test=true to execute while the trigger node is listening and accepting requests. Note that the workflow must be saved/persisted.\n\n",
+        "summary": "Run Workflow",
+        "operationId": "post/almaws/v1/conf/workflows/{workflow_id}",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the workflow."
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "If true, executes workflow in test mode."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n450001 - 'Workflow not found.'\n\n450002 - 'Workflow inactive.'\n\n450003 - 'Workflow missing trigger node.'\n\n450004 - 'Workflow missing trigger configuration.  In test mode, this could mean the node is not listening for events.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

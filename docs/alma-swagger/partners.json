@@ -1,0 +1,533 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Resource Sharing Partners"
+    },
+    {
+      "name": "Lending Requests"
+    },
+    {
+      "name": "Test"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/partners": {
+      "get": {
+        "tags": [
+          "Resource Sharing Partners"
+        ],
+        "description": "Retrieves a list of Resource Sharing Partners. Number of results can be limited and offset using the query parameters. For example, to receive the first 2 results send offset=0 and limit=2.",
+        "summary": "Retrieve Partners",
+        "operationId": "get/almaws/v1/partners",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Filter results by their status. Optional. Possible values: ACTIVE, INACTIVE."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401651 - 'Identifier not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_partners.xsd. See [here](/alma/apis/docs/xsd/rest_partners.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partners.json#/rest_partners"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partners.json#/rest_partners"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resource Sharing Partners"
+        ],
+        "description": "Creates a Resource Sharing Partner resource.",
+        "summary": "Create Partner",
+        "operationId": "post/almaws/v1/partners",
+        "parameters": [],
+        "requestBody": {
+          "description": "The Resource Sharing Partner resource to create. Must not exist already. See [here](/alma/apis/docs/xsd/rest_partner.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner-post.json#/rest_partner-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner-post.json#/rest_partner-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402113 - 'Partner already exists.'\n\n401664 - 'Mandatory field is missing: X.'\n\n411709 - 'A partner with the same ISO symbol exists.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_partner.xsd. See [here](/alma/apis/docs/xsd/rest_partner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/partners/operation/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.",
+        "summary": "GET Partner Test API",
+        "operationId": "get/almaws/v1/partners/operation/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.",
+        "summary": "POST Partner Test API",
+        "operationId": "post/almaws/v1/partners/operation/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/partners/{partner_code}": {
+      "delete": {
+        "tags": [
+          "Resource Sharing Partners"
+        ],
+        "description": "Deletes a Resource Sharing Partner resource.",
+        "summary": "Remove Partner",
+        "operationId": "delete/almaws/v1/partners/{partner_code}",
+        "parameters": [
+          {
+            "name": "partner_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Resource Sharing Partner."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401650 - 'Identifier is empty.'\n\n401651 - 'Identifier not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Resource Sharing Partners"
+        ],
+        "description": "Retrieves a Resource Sharing Partner.",
+        "summary": "Retrieve Partner",
+        "operationId": "get/almaws/v1/partners/{partner_code}",
+        "parameters": [
+          {
+            "name": "partner_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Resource Sharing Partner."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402118 - 'Partner not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_partner.xsd. See [here](/alma/apis/docs/xsd/rest_partner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Resource Sharing Partners"
+        ],
+        "description": "Updates a Partner resource.",
+        "summary": "Update Partner",
+        "operationId": "put/almaws/v1/partners/{partner_code}",
+        "parameters": [
+          {
+            "name": "partner_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Resource Sharing Partner."
+          }
+        ],
+        "requestBody": {
+          "description": "The Partner resource to update. Must exist. See [here](/alma/apis/docs/xsd/rest_partner.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner-put.json#/rest_partner-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner-put.json#/rest_partner-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402118 - 'Partner not found.'\n\n401664 - 'Mandatory field is missing: X.'\n\n411709 - 'A partner with the same ISO symbol exists.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_partner.xsd. See [here](/alma/apis/docs/xsd/rest_partner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_partner.json#/rest_partner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/partners/{partner_code}/lending-requests": {
+      "post": {
+        "tags": [
+          "Lending Requests"
+        ],
+        "description": "Create a lending request for the given partner.",
+        "summary": "Create lending request.",
+        "operationId": "post/almaws/v1/partners/{partner_code}/lending-requests",
+        "parameters": [
+          {
+            "name": "partner_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Resource Sharing Partner."
+          }
+        ],
+        "requestBody": {
+          "description": "The lending request resource to create. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request-post.json#/rest_user_resource_sharing_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166411 - 'Invalid parameter.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_resource_sharing_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/partners/{partner_code}/lending-requests/{request_id}": {
+      "get": {
+        "tags": [
+          "Lending Requests"
+        ],
+        "description": "Retrieve a lending request.",
+        "summary": "Retrieve lending request.",
+        "operationId": "get/almaws/v1/partners/{partner_code}/lending-requests/{request_id}",
+        "parameters": [
+          {
+            "name": "partner_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The code of the Resource Sharing Partner."
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The ID of the requested lending request."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166411 - 'Invalid parameter.'\n\n40166412 - 'Failed to perform action.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_user_resource_sharing_request.xsd. See [here](/alma/apis/docs/xsd/rest_user_resource_sharing_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_user_resource_sharing_request.json#/rest_user_resource_sharing_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

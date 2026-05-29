@@ -1,0 +1,974 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Electronic Collections"
+    },
+    {
+      "name": "Electronic Services"
+    },
+    {
+      "name": "Portfolios"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/electronic": {},
+    "/almaws/v1/electronic/e-collections": {
+      "get": {
+        "tags": [
+          "Electronic Collections"
+        ],
+        "description": "This Web service returns a list of electronic collections.",
+        "summary": "Retrieve Electronic Collections",
+        "operationId": "get/almaws/v1/electronic/e-collections",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words in interface_name, keywords, name or po_line_id (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60106 - 'Invalid query format.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_collections.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_collections.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collections.json#/rest_electronic_collections"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collections.json#/rest_electronic_collections"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Electronic Collections"
+        ],
+        "description": "This Web service creates an electronic collection.",
+        "summary": "Create Electronic Collection",
+        "operationId": "post/almaws/v1/electronic/e-collections",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes an ElectronicCollection object. See [here](/alma/apis/docs/xsd/rest_electronic_collection.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection-post.json#/rest_electronic_collection-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection-post.json#/rest_electronic_collection-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60126 - 'The name is missing.'\n\n402469 - 'The library code is not valid.'\n\n60127 - 'The type is missing or not valid.'\n\n60128 - 'The access type is missing or not valid.'\n\n60129 - 'The license is not valid.'\n\n60158 - 'The process type is not valid.'\n\n60130 - 'The free indicator is not valid.'\n\n60131 - 'The language is not valid.'\n\n60132 - 'The proxy enable is not valid.'\n\n60133 - 'The proxy is not valid.'\n\n60134 - 'The interface is not valid.'\n\n60135 - 'The group proxy is not valid.'\n\n60137 - 'The PO line is not valid.'\n\n60139 - 'The collection ID was not created.'\n\n60140 - 'The community zone record was not created.'\n\n60141 - 'The collection could not be saved.'\n\n60142 - 'The collection date is not valid.'\n\n60143 - 'The resource metadata mms id is not valid.'\n\n60151 - 'The collection was not found.'\n\n60152 - 'The group is not valid.'\n\n60296 - 'The COUNTER platform is not valid.'\n\n60353 - 'The linking parameter is not valid. '\n\n60354 - 'The group linking parameter is not valid. '\n\n60359 - 'This collection does not support linking parameters'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_collection.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_collection.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}": {
+      "delete": {
+        "tags": [
+          "Electronic Collections"
+        ],
+        "description": "This Web service deletes an electronic collection. \n\n\n\nNote that it is possible to delete an electronic collection only if there are no services related to it. \n\n\n\nDelete the related services before deleting the electronic collection.  See Delete Electronic Service API. \n\n\n\n",
+        "summary": "DeleteElectronic Collection",
+        "operationId": "delete/almaws/v1/electronic/e-collections/{collection_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'\n\n60154 - 'The collection could not be deleted.'\n\n60155 - 'Error during collection delete.'\n\n60156 - 'Error during collection delete with associated Bib.'\n\n60289 - 'The delete is blocked e-service attached.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Electronic Collections"
+        ],
+        "description": "This Web service returns an electronic collection given an electronic collection ID.",
+        "summary": "Retrieve Electronic Collection",
+        "operationId": "get/almaws/v1/electronic/e-collections/{collection_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The collection ID is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_collection.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_collection.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Electronic Collections"
+        ],
+        "description": "This Web service updates an electronic collection.",
+        "summary": "Update Electronic Collection",
+        "operationId": "put/almaws/v1/electronic/e-collections/{collection_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an ElectronicCollection object. See [here](/alma/apis/docs/xsd/rest_electronic_collection.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection-put.json#/rest_electronic_collection-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection-put.json#/rest_electronic_collection-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'\n\n60126 - 'The name is missing.'\n\n402469 - 'The library code is not valid.'\n\n60127 - 'The type is missing or not valid.'\n\n60128 - 'The access type is missing or not valid.'\n\n60129 - 'The license is not valid.'\n\n60158 - 'The process type is not valid.'\n\n60130 - 'The free indicator is not valid.'\n\n60131 - 'The language is not valid.'\n\n60132 - 'The proxy enable is not valid.'\n\n60133 - 'The proxy is not valid.'\n\n60134 - 'The interface is not valid.'\n\n60135 - 'The group proxy is not valid.'\n\n60137 - 'The PO line is not valid.'\n\n60140 - 'The community zone record was not created.'\n\n60141 - 'The collection could not be saved.'\n\n60142 - 'The collection date is not valid.'\n\n60143 - 'The resource metadata mms id is not valid.'\n\n60151 - 'The collection was not found.'\n\n60152 - 'The group is not valid.'\n\n60296 - 'The COUNTER platform is not valid.'\n\n60353 - 'The linking parameter is not valid. '\n\n60354 - 'The group linking parameter is not valid. '\n\n60359 - 'This collection does not support linking parameters'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_collection.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_collection.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_collection.json#/rest_electronic_collection"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}/e-services": {
+      "get": {
+        "tags": [
+          "Electronic Services"
+        ],
+        "description": "This Web service returns a list of electronic services for a given electronic collection ID.",
+        "summary": "Retrieve Electronic Services",
+        "operationId": "get/almaws/v1/electronic/e-collections/{collection_id}/e-services",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_services.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_services.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_services.json#/rest_electronic_services"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_services.json#/rest_electronic_services"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Electronic Services"
+        ],
+        "description": "This Web service creates an electronic service.",
+        "summary": "Create Electronic Service",
+        "operationId": "post/almaws/v1/electronic/e-collections/{collection_id}/e-services",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an ElectronicService object. See [here](/alma/apis/docs/xsd/rest_electronic_service.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service-post.json#/rest_electronic_service-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service-post.json#/rest_electronic_service-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID is not valid.'\n\n60127 - 'The type is missing or not valid.'\n\n60130 - 'The free indicator is not valid.'\n\n60132 - 'The proxy enable is not valid.'\n\n60133 - 'The proxy is not valid.'\n\n60135 - 'The group proxy is not valid.'\n\n60138 - 'The activation status is not valid.'\n\n60139 - 'The service ID was not created.'\n\n60141 - 'The service could not be saved.'\n\n60142 - 'The service date is not valid.'\n\n60144 - 'The unavailable flag is not valid.'\n\n60145 - 'The link resolver is not valid.'\n\n60146 - 'The URL type is not valid.'\n\n60147 - 'The cross ref data is not valid.'\n\n60148 - 'The linking level is not valid.'\n\n60149 - 'The service was not created.'\n\n60152 - 'The group is not valid.'\n\n60353 - 'The linking parameter is not valid. '\n\n60354 - 'The group linking parameter is not valid. '\n\n60355 - 'HAN proxy license fields are mandatory '\n\n60356 - 'The HAN license public name is not valid. '\n\n60357 - 'Enable HAN multi license proxy'\n\n60358 - 'The HAN license public name is not unique'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_service.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_service.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}": {
+      "delete": {
+        "tags": [
+          "Electronic Services"
+        ],
+        "description": "This Web service deletes an electronic service. \n\n\n\nNote that it is possible to delete an electronic service only if there are no portfolios related to it. \n\n\n\nDelete the related portfolios before deleting the electronic collection.  See [related blog](https://developers.exlibrisgroup.com/blog/delete-portfolios-before-deleting-the-electronic-service/) on this subject.",
+        "summary": "Delete Electronic Service",
+        "operationId": "delete/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'\n\n60122 - 'The Service ID was not found.'\n\n60154 - 'The service could not be deleted.'\n\n60157 - 'The delete is in process.'\n\n60289 - 'The delete is blocked portfolio attached.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Electronic Services"
+        ],
+        "description": "This Web service returns service details for a given service ID.",
+        "summary": "Retrieve Electronic Service",
+        "operationId": "get/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'\n\n60122 - 'The Service ID was not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_service.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_service.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Electronic Services"
+        ],
+        "description": "This Web service updates an electronic service.",
+        "summary": "Update Electronic Service",
+        "operationId": "put/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an ElectronicService object. See [here](/alma/apis/docs/xsd/rest_electronic_service.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service-put.json#/rest_electronic_service-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service-put.json#/rest_electronic_service-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'The Collection ID was not found.'\n\n60122 - 'The Service ID was not found.'\n\n60127 - 'The type is missing or not valid.'\n\n60130 - 'The free indicator is not valid.'\n\n60132 - 'The proxy enable is not valid.'\n\n60133 - 'The proxy is not valid.'\n\n60135 - 'The group proxy is not valid.'\n\n60138 - 'The activation status is not valid.'\n\n60141 - 'The service could not be saved.'\n\n60142 - 'The service date is not valid.'\n\n60144 - 'The unavailable flag is not valid.'\n\n60145 - 'The link resolver is not valid.'\n\n60146 - 'The URL type is not valid.'\n\n60147 - 'The cross ref data is not valid.'\n\n60148 - 'The linking level is not valid.'\n\n60150 - 'The collection has a service.'\n\n60152 - 'The group is not valid.'\n\n60153 - 'The type is not valid for update.'\n\n60353 - 'The linking parameter is not valid. '\n\n60354 - 'The group linking parameter is not valid. '\n\n60355 - 'HAN proxy license fields are mandatory '\n\n60356 - 'The HAN license public name is not valid. '\n\n60357 - 'Enable HAN multi license proxy'\n\n60358 - 'The HAN license public name is not unique'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_electronic_service.xsd. See [here](/alma/apis/docs/xsd/rest_electronic_service.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_electronic_service.json#/rest_electronic_service"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios": {
+      "get": {
+        "tags": [
+          "Portfolios"
+        ],
+        "description": "This Web service returns a list of portfolios for a given electronic collection ID and electronic service ID.",
+        "summary": "Retrieve Portfolios",
+        "operationId": "get/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'Failed to find the Collection ID.'\n\n60122 - 'Failed to find the Service ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_portfolios.xsd. See [here](/alma/apis/docs/xsd/rest_portfolios.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolios.json#/rest_portfolios"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolios.json#/rest_portfolios"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/": {
+      "post": {
+        "tags": [
+          "Portfolios"
+        ],
+        "description": "This Web service creates an electronic portfolio.",
+        "summary": "Create Electronic Portfolio",
+        "operationId": "post/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a portfolio object. See [here](/alma/apis/docs/xsd/rest_portfolio.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio-post.json#/rest_portfolio-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio-post.json#/rest_portfolio-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60121 - 'Failed to find the Collection ID.'\n\n60122 - 'Failed to find the Service ID.'\n\n60159 - 'The MMS ID is required.'\n\n60161 - 'The portfolio availability code is not valid.'\n\n60162 - 'Problem retrieving the collection or service information.'\n\n60163 - 'Failed to create the TPS metadata.'\n\n60164 - 'Failed to create the Portfolio metadata.'\n\n60165 - 'A metadata operation has failed.'\n\n60166 - 'The URL type is not valid.'\n\n60167 - 'The proxy enable flag is not valid.'\n\n60168 - 'The proxy code is not valid.'\n\n60169 - 'The license is not valid.'\n\n60170 - 'The coverage in use is not valid.'\n\n60171 - 'The material type is not valid.'\n\n60172 - 'The title MMS ID is not valid.'\n\n60172 - 'The PO line reference is not valid.'\n\n402469 - 'The library code is not valid.'\n\n60296 - 'The COUNTER platform is not valid.'\n\n300465 - 'The portfolio availability date range is invalid'\n\n200797 - 'Unable to change portfolio availability status due to date range'\n\n60360 - 'The provenance code is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_portfolio.xsd. See [here](/alma/apis/docs/xsd/rest_portfolio.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/{portfolio_id}": {
+      "delete": {
+        "tags": [
+          "Portfolios"
+        ],
+        "description": "This Web service deletes an electronic portfolio.See [related blog](https://developers.exlibrisgroup.com/blog/delete-portfolios-before-deleting-the-electronic-service/) on this subject.",
+        "summary": "Delete Electronic Portfolio",
+        "operationId": "delete/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/{portfolio_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          },
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the portfolio."
+          },
+          {
+            "name": "bib",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "retain",
+              "type": "string"
+            },
+            "description": "Method for handling a bib left without any inventory: retain, suppress or delete. Optional. By default: retain."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60122 - 'The Portfolio ID was not found.'\n\n60175 - 'The portfolio could not be deleted.'\n\n60174 - 'The delete is in process.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Portfolios"
+        ],
+        "description": "This Web service returns a portfolio for a given electronic collection ID, electronic service ID and electronic portfolio ID.",
+        "summary": "Retrieve Portfolio",
+        "operationId": "get/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/{portfolio_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          },
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the portfolio."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60123 - 'Failed to find the Portfolio ID.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_portfolio.xsd. See [here](/alma/apis/docs/xsd/rest_portfolio.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Portfolios"
+        ],
+        "description": "This Web service updates an electronic portfolio.",
+        "summary": "Update Electronic Portfolio",
+        "operationId": "put/almaws/v1/electronic/e-collections/{collection_id}/e-services/{service_id}/portfolios/{portfolio_id}",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic collection."
+          },
+          {
+            "name": "service_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the electronic service."
+          },
+          {
+            "name": "portfolio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique ID of the portfolio."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a portfolio object. See [here](/alma/apis/docs/xsd/rest_portfolio.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio-put.json#/rest_portfolio-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio-put.json#/rest_portfolio-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60123 - 'Failed to find the Portfolio ID.'\n\n60161 - 'The portfolio availability code is not valid.'\n\n60165 - 'A metadata operation has failed.'\n\n60166 - 'The URL type is not valid.'\n\n60167 - 'The proxy enable flag is not valid.'\n\n60168 - 'The proxy code is not valid.'\n\n60169 - 'The license is not valid.'\n\n60170 - 'The coverage in use is not valid.'\n\n60171 - 'The material type is not valid.'\n\n60172 - 'The PO line reference is not valid.'\n\n402469 - 'The library code is not valid.'\n\n60296 - 'The COUNTER platform is not valid.'\n\n300465 - 'The portfolio availability date range is invalid'\n\n200797 - 'Unable to change portfolio availability status due to date range'\n\n60360 - 'The provenance code is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_portfolio.xsd. See [here](/alma/apis/docs/xsd/rest_portfolio.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_portfolio.json#/rest_portfolio"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

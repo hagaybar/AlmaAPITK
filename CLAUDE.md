@@ -155,6 +155,31 @@ phased ordering live in
 `docs/superpowers/specs/2026-04-30-coverage-expansion-design.md`. Read it
 before opening additional coverage issues.
 
+## Alma swagger reference snapshot
+
+A committed, point-in-time copy of Ex Libris' machine-readable OpenAPI/swagger
+for the Alma REST API lives in **`docs/alma-swagger/`** (one `<domain>.json` per
+API domain + a `<domain>.fetched.json` sidecar with the source URL and fetch
+timestamp). Use it as the **source of truth** when verifying that
+`src/almaapitk/` calls the right endpoints, verbs, params, request-body shapes,
+response keys, and error codes — no network round-trip needed.
+
+- **Retrieved:** **2026-05-29** (domains: `users`, `bibs`, `acq`, `conf`,
+  `analytics`, `electronic`, `partners`, `courses`; `task-lists` has no
+  published swagger — Ex Libris 404s it).
+- **Source:** `https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/<domain>.json`
+- **Refresh:** re-run `scripts/error_codes/fetch_domain_codes.py --force
+  --cache-dir docs/alma-swagger` for each domain, then bump the date in
+  `docs/alma-swagger/README.md`.
+- Domain⇄file aliases (not 1:1 with `domains/` filenames) and usage examples
+  are in `docs/alma-swagger/README.md`. Note: this snapshot is deliberately
+  separate from the harvester's working cache at
+  `scripts/error_codes/swagger_cache/`.
+- **Gotcha confirmed in this snapshot:** numeric fields nested in
+  `{value, link}` objects are typed `string`, not integer (e.g.
+  `rest_set.json` → `number_of_members.value`) — coerce with `int()` before
+  arithmetic. Found during the 2026-05-29 audit (issue #164).
+
 ## Import Pattern
 
 ```python

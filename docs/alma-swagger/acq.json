@@ -1,0 +1,4185 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Funds"
+    },
+    {
+      "name": "Fund Transactions"
+    },
+    {
+      "name": "PO Lines"
+    },
+    {
+      "name": "Vendors"
+    },
+    {
+      "name": "Invoices"
+    },
+    {
+      "name": "Licenses"
+    },
+    {
+      "name": "Test"
+    },
+    {
+      "name": "Currencies"
+    },
+    {
+      "name": "FiscalPeriods"
+    },
+    {
+      "name": "Purchase Requests"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/acq": {},
+    "/almaws/v1/acq/currencies": {
+      "get": {
+        "tags": [
+          "Currencies"
+        ],
+        "description": "This API returns a list of Currencies or a Currency and Exchange Rate.",
+        "summary": "Retrieve currencies",
+        "operationId": "get/almaws/v1/acq/currencies",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "The mode for currency display. May be ALL, Subset or Ratio. ALL by default."
+          },
+          {
+            "name": "source_currency",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Source currency ID. Applies only to Ratio mode and is optional."
+          },
+          {
+            "name": "target_currency",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Target currency ID. Applies only to Ratio mode and is optional."
+          },
+          {
+            "name": "exchange_date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The exchange date. Applies only to Ratio mode and is required. Format YYYYMMDD"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'A currency parameter is not valid.'\n\n401666 - 'A parameter is not valid.'\n\n60348 - 'The exchange rate cannot be determined.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_currencies.xsd. See [here](/alma/apis/docs/xsd/rest_currencies.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_currencies.json#/rest_currencies"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_currencies.json#/rest_currencies"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/fiscal-periods": {
+      "get": {
+        "tags": [
+          "FiscalPeriods"
+        ],
+        "description": "This API returns a list of Fiscal Periods.\n\nFor retrieving the fiscal periods which are used for the GET Funds filtering.",
+        "summary": "Retrieve fiscal periods",
+        "operationId": "get/almaws/v1/acq/fiscal-periods",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "The mode for fiscal period display. May be ALL or Current. ALL by default."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401873 - 'There is no current fiscal period.'\n\n401666 - 'The mode parameter is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fiscal_periods.xsd. See [here](/alma/apis/docs/xsd/rest_fiscal_periods.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fiscal_periods.json#/rest_fiscal_periods"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fiscal_periods.json#/rest_fiscal_periods"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/funds": {
+      "get": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "This API returns a list of Funds.\n\nThe list includes the relevant allocated funds that are active in the current date (based on the related fiscal period). This is the same list as retrieved in the UI when adding fund for a PO-Line.",
+        "summary": "Retrieve funds",
+        "operationId": "get/almaws/v1/acq/funds",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. If the mode parameter is POL, then searching is limited to fund_code. Otherwise, available search options: all, fund_code, description, external_id, name. For example: q=fund_code~FU1 (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Filter by library or institution code that the fund is available for. All by default."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "type": "string"
+            },
+            "description": "The view format, possible values: full / brief (used for vendors). Default is full"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "POL",
+              "type": "string"
+            },
+            "description": "POL - ready to be used for a PO-Line, allocated and active in the current fiscal period. ALL - all funds and ledgers."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by status: ACTIVE/INACTIVE. All by default."
+          },
+          {
+            "name": "entity_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by fund entity type: LEDGER/SUMMARY/ALLOCATED. All by default."
+          },
+          {
+            "name": "fiscal_period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by fiscal period.  Note: this should be the ID and not the description.  All by default."
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter for funds by the ID of their parent (which can be a ledger or a summary fund). All by default."
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by the fund owner: library or the institution code. All by default."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n40166419 - 'Parameter has no valid options.'\n\n401873 - 'Filter not supported when mode=POL.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_funds.xsd. See [here](/alma/apis/docs/xsd/rest_funds.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_funds.json#/rest_funds"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_funds.json#/rest_funds"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "Create a Fund.",
+        "summary": "Create Fund",
+        "operationId": "post/almaws/v1/acq/funds",
+        "parameters": [
+          {
+            "name": "rules_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "fund",
+              "type": "string"
+            },
+            "description": "This parameter will be used to indicate whether rules are defined in parent or fund. Default: fund"
+          }
+        ],
+        "requestBody": {
+          "description": "This method creates a Fund object. See [here](/alma/apis/docs/xsd/rest_fund.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund-post.json#/rest_fund-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund-post.json#/rest_fund-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n410873 - 'Request Failed. See error message for details.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n40166404 - 'Invalid field with valid options.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund.xsd. See [here](/alma/apis/docs/xsd/rest_fund.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/funds/{fund_id}/transactions": {
+      "get": {
+        "tags": [
+          "Fund Transactions"
+        ],
+        "description": "This API returns a list of Fund Transactions.",
+        "summary": "Retrieve fund transactions",
+        "operationId": "get/almaws/v1/acq/funds/{fund_id}/transactions",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional.  Available search options: amount, po_line, invoice_number, borrowing_request_id. For example: q=amount=25 (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by ALLOCATION, EXPENDITURE, ENCUMBRANCE, DISENCUMBRANCE, TRANSFER. All by default."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n401873 - 'The fund identifier is not valid.'\n\n40166404 - 'The filter parameter is not valid.'\n\n60106 - 'The query parameter is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund_transactions.xsd. See [here](/alma/apis/docs/xsd/rest_fund_transactions.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transactions.json#/rest_fund_transactions"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transactions.json#/rest_fund_transactions"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fund Transactions"
+        ],
+        "description": "This API creates Allocation or Transfer Transactions.",
+        "summary": "Create fund transactions",
+        "operationId": "post/almaws/v1/acq/funds/{fund_id}/transactions",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an Transaction object. See [here](/alma/apis/docs/xsd/rest_fund_transaction.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transaction-post.json#/rest_fund_transaction-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transaction-post.json#/rest_fund_transaction-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n4018841 - 'Missing mandatory field 'type'.'\n\n4018842 - 'Transaction type is not supported.'\n\n4018843 - 'Missing mandatory field 'amount'.'\n\n4018845 - 'Missing mandatory field 'related_fund'.'\n\n4018846 - 'Fund id in 'related_fund' field is not valid.'\n\n4018847 - 'Selected fund id in 'related_fund' field has a different fiscal period.'\n\n4018848 - 'Selected fund id in 'related_fund' field is inactive.'\n\n4018850 - 'Fund code not valid.'\n\n4018851 - 'Selected Fund code is a ledger / summary fund, transaction could not be created.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund_transaction.xsd. See [here](/alma/apis/docs/xsd/rest_fund_transaction.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transaction.json#/rest_fund_transaction"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund_transaction.json#/rest_fund_transaction"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/funds/{fund_id}": {
+      "delete": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "Delete a Fund.",
+        "summary": "Delete Fund",
+        "operationId": "delete/almaws/v1/acq/funds/{fund_id}",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n410873 - 'Request Failed. See error message for details.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n40166404 - 'Invalid field with valid options.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "Retrieves a Fund by ID.",
+        "summary": "Retrieve Fund",
+        "operationId": "get/almaws/v1/acq/funds/{fund_id}",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "full",
+              "type": "string"
+            },
+            "description": "The view format, possible values: full / brief (used for vendors). Default is full"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund.xsd. See [here](/alma/apis/docs/xsd/rest_fund.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "This API operates on a fund.",
+        "summary": "Fund Service",
+        "operationId": "post/almaws/v1/acq/funds/{fund_id}",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the fund. Currently, the options are 'activate' or 'deactivate'"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n410873 - 'Request Failed. See error message for details.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n40166404 - 'Invalid field with valid options.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund.xsd. See [here](/alma/apis/docs/xsd/rest_fund.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Funds"
+        ],
+        "description": "Update a Fund.",
+        "summary": "Update Fund",
+        "operationId": "put/almaws/v1/acq/funds/{fund_id}",
+        "parameters": [
+          {
+            "name": "fund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The fund identifier."
+          },
+          {
+            "name": "rules_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "fund",
+              "type": "string"
+            },
+            "description": "This parameter will be used to indicate whether rules are defined in parent or fund. Default: fund"
+          }
+        ],
+        "requestBody": {
+          "description": "This method creates a Fund object. See [here](/alma/apis/docs/xsd/rest_fund.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund-put.json#/rest_fund-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund-put.json#/rest_fund-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n410873 - 'Request Failed. See error message for details.'\n\n40166410 - 'Parameter invalid with valid options.'\n\n40166404 - 'Invalid field with valid options.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_fund.xsd. See [here](/alma/apis/docs/xsd/rest_fund.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_fund.json#/rest_fund"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices": {
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API creates an invoice. See blog: [Creating an invoice using APIs](https://developers.exlibrisgroup.com/blog/Creating-an-invoice-using-APIs).",
+        "summary": "Create Invoice",
+        "operationId": "post/almaws/v1/acq/invoices",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes an invoice object. See [here](/alma/apis/docs/xsd/rest_invoice.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-post.json#/rest_invoice-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-post.json#/rest_invoice-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60233 - 'Invoice number not in payload.'\n\n60288 - 'Invoice number not unique in payload.'\n\n60234 - 'Invoice date not in payload.'\n\n60235 - 'Invoice total amount not in payload.'\n\n60236 - 'Invoice currency not valid.'\n\n60237 - 'Invoice vendor account not valid.'\n\n60238 - 'Invoice payment method not valid.'\n\n60239 - 'Invoice status not valid.'\n\n60240 - 'Invoice prepaid not valid.'\n\n60241 - 'Invoice explicit ratio not valid.'\n\n60242 - 'Invoice vendor not material supplier.'\n\n60243 - 'Invoice vendor currency not supported.'\n\n60244 - 'Invoice explicit ratio duplicate currency.'\n\n60245 - 'Invoice payment status not valid.'\n\n60246 - 'Invoice owner not valid.'\n\n60252 - 'Invoice vat percentage or amount allowed but not both.'\n\n60253 - 'Invoice vat code not valid.'\n\n4028805 - 'Invoice vendor not in payload.'\n\n60256 - 'Invoice not created.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice.xsd. See [here](/alma/apis/docs/xsd/rest_invoice.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns a list of  Invoices.",
+        "summary": "Get Invoices",
+        "operationId": "get/almaws/v1/acq/invoices/",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searched fields: invoice_number, vendor_code, additional_pol_reference, invoice_reference_number, pol_number, pol_title, po_number, vendor_name, all. Note that some combinations of search fields cannot be used together. (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice view. If view=brief, invoices will be returned without lines."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding on some information. Currently only one option is available: attachments."
+          },
+          {
+            "name": "base_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice base status. Possible values are ACTIVE, CLOSED. All by default."
+          },
+          {
+            "name": "invoice_workflow_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice workflow status. Possible codes are listed in 'InvoiceStatus' [code table](https://developers.exlibrisgroup.com/blog/Working-with-the-code-tables-API). All by default."
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice owner. Can be the institution code or a library code. See [Get libraries API](https://developers.exlibrisgroup.com/alma/apis/conf/GET/gwPcGly021p29HpB7XTI4Dp4I8TKv6CAxBlD4LyRaVE=/37088dc9-c685-4641-bc7f-60b5ca7cabed). All by default."
+          },
+          {
+            "name": "creation_form",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice creation form. Possible codes are listed in 'InvoiceCreationForm' [code table](https://developers.exlibrisgroup.com/blog/Working-with-the-code-tables-API). All by default."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n412400 - 'Invoice X not found.'\n\n401873 - 'Request failed: X'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoices.xsd. See [here](/alma/apis/docs/xsd/rest_invoices.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoices.json#/rest_invoices"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoices.json#/rest_invoices"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns an invoice's attachment.",
+        "summary": "Get Invoice Attachment",
+        "operationId": "get/almaws/v1/acq/invoices/{invoice_id}/attachments/{attachment_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Attachment id."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The expand parameter. Optional. Default value: content."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n402401 - 'Invoice X not found.'\n\n60321 - 'Attachment X not found.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns a specific Invoice.",
+        "summary": "Get Invoice",
+        "operationId": "get/almaws/v1/acq/invoices/{invoice_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Invoice view. If view=brief, invoices will be returned without lines."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding on some information. Currently only one option is available: attachments."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n412400 - 'Invoice X not found.'\n\n402459 - 'Error while trying to retrieve invoice X.'\n\n60100 - 'The parameter X must be a number greater than zero.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice.xsd. See [here](/alma/apis/docs/xsd/rest_invoice.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API operates on an invoice.\n\nIt is possible to use this API to process an invoice - see blog: [Creating an invoice using APIs](https://developers.exlibrisgroup.com/blog/Creating-an-invoice-using-APIs). \n\nIt is also possible to use this API for invoice integration with ERP system - see blog [Alma - ERP invoices integration using APIs](https://developers.exlibrisgroup.com/blog/Alma-ERP-invoices-integration-using-APIs).\n\n",
+        "summary": "Invoice Service",
+        "operationId": "post/almaws/v1/acq/invoices/{invoice_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the invoice. Currently, the options are 'mark_in_erp', 'paid', 'process_invoice' or 'rejected'"
+          },
+          {
+            "name": "create_rt_invoice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Indication whether to create _RT invoice for VAT management."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an invoice object. See [here](/alma/apis/docs/xsd/rest_invoice.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-post.json#/rest_invoice-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-post.json#/rest_invoice-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166410 - 'Parameter op is not valid.'\n\n412400 - 'Invoice X not found.'\n\n60260 - 'Failed to start invoice process and workflow.'\n\n60267 - 'Failed to process invoice in ERP.'\n\n60268 - 'The invoice note is mandatory.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice.xsd. See [here](/alma/apis/docs/xsd/rest_invoice.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API updates an invoice.",
+        "summary": "Update Invoice",
+        "operationId": "put/almaws/v1/acq/invoices/{invoice_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an invoice object. See [here](/alma/apis/docs/xsd/rest_invoice.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-put.json#/rest_invoice-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice-put.json#/rest_invoice-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60285 - 'Invoice not valid.'\n\n60290 - 'Invoice task status not valid.'\n\n60233 - 'Invoice number not in payload.'\n\n60288 - 'Invoice number not unique in payload.'\n\n60234 - 'Invoice date not in payload.'\n\n60235 - 'Invoice total amount not in payload.'\n\n60236 - 'Invoice currency not valid.'\n\n60237 - 'Invoice vendor account not valid.'\n\n60238 - 'Invoice payment method not valid.'\n\n60239 - 'Invoice status not valid.'\n\n60240 - 'Invoice prepaid not valid.'\n\n60241 - 'Invoice explicit ratio not valid.'\n\n60242 - 'Invoice vendor not material supplier.'\n\n60243 - 'Invoice vendor currency not supported.'\n\n60244 - 'Invoice explicit ratio duplicate currency.'\n\n60245 - 'Invoice payment status not valid.'\n\n60246 - 'Invoice owner not valid.'\n\n60252 - 'Invoice vat percentage or amount allowed but not both.'\n\n60253 - 'Invoice vat code not valid.'\n\n4028805 - 'Invoice vendor not in payload.'\n\n60291 - 'Invoice update not allowed due to status.'\n\n60256 - 'Invoice not updated.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice.xsd. See [here](/alma/apis/docs/xsd/rest_invoice.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice.json#/rest_invoice"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/{invoice_id}/attachments": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns a list of an invoice's attachments.",
+        "summary": "Get Invoice Attachments",
+        "operationId": "get/almaws/v1/acq/invoices/{invoice_id}/attachments",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60323 - 'Search for attachments failed.'\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n412400 - 'Invoice X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachments.xsd. See [here](/alma/apis/docs/xsd/rest_attachments.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachments.json#/rest_attachments"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachments.json#/rest_attachments"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API creates an invoice's attachment.",
+        "summary": "Create Invoice Attachment",
+        "operationId": "post/almaws/v1/acq/invoices/{invoice_id}/attachments",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          }
+        ],
+        "requestBody": {
+          "description": "The Attachment info to create.  See [here](/alma/apis/docs/xsd/rest_attachment.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n402401 - 'Invoice X not found.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/{invoice_id}/lines": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns a specific Invoice's lines.",
+        "summary": "Get Invoice Lines",
+        "operationId": "get/almaws/v1/acq/invoices/{invoice_id}/lines",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for fields: invoice_line_number. Example (note the tilde between the code and text): q=invoice_line_number~101 (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n412400 - 'Invoice X not found.'\n\n402459 - 'Error while trying to retrieve invoice X.'\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n401873 - 'The search query parameter is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice_lines.xsd. See [here](/alma/apis/docs/xsd/rest_invoice_lines.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_lines.json#/rest_invoice_lines"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_lines.json#/rest_invoice_lines"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API creates an invoice line. See blog: [Creating an invoice using APIs](https://developers.exlibrisgroup.com/blog/Creating-an-invoice-using-APIs).",
+        "summary": "Create Invoice Line",
+        "operationId": "post/almaws/v1/acq/invoices/{invoice_id}/lines",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an invoice line object. See [here](/alma/apis/docs/xsd/rest_invoice_line.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line-post.json#/rest_invoice_line-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line-post.json#/rest_invoice_line-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60285 - 'Invoice not valid.'\n\n60100 - 'Invoice X bad format.'\n\n412400 - 'Invoice X not found.'\n\n60247 - 'Invoice line type not valid.'\n\n60248 - 'Invoice line's PO Line not found.'\n\n60249 - 'Invoice line subscription from/to dates not found.'\n\n60250 - 'Invoice line additional information not found.'\n\n60251 - 'Invoice line reporting code not valid.'\n\n60252 - 'Invoice vat percentage or amount allowed but not both.'\n\n60253 - 'Invoice vat code not valid.'\n\n60254 - 'Fund code not valid.'\n\n60255 - 'Invoice line not created.'\n\n60257 - 'Fund percent or amount is required.'\n\n60306 - 'Invoice line number is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice_line.xsd. See [here](/alma/apis/docs/xsd/rest_invoice_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API returns a specific Invoice's specific Invoice line.",
+        "summary": "Get Invoice Line",
+        "operationId": "get/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "invoice_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice line id."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice_line.xsd. See [here](/alma/apis/docs/xsd/rest_invoice_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Invoices"
+        ],
+        "description": "This API updates an invoice line. ",
+        "summary": "Update Invoice Line",
+        "operationId": "put/almaws/v1/acq/invoices/{invoice_id}/lines/{invoice_line_id}",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice id."
+          },
+          {
+            "name": "invoice_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Invoice line id."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an invoice line object. See [here](/alma/apis/docs/xsd/rest_invoice_line.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line-put.json#/rest_invoice_line-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line-put.json#/rest_invoice_line-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60284 - 'Invoice line not valid.'\n\n60285 - 'Invoice not valid.'\n\n60286 - 'Invoice line update not allowed.'\n\n60287 - 'Invoice line not valid for invoice.'\n\n60100 - 'Invoice X bad format.'\n\n412400 - 'Invoice X not found.'\n\n60247 - 'Invoice line type not valid.'\n\n60248 - 'Invoice line's PO Line not found.'\n\n60249 - 'Invoice line subscription from/to dates not found.'\n\n60250 - 'Invoice line additional information not found.'\n\n60251 - 'Invoice line reporting code not valid.'\n\n60252 - 'Invoice vat percentage or amount allowed but not both.'\n\n60253 - 'Invoice vat code not valid.'\n\n60254 - 'Fund code not valid.'\n\n60255 - 'Invoice line not created.'\n\n60257 - 'Fund percent or amount is required.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoice_line.xsd. See [here](/alma/apis/docs/xsd/rest_invoice_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoice_line.json#/rest_invoice_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses": {
+      "post": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service creates a license.",
+        "summary": "Create License",
+        "operationId": "post/almaws/v1/acq/licenses",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a License object. See [here](/alma/apis/docs/xsd/rest_license.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-post.json#/rest_license-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-post.json#/rest_license-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60186 - 'License name is required.'\n\n60187 - 'License type is not valid.'\n\n60188 - 'License status is not valid.'\n\n60189 - 'License review status is not valid.'\n\n60190 - 'License licensor is not valid.'\n\n60191 - 'License XXX date is not valid.'\n\n60192 - 'License location is not valid.'\n\n60193 - 'License agent is not valid.'\n\n60194 - 'License terms are not valid.'\n\n60195 - 'License terms and types are not valid.'\n\n60196 - 'License not created.'\n\n60197 - 'License code required.'\n\n60198 - 'License code not unique.'\n\n60201 - 'License end date before start date.'\n\n60220 - 'License administrator is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license.xsd. See [here](/alma/apis/docs/xsd/rest_license.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/": {
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API returns a list of licenses. \n\nTemplates and deleted licenses are not included.",
+        "summary": "Get Licenses",
+        "operationId": "get/almaws/v1/acq/licenses/",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searched fields: name, code, licensor. (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "License status. Optional. Valid values are ACTIVE, DELETED, DRAFT, EXPIRED, RETIRED, ALL. Unless specified, deleted records are excluded."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "LICENSE",
+              "type": "string"
+            },
+            "description": "License type. Optional. Valid values are LICENSE, NEGOTIATION, ADDENDUM, ALL. Default: LICENSE"
+          },
+          {
+            "name": "review_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "License review status. Optional. Valid values are ALL, and the listed values in LicenseReviewStatuses code table. Default: ALL"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding on some information. Currently only one option is available: attachments."
+          },
+          {
+            "name": "create_date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve licenses with create date after this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "create_date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve licenses with create date before this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "modify_date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve licenses with modify date after this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "modify_date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve licenses with modify date before this Date (YYYY-MM-DD). Optional."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166411 - 'Param value is invalid.'\n\n40166404 - 'Given field X has invalid value Y, please use one of the valid values listed under the Z code table.'\n\n401873 - 'Request failed: X'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_licenses.xsd. See [here](/alma/apis/docs/xsd/rest_licenses.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/{license_code}": {
+      "delete": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service deletes a license.",
+        "summary": "Delete License",
+        "operationId": "delete/almaws/v1/acq/licenses/{license_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          },
+          {
+            "name": "permanent_delete",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Indication whether to permanently delete the license from Alma. When set to false, the license will get the status Inactive."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60200 - 'License could not be deleted.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API returns a specific license.",
+        "summary": "Get License",
+        "operationId": "get/almaws/v1/acq/licenses/{license_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "type": "string"
+            },
+            "description": "This parameter allows for expanding on some information. Currently only one option is available: attachments."
+          },
+          {
+            "name": "include_blank_terms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Include license terms for which no value was set."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n403401 - 'Failed to retrieve license with code X.'\n\n403400 - 'License with code X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license.xsd. See [here](/alma/apis/docs/xsd/rest_license.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service updates a license.",
+        "summary": "Update License",
+        "operationId": "put/almaws/v1/acq/licenses/{license_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a License object. See [here](/alma/apis/docs/xsd/rest_license.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-put.json#/rest_license-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-put.json#/rest_license-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60186 - 'License name is required.'\n\n60187 - 'License type is not valid.'\n\n60188 - 'License status is not valid.'\n\n60189 - 'License review status is not valid.'\n\n60190 - 'License licensor is not valid.'\n\n60191 - 'License XXX date is not valid.'\n\n60192 - 'License location is not valid.'\n\n60193 - 'License agent is not valid.'\n\n60194 - 'License terms are not valid.'\n\n60195 - 'License terms and types are not valid.'\n\n60202 - 'License not updated.'\n\n60197 - 'License code required.'\n\n60198 - 'License code not unique.'\n\n60201 - 'License end date before start date.'\n\n60220 - 'License administrator is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license.xsd. See [here](/alma/apis/docs/xsd/rest_license.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/{license_code}/attachments": {
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API returns a list of a license's attachments.",
+        "summary": "Get License Attachments",
+        "operationId": "get/almaws/v1/acq/licenses/{license_code}/attachments",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The License code."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60323 - 'Search for attachments failed.'\n\n60100 - 'The parameter X must be a number greater than zero.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachments.xsd. See [here](/alma/apis/docs/xsd/rest_attachments.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachments.json#/rest_attachments"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachments.json#/rest_attachments"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API creates an license's attachment.",
+        "summary": "Create Licenses Attachment",
+        "operationId": "post/almaws/v1/acq/licenses/{license_code}/attachments",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The License code."
+          }
+        ],
+        "requestBody": {
+          "description": "The Attachment info to create. See [here](/alma/apis/docs/xsd/rest_attachment.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-post.json#/rest_attachment-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}": {
+      "delete": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API deletes an license's attachment.",
+        "summary": "Delete Licenses Attachment",
+        "operationId": "delete/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The License code."
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Attachment ID."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60321 - 'Attachment was not found'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API returns an license's attachment.",
+        "summary": "Get Licenses Attachment",
+        "operationId": "get/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The License code."
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Attachment ID."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The expand parameter. Optional. Default value: content."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60321 - 'Attachment X not found.'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This API updates an license's attachment.",
+        "summary": "Update License's Attachment",
+        "operationId": "put/almaws/v1/acq/licenses/{license_code}/attachments/{attachment_id}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The License code."
+          },
+          {
+            "name": "attachment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Attachment ID."
+          }
+        ],
+        "requestBody": {
+          "description": "The Attachment info to update. See [here](/alma/apis/docs/xsd/rest_attachment.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-put.json#/rest_attachment-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment-put.json#/rest_attachment-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60345 - 'Attachment content size exceeds allowed maximum.'\n\n60346 - 'Attachment content not allowed if file name not set.'\n\n60100 - 'The parameter X must be a number greater than zero.'\n\n60321 - 'Attachment was not found'\n\n60322 - 'Attachment content could not be processed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_attachment.xsd. See [here](/alma/apis/docs/xsd/rest_attachment.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_attachment.json#/rest_attachment"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/{license_code}/amendments": {
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service returns a specific license's amendments.",
+        "summary": "Get Licenses Amendments",
+        "operationId": "get/almaws/v1/acq/licenses/{license_code}/amendments",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n403401 - 'Failed to retrieve license with code X.'\n\n403400 - 'License with code X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_licenses.xsd. See [here](/alma/apis/docs/xsd/rest_licenses.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service creates a license amendment.",
+        "summary": "Create License Amendment",
+        "operationId": "post/almaws/v1/acq/licenses/{license_code}/amendments",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a License object. See [here](/alma/apis/docs/xsd/rest_license.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-post.json#/rest_license-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-post.json#/rest_license-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n60186 - 'License name is required.'\n\n60187 - 'License type is not valid.'\n\n60188 - 'License status is not valid.'\n\n60189 - 'License review status is not valid.'\n\n60190 - 'License licensor is not valid.'\n\n60191 - 'License XXX date is not valid.'\n\n60192 - 'License location is not valid.'\n\n60193 - 'License agent is not valid.'\n\n60194 - 'License terms are not valid.'\n\n60195 - 'License terms and types are not valid.'\n\n60196 - 'License not created.'\n\n60197 - 'License code required.'\n\n60198 - 'License code not unique.'\n\n60201 - 'License end date before start date.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license.xsd. See [here](/alma/apis/docs/xsd/rest_license.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}": {
+      "delete": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service deletes a license amendment.",
+        "summary": "Delete License Amendment",
+        "operationId": "delete/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          },
+          {
+            "name": "amendment_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license amendment code."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60200 - 'License could not be deleted.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service returns the license for a specific license code and amendment code.",
+        "summary": "Get License For Code and Amendment",
+        "operationId": "get/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          },
+          {
+            "name": "amendment_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license amendment code."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n403401 - 'Failed to retrieve license with code X.'\n\n403400 - 'License with code X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_licenses.xsd. See [here](/alma/apis/docs/xsd/rest_licenses.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_licenses.json#/rest_licenses"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Licenses"
+        ],
+        "description": "This Web Service updates a license amendment.",
+        "summary": "Update License Amendment",
+        "operationId": "put/almaws/v1/acq/licenses/{license_code}/amendments/{amendment_code}",
+        "parameters": [
+          {
+            "name": "license_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license code."
+          },
+          {
+            "name": "amendment_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The license amendment code."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a License object. See [here](/alma/apis/docs/xsd/rest_license.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-put.json#/rest_license-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license-put.json#/rest_license-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60186 - 'License name is required.'\n\n60187 - 'License type is not valid.'\n\n60188 - 'License status is not valid.'\n\n60189 - 'License review status is not valid.'\n\n60190 - 'License licensor is not valid.'\n\n60191 - 'License XXX date is not valid.'\n\n60192 - 'License location is not valid.'\n\n60193 - 'License agent is not valid.'\n\n60194 - 'License terms are not valid.'\n\n60195 - 'License terms and types are not valid.'\n\n60202 - 'License amendment not updated.'\n\n60197 - 'License code required.'\n\n60198 - 'License code not unique.'\n\n60201 - 'License end date before start date.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_license.xsd. See [here](/alma/apis/docs/xsd/rest_license.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_license.json#/rest_license"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/po-lines": {
+      "get": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This API returns a list of PO-Lines.",
+        "summary": "Retrieve PO-Lines",
+        "operationId": "get/almaws/v1/acq/po-lines",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words from: title, author, mms_id, publisher, publication_year, publication_place, issn_isbn, shelving_location, vendor_code, vendor_name, vendor_account, fund_code, fund_name, number, po_number, invoice_reference & all (for searching in all the above fields). It is also possible to search on fields from the related items (relevant for libraries who have one PO-Line per Item, and the maximum number of records which can be retrieved is limited): enumeration_a/b/c, chronology_i/j/k, item_description and item_library. Example (note the tilde between the code and text): q=author~Mark (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "PO-Line Status. Optional. Valid values are CLOSED, CANCELLED, ACTIVE, ALL, ALL_WITH_CLOSED. Default: ALL (retrieves all PO lines except CLOSED)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "title",
+              "type": "string"
+            },
+            "description": "Order by parameter. Optional. The default is title. The Order by options are number, title, created_date and po_number. It is also possible to sort by fields from the related items (relevant for libraries who have one PO-Line per Item, and only works when the search query included item related fields): enumeration_a/b/c, chronology_i/j/k & item_description. The secondary sort is on number."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "type": "string"
+            },
+            "description": "Direction of ordering. Optional. The choices are asc, desc. The default is desc."
+          },
+          {
+            "name": "acquisition_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Filter by acquisition method, e.g. PURCHASE. Optional. The default is to do no filtering."
+          },
+          {
+            "name": "expand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The expand parameter allows for increasing the PO-Lines information with data on:\n\nnotes - The PO notes.\n\nlocations - The PO locations with their sub objects.\n\nTo get more than one, use a comma separator. Optional. "
+          },
+          {
+            "name": "library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the library that owns the PO lines. Optional. If supplied, only the PO Lines for this library will be retrieved. If not supplied, all the PO Lines that match the other parameters will be retrieved."
+          },
+          {
+            "name": "min_expected_arrival_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve PO lines with expected arrival date starting this Date (YYYY-MM-DD). Optional."
+          },
+          {
+            "name": "max_expected_arrival_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Retrieve PO lines with expected arrival date until this Date (YYYY-MM-DD), included. Optional."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40188600 - 'Search query parameter X is not supported.'\n\n40188602 - 'Results cannot be sorted by item attribute without providing at least one condition for item search.'\n\n40188603 - 'Results can be sorted by one or more item attributes OR one Poline attribute.'\n\n40188604 - 'order_by value X is invalid. Valid sort values are: [list of valid sort values].'\n\n40188605 - 'The provided search query returns more than X items. Please narrow your search.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_po_lines.xsd. See [here](/alma/apis/docs/xsd/rest_po_lines.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_lines.json#/rest_po_lines"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_lines.json#/rest_po_lines"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This web service creates a new PO-Line. \n\n\n\nThe PO line can be for physical, electronic or electronic collection. The PO line will be created along with the relevant inventory according to the 'type' field. It will then be processed in Alma as any PO line. \n\n\n\nThe common use case for this web service is for creating a PO line in Alma, representing an order that was purchased at vendor system. See details [here](https://developers.exlibrisgroup.com/blog/Real-time-Acquisitions). \n\nThe following fields are required by the POST action: owner, type, title or mms_id. If they were not supplied - 400 HTTP error will be returned. There are other fields which are required for the PO line to be processed in Alma: vendor, vendor account, price and fund. If any of these fields is missing, the PO Line will be created in Alma, but will be in the 'In Review' list. \n\n\n\nNote that PO line processing in Alma is asynchronous. This means that the response for POST action might not include status and alerts. As part of the PO line details, the relevant metadata is sent to Alma. Alma will try to match it with existing bibliographic records. If a matching bibliographic record exists- the new PO line will be related to that record. If not, a new bibliographic record will be created including the relevant metadata. \n\n\n\nFor more information about configuring match rules see [here](https://developers.exlibrisgroup.com/blog/Create-PO-line-API-how-the-bibliographic-record-is-determined).",
+        "summary": "Create PO-Line",
+        "operationId": "post/almaws/v1/acq/po-lines",
+        "parameters": [
+          {
+            "name": "profile_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "New Order API profile code. Optional. If multiple profiles exist and no profile parameter is passed in the querystring, the default profile is used."
+          },
+          {
+            "name": "requires_manual_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Requires manual review. Optional."
+          }
+        ],
+        "requestBody": {
+          "description": "This method creates a PO Line object. See [here](/alma/apis/docs/xsd/rest_po_line.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line-post.json#/rest_po_line-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line-post.json#/rest_po_line-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401870 - 'PoLine X already exists.'\n\n401664 - 'Mandatory field is missing: X'\n\n60320 - 'No charge is not allowed for this PO line configuration.'\n\n401872 - 'Given X is illegal.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_po_line.xsd. See [here](/alma/apis/docs/xsd/rest_po_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/po-lines/{po_line_id}": {
+      "delete": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This web service cancels a PO-Line.",
+        "summary": "Cancel PO-Line",
+        "operationId": "delete/almaws/v1/acq/po-lines/{po_line_id}",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number."
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The cancellation reason code. From the 'PO Line Cancellation Reasons' code table."
+          },
+          {
+            "name": "comment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Comment regarding cancellation."
+          },
+          {
+            "name": "inform_vendor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Inform vendor of cancellation flag. Defaults to false."
+          },
+          {
+            "name": "override",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "Override errors flag. Defaults to false."
+          },
+          {
+            "name": "bib",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "retain",
+              "type": "string"
+            },
+            "description": "Method for handling standalone Bib record: retain, delete or suppress. Optional. By default: retain."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401884 - 'PO Line already cancelled.'\n\n401881 - 'Failed to cancel the PO Line. (With error message)'\n\n401874 - 'Failed to cancel the PO Line.'\n\n401871 - 'Po-Line X not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This API returns a specific PO-Line.",
+        "summary": "Get PO-Line",
+        "operationId": "get/almaws/v1/acq/po-lines/{po_line_id}",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401871 - 'Po-Line X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_po_line.xsd. See [here](/alma/apis/docs/xsd/rest_po_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This web service updates a PO-Line. The PO line can be for physical, electronic or electronic collection.\n\nNote: if the locations section includes a copy in a temporary location, the entire locations section will not be updated.",
+        "summary": "Update PO-Line",
+        "operationId": "put/almaws/v1/acq/po-lines/{po_line_id}",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number."
+          },
+          {
+            "name": "update_inventory",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "string"
+            },
+            "description": "Flag for updating the PO Line's inventory. Options: true, false. Default: true."
+          },
+          {
+            "name": "redistribute_funds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "string"
+            },
+            "description": "Indication if the total amount will be distributed. Optional. Default is False. When true - the API will ignore funding information in the payload and calculate funding based on existing funds."
+          }
+        ],
+        "requestBody": {
+          "description": "This method creates a PO Line object. See [here](/alma/apis/docs/xsd/rest_po_line.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line-put.json#/rest_po_line-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line-put.json#/rest_po_line-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401676 - 'Request body not found.'\n\n401871 - 'PO Line not found.'\n\n60320 - 'No charge is not allowed for this PO line configuration.'\n\n401876 - 'Failed to update PO Line (with error message).'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_po_line.xsd. See [here](/alma/apis/docs/xsd/rest_po_line.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_line.json#/rest_po_line"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/po-lines/{po_line_id}/items": {
+      "get": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This API returns the items related to a specific PO-Line. \n\nThe items retrieved include only barcodes and a link for the Get-Item API",
+        "summary": "Get PO-Line Items",
+        "operationId": "get/almaws/v1/acq/po-lines/{po_line_id}/items",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number or PO-Line ID is accepted."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "1000000",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: Retrieve all items."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401871 - 'Po-Line X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_items.xsd. See [here](/alma/apis/docs/xsd/rest_items.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_items.json#/rest_items"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_items.json#/rest_items"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This web service adds an item to a PO-Line and receives it.",
+        "summary": "Receive New Item",
+        "operationId": "post/almaws/v1/acq/po-lines/{po_line_id}/items",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number or PO-Line ID is accepted."
+          },
+          {
+            "name": "receive_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The receive date. Default value is current time.  Expected Format: YYYY-MM-DDZ"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the department where the item is being received. If not supplied, a random department will be chosen from the owning library's acquisition departments."
+          },
+          {
+            "name": "department_library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The library code of the department where the item is being received."
+          }
+        ],
+        "requestBody": {
+          "description": "The item to add. See [here](/alma/apis/docs/xsd/rest_item.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item-post.json#/rest_item-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item-post.json#/rest_item-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166411 - 'Param value is invalid.'\n\n401875 - 'Failed to find the department.'\n\n401871 - 'Failed to find the PO Line.'\n\n401878 - 'Failed to update the item after the receive.'\n\n401877 - 'Failed to receive PO Line (with error message).'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item.xsd. See [here](/alma/apis/docs/xsd/rest_item.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item.json#/rest_item"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item.json#/rest_item"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}": {
+      "post": {
+        "tags": [
+          "PO Lines"
+        ],
+        "description": "This web service updates an item to be considered received. If no payload is sent, the item information will not be changed besides the receive action. If an item object is sent in the payload, the item information will be updated accordingly.",
+        "summary": "Receive an Existing Item",
+        "operationId": "post/almaws/v1/acq/po-lines/{po_line_id}/items/{item_id}",
+        "parameters": [
+          {
+            "name": "po_line_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The PO-Line number."
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The item ID."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation to perform on the item. Currently, the only option is 'receive'"
+          },
+          {
+            "name": "receive_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The receive date. Default value is current time.  Expected Format: YYYY-MM-DDZ"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The code of the department where the item is being received. If not supplied, a random department will be chosen from the owning library's acquisition departments."
+          },
+          {
+            "name": "department_library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The library code of the department where the item is being received."
+          }
+        ],
+        "requestBody": {
+          "description": "The item info for updating the item. If no update is required, an empty item object must be sent (e.g. <item />). See [here](/alma/apis/docs/xsd/rest_item.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item-post.json#/rest_item-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item-post.json#/rest_item-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n40166411 - 'Param value is invalid.'\n\n401875 - 'Failed to find the department.'\n\n401871 - 'Failed to find the PO Line.'\n\n401877 - 'Failed to receive PO Line (with error message).'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_item.xsd. See [here](/alma/apis/docs/xsd/rest_item.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item.json#/rest_item"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_item.json#/rest_item"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/purchase-requests/": {
+      "get": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This API returns a list of purchase requests.",
+        "summary": "Get Purchase Requests",
+        "operationId": "get/almaws/v1/acq/purchase-requests/",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Format. Optional. By default all formats will be returned. Possible values according to PR_RequestedFormat code table."
+          },
+          {
+            "name": "owning_library",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Owning Library. Optional. By default all libraries will be returned. Possible values are valid library values"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Status. Optional. By default all statuses will be returned. Possible values according to PurchaseRequestStatus code table"
+          },
+          {
+            "name": "citation_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Citation Type. Optional. By default all citation types will be returned. Possible values according to PR_CitationType code table"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n40166410 - 'Parameter value is invalid, please choose one of the valid options.'\n\n60269 - 'Search for purchase requests failed.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_requests.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_requests.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_requests.json#/rest_purchase_requests"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_requests.json#/rest_purchase_requests"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/purchase-requests/{id}": {
+      "delete": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web Service deletes a purchase request.",
+        "summary": "Delete Purchase Request",
+        "operationId": "delete/almaws/v1/acq/purchase-requests/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The purchase request ID."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60276 - 'Purchase request id is not valid.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This API returns a specific purchase request.",
+        "summary": "Get Purchase Request",
+        "operationId": "get/almaws/v1/acq/purchase-requests/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The purchase request ID."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60276 - 'The purchase request identifier is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_request.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web Service performs an operation on a Purchase Request.",
+        "summary": "Operation on Purchase Request",
+        "operationId": "post/almaws/v1/acq/purchase-requests/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The purchase request ID."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The operation. Possible values are approve or reject"
+          }
+        ],
+        "requestBody": {
+          "description": "The purchase request info for the operation selected.  See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-post.json#/rest_purchase_request-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-post.json#/rest_purchase_request-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60276 - 'Purchase request id is not valid.'\n\n60308 - 'A reject reason is required.'\n\n60309 - 'An active purchase order exists for this request.'\n\n60313 - 'Purchase request approved_by not found.'\n\n60314 - 'Purchase request owning library not found.'\n\n60317 - 'Purchase request no PO line type.'\n\n60315 - 'Delete bib failure during reject.'\n\n60316 - 'Purchase request MMS record not found.'\n\n60312 - 'Purchase request invalid status.'\n\n60319 - 'Purchase request operation failed'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_request.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Purchase Requests"
+        ],
+        "description": "This Web Service updates a Purchase Request.",
+        "summary": "Update Purchase Request",
+        "operationId": "put/almaws/v1/acq/purchase-requests/{id}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The purchase request ID."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a purchase request object. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-put.json#/rest_purchase_request-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request-put.json#/rest_purchase_request-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n60276 - 'Purchase request id is not valid.'\n\n60270 - 'Requested format is not valid.'\n\n401890 - 'Requester was not found.'\n\n402469 - 'Owning library is not valid.'\n\n402880 - 'Vendor is not valid.'\n\n60272 - 'Vendor account is not valid.'\n\n60279 - 'Fund is not valid.'\n\n60273 - 'Title is missing.'\n\n60221 - 'Mms ID is not valid.'\n\n60274 - 'Resource metadata is required.'\n\n60308 - 'Purchase request update failed.'\n\n60309 - 'Purchase request status not valid for update.'\n\n60186 - 'License name is required.'\n\n60271 - 'Currency is not valid.'\n\n60329 - 'Purchase requested material type is not valid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_purchase_request.xsd. See [here](/alma/apis/docs/xsd/rest_purchase_request.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_purchase_request.json#/rest_purchase_request"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>GET - OK - institutionCode: 01ABC_INST</test>",
+        "summary": "GET Acq Test API",
+        "operationId": "get/almaws/v1/acq/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>POST - OK</test>",
+        "summary": "POST Acq Test API",
+        "operationId": "post/almaws/v1/acq/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/vendors": {
+      "get": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API returns a list of Vendors.",
+        "summary": "Retrieve vendors",
+        "operationId": "get/almaws/v1/acq/vendors",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Vendor Status. Optional. Valid values: active, inactive"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Vendor Type. Optional. Valid values: material_supplier, access_provider, licensor, governmental."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words from: interface_name, name, code, library  & all (for searching in all the above fields). Example (note the tilde between the code and text): q=name~Association (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_vendors.xsd. See [here](/alma/apis/docs/xsd/rest_vendors.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendors.json#/rest_vendors"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendors.json#/rest_vendors"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API creates a new vendor.",
+        "summary": "Create Vendor",
+        "operationId": "post/almaws/v1/acq/vendors",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a Vendor object. See [here](/alma/apis/docs/xsd/rest_vendor.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor-post.json#/rest_vendor-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor-post.json#/rest_vendor-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n402880 - 'Vendor X not found.'\n\n402892 - 'Vendor EDI field not found.'\n\n60337 - 'Vendor Account library has incorrect scope.'\n\n60338 - 'Vendor Account library is required.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_vendor.xsd. See [here](/alma/apis/docs/xsd/rest_vendor.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/vendors/{vendorCode}": {
+      "delete": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API deletes the vendor the code refers to.",
+        "summary": "Delete Vendor",
+        "operationId": "delete/almaws/v1/acq/vendors/{vendorCode}",
+        "parameters": [
+          {
+            "name": "vendorCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific vendor code"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API returns a specific vendor information.",
+        "summary": "Get Vendor",
+        "operationId": "get/almaws/v1/acq/vendors/{vendorCode}",
+        "parameters": [
+          {
+            "name": "vendorCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific vendor code"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401871 - 'Vendor X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_vendor.xsd. See [here](/alma/apis/docs/xsd/rest_vendor.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API updates an existing vendor.",
+        "summary": "Update Vendor",
+        "operationId": "put/almaws/v1/acq/vendors/{vendorCode}",
+        "parameters": [
+          {
+            "name": "vendorCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific vendor code"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Vendor object. See [here](/alma/apis/docs/xsd/rest_vendor.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor-put.json#/rest_vendor-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor-put.json#/rest_vendor-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n402880 - 'Vendor X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_vendor.xsd. See [here](/alma/apis/docs/xsd/rest_vendor.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_vendor.json#/rest_vendor"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/vendors/{vendorCode}/invoices": {
+      "get": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API returns information about a specific vendor's invoices.",
+        "summary": "Get Vendor Invoices",
+        "operationId": "get/almaws/v1/acq/vendors/{vendorCode}/invoices",
+        "parameters": [
+          {
+            "name": "vendorCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific vendor code"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401871 - 'Vendor X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_invoices.xsd. See [here](/alma/apis/docs/xsd/rest_invoices.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoices.json#/rest_invoices"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_invoices.json#/rest_invoices"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/acq/vendors/{vendorCode}/po-lines": {
+      "get": {
+        "tags": [
+          "Vendors"
+        ],
+        "description": "This API returns information about a specific vendor's PO lines.",
+        "summary": "Get Vendor PO Lines",
+        "operationId": "get/almaws/v1/acq/vendors/{vendorCode}/po-lines",
+        "parameters": [
+          {
+            "name": "vendorCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Specific vendor code"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n401871 - 'Vendor X not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_po_lines.xsd. See [here](/alma/apis/docs/xsd/rest_po_lines.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_lines.json#/rest_po_lines"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_po_lines.json#/rest_po_lines"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

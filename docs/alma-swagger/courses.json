@@ -1,0 +1,1903 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Courses"
+    },
+    {
+      "name": "Reading Lists"
+    },
+    {
+      "name": "Citations"
+    },
+    {
+      "name": "Owners"
+    },
+    {
+      "name": "Tags"
+    },
+    {
+      "name": "Test"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/courses": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Retrieves a Courses list. Number of results can be limited and offset using the query parameters. For example, to receive the first 2 results send offset=0 and limit=2",
+        "summary": "Retrieve Courses",
+        "operationId": "get/almaws/v1/courses",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Search query. Optional. Searching for words from: code, section, name, notes, instructors, searchable_ids, year, academic_department & all (for searching in all the above fields). Examples (note the tilde between the code and text): q=name~Math , q=code~MATH_INTRO and section~2 (see [Brief Search](https://developers.exlibrisgroup.com/blog/How-we-re-building-APIs-at-Ex-Libris#BriefSearch))"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "integer"
+            },
+            "description": "Limits the number of results. Optional. Valid values are 0-100. Default value: 10."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "integer"
+            },
+            "description": "Offset of the results returned. Optional. Default value: 0, which means that the first results will be returned."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ALL",
+              "type": "string"
+            },
+            "description": "Status of the course: ACTIVE/INACTIVE. Default: ALL"
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "code,section",
+              "type": "string"
+            },
+            "description": "A few sort options are available: id, name, code, section, start_date, end_date, participants, weekly_hours. A secondary sort key, id, is added when only one sort option is selected. Default sorting is by code and section."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "ASC",
+              "type": "string"
+            },
+            "description": "Sorting direction: ASC/DESC. Default: ASC."
+          },
+          {
+            "name": "exact_search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "false",
+              "type": "boolean"
+            },
+            "description": "When set to true, will only find courses that exactly match your code"
+          },
+          {
+            "name": "normalize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "For future use"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_courses.xsd. See [here](/alma/apis/docs/xsd/rest_courses.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_courses.json#/rest_courses"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_courses.json#/rest_courses"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Creates a Course resource.",
+        "summary": "Add a new Course",
+        "operationId": "post/almaws/v1/courses",
+        "parameters": [],
+        "requestBody": {
+          "description": "This method takes a Course object. See [here](/alma/apis/docs/xsd/rest_course.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-post.json#/rest_course-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-post.json#/rest_course-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401908 - 'Course identifier field should be left empty'\n\n401909 - 'Course code and name are mandatory fields'\n\n401922 - 'Course status is mandatory field'\n\n401626 - 'Course unit is not valid'\n\n401666 - 'Parameter is not valid'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_course.xsd. See [here](/alma/apis/docs/xsd/rest_course.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>GET - OK - institutionCode: 01ABC_INST</test>",
+        "summary": "GET Course Test API",
+        "operationId": "get/almaws/v1/courses/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>POST - OK</test>",
+        "summary": "POST Course Test API",
+        "operationId": "post/almaws/v1/courses/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}": {
+      "delete": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Deletes a Course resource. All reading-lists and citations belonging to the course will be deleted, unless a reading list is attached to another course.",
+        "summary": "Remove Course",
+        "operationId": "delete/almaws/v1/courses/{course_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Retrieves a Course resource.",
+        "summary": "Retrieve Course",
+        "operationId": "get/almaws/v1/courses/{course_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "brief",
+              "type": "string"
+            },
+            "description": "To get all related reading-lists and citations use view=full."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_course.xsd. See [here](/alma/apis/docs/xsd/rest_course.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Enroll to course",
+        "summary": "Enroll to course",
+        "operationId": "post/almaws/v1/courses/{course_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The requested operation (enroll_user, associate_to_reading_lists)."
+          },
+          {
+            "name": "user_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "A list of user identifiers (1,2,3,...). (optional)"
+          },
+          {
+            "name": "list_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "A list of list identifiers (1,2,3,...). (optional)"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Course object. See [here](/alma/apis/docs/xsd/rest_course.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-post.json#/rest_course-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-post.json#/rest_course-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401908 - 'Course identifier field should be left empty'\n\n401909 - 'Course code and name are mandatory fields'\n\n401922 - 'Course status is mandatory field'\n\n401626 - 'Course unit is not valid'\n\n401666 - 'Parameter is not valid'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_course.xsd. See [here](/alma/apis/docs/xsd/rest_course.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Updates a Course resource.",
+        "summary": "Update Course",
+        "operationId": "put/almaws/v1/courses/{course_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Course object. See [here](/alma/apis/docs/xsd/rest_course.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-put.json#/rest_course-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course-put.json#/rest_course-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401908 - 'Course identifier field should be left empty'\n\n401909 - 'Course code and name are mandatory fields'\n\n401918 - 'Course code field can't be modified'\n\n401006 - 'Course code field not unique for section'\n\n401922 - 'Course status is mandatory field'\n\n401626 - 'Course unit is not valid'\n\n401666 - 'Parameter is not valid'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_course.xsd. See [here](/alma/apis/docs/xsd/rest_course.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_course.json#/rest_course"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/lists/{list_id}": {
+      "delete": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Delete a course assocition to a list using a list identifier.",
+        "summary": "Delete Course Enrollment",
+        "operationId": "delete/almaws/v1/courses/{course_id}/lists/{list_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Course identifier."
+          },
+          {
+            "name": "list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A list identifier."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists": {
+      "get": {
+        "tags": [
+          "Reading Lists"
+        ],
+        "description": "Retrieves all Reading Lists for a Course.",
+        "summary": "Retrieve Reading Lists",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reading_lists.xsd. See [here](/alma/apis/docs/xsd/rest_reading_lists.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_lists.json#/rest_reading_lists"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_lists.json#/rest_reading_lists"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Reading Lists"
+        ],
+        "description": "Creates a Reading List object for a Course.",
+        "summary": "Create a Reading List",
+        "operationId": "post/almaws/v1/courses/{course_id}/reading-lists",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "copy_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "The identifier of the list to duplicate. (optional)"
+          },
+          {
+            "name": "default_section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Indication to create a default section. (optional)"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Reading List object. See [here](/alma/apis/docs/xsd/rest_reading_list.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list-post.json#/rest_reading_list-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list-post.json#/rest_reading_list-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401909 - 'Reading list code and name are mandatory fields'\n\n401006 - 'Reading list code field not unique'\n\n401666 - 'Parameter is not valid'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reading_list.xsd. See [here](/alma/apis/docs/xsd/rest_reading_list.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}": {
+      "delete": {
+        "tags": [
+          "Reading Lists"
+        ],
+        "description": "Deletes a Reading List resource (purge).",
+        "summary": "Remove Reading List",
+        "operationId": "delete/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Reading Lists"
+        ],
+        "description": "Retrieves a Reading List object for a Course.",
+        "summary": "Retrieve a Reading List",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "brief",
+              "type": "string"
+            },
+            "description": "Brief or full view"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reading_list.xsd. See [here](/alma/apis/docs/xsd/rest_reading_list.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Reading Lists"
+        ],
+        "description": "Updates a Reading List resource.",
+        "summary": "Update a Reading List",
+        "operationId": "put/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Reading List object. See [here](/alma/apis/docs/xsd/rest_reading_list.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list-put.json#/rest_reading_list-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list-put.json#/rest_reading_list-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401909 - 'Reading list code and name are mandatory fields'\n\n401006 - 'Reading list code field not unique'\n\n401666 - 'Parameter is not valid'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_reading_list.xsd. See [here](/alma/apis/docs/xsd/rest_reading_list.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_reading_list.json#/rest_reading_list"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations": {
+      "get": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Retrieves all Citations for a given Reading List.",
+        "summary": "Retrieve Citations",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citations.xsd. See [here](/alma/apis/docs/xsd/rest_citations.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citations.json#/rest_citations"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citations.json#/rest_citations"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Creates a Citation resource.",
+        "summary": "Create Citation",
+        "operationId": "post/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Citation object. See [here](/alma/apis/docs/xsd/rest_citation.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-post.json#/rest_citation-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-post.json#/rest_citation-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401908 - 'Citation identifier field should be left empty'\n\n401922 - 'Citation status is mandatory field'\n\n401924 - 'Article title is mandatory field'\n\n401923 - 'Course title is mandatory field'\n\n401913 - 'Course field is not compatible with this citation type'\n\n401666 - 'Parameter is not valid'\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation.xsd. See [here](/alma/apis/docs/xsd/rest_citation.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}": {
+      "delete": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Deletes a Citation resource.",
+        "summary": "Remove Citation",
+        "operationId": "delete/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Retrieves a Citation object.",
+        "summary": "Retrieve Citation",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation.xsd. See [here](/alma/apis/docs/xsd/rest_citation.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Operation on a citation - remove file.",
+        "summary": "Remove file from citation",
+        "operationId": "post/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The requested operation (remove_file). (optional)"
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Citation object. See [here](/alma/apis/docs/xsd/rest_citation.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-post.json#/rest_citation-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-post.json#/rest_citation-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401922 - 'Citation status is mandatory field'\n\n401924 - 'Article title is mandatory field'\n\n401923 - 'Course title is mandatory field'\n\n401913 - 'Course field is not compatible with this citation type'\n\n401666 - 'Parameter is not valid'\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation.xsd. See [here](/alma/apis/docs/xsd/rest_citation.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Citations"
+        ],
+        "description": "Updates a Citation resource.",
+        "summary": "Update Citation",
+        "operationId": "put/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes a Citation object. See [here](/alma/apis/docs/xsd/rest_citation.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-put.json#/rest_citation-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation-put.json#/rest_citation-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401922 - 'Citation status is mandatory field'\n\n401924 - 'Article title is mandatory field'\n\n401923 - 'Course title is mandatory field'\n\n401913 - 'Course field is not compatible with this citation type'\n\n401666 - 'Parameter is not valid'\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation.xsd. See [here](/alma/apis/docs/xsd/rest_citation.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation.json#/rest_citation"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}/tags": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "description": "Retrieves Citation's Tag list.",
+        "summary": "Retrieves Tags",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}/tags",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation_tags.xsd. See [here](/alma/apis/docs/xsd/rest_citation_tags.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags.json#/rest_citation_tags"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags.json#/rest_citation_tags"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tags"
+        ],
+        "description": "Update Citation's Tag list.",
+        "summary": "Update Tags",
+        "operationId": "put/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/citations/{citation_id}/tags",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "citation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the citation."
+          }
+        ],
+        "requestBody": {
+          "description": " See [here](/alma/apis/docs/xsd/rest_citation_tags.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags-put.json#/rest_citation_tags-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags-put.json#/rest_citation_tags-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'\n\n401916 - 'Citation not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_citation_tags.xsd. See [here](/alma/apis/docs/xsd/rest_citation_tags.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags.json#/rest_citation_tags"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_citation_tags.json#/rest_citation_tags"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners": {
+      "get": {
+        "tags": [
+          "Owners"
+        ],
+        "description": "Retrieves all Owners for a given Reading List.",
+        "summary": "Retrieve Owners",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_owners.xsd. See [here](/alma/apis/docs/xsd/rest_owners.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owners.json#/rest_owners"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owners.json#/rest_owners"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Owners"
+        ],
+        "description": "Creates information for an Owner for a given Reading List.",
+        "summary": "Create Owner",
+        "operationId": "post/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an Owner object. See [here](/alma/apis/docs/xsd/rest_owner.xsd?tags=POST)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner-post.json#/rest_owner-post"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner-post.json#/rest_owner-post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_owner.xsd. See [here](/alma/apis/docs/xsd/rest_owner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners/{primary_id}": {
+      "delete": {
+        "tags": [
+          "Owners"
+        ],
+        "description": "Deletes information for an Owner for a given Reading List.",
+        "summary": "Delete Owner",
+        "operationId": "delete/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners/{primary_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "primary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The primary identifier of the user."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Owners"
+        ],
+        "description": "Retrieves information for an Owner for a given Reading List.",
+        "summary": "Retrieve Owner",
+        "operationId": "get/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners/{primary_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "primary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The primary identifier of the user."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_owner.xsd. See [here](/alma/apis/docs/xsd/rest_owner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Owners"
+        ],
+        "description": "Updates information for an Owner for a given Reading List.",
+        "summary": "Update Owner",
+        "operationId": "put/almaws/v1/courses/{course_id}/reading-lists/{reading_list_id}/owners/{primary_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Course."
+          },
+          {
+            "name": "reading_list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The identifier of the Reading List."
+          },
+          {
+            "name": "primary_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The primary identifier of the user."
+          }
+        ],
+        "requestBody": {
+          "description": "This method takes an Owner object. See [here](/alma/apis/docs/xsd/rest_owner.xsd?tags=PUT)",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner-put.json#/rest_owner-put"
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner-put.json#/rest_owner-put"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'\n\n401915 - 'Reading list not found.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_owner.xsd. See [here](/alma/apis/docs/xsd/rest_owner.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_owner.json#/rest_owner"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/users": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Retrieves a course enrollment list of user identifiers.",
+        "summary": "Retrieve Course Enrollment",
+        "operationId": "get/almaws/v1/courses/{course_id}/users",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Course identifier."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/courses/{course_id}/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "Courses"
+        ],
+        "description": "Delete an enrollment to the course using a list of user identifiers.",
+        "summary": "Delete Course Enrollment",
+        "operationId": "delete/almaws/v1/courses/{course_id}/users/{user_id}",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The Course identifier."
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A list of user identifiers (1,2,3,...)."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n401914 - 'Course not found.'"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

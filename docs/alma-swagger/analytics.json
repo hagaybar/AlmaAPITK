@@ -1,0 +1,324 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "version": "1.0",
+    "title": "Ex Libris APIs",
+    "description": "For more information on how to use these APIs, including how to create an API key required for authentication, see [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis).",
+    "termsOfService": "https://developers.exlibrisgroup.com/about/terms"
+  },
+  "externalDocs": {
+    "description": "Detailed documentation on these APIs at the Ex Libris Developer Network.",
+    "url": "https://developers.exlibrisgroup.com/alma/apis/"
+  },
+  "servers": [
+    {
+      "url": "https://api-eu.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-na.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-ap.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-aps.hosted.exlibrisgroup.com"
+    },
+    {
+      "url": "https://api-cn.hosted.exlibrisgroup.com.cn"
+    },
+    {
+      "url": "https://api-ca.hosted.exlibrisgroup.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reports"
+    },
+    {
+      "name": "Paths"
+    },
+    {
+      "name": "Test"
+    }
+  ],
+  "paths": {
+    "/almaws/v1/analytics": {},
+    "/almaws/v1/analytics/paths": {
+      "get": {
+        "tags": [
+          ""
+        ],
+        "description": "This API returns the root directory to all Alma Analytics report as XML. \n\nSee [here](https://developers.exlibrisgroup.com/blog/Working-with-Analytics-REST-APIs) for more details.",
+        "summary": "Retrieve Analytics report's directory root",
+        "operationId": "get/almaws/v1/analytics/paths",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_analyt_paths.xsd. See [here](/alma/apis/docs/xsd/rest_analyt_paths.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_paths.json#/rest_analyt_paths"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_paths.json#/rest_analyt_paths"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/analytics/paths/{path}": {
+      "get": {
+        "tags": [
+          "Paths"
+        ],
+        "description": "This API returns a path to Alma Analytics report as XML. \n\nSee [here](https://developers.exlibrisgroup.com/blog/Working-with-Analytics-REST-APIs) for more details.",
+        "summary": "Retrieve Analytics report's directory path",
+        "operationId": "get/almaws/v1/analytics/paths/{path}",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The path to a report directory. Optional. If not sent the root directory will be returned."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n402119 - 'General error.'\n\n90109 - 'Given path is invalid.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_analyt_paths.xsd. See [here](/alma/apis/docs/xsd/rest_analyt_paths.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_paths.json#/rest_analyt_paths"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_paths.json#/rest_analyt_paths"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/analytics/reports": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "description": "This API returns an Alma Analytics report as XML. \n\nThe report should be saved in a shared folder to allow access via API.\n\nSince a report can be very large, the API supports retrieving it in several parts: \n\nThe first retrieval will return a Resumption Token as part of the OBI report. This token should be used as a parameter instead of the path parameter for the next retrievals in order to get the next rows. \n\nSee [here](https://developers.exlibrisgroup.com/blog/Working-with-Analytics-REST-APIs) for more details.",
+        "summary": "Retrieve Analytics report",
+        "operationId": "get/almaws/v1/analytics/reports",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Full path to the report (URL decoded, taken from the Analytics UI URL). The API can work on the Alma folder or the institutional folder, but not on the community folder."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "An XML representation of a filter in OBI format, URL decoded."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "25",
+              "type": "integer"
+            },
+            "description": "Maximum number of results to return - between 25 and 1000 (multiples of 25)"
+          },
+          {
+            "name": "col_names",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "true",
+              "type": "string"
+            },
+            "description": "Include column heading information. Default: true. To ensure consistent sort order it might be required to turn it off (col_names=false)."
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "A resumption token generated by a /reports response."
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n500 - 'access denied for user  to path X - make sure the report is saved in a shared folder.'\n\n402119 - 'General error.'"
+          },
+          "200": {
+            "description": "OK - This method returns an object based on rest_analyt_report.xsd. See [here](/alma/apis/docs/xsd/rest_analyt_report.xsd)",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_report.json#/rest_analyt_report"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/schemas/rest_analyt_report.json#/rest_analyt_report"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/almaws/v1/analytics/test": {
+      "get": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>GET - OK - institutionCode: 01ABC_INST</test>",
+        "summary": "GET Analytics Test API",
+        "operationId": "get/almaws/v1/analytics/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Test"
+        ],
+        "description": "This API is used to test if the API key was configured correctly, including read/write permissions.It returns a short XML (no schema available - the output is subject to changes) with the following structure:<test>POST - OK</test>",
+        "summary": "POST Analytics Test API",
+        "operationId": "post/almaws/v1/analytics/test",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "description": "Bad Request\n\n"
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Exl-Api-Remaining": {
+                "$ref": "#/components/headers/remaining"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "description": "API key used to authorize requests. Learn about how to create API keys at [Alma REST APIs](https://developers.exlibrisgroup.com/alma/apis/#defining)",
+        "in": "query",
+        "name": "apikey"
+      }
+    },
+    "headers": {
+      "remaining": {
+        "description": "The number of remaining calls according to the [Governance Threshold](https://developers.exlibrisgroup.com/alma/apis/#threshold)",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

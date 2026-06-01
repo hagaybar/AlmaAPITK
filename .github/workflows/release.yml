@@ -51,7 +51,7 @@ jobs:
         run: poetry run pytest tests/test_version.py -v
 
       - name: Full local validation suite
-        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/client/ tests/meta/ tests/agentic/ -q
+        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ tests/agentic/ -q
 
       - name: Regression smoke (SANDBOX, skips cleanly when no key)
         env:

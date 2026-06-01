@@ -63,7 +63,7 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 - [ ] `poetry run python scripts/smoke_import.py` passes.
 - [ ] `poetry run pytest tests/test_public_api_contract.py -v` passes.
 - [ ] `poetry run pytest tests/test_version.py -v` passes. **This is the version-drift guard.** If it fails, Phase E was incomplete.
-- [ ] `poetry run pytest tests/unit/ tests/logging/ tests/integration/client/ tests/meta/ tests/agentic/ -q` — 0 failures, 0 errors (not just "skipped"). `tests/meta/` is the structural-guard tier (no-print, no-hardcoded-`__version__`, docs vs `__all__` consistency, Version-heading vs `pyproject.toml`) — it catches Phase-C / Phase-E drift before TestPyPI does (issue #131). If pre-existing broken-test files surface, move them out of `tests/` (e.g., to `scripts/investigations/`) and document in CHANGELOG.
+- [ ] `poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ tests/agentic/ -q` — 0 failures, 0 errors (not just "skipped"). `tests/meta/` is the structural-guard tier (no-print, no-hardcoded-`__version__`, docs vs `__all__` consistency, Version-heading vs `pyproject.toml`) — it catches Phase-C / Phase-E drift before TestPyPI does (issue #131). If pre-existing broken-test files surface, move them out of `tests/` (e.g., to `scripts/investigations/`) and document in CHANGELOG.
 - [ ] `scripts/agentic/chunks regression-smoke` — every chunk's SANDBOX smoke tests pass. Acceptable exception: chunks documented as environmentally blocked at the time of the release (file a follow-up issue, don't block on tenant-config issues).
 
 ---

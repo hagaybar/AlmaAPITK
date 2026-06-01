@@ -1148,7 +1148,7 @@ class Users:
         Returns:
             List of deposit dicts as returned by Alma. Returns an empty
             list when the user has no deposits (or when the response
-            envelope is missing the ``deposit`` key).
+            envelope is missing the ``user_deposit`` key).
 
         Raises:
             AlmaValidationError: If ``user_id`` is empty or not a string.
@@ -1168,7 +1168,7 @@ class Users:
         try:
             response = self.client.get(endpoint)
             payload = response.json() or {}
-            deposits = payload.get("deposit") or []
+            deposits = payload.get("user_deposit") or payload.get("deposit") or []
             if isinstance(deposits, dict):
                 # Single-record responses can come back as a dict; normalise.
                 deposits = [deposits]

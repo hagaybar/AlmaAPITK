@@ -15,6 +15,12 @@ from almaapitk.alma_logging import get_logger
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError
 
 
+# Valid `expand` options for GET /almaws/v1/users/{user_id} per the committed
+# Alma swagger (users.json): loans (total loans), requests (total requests),
+# fees (fee balance). Comma-separated for multiple; default "none" = no expand.
+_VALID_USER_EXPANDS = frozenset({"loans", "requests", "fees"})
+
+
 class Users:
     """
     Enhanced Users domain class for Alma API operations.
@@ -53,18 +59,34 @@ class Users:
         
         Args:
             user_id: User identifier (primary ID, barcode, etc.)
-            expand: Additional data to include (loans, requests, fees)
-        
+            expand: Comma-separated user sub-collections to include. Valid
+                options (Alma Users API): ``loans`` (total number of loans),
+                ``requests`` (total number of requests), ``fees`` (fee
+                balance). Default ``none`` performs no expansion. Unknown
+                values raise AlmaValidationError before any request is made,
+                rather than incurring an opaque HTTP 400 (alma_code 401666).
+
         Returns:
             AlmaResponse containing user data
-            
+
         Raises:
-            AlmaValidationError: If user_id is empty
+            AlmaValidationError: If user_id is empty or expand has an unknown
+                value.
             AlmaAPIError: If API request fails
         """
         if not user_id or not user_id.strip():
             raise AlmaValidationError("User ID cannot be empty")
-        
+
+        if expand and expand != "none":
+            tokens = [t.strip() for t in expand.split(",")]
+            invalid = [t for t in tokens if t and t not in _VALID_USER_EXPANDS]
+            if invalid:
+                raise AlmaValidationError(
+                    f"Invalid expand value(s): {', '.join(invalid)}. Valid "
+                    f"options are {', '.join(sorted(_VALID_USER_EXPANDS))} "
+                    f"(comma-separated for multiple), or 'none'."
+                )
+
         params = {'expand': expand} if expand != "none" else {}
         endpoint = f'almaws/v1/users/{user_id.strip()}'
         

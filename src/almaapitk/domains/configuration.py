@@ -1791,7 +1791,7 @@ class Configuration:
     #   GET  /almaws/v1/conf/utilities/fee-transactions
     #     -- fee-transactions report. Filter set is operator-supplied
     #        (status, library, from_date, to_date, ...). Envelope key is
-    #        ``fee_transaction``.
+    #        ``fee`` (the rest_fees schema array).
     #
     #   GET  /almaws/v1/conf/general
     #     -- general institutional configuration. Returned unwrapped.
@@ -1884,7 +1884,7 @@ class Configuration:
 
         Wraps ``GET /almaws/v1/conf/utilities/fee-transactions`` and
         unwraps the Alma response envelope
-        (``{"fee_transaction": [...], "total_record_count": N}``) into a
+        (``{"fee": [...], "total_record_count": N}``) into a
         flat list. The endpoint accepts a flexible set of filters
         (``status``, ``library``, ``from_date``, ``to_date``,
         ``transaction_type``, etc.); rather than enumerate them in the
@@ -1906,7 +1906,7 @@ class Configuration:
             List of fee-transaction dicts as returned by Alma. Returns
             an empty list when no matching transactions are found (or
             when the response envelope is missing the
-            ``fee_transaction`` key).
+            ``fee`` key).
 
         Raises:
             AlmaAPIError: If the API request fails. Notable Alma error
@@ -1936,7 +1936,7 @@ class Configuration:
                 params=dict(filters) if filters else None,
             )
             payload = response.json() or {}
-            transactions = payload.get("fee_transaction") or []
+            transactions = payload.get("fee") or payload.get("fee_transaction") or []
             if isinstance(transactions, dict):
                 # Single-record responses can come back as a dict; normalise.
                 transactions = [transactions]

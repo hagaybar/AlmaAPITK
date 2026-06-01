@@ -25,12 +25,16 @@ DEFAULT_REQUEST_TIMEOUT = 60
 
 # Default retry configuration for the urllib3-backed HTTPAdapter mounted
 # on the persistent session (issue #5). The status forcelist covers Alma's
-# rate-limit response (429) and the transient-server-error band (5xx) that
-# is safe to retry idempotently.
+# rate-limit response (429) and the transient-server-error band (5xx).
+# POST is deliberately excluded from the allowed methods (issue #166): it is
+# non-idempotent, so an automatic retry after a 5xx that may already have
+# committed a create would risk a duplicate (e.g. a duplicate invoice). Only
+# the idempotent verbs are retried, mirroring urllib3's own default which
+# also omits POST.
 DEFAULT_RETRY_STATUS_FORCELIST = (429, 500, 502, 503, 504)
 DEFAULT_RETRY_TOTAL = 3
 DEFAULT_RETRY_BACKOFF_FACTOR = 1.0
-DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "POST", "PUT", "DELETE"})
+DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "PUT", "DELETE"})
 
 
 # Mapping of Alma hosting regions to their public API base URLs.

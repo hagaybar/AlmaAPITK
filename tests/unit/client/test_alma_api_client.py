@@ -362,7 +362,7 @@ class TestRetryAdapterMounted(_AlmaAPIClientTestBase):
         self.assertEqual(retry.backoff_factor, 1)
         # ``allowed_methods`` is normalized by urllib3 -- compare as a set.
         self.assertEqual(
-            set(retry.allowed_methods), {"GET", "POST", "PUT", "DELETE"}
+            set(retry.allowed_methods), {"GET", "PUT", "DELETE"}
         )
         self.assertTrue(retry.respect_retry_after_header)
 
@@ -376,7 +376,7 @@ class TestRetryAdapterMounted(_AlmaAPIClientTestBase):
         )
         self.assertEqual(retry.backoff_factor, 1)
         self.assertEqual(
-            set(retry.allowed_methods), {"GET", "POST", "PUT", "DELETE"}
+            set(retry.allowed_methods), {"GET", "PUT", "DELETE"}
         )
         self.assertTrue(retry.respect_retry_after_header)
 

@@ -70,14 +70,14 @@ class Users:
         
         try:
             response = self.client.get(endpoint, params=params)
-            self.logger.info(f"Retrieved user {user_id}")
+            self.logger.info("Retrieved user", user_id=user_id)
             return response
             
         except AlmaAPIError as e:
             if e.status_code == 404:
-                self.logger.warning(f"User not found: {user_id}")
+                self.logger.warning("User not found", user_id=user_id)
             else:
-                self.logger.error(f"API error retrieving user {user_id}: {e}")
+                self.logger.error("API error retrieving user", user_id=user_id, error=str(e))
             raise
     
     def list_users(
@@ -231,7 +231,7 @@ class Users:
         clean_id = user_id.strip()
 
         endpoint = f"almaws/v1/users/{clean_id}/personal-data"
-        self.logger.info(f"Retrieving personal data for user {clean_id}")
+        self.logger.info("Retrieving personal data for user", user_id=clean_id)
         try:
             response = self.client.get(endpoint)
             data: Dict[str, Any] = response.data or {}
@@ -3147,11 +3147,11 @@ class Users:
             raise AlmaValidationError("User ID cannot be empty")
         clean_id = user_id.strip()
 
-        self.logger.info(f"Deleting user: {clean_id}")
+        self.logger.info("Deleting user", user_id=clean_id)
 
         try:
             response = self.client.delete(f"almaws/v1/users/{clean_id}")
-            self.logger.info(f"Deleted user: {clean_id}")
+            self.logger.info("Deleted user", user_id=clean_id)
             return response
 
         except AlmaAPIError as e:
@@ -3239,11 +3239,11 @@ class Users:
 
         try:
             response = self.client.put(endpoint, data=user_data)
-            self.logger.info(f"Updated user {user_id}")
+            self.logger.info("Updated user", user_id=user_id)
             return response
 
         except AlmaAPIError as e:
-            self.logger.error(f"API error updating user {user_id}: {e}")
+            self.logger.error("API error updating user", user_id=user_id, error=str(e))
             raise
 
     # User Note Helpers (issue #119)
@@ -3757,19 +3757,19 @@ class Users:
             result['qualifies_for_update'] = is_expired_enough and has_email
             
             if result['qualifies_for_update']:
-                self.logger.info(f"User {user_id} qualifies: expired {years_expired} years, has {len(emails)} emails")
+                self.logger.info("User qualifies for email update", user_id=user_id, years_expired=years_expired, email_count=len(emails))
             else:
                 if not is_expired_enough:
-                    self.logger.debug(f"User {user_id} not expired enough: {years_expired} years")
+                    self.logger.debug("User not expired enough", user_id=user_id, years_expired=years_expired)
                 if not has_email:
-                    self.logger.debug(f"User {user_id} has no email addresses")
+                    self.logger.debug("User has no email addresses", user_id=user_id)
             
         except AlmaAPIError as e:
             result['error'] = f"API error: {e}"
-            self.logger.error(f"Error processing user {user_id}: {e}")
+            self.logger.error("Error processing user", user_id=user_id, error=str(e))
         except Exception as e:
             result['error'] = f"Processing error: {e}"
-            self.logger.error(f"Unexpected error processing user {user_id}: {e}")
+            self.logger.error("Unexpected error processing user", user_id=user_id, error=str(e))
         
         return result
     
@@ -3799,7 +3799,7 @@ class Users:
         for i, user_id in enumerate(user_ids, 1):
             # Progress reporting
             if i % 10 == 0 or i == total_users:
-                self.logger.info(f"Processing user {i}/{total_users}: {user_id}")
+                self.logger.info("Processing user", index=i, total=total_users, user_id=user_id)
             
             result = self.process_user_for_expiry(user_id, years_threshold)
             results.append(result)

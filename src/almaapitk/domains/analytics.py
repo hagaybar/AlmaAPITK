@@ -177,6 +177,23 @@ class Analytics:
         if not report_path:
             raise AlmaValidationError("report_path is required")
 
+        # Coerce numeric params before any comparison: consumers commonly supply
+        # limit/max_rows from a JSON config or CLI args (strings), and a float
+        # would reach Alma as an invalid token like "1000.0". Normalise to int
+        # with a clear error instead of a raw TypeError (issue #177).
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            raise AlmaValidationError(f"limit must be an integer, got {limit!r}")
+
+        if max_rows is not None:
+            try:
+                max_rows = int(max_rows)
+            except (TypeError, ValueError):
+                raise AlmaValidationError(
+                    f"max_rows must be an integer or None, got {max_rows!r}"
+                )
+
         if limit < 25:
             raise AlmaValidationError("limit must be at least 25 (Alma Analytics API minimum)")
 

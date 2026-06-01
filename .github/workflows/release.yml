@@ -51,12 +51,17 @@ jobs:
         run: poetry run pytest tests/test_version.py -v
 
       - name: Full local validation suite
-        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ tests/agentic/ -q
+        # tests/agentic/ is intentionally excluded: it validates the chunk-
+        # pipeline dev tooling (.a5c/*.js + the gitignored Node
+        # @a5c-ai/babysitter-sdk), not the published package, and that SDK is
+        # not installed in CI. The chunk pipeline is reviewed separately.
+        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q
 
-      - name: Regression smoke (SANDBOX, skips cleanly when no key)
-        env:
-          ALMA_SB_API_KEY: ${{ secrets.ALMA_SB_API_KEY }}
-        run: poetry run scripts/agentic/chunks regression-smoke
+      # NB: the package's own R10 regression tests run in the validation step
+      # above (tests/unit/regressions/). The chunk-pipeline SANDBOX smoke suite
+      # (`chunks regression-smoke`, which exercises chunks/*/sandbox-tests/
+      # against live Alma) is intentionally NOT a package-release gate — it
+      # belongs to the chunk pipeline, not the published package.
 
       - name: Build distributions
         run: |

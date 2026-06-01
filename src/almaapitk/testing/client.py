@@ -26,7 +26,19 @@ def build_smoke_client(
     In dry-run a :class:`RecordingTransport` is installed (no network) and
     returned; otherwise ``None`` is returned for the transport. When
     ``readonly`` is set the client's session refuses any non-GET request.
+
+    R-H2 ("PRODUCTION is read-only, always") is enforced here, not left to the
+    caller to remember: a PRODUCTION-targeted client may never be writable.
+    Building one with ``readonly=False`` raises before any client is created.
+    Mutating (write) smokes belong in SANDBOX.
     """
+    if not readonly and str(environment).strip().upper() == "PRODUCTION":
+        raise ValueError(
+            "Refusing to build a writable PRODUCTION smoke client: PRODUCTION "
+            "is read-only, always (R-H2). Use environment='SANDBOX' for a "
+            "mutating smoke, or pass readonly=True for a PRODUCTION read smoke."
+        )
+
     client = AlmaAPIClient(environment, api_key=api_key)
 
     transport: Optional[RecordingTransport] = None

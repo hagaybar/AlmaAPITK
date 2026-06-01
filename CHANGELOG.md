@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **L1 ResourceSharing contract tests** (`tests/unit/contracts/test_resource_sharing_contract.py`).
+  Pin the `almaapitk` surface the `Alma-RS-lending-request-automation`
+  consumer relies on — importable symbols, `ResourceSharing` construction,
+  `create_lending_request` (returns a dict with `request_id`; `owner` sent as
+  a plain string while `partner`/`format`/`citation_type` are wrapped;
+  POSTs to `partners/{code}/lending-requests`; missing mandatory fields raise
+  a client-side `ValueError` before any request), `get_lending_request`,
+  `get_request_summary` output shape, `create_lending_request_from_citation`
+  enrich-and-delegate, and the error hierarchy. Run with no creds/network via
+  the dry-run harness; a regression in any pinned behavior goes red before a
+  release is cut. Part of the consumer-rollout gate work (meta #158).
+
+### Changed
+
+- **`almaapitk.testing.build_smoke_client` now enforces R-H2 in the Infra.**
+  Building a *writable* PRODUCTION smoke client
+  (`environment="PRODUCTION", readonly=False`) now raises `ValueError` at
+  construction instead of silently returning an unguarded client — "PRODUCTION
+  is read-only, always" is no longer left to the caller to remember.
+  Read-only PRODUCTION smokes and writable SANDBOX smokes are unchanged.
+  Surfaced by the first mutating consumer (RS-lending), whose L3 smoke is the
+  first to pass `readonly=False`.
+
 ## [0.4.6] — 2026-06-01
 
 ### Added

@@ -197,12 +197,23 @@ class TestPublicAPIContract(unittest.TestCase):
             "Expected domain symbol 'Configuration' to be in __all__",
         )
 
+    @unittest.skip(
+        "Electronic is deferred from the public API surface until its "
+        "e-collection/e-service/portfolio endpoints land (#67-69). The class "
+        "still lives at almaapitk.domains.electronic; re-enable this test when "
+        "Electronic is re-added to __all__."
+    )
     def test_electronic_importable(self):
         """Test that Electronic domain class is importable from almaapitk (issue #66)."""
         from almaapitk import Electronic
         self.assertIsNotNone(Electronic)
         self.assertTrue(callable(Electronic))
 
+    @unittest.skip(
+        "Electronic is deferred from the public API surface until its "
+        "e-collection/e-service/portfolio endpoints land (#67-69). Re-enable "
+        "when Electronic is re-added to __all__."
+    )
     def test_electronic_in_all(self):
         """Test that Electronic is in __all__ (issue #66)."""
         import almaapitk

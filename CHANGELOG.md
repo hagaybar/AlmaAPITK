@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.6] — 2026-06-01
+
 ### Added
 
 - **`AlmaAPIClient(api_key=...)` constructor injection** (issue #143). The
@@ -38,6 +40,46 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
     `logging.getLogger("almapi").setLevel(logging.WARNING)` — instead of
     reconfiguring each `almapi.<domain>` logger by name. This resolves the
     logger-namespace fragmentation noted in 0.4.5 and completes issue #142.
+- **HTTP retry policy no longer retries `POST`** (issue #166). The urllib3
+  `Retry` mounted on the session previously listed `POST` alongside the
+  429/5xx status forcelist. POST is non-idempotent, so an automatic retry
+  after a 5xx that may already have committed a create could produce a
+  duplicate (e.g. a duplicate invoice). POST is now excluded, matching
+  urllib3's own default; the idempotent verbs (GET/PUT/DELETE) are still
+  retried. **Behaviour change:** a `POST` that hits a transient 429/5xx now
+  surfaces that error to the caller instead of being silently retried.
+- **`Users.get_user` validates the `expand` parameter client-side** (issue
+  #144). Unknown values previously forwarded to Alma and failed with an
+  opaque HTTP 400 (`alma_code 401666`) only after the round-trip. Invalid
+  values now raise `AlmaValidationError` immediately, listing the allowed
+  options (`loans`, `requests`, `fees`; comma-separated; default `none`).
+
+### Fixed
+
+- **`Admin` set-member operations no longer crash on real responses** (issue
+  #164). Alma serialises `number_of_members.value` as a string; the code fed
+  it straight to `range()` and integer arithmetic, raising `TypeError` on
+  every non-empty set (and the empty-set guard `"0" == 0` also failed). The
+  count is now coerced to `int` at the extraction points, so pagination, the
+  empty-set guard, and the metadata math all work.
+- **`Users.list_user_deposits` returns the user's deposits** (issue #162). It
+  unwrapped the response under the non-existent key `deposit`; the schema key
+  is `user_deposit`, so it silently returned `[]` for users who had deposits.
+  It now reads `user_deposit` (with a `deposit` fallback).
+- **`Configuration.get_fee_transactions_report` returns transactions** (issue
+  #163). It unwrapped under `fee_transaction`, which is not in the `rest_fees`
+  schema (the array key is `fee`), so it always returned `[]`. It now reads
+  `fee`.
+- **Bib create/update send a valid XML `Content-Type`** (issue #167).
+  `BibliographicRecords.create_record` / `update_record` passed
+  `content_type='xml'`, producing an invalid `Content-Type: xml` header and a
+  mismatched `Accept: application/json` over a MARCXML body. They now send
+  `application/xml`.
+- **`Analytics.fetch_report_rows` accepts a non-int `limit`/`max_rows`**
+  (issue #177). A `limit` supplied as a string (e.g. from a JSON config or
+  CLI argument) raised a raw `TypeError`; a float was sent to Alma as an
+  invalid token. Both are now coerced to `int`, with a clear
+  `AlmaValidationError` on non-numeric input.
 
 ### Security
 
@@ -55,6 +97,15 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
   R10 regression suites for the above: `tests/unit/regressions/test_issue_142.py`,
   `tests/unit/regressions/test_issue_143.py`.
+- **Email addresses no longer leak into log messages** (issue #168).
+  `Users.update_user_email` / `bulk_update_emails` interpolated the email into
+  the log *message* via f-strings, bypassing the redactor (which only scrubs
+  structured fields and the `users/<id>` URL form), so the address — PII under
+  R9 — reached the console and JSON file handlers verbatim. These calls now
+  log via structured kwargs so the redactor blanks the address, and the
+  `Invalid email format` validation errors no longer embed it. The remaining
+  `user_id`-only message sites in `users.py` were converted in the same pass.
+  R10 regression suite: `tests/unit/regressions/test_issue_168.py`.
 
 ### CI
 
@@ -240,7 +291,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.6...HEAD
+[0.4.6]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.6
 [0.4.5]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.5
 [0.4.3]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.3
 [0.4.2]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.2

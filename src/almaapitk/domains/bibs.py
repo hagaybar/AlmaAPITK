@@ -101,7 +101,7 @@ class BibliographicRecords:
         
         endpoint = "almaws/v1/bibs"
         response = self.client.post(endpoint, data=marc_xml, 
-                                  content_type='xml', params=params)
+                                  content_type='application/xml', params=params)
         
         self.logger.info("Created new bib record")
         return response
@@ -144,7 +144,7 @@ class BibliographicRecords:
         
         endpoint = f"almaws/v1/bibs/{mms_id}"
         response = self.client.put(endpoint, data=marc_xml, 
-                                 content_type='xml', params=params)
+                                 content_type='application/xml', params=params)
         
         self.logger.info(f"Updated bib record {mms_id}")
         return response

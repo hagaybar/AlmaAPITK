@@ -66,7 +66,7 @@ class Admin:
             self._validate_set_type(content_type, expected_type, set_id)
             
             # Step 3: Get total number of members
-            total_members = set_info.get("number_of_members", {}).get("value", 0)
+            total_members = self._member_count(set_info)
             self.logger.info(f"Set contains {total_members} members (type: {content_type})")
             
             if total_members == 0:
@@ -167,7 +167,7 @@ class Admin:
                 "id": set_info.get("id", set_id),
                 "name": set_info.get("name", "Unknown"),
                 "content_type": content_type,
-                "total_members": set_info.get("number_of_members", {}).get("value", 0),
+                "total_members": self._member_count(set_info),
                 "status": set_info.get("status", {}).get("value", "Unknown"),
                 "created_date": set_info.get("created_date", "Unknown")
             }
@@ -213,6 +213,17 @@ class Admin:
     
     # Core Set Processing Methods (Enhanced)
     
+    @staticmethod
+    def _member_count(set_info: Dict[str, Any]) -> int:
+        """Coerce Alma's ``number_of_members.value`` to ``int``.
+
+        The Alma schema (``rest_set.json``) types this nested value as a
+        **string** (e.g. ``"100"``), but callers feed it to ``range()`` and
+        integer arithmetic. Coerce once here so every call site gets an int;
+        a missing/blank value yields ``0``.
+        """
+        return int(set_info.get("number_of_members", {}).get("value", 0) or 0)
+
     def _get_set_info(self, set_id: str) -> Dict[str, Any]:
         """
         Get basic information about a set.
@@ -335,7 +346,7 @@ class Admin:
                 "description": set_info.get("description", ""),
                 "content_type": set_info.get("content", {}).get("value", "Unknown"),
                 "status": set_info.get("status", {}).get("value", "Unknown"),
-                "total_members": set_info.get("number_of_members", {}).get("value", 0),
+                "total_members": self._member_count(set_info),
                 "created_date": set_info.get("created_date", "Unknown"),
                 "created_by": set_info.get("created_by", "Unknown")
             }

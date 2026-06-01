@@ -3662,7 +3662,7 @@ class Users:
             AlmaAPIError: If API request fails
         """
         if not self.validate_email(new_email):
-            raise AlmaValidationError(f"Invalid email format: {new_email}")
+            raise AlmaValidationError("Invalid email format")
         
         try:
             # Get current user data
@@ -3704,7 +3704,7 @@ class Users:
             
             # Send the update to Alma
             response = self.update_user(user_id, user_data)
-            self.logger.info(f"Updated email for user {user_id} to {new_email}")
+            self.logger.info("Updated user email", user_id=user_id, new_email=new_email)
             return response
             
         except AlmaAPIError:
@@ -3852,7 +3852,7 @@ class Users:
             
             # Progress reporting
             if i % 5 == 0 or i == total_updates:
-                self.logger.info(f"Processing email update {i}/{total_updates}: {user_id}")
+                self.logger.info("Processing email update", index=i, total=total_updates, user_id=user_id)
             
             try:
                 if dry_run:
@@ -3860,25 +3860,25 @@ class Users:
                     if not user_id or not new_email:
                         raise AlmaValidationError("Missing user_id or new_email")
                     if not self.validate_email(new_email):
-                        raise AlmaValidationError(f"Invalid email format: {new_email}")
+                        raise AlmaValidationError("Invalid email format")
                     
                     # Try to get user to verify they exist
                     self.get_user(user_id)
                     
                     result['success'] = True
-                    self.logger.debug(f"DRY RUN: Would update {user_id} email to {new_email}")
+                    self.logger.debug("DRY RUN: would update user email", user_id=user_id, new_email=new_email)
                 else:
                     # Actually update the email
                     self.update_user_email(user_id, new_email, email_type)
                     result['success'] = True
-                    self.logger.info(f"Updated {user_id} email to {new_email}")
+                    self.logger.info("Updated user email", user_id=user_id, new_email=new_email)
                 
             except (AlmaAPIError, AlmaValidationError) as e:
                 result['error'] = str(e)
-                self.logger.error(f"Error updating email for {user_id}: {e}")
+                self.logger.error("Error updating email", user_id=user_id, error=str(e))
             except Exception as e:
                 result['error'] = f"Unexpected error: {e}"
-                self.logger.error(f"Unexpected error updating email for {user_id}: {e}")
+                self.logger.error("Unexpected error updating email", user_id=user_id, error=str(e))
             
             results.append(result)
             

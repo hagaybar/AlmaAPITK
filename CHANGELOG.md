@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   enrich-and-delegate, and the error hierarchy. Run with no creds/network via
   the dry-run harness; a regression in any pinned behavior goes red before a
   release is cut. Part of the consumer-rollout gate work (meta #158).
+- **L1 BibliographicRecords collection contract tests** (`tests/unit/contracts/test_bibs_collections_contract.py`).
+  Pin the surface the `Update_Alma_Digital_Collections` consumer relies on —
+  `get_collection_members` (GET `bibs/collections/{id}/bibs`, paged, with
+  `response.json()["total_record_count"]` exposed), `add_to_collection`
+  (POST `{"mms_id": ...}` to the same path), `remove_from_collection`
+  (DELETE `bibs/collections/{id}/bibs/{mms_id}`), and client-side
+  `AlmaValidationError` on empty `collection_id`/`mms_id` before any request.
+  This consumer is pinned far back (`>= 0.3.1`), so these contracts plus its
+  own live SANDBOX smoke de-risk the bump to the current release. Part of the
+  consumer-rollout gate work (meta #158).
 
 ### Changed
 

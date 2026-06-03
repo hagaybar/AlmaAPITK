@@ -50,7 +50,7 @@ almaapitk_smoke = "almaapitk.testing.pytest_plugin"
 [project.urls]
 Homepage = "https://github.com/hagaybar/AlmaAPITK"
 Repository = "https://github.com/hagaybar/AlmaAPITK"
-Documentation = "https://github.com/hagaybar/AlmaAPITK#readme"
+Documentation = "https://hagaybar.github.io/AlmaAPITK/"
 Issues = "https://github.com/hagaybar/AlmaAPITK/issues"
 Changelog = "https://github.com/hagaybar/AlmaAPITK/blob/main/CHANGELOG.md"
 

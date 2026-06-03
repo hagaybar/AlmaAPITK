@@ -5,6 +5,8 @@ A Python toolkit for interacting with the Ex Libris Alma ILS (Integrated Library
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+📖 **Documentation:** <https://hagaybar.github.io/AlmaAPITK/> — guides plus a full API reference generated from the source.
+
 ## Features
 
 - **Simple API Client**: Easy-to-use HTTP client with automatic authentication and error handling

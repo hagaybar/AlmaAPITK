@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Hosted documentation site** (MkDocs Material) published to GitHub Pages at
+  <https://hagaybar.github.io/AlmaAPITK/>, built and deployed by
+  `.github/workflows/docs.yml` on every push to `main`. Includes the existing
+  getting-started / examples / error-handling / logging guides plus a full
+  **API reference auto-generated from the source docstrings** (mkdocstrings),
+  so method signatures and parameters can never drift from the code. Source
+  lives in `docs/site/` + `mkdocs.yml`; the PyPI `Documentation` URL now points
+  at the site. (`close()`'s docstring changed a `Raises: None` block to a
+  `Note:` — no behavior change.)
+
 ### Added
 
 - **L1 ResourceSharing contract tests** (`tests/unit/contracts/test_resource_sharing_contract.py`).

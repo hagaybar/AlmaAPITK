@@ -1,0 +1,1 @@
+--8<-- "docs/error-handling.md"

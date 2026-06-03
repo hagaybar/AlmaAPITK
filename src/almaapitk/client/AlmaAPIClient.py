@@ -1292,11 +1292,11 @@ class AlmaAPIClient:
         If the caller still needs to make calls after closing, they
         should construct a new ``AlmaAPIClient``.
 
-        Raises:
-            None. The ``requests.Session.close`` call is best-effort: any
-            exception while closing is swallowed and logged at WARNING
-            level so teardown in ``__exit__`` (the typical caller) never
-            masks an in-flight exception from the ``with`` body.
+        Note:
+            ``close`` raises nothing. The ``requests.Session.close`` call is
+            best-effort: any exception while closing is swallowed and logged
+            at WARNING level so teardown in ``__exit__`` (the typical caller)
+            never masks an in-flight exception from the ``with`` body.
 
         Pattern source: GitHub issue #13.
         """

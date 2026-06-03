@@ -1,0 +1,14 @@
+# Documentation build dependencies — MkDocs Material + autodoc.
+#
+# These are docs-only tooling and are NOT part of the installed `almaapitk`
+# package (end users never pull these). Used by .github/workflows/docs.yml
+# and for local builds:
+#
+#   poetry run pip install -r docs/requirements.txt
+#   poetry run mkdocs serve      # live preview at http://127.0.0.1:8000
+#   poetry run mkdocs build --strict
+#
+mkdocs-material>=9.5,<10
+mkdocstrings[python]>=0.26,<1.0
+# Used by mkdocstrings to pretty-print (multi-line) function/method signatures.
+black>=24.0

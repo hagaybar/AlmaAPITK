@@ -19,6 +19,9 @@ wheels/
 *.egg-info/
 .eggs/
 *.egg
+
+# MkDocs generated site (built by .github/workflows/docs.yml → GitHub Pages)
+/site/
 *.whl
 
 ###############################################################################

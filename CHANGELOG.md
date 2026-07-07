@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-07
+
+### Added
+
+- **Structure-driven bib creation** (`BibliographicRecords`, issue #179).
+  Three layers, all funnelling into the existing `create_record(xml)`:
+  - `build_alma_bib_xml(spec) -> str` — a **pure**, network-free builder that
+    turns a native JSON field structure into Alma's non-namespaced
+    `<bib><record>…</record></bib>` MARCXML. Preserves field order, supports
+    repeated fields (multiple `650`) and repeated subfields, maps control
+    fields (`00X`) to `<controlfield>`/`data` and data fields to
+    `ind1`/`ind2` + `<subfield>`, defaults the leader when omitted
+    (`DEFAULT_BIB_LEADER`), and lets `ElementTree` escape once (no
+    double-escaping). Unit-testable in isolation.
+  - `create_record_from_fields(spec)` — builds the XML and POSTs it via
+    `create_record` (dependency-free; usable from non-Python callers such as
+    Power Automate).
+  - `create_record_from_pymarc(record)` — optional adapter converting a
+    `pymarc.Record` → spec → builder → `create_record`. `pymarc` is a new
+    optional extra (`pip install almaapitk[pymarc]`), imported lazily; calling
+    the adapter without it installed raises a clear, actionable `ImportError`.
+    The core install pulls no new dependencies.
+
+  Purely additive — no existing signature or behavior changed. Regression test:
+  `tests/unit/regressions/test_issue_179.py`.
+
 ### Documentation
 
 - **Hosted documentation site** (MkDocs Material) published to GitHub Pages at
@@ -338,7 +364,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.0
 [0.4.6]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.6
 [0.4.5]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.5
 [0.4.3]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.3

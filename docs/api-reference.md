@@ -1,6 +1,6 @@
 # AlmaAPITK API Reference
 
-**Version:** 0.4.6
+**Version:** 0.5.0
 **Package:** `almaapitk`
 
 This document provides comprehensive API reference documentation for the AlmaAPITK Python library.
@@ -1040,6 +1040,78 @@ Create a new bibliographic record.
 | `override_warning` | `bool` | `False` | Whether to override validation warnings |
 
 **Returns:** `AlmaResponse` containing the created record
+
+##### create_record_from_fields()
+
+```python
+def create_record_from_fields(
+    self,
+    spec: Dict[str, Any],
+    validate: bool = True,
+    override_warning: bool = False
+) -> AlmaResponse
+```
+
+Create a bibliographic record from a native JSON field structure, instead of
+hand-building MARCXML. Builds the XML with `build_alma_bib_xml()` and posts it
+via `create_record()`. The `spec` is plain JSON-serializable dicts/lists, so it
+is usable from non-Python callers (e.g. Power Automate) too.
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `spec` | `Dict[str, Any]` | Required | Native field structure (see `build_alma_bib_xml`) |
+| `validate` | `bool` | `True` | Whether to validate the record |
+| `override_warning` | `bool` | `False` | Whether to override validation warnings |
+
+**Returns:** `AlmaResponse` containing the created record
+
+**Example:**
+
+```python
+spec = {
+    "leader": "     nam a22     3u 4500",  # optional; a default is used if omitted
+    "fields": [
+        {"tag": "008", "data": "230101s2023    xxu           000 0 eng d"},
+        {"tag": "245", "ind1": "1", "ind2": "0",
+         "subfields": [["a", "Data Reduction Methods /"], ["c", "An Author."]]},
+        {"tag": "650", "ind1": " ", "ind2": "0", "subfields": [["a", "Data reduction"]]},
+        {"tag": "650", "ind1": " ", "ind2": "0", "subfields": [["a", "Data science"]]},
+    ],
+}
+response = bibs.create_record_from_fields(spec)
+```
+
+##### build_alma_bib_xml()
+
+```python
+@staticmethod
+def build_alma_bib_xml(spec: Dict[str, Any]) -> str
+```
+
+Pure, network-free helper that turns a field `spec` into Alma's non-namespaced
+`<bib><record>…</record></bib>` MARCXML. Preserves field order, supports repeated
+fields and repeated subfields, maps control fields (`00X`) to `<controlfield>`
+and data fields to `ind1`/`ind2` + `<subfield>`, and escapes special characters
+exactly once (no double-escaping). Unit-testable in isolation.
+
+##### create_record_from_pymarc()
+
+```python
+def create_record_from_pymarc(
+    self,
+    record: "pymarc.Record",
+    validate: bool = True,
+    override_warning: bool = False
+) -> AlmaResponse
+```
+
+Create a bibliographic record from a `pymarc.Record`. Converts the record to a
+`spec` and funnels it through `create_record_from_fields()`. `pymarc` is an
+**optional extra** (`pip install almaapitk[pymarc]`), imported lazily; calling
+this without it installed raises a clear `ImportError`. The core install stays
+dependency-light.
 
 ##### update_record()
 

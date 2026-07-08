@@ -4,6 +4,222 @@ from typing import Any, Dict, List, Optional
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse, AlmaValidationError
 
 
+# Documented default MARC leader used by ``build_alma_bib_xml`` when a spec
+# omits ``leader``. Callers own leader validity (issue #179); this is a
+# reasonable "new textual monograph" default and can be overridden per-spec.
+DEFAULT_LEADER = "     nam a22     3u 4500"
+
+
+def _strip_illegal_xml_chars(text: str) -> str:
+    """Strip characters that are illegal in XML 1.0 text/attribute content.
+
+    Only the C0 control characters (except tab, newline and carriage return)
+    are removed. This deliberately does **not** escape XML markup characters
+    (``&``, ``<``, ``>``): escaping is left to ``xml.etree.ElementTree`` at
+    serialisation time so values are escaped exactly once (issue #179 — the
+    old ``_sanitize_xml_text`` + ET path double-escaped ``&`` into
+    ``&amp;amp;``).
+
+    Args:
+        text: Raw text to clean.
+
+    Returns:
+        ``text`` with illegal control characters removed.
+    """
+    if not text:
+        return ""
+    return "".join(ch for ch in text if ord(ch) >= 0x20 or ch in "\t\n\r")
+
+
+def _normalize_indicator(value: Any) -> str:
+    """Coerce an indicator value to a single MARC indicator character.
+
+    Args:
+        value: Indicator from a spec field; ``None`` or ``""`` become a blank
+            indicator (a single space).
+
+    Returns:
+        A one-character indicator string.
+
+    Raises:
+        AlmaValidationError: If ``value`` is not representable as a single
+            character.
+    """
+    if value is None or value == "":
+        return " "
+    text = str(value)
+    if len(text) != 1:
+        raise AlmaValidationError(
+            f"MARC indicator must be a single character, got {text!r}"
+        )
+    return text
+
+
+def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
+    """Build Alma's non-namespaced ``<bib><record>`` MARCXML from a spec.
+
+    Pure, network-free helper (the XML-assembly shape mirrors
+    ``BibliographicRecords._build_updated_marc_xml`` but is spec-driven and
+    escapes exactly once). The ``spec`` is plain JSON-serialisable data so it
+    is usable from non-Python callers (e.g. Power Automate)::
+
+        spec = {
+            "leader": "     nam a22     3u 4500",   # optional; default if omitted
+            "fields": [
+                {"tag": "008", "data": "..."},                       # control field
+                {"tag": "245", "ind1": "1", "ind2": "0",
+                 "subfields": [["a", "Data Reduction Methods"]]},    # data field
+                {"tag": "650", "ind1": " ", "ind2": "0",
+                 "subfields": [["a", "Data reduction"]]},
+                {"tag": "650", "ind1": " ", "ind2": "0",
+                 "subfields": [["a", "Data science"]]},
+            ],
+        }
+
+    Args:
+        spec: Mapping with an optional ``leader`` string and a non-empty
+            ``fields`` list. Each field needs a string ``tag``; control fields
+            carry ``data`` (or have a ``00X`` tag), data fields carry ``ind1``
+            / ``ind2`` (default blank) and a non-empty ``subfields`` list of
+            ``[code, value]`` pairs. Field and subfield order is preserved and
+            repeated tags/subfields are supported.
+
+    Returns:
+        A ``<bib><record>...</record></bib>`` XML string ready for
+        :meth:`BibliographicRecords.create_record`.
+
+    Raises:
+        AlmaValidationError: If the spec is malformed (not a dict, missing or
+            empty ``fields``, a field without a ``tag``, a control field
+            without ``data``, or a data field without ``subfields``).
+    """
+    if not isinstance(spec, dict):
+        raise AlmaValidationError("spec must be a dict")
+
+    fields = spec.get("fields")
+    if not isinstance(fields, list) or not fields:
+        raise AlmaValidationError("spec must include a non-empty 'fields' list")
+
+    leader_text = spec.get("leader", DEFAULT_LEADER)
+    if not isinstance(leader_text, str):
+        raise AlmaValidationError("'leader' must be a string when provided")
+
+    bib_elem = ET.Element("bib")
+    record_elem = ET.SubElement(bib_elem, "record")
+
+    leader_elem = ET.SubElement(record_elem, "leader")
+    leader_elem.text = _strip_illegal_xml_chars(leader_text)
+
+    for index, field in enumerate(fields):
+        if not isinstance(field, dict):
+            raise AlmaValidationError(f"field at index {index} must be a dict")
+
+        tag = field.get("tag")
+        if not tag or not isinstance(tag, str):
+            raise AlmaValidationError(
+                f"field at index {index} is missing a string 'tag'"
+            )
+
+        # Control fields carry a 'data' string (or a 00X tag); everything else
+        # is a data field with indicators + subfields.
+        is_control = "data" in field or tag.startswith("00")
+        if is_control:
+            if "data" not in field:
+                raise AlmaValidationError(
+                    f"control field {tag} requires a 'data' value"
+                )
+            control_elem = ET.SubElement(record_elem, "controlfield")
+            control_elem.set("tag", tag)
+            # Assign to .text and let ET escape at serialisation (no pre-escape).
+            control_elem.text = _strip_illegal_xml_chars(str(field["data"]))
+            continue
+
+        subfields = field.get("subfields")
+        if not subfields:
+            raise AlmaValidationError(
+                f"data field {tag} requires 'data' (control) or a non-empty "
+                "'subfields' list"
+            )
+        if not isinstance(subfields, list):
+            raise AlmaValidationError(
+                f"field {tag} 'subfields' must be a list of [code, value] pairs"
+            )
+
+        data_elem = ET.SubElement(record_elem, "datafield")
+        data_elem.set("tag", tag)
+        data_elem.set("ind1", _normalize_indicator(field.get("ind1", " ")))
+        data_elem.set("ind2", _normalize_indicator(field.get("ind2", " ")))
+
+        for sf_index, subfield in enumerate(subfields):
+            if not isinstance(subfield, (list, tuple)) or len(subfield) != 2:
+                raise AlmaValidationError(
+                    f"subfield {sf_index} of field {tag} must be a "
+                    "[code, value] pair"
+                )
+            code, value = subfield
+            if not code or not isinstance(code, str):
+                raise AlmaValidationError(
+                    f"subfield {sf_index} of field {tag} needs a string code"
+                )
+            subfield_elem = ET.SubElement(data_elem, "subfield")
+            subfield_elem.set("code", code)
+            subfield_elem.text = _strip_illegal_xml_chars(
+                "" if value is None else str(value)
+            )
+
+    # ``encoding='unicode'`` returns a str; ET escapes &, <, > exactly once.
+    return ET.tostring(bib_elem, encoding="unicode")
+
+
+def _pymarc_record_to_spec(record: Any) -> Dict[str, Any]:
+    """Convert a ``pymarc.Record`` into a ``build_alma_bib_xml`` spec.
+
+    Duck-typed over the ``pymarc`` field API so it works across pymarc
+    versions (the subfield container changed shape between pymarc 4 and 5).
+
+    Args:
+        record: A ``pymarc.Record`` instance.
+
+    Returns:
+        A spec dict suitable for :func:`build_alma_bib_xml`.
+    """
+    spec: Dict[str, Any] = {"leader": str(record.leader), "fields": []}
+
+    for field in record.fields:
+        if field.is_control_field():
+            spec["fields"].append({"tag": field.tag, "data": field.data})
+            continue
+
+        indicators = getattr(field, "indicators", None)
+        if indicators is not None:
+            ind1, ind2 = indicators[0], indicators[1]
+        else:  # pragma: no cover - very old pymarc fallback
+            ind1 = getattr(field, "indicator1", " ")
+            ind2 = getattr(field, "indicator2", " ")
+
+        subfields: List[List[str]] = []
+        raw_subfields = list(field.subfields)
+        if raw_subfields and hasattr(raw_subfields[0], "code"):
+            # pymarc >= 5: list of Subfield(code, value) namedtuples.
+            for subfield in raw_subfields:
+                subfields.append([subfield.code, subfield.value])
+        else:  # pragma: no cover - pymarc < 5 flat [code, value, ...] list
+            iterator = iter(raw_subfields)
+            for code in iterator:
+                subfields.append([code, next(iterator, "")])
+
+        spec["fields"].append(
+            {
+                "tag": field.tag,
+                "ind1": ind1,
+                "ind2": ind2,
+                "subfields": subfields,
+            }
+        )
+
+    return spec
+
+
 class BibliographicRecords:
     """
     Domain class for handling Alma Bibliographic Records API operations.
@@ -100,12 +316,81 @@ class BibliographicRecords:
         }
         
         endpoint = "almaws/v1/bibs"
-        response = self.client.post(endpoint, data=marc_xml, 
+        response = self.client.post(endpoint, data=marc_xml,
                                   content_type='application/xml', params=params)
-        
+
         self.logger.info("Created new bib record")
         return response
-    
+
+    def create_record_from_fields(self, spec: Dict[str, Any], validate: bool = True,
+                                  override_warning: bool = False) -> AlmaResponse:
+        """
+        Create a new bibliographic record from a native, structure-driven spec.
+
+        Builds Alma's non-namespaced ``<bib><record>`` XML from ``spec`` via
+        :func:`build_alma_bib_xml` and funnels it into :meth:`create_record`,
+        so callers never hand-assemble MARCXML. Pattern source: thin
+        builder-then-``create_record`` wrapper (issue #179).
+
+        Args:
+            spec: JSON-serialisable field structure (see
+                :func:`build_alma_bib_xml`).
+            validate: Whether Alma should validate the record.
+            override_warning: Whether to override validation warnings.
+
+        Returns:
+            AlmaResponse containing the created record.
+
+        Raises:
+            AlmaValidationError: If ``spec`` is malformed.
+        """
+        marc_xml = build_alma_bib_xml(spec)
+
+        self.logger.info("Creating bib record from field spec")
+        return self.create_record(
+            marc_xml, validate=validate, override_warning=override_warning
+        )
+
+    def create_record_from_pymarc(self, record: Any, validate: bool = True,
+                                 override_warning: bool = False) -> AlmaResponse:
+        """
+        Create a new bibliographic record from a ``pymarc.Record``.
+
+        Converts the record to a native spec and delegates to
+        :meth:`create_record_from_fields`. ``pymarc`` is an optional extra
+        (``pip install almaapitk[pymarc]``) imported lazily here so the core
+        install stays dependency-light (issue #179).
+
+        Args:
+            record: A ``pymarc.Record`` instance.
+            validate: Whether Alma should validate the record.
+            override_warning: Whether to override validation warnings.
+
+        Returns:
+            AlmaResponse containing the created record.
+
+        Raises:
+            AlmaValidationError: If ``pymarc`` is not installed or ``record``
+                is not a ``pymarc.Record`` instance.
+        """
+        try:
+            import pymarc  # noqa: F401  (optional dependency, imported lazily)
+        except ImportError as exc:
+            raise AlmaValidationError(
+                "create_record_from_pymarc requires the optional 'pymarc' "
+                "extra. Install it with: pip install almaapitk[pymarc]"
+            ) from exc
+
+        if not isinstance(record, pymarc.Record):
+            raise AlmaValidationError("record must be a pymarc.Record instance")
+
+        spec = _pymarc_record_to_spec(record)
+
+        self.logger.info("Creating bib record from pymarc record")
+        return self.create_record_from_fields(
+            spec, validate=validate, override_warning=override_warning
+        )
+
     def update_record(self, mms_id: str, marc_xml: str, validate: bool = True,
                      override_warning: bool = True, override_lock: bool = True,
                      stale_version_check: bool = False) -> AlmaResponse:

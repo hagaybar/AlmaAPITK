@@ -1,6 +1,6 @@
 [project]
 name = "almaapitk"
-version = "0.4.6"
+version = "0.5.0"
 description = "Python toolkit for the Ex Libris Alma ILS API"
 authors = [
     {name = "Hagay Bar", email = "hagaybar@gmail.com"}
@@ -41,6 +41,12 @@ dependencies = [
 # (almaapitk.testing). Kept out of the core install so normal users
 # don't pay for pytest.
 smoke = ["pytest>=8.0.0,<9.0.0"]
+
+# Install with: pip install almaapitk[pymarc]
+# Enables BibliographicRecords.create_record_from_pymarc (issue #179).
+# Optional so the core install pulls no MARC dependency; the pymarc
+# adapter imports it lazily and raises a clear error when absent.
+pymarc = ["pymarc>=5.0.0"]
 
 # Auto-load the `alma` fixture when almaapitk[smoke] is installed —
 # consumers get the harness fixture without writing a conftest.

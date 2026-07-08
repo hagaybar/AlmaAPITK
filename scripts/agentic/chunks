@@ -14,7 +14,7 @@ fi
 
 REPO_ROOT="${REPO_ROOT:-$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || pwd)}"
 CHUNKS_DIR="${CHUNKS_DIR:-$REPO_ROOT/chunks}"
-PY="${PYTHON:-python}"
+PY="${PYTHON:-python3}"
 SCRIPTS="$REPO_ROOT/scripts/agentic"
 
 # Make scripts.agentic.* importable from any cwd. The single-quoted heredocs
@@ -42,7 +42,7 @@ Subcommands:
 Env:
   CHUNKS_DIR     defaults to \$REPO_ROOT/chunks
   REPO_ROOT      defaults to git toplevel of \$0
-  PYTHON         python executable for helper invocation (default: python)
+  PYTHON         python executable for helper invocation (default: python3)
 
 Hard rules enforced here:
   R8 — refuses to run if ALMA_PROD_API_KEY is set

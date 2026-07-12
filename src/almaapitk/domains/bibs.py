@@ -453,29 +453,39 @@ class BibliographicRecords:
         for code, value in subfields:
             sf = ET.SubElement(df, 'subfield')
             sf.set('code', code)
-            sf.text = self._sanitize_xml_text(value)
+            sf.text = self._strip_illegal_xml_chars(value)
     
-    def _sanitize_xml_text(self, text: str) -> str:
-        """
-        Sanitize text for XML inclusion.
-        Improved version of your existing sanitization logic.
+    def _strip_illegal_xml_chars(self, text: str) -> str:
+        """Strip characters that XML 1.0 forbids, leaving everything else as-is.
+
+        Single sanitisation point for subfield text on the MARC-editing path.
+        It removes the C0 control characters that are illegal in XML 1.0
+        (keeping tab, newline and carriage return) and returns the value
+        otherwise **unchanged** -- crucially it does **not** pre-escape ``&`` /
+        ``<`` / ``>`` / ``"`` / ``'``. ElementTree escapes ``.text`` exactly
+        once at serialisation time, so pre-escaping here double-escaped every
+        special character (``&`` became ``&amp;amp;``) and mangled the stored
+        value (issue #186). Mirrors the strip-only approach the creation path
+        uses in ``build_alma_bib_xml`` (issue #179).
+
+        Args:
+            text: Raw subfield value.
+
+        Returns:
+            The value with illegal XML 1.0 control characters removed. XML
+            special characters are left untouched for ElementTree to escape
+            exactly once.
         """
         if not text:
             return ''
-        
-        # Remove control characters except tab, newline, carriage return
-        sanitized = ''.join(char for char in text 
-                          if ord(char) >= 32 or char in '\n\t\r')
-        
-        # Handle XML special characters
-        sanitized = (sanitized
-                    .replace('&', '&amp;')
-                    .replace('<', '&lt;')
-                    .replace('>', '&gt;')
-                    .replace('"', '&quot;')
-                    .replace("'", '&apos;'))
-        
-        return sanitized.strip()
+
+        # Drop the C0 control characters XML 1.0 disallows; keep tab/LF/CR
+        # (ord 9/10/13). Do NOT escape &/</>/quotes here -- ElementTree escapes
+        # .text exactly once, so pre-escaping would double-escape (issue #186).
+        return ''.join(
+            char for char in text
+            if ord(char) >= 32 or ord(char) in (9, 10, 13)
+        )
     
     # Holdings-related methods
     def get_holdings(self, mms_id: str, holding_id: str = None) -> AlmaResponse:

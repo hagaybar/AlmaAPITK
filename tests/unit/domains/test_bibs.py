@@ -292,6 +292,52 @@ class TestBuildAlmaBibXml:
                              "subfields": [["a", "X"]]}]}
             )
 
+    # --- coverage grafted from the reconciled duplicate impl (PR #180) -----
+
+    def test_mixed_control_and_data_field_order_preserved(self):
+        # Field order must survive across a control/data mix, not just repeats.
+        spec = {
+            "fields": [
+                {"tag": "008", "data": "d"},
+                {"tag": "245", "subfields": [["a", "t"]]},
+                {"tag": "100", "subfields": [["a", "author"]]},
+            ]
+        }
+
+        record = ET.fromstring(build_alma_bib_xml(spec)).find("record")
+        tags = [el.get("tag") for el in record if el.tag != "leader"]
+        assert tags == ["008", "245", "100"]
+
+    def test_all_special_chars_escaped_exactly_once_and_roundtrip(self):
+        # &, <, > and quotes together: escaped once and round-tripping intact.
+        original = 'Cats & Dogs <or> "pets"'
+        spec = {"fields": [{"tag": "245", "subfields": [["a", original]]}]}
+
+        xml = build_alma_bib_xml(spec)
+
+        assert "&amp;" in xml and "&amp;amp;" not in xml
+        assert "&lt;" in xml and "&amp;lt;" not in xml
+        assert "&gt;" in xml
+        value = ET.fromstring(xml).find("record").find("datafield").find(
+            "subfield"
+        ).text
+        assert value == original
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            {"fields": "not-a-list"},
+            {"fields": [{"tag": "245", "subfields": "not-a-list"}]},
+            {"leader": 123,
+             "fields": [{"tag": "245", "subfields": [["a", "X"]]}]},
+        ],
+    )
+    def test_rejects_more_malformed_specs(self, spec):
+        # Cases the original suite missed: non-list fields, non-list
+        # subfields, and a non-string leader.
+        with pytest.raises(AlmaValidationError):
+            build_alma_bib_xml(spec)
+
 
 # ---------------------------------------------------------------------------
 # create_record_from_fields

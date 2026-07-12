@@ -173,114 +173,168 @@ class BibliographicRecords:
         self.logger.info(f"Deleted bib record {mms_id}")
         return response
     
-    def update_marc_field(self, mms_id: str, field: str, subfields: Dict[str, str], 
-                         ind1: str = ' ', ind2: str = ' ') -> AlmaResponse:
+    def update_marc_field(self, mms_id: str, field: str, subfields: Dict[str, str],
+                         ind1: str = ' ', ind2: str = ' ',
+                         mode: str = "replace_first") -> AlmaResponse:
         """
-        Update or create a MARC field in a bibliographic record.
-        Enhanced version of your existing method with better error handling.
-        
+        Update, replace, or append a MARC field in a bibliographic record.
+
+        Many MARC tags (6XX/5XX/7XX/020/490/856, etc.) are **repeatable**, so a
+        record routinely carries several occurrences of the same tag (e.g. three
+        650 subject headings). This method only touches the occurrence(s)
+        selected by ``mode`` and preserves every other occurrence untouched, so
+        an update to one instance never silently drops the rest (issue #184).
+
         Args:
-            mms_id: The MMS ID of the record
-            field: MARC field number (e.g., "594")
-            subfields: Dictionary of subfield codes and values
-            ind1: First indicator
-            ind2: Second indicator
-        
+            mms_id: The MMS ID of the record.
+            field: MARC field number (e.g. ``"650"``); must be a 3-digit tag.
+            subfields: Dictionary of subfield codes to values for the
+                new/updated field.
+            ind1: First indicator for the new/updated field.
+            ind2: Second indicator for the new/updated field.
+            mode: How to apply the change to the target tag:
+
+                * ``"replace_first"`` (default) — replace the *first* occurrence
+                  of ``field`` in place and preserve every other occurrence of
+                  the same tag. If the tag is absent it is created. This is the
+                  non-destructive default.
+                * ``"replace_all"`` — remove *all* existing occurrences of
+                  ``field`` and add a single new one built from ``subfields``.
+                  Use this to intentionally collapse a repeated tag to one value.
+                * ``"append"`` — keep every existing occurrence of ``field`` and
+                  add one additional occurrence built from ``subfields``.
+
         Returns:
-            AlmaResponse containing the updated record
+            AlmaResponse containing the updated record.
+
+        Raises:
+            AlmaValidationError: If ``mms_id`` is empty, ``field`` is not a
+                3-digit tag, ``subfields`` is empty, or ``mode`` is not one of
+                ``"replace_first"``/``"replace_all"``/``"append"``.
+            AlmaAPIError: If the record cannot be retrieved or has no MARC XML.
         """
         if not mms_id:
             raise AlmaValidationError("MMS ID is required")
-        
+
         if not field or not field.isdigit() or len(field) != 3:
             raise AlmaValidationError("Field must be a 3-digit number")
-        
+
         if not subfields:
             raise AlmaValidationError("Subfields dictionary is required")
-        
+
+        valid_modes = ("replace_first", "replace_all", "append")
+        if mode not in valid_modes:
+            raise AlmaValidationError(
+                f"mode must be one of {valid_modes}, got {mode!r}"
+            )
+
         try:
             # Get current record
-            self.logger.info(f"Updating MARC field {field} for record {mms_id}")
-            
+            self.logger.info(
+                f"Updating MARC field {field} for record {mms_id} (mode={mode})"
+            )
+
             response = self.get_record(mms_id)
             if not response.success:
                 raise AlmaAPIError(f"Failed to retrieve record {mms_id}")
-            
+
             bib_data = response.json()
             marc_xml = bib_data.get('anies', [''])[0]
-            
+
             if not marc_xml:
                 raise AlmaAPIError("No MARC XML found in record")
-            
+
             # Parse XML
             try:
                 root = ET.fromstring(marc_xml)
             except ET.ParseError as e:
                 raise AlmaValidationError(f"Invalid MARC XML: {e}")
-            
+
             # Build updated XML
-            updated_xml = self._build_updated_marc_xml(root, field, subfields, ind1, ind2)
-            
+            updated_xml = self._build_updated_marc_xml(
+                root, field, subfields, ind1, ind2, mode
+            )
+
             # Update the record
             return self.update_record(mms_id, updated_xml)
-            
+
         except Exception as e:
             self.logger.error(f"Error updating MARC field {field} for record {mms_id}: {e}")
             raise
-    
-    def _build_updated_marc_xml(self, root: ET.Element, field: str, 
-                               subfields: Dict[str, str], ind1: str, ind2: str) -> str:
+
+    def _build_updated_marc_xml(self, root: ET.Element, field: str,
+                               subfields: Dict[str, str], ind1: str, ind2: str,
+                               mode: str = "replace_first") -> str:
         """
-        Build updated MARC XML with the new/modified field.
-        Improved version with better XML formatting.
+        Rebuild the record's MARC XML applying the field change per ``mode``.
+
+        Repeatable tags are preserved: only the occurrence(s) selected by
+        ``mode`` are altered — every untargeted occurrence of ``field`` is
+        copied through verbatim. See :meth:`update_marc_field` for the semantics
+        of ``replace_first`` / ``replace_all`` / ``append``.
         """
         # Create new root structure
         bib_elem = ET.Element('bib')
         record_elem = ET.SubElement(bib_elem, 'record')
-        
+
         # Add leader
         leader = root.find('leader')
         if leader is not None:
             new_leader = ET.SubElement(record_elem, 'leader')
             new_leader.text = leader.text
-        
+
         # Add control fields
         for cf in root.findall('controlfield'):
             new_cf = ET.SubElement(record_elem, 'controlfield')
             new_cf.set('tag', cf.get('tag'))
             new_cf.text = cf.text
-        
-        # Add data fields, replacing the target field
-        field_added = False
+
+        # Add data fields, applying the requested change to the target tag only.
+        replacement_written = False
         for df in root.findall('datafield'):
             df_tag = df.get('tag')
-            
-            # Skip the field we're replacing
-            if df_tag == field:
-                if not field_added:
-                    self._add_datafield(record_elem, field, subfields, ind1, ind2)
-                    field_added = True
+
+            if df_tag == field and mode != "append":
+                if mode == "replace_first":
+                    if not replacement_written:
+                        # Replace the first occurrence in place.
+                        self._add_datafield(record_elem, field, subfields, ind1, ind2)
+                        replacement_written = True
+                    else:
+                        # Preserve every later occurrence of the repeatable tag
+                        # (the #184 fix: the old code dropped these).
+                        self._copy_datafield(record_elem, df)
+                elif mode == "replace_all":
+                    # Collapse all occurrences into one new field: emit the
+                    # replacement once and drop the remaining occurrences.
+                    if not replacement_written:
+                        self._add_datafield(record_elem, field, subfields, ind1, ind2)
+                        replacement_written = True
                 continue
-            
-            # Copy other fields
-            new_df = ET.SubElement(record_elem, 'datafield')
-            new_df.set('tag', df_tag)
-            new_df.set('ind1', df.get('ind1', ' '))
-            new_df.set('ind2', df.get('ind2', ' '))
-            
-            for sf in df.findall('subfield'):
-                new_sf = ET.SubElement(new_df, 'subfield')
-                new_sf.set('code', sf.get('code'))
-                new_sf.text = sf.text or ''
-        
-        # Add the field if it wasn't in the original record
-        if not field_added:
+
+            # Copy every other field (and, in append mode, the target tag too).
+            self._copy_datafield(record_elem, df)
+
+        # Field absent for replace_* modes -> create it; append always adds one.
+        if mode == "append" or not replacement_written:
             self._add_datafield(record_elem, field, subfields, ind1, ind2)
-        
+
         # Convert to string with proper formatting
         xml_str = ET.tostring(bib_elem, encoding='unicode')
         return xml_str
-    
+
+    def _copy_datafield(self, parent: ET.Element, df: ET.Element) -> None:
+        """Copy an existing datafield (tag, indicators, subfields) verbatim."""
+        new_df = ET.SubElement(parent, 'datafield')
+        new_df.set('tag', df.get('tag'))
+        new_df.set('ind1', df.get('ind1', ' '))
+        new_df.set('ind2', df.get('ind2', ' '))
+
+        for sf in df.findall('subfield'):
+            new_sf = ET.SubElement(new_df, 'subfield')
+            new_sf.set('code', sf.get('code'))
+            new_sf.text = sf.text or ''
+
     def _add_datafield(self, parent: ET.Element, tag: str, subfields: Dict[str, str], 
                       ind1: str, ind2: str) -> None:
         """Add a datafield element with subfields."""

@@ -42,22 +42,6 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   This consumer is pinned far back (`>= 0.3.1`), so these contracts plus its
   own live SANDBOX smoke de-risk the bump to the current release. Part of the
   consumer-rollout gate work (meta #158).
-
-### Changed
-
-- **`almaapitk.testing.build_smoke_client` now enforces R-H2 in the Infra.**
-  Building a *writable* PRODUCTION smoke client
-  (`environment="PRODUCTION", readonly=False`) now raises `ValueError` at
-  construction instead of silently returning an unguarded client — "PRODUCTION
-  is read-only, always" is no longer left to the caller to remember.
-  Read-only PRODUCTION smokes and writable SANDBOX smokes are unchanged.
-  Surfaced by the first mutating consumer (RS-lending), whose L3 smoke is the
-  first to pass `readonly=False`.
-
-## [0.5.0] — 2026-07-08
-
-### Added
-
 - **Structure-driven bib creation** (issue #179). Three layers, all funnelling
   into the existing `BibliographicRecords.create_record(xml)`:
   - `build_alma_bib_xml(spec) -> str` — a new **public**, pure, network-free
@@ -84,6 +68,17 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
     `AlmaValidationError`.
 
   Purely additive — no existing signatures or behaviour change.
+
+### Changed
+
+- **`almaapitk.testing.build_smoke_client` now enforces R-H2 in the Infra.**
+  Building a *writable* PRODUCTION smoke client
+  (`environment="PRODUCTION", readonly=False`) now raises `ValueError` at
+  construction instead of silently returning an unguarded client — "PRODUCTION
+  is read-only, always" is no longer left to the caller to remember.
+  Read-only PRODUCTION smokes and writable SANDBOX smokes are unchanged.
+  Surfaced by the first mutating consumer (RS-lending), whose L3 smoke is the
+  first to pass `readonly=False`.
 
 ## [0.4.6] — 2026-06-01
 

@@ -91,6 +91,9 @@ NON_DOMAIN_EXPORTS: frozenset[str] = frozenset(
         # Utilities (TODO(#118): see above)
         "TSVGenerator",
         "CitationMetadataError",
+        # Domain helper: a pure MARCXML builder function (issue #179), not a
+        # domain class — no top-level docs surface to police.
+        "build_alma_bib_xml",
     }
 )
 

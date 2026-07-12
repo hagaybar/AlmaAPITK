@@ -11,6 +11,7 @@ Each section below has a one-line **what** and **why**. If a box can't be checke
 - [ ] **On `main`, clean tree, synced with `origin/main`.** `git checkout main && git pull && git status -sb && git diff --quiet`. The remote and local tip must match.
 - [ ] **All chunks intended for this release are merged.** `scripts/agentic/chunks list` shows no in-flight chunks whose merge was promised in the changelog.
 - [ ] **No critical open issues block the release.** `gh issue list --label "priority:high" --state open --search "in:title release"` returns nothing fresh.
+- [ ] **Zero open `release-blocker` issues.** `gh issue list --label "release-blocker" --state open` **must return nothing.** Every issue carrying this label is a hard gate on *any* new version — close it (fix + R10 regression test where applicable), or, if the team decides it is not release-gating, remove the `release-blocker` label with a one-line justification in the issue before proceeding. Never ship past an open `release-blocker`.
 - [ ] **`ALMA_PROD_API_KEY` is unset.** R8 enforcement: `env | grep ALMA_PROD` returns nothing.
 
 ---

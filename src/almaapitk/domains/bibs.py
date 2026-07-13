@@ -18,7 +18,11 @@ SubfieldsArg = Union[Dict[str, str], Sequence[Sequence[str]]]
 # Documented default MARC leader used by ``build_alma_bib_xml`` when a spec
 # omits ``leader``. Callers own leader validity (issue #179); this is a
 # reasonable "new textual monograph" default and can be overridden per-spec.
-DEFAULT_LEADER = "     nam a22     3u 4500"
+# Ldr positions: 05=n (new) 06=a (language material) 07=m (monograph);
+# 09=a (Unicode/UTF-8, matches the XML encoding); 17=3 (abbreviated); and
+# Ldr/18=i (ISBD punctuation) rather than the old ``u`` (unknown), which is the
+# expected descriptive-cataloging form for current RDA cataloguing (issue #188).
+DEFAULT_LEADER = "     nam a22     3i 4500"
 
 
 def _strip_illegal_xml_chars(text: str) -> str:
@@ -53,8 +57,10 @@ def _normalize_indicator(value: Any) -> str:
         A one-character indicator string.
 
     Raises:
-        AlmaValidationError: If ``value`` is not representable as a single
-            character.
+        AlmaValidationError: If ``value`` is not a single legal MARC indicator
+            character (a blank, a digit ``0-9``, or a lowercase letter
+            ``a-z``). The fill character ``|`` is not permitted in an indicator
+            position (issue #187).
     """
     if value is None or value == "":
         return " "
@@ -63,10 +69,18 @@ def _normalize_indicator(value: Any) -> str:
         raise AlmaValidationError(
             f"MARC indicator must be a single character, got {text!r}"
         )
+    # #187: legal indicator values are a blank, a digit, or a lowercase letter.
+    # Uppercase letters, punctuation and the fill character '|' are rejected.
+    if not (text == " " or text.isdigit() or ("a" <= text <= "z")):
+        raise AlmaValidationError(
+            f"MARC indicator {text!r} is invalid: expected a blank, a digit "
+            "(0-9), or a lowercase letter (a-z); the fill character '|' is not "
+            "allowed in an indicator"
+        )
     return text
 
 
-def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
+def build_alma_bib_xml(spec: Dict[str, Any], require_245: bool = False) -> str:
     """Build Alma's non-namespaced ``<bib><record>`` MARCXML from a spec.
 
     Pure, network-free helper (the XML-assembly shape mirrors
@@ -75,7 +89,7 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
     is usable from non-Python callers (e.g. Power Automate)::
 
         spec = {
-            "leader": "     nam a22     3u 4500",   # optional; default if omitted
+            "leader": "     nam a22     3i 4500",   # optional; default if omitted
             "fields": [
                 {"tag": "008", "data": "..."},                       # control field
                 {"tag": "245", "ind1": "1", "ind2": "0",
@@ -87,13 +101,26 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
             ],
         }
 
+    Beyond spec *shape*, the builder enforces MARC *content designation*
+    (issue #187) so it is not more permissive than the editing/reading paths:
+    tags must be three digits, control vs data is decided by the tag (``00X``
+    is a control field carrying ``data``; ``010``-``999`` is a data field
+    carrying ``subfields`` — a data-range tag with ``data`` is rejected),
+    subfield codes are a single lowercase letter or digit, and indicators are a
+    blank / digit / lowercase letter.
+
     Args:
         spec: Mapping with an optional ``leader`` string and a non-empty
-            ``fields`` list. Each field needs a string ``tag``; control fields
-            carry ``data`` (or have a ``00X`` tag), data fields carry ``ind1``
-            / ``ind2`` (default blank) and a non-empty ``subfields`` list of
+            ``fields`` list. Each field needs a 3-digit string ``tag``; control
+            fields (``00X``) carry ``data``, data fields carry ``ind1`` /
+            ``ind2`` (default blank) and a non-empty ``subfields`` list of
             ``[code, value]`` pairs. Field and subfield order is preserved and
             repeated tags/subfields are supported.
+        require_245: When ``True``, assert client-side that the record contains
+            exactly one ``245`` Title Statement (mandatory, non-repeatable in
+            MARC 21) before building — a cheap pre-flight that beats a network
+            round-trip to Alma's validator (issue #189). Default ``False``
+            delegates completeness to Alma's ``validate=true``.
 
     Returns:
         A ``<bib><record>...</record></bib>`` XML string ready for
@@ -101,8 +128,11 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
 
     Raises:
         AlmaValidationError: If the spec is malformed (not a dict, missing or
-            empty ``fields``, a field without a ``tag``, a control field
-            without ``data``, or a data field without ``subfields``).
+            empty ``fields``, a field without a valid 3-digit ``tag``, a control
+            field without ``data``, a data-range tag carrying ``data``, a data
+            field without ``subfields``, an invalid subfield code or indicator),
+            or — when ``require_245`` is set — if exactly one ``245`` is not
+            present.
     """
     if not isinstance(spec, dict):
         raise AlmaValidationError("spec must be a dict")
@@ -110,6 +140,20 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
     fields = spec.get("fields")
     if not isinstance(fields, list) or not fields:
         raise AlmaValidationError("spec must include a non-empty 'fields' list")
+
+    # #189: optional client-side completeness gate. 245 (Title Statement) is
+    # mandatory and non-repeatable in MARC 21, so exactly one must be present.
+    if require_245:
+        n245 = sum(
+            1 for f in fields if isinstance(f, dict) and f.get("tag") == "245"
+        )
+        if n245 != 1:
+            raise AlmaValidationError(
+                "MARC completeness check (require_245): a bibliographic record "
+                "must contain exactly one 245 Title Statement, found "
+                f"{n245} (pass require_245=False to delegate this to Alma's "
+                "validator)"
+            )
 
     leader_text = spec.get("leader", DEFAULT_LEADER)
     if not isinstance(leader_text, str):
@@ -130,10 +174,20 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
             raise AlmaValidationError(
                 f"field at index {index} is missing a string 'tag'"
             )
+        # #187: MARC tags are exactly three numeric characters. Mirrors the
+        # check update_marc_field / get_marc_subfield already enforce, so the
+        # builder is not more permissive than the editing/reading paths.
+        if len(tag) != 3 or not tag.isdigit():
+            raise AlmaValidationError(
+                f"MARC tag must be exactly 3 digits, got {tag!r} "
+                f"(field at index {index})"
+            )
 
-        # Control fields carry a 'data' string (or a 00X tag); everything else
-        # is a data field with indicators + subfields.
-        is_control = "data" in field or tag.startswith("00")
+        # #187: control vs data is decided by the TAG (00X = control field),
+        # NOT by the presence of a 'data' key. A data-range tag (010-999)
+        # carrying 'data' would emit a <controlfield> for a data tag —
+        # structurally invalid MARC — so it is rejected here.
+        is_control = tag.startswith("00")
         if is_control:
             if "data" not in field:
                 raise AlmaValidationError(
@@ -145,11 +199,16 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
             control_elem.text = _strip_illegal_xml_chars(str(field["data"]))
             continue
 
+        if "data" in field:
+            raise AlmaValidationError(
+                f"data field {tag} must not carry control-field 'data'; only "
+                "00X control fields use 'data'. Provide 'subfields' instead"
+            )
+
         subfields = field.get("subfields")
         if not subfields:
             raise AlmaValidationError(
-                f"data field {tag} requires 'data' (control) or a non-empty "
-                "'subfields' list"
+                f"data field {tag} requires a non-empty 'subfields' list"
             )
         if not isinstance(subfields, list):
             raise AlmaValidationError(
@@ -171,6 +230,12 @@ def build_alma_bib_xml(spec: Dict[str, Any]) -> str:
             if not code or not isinstance(code, str):
                 raise AlmaValidationError(
                     f"subfield {sf_index} of field {tag} needs a string code"
+                )
+            # #187: subfield codes are a single lowercase letter or digit.
+            if len(code) != 1 or not (("a" <= code <= "z") or code.isdigit()):
+                raise AlmaValidationError(
+                    f"subfield code {code!r} in field {tag} must be a single "
+                    "lowercase letter (a-z) or digit (0-9)"
                 )
             subfield_elem = ET.SubElement(data_elem, "subfield")
             subfield_elem.set("code", code)
@@ -252,27 +317,30 @@ class BibliographicRecords:
             
         Returns:
             List of subfield values
+
+        Raises:
+            AlmaValidationError: If ``marc_xml`` cannot be parsed. The parse
+                failure is propagated (not swallowed) so ``get_marc_subfield``
+                can distinguish "genuinely absent" (``[]``) from "unparseable
+                MARC" under its ``strict`` flag (issue #190).
         """
-        
         try:
             root = ET.fromstring(marc_xml)
-            values = []
-            
-            # Find all datafields with the specified tag
-            datafields = root.findall(f"./datafield[@tag='{field}']")
-            
-            for datafield in datafields:
-                # Find all subfields with the specified code
-                subfields = datafield.findall(f"./subfield[@code='{subfield}']")
-                for sf in subfields:
-                    if sf.text:
-                        values.append(sf.text.strip())
-            
-            return values
-            
         except ET.ParseError as e:
-            self.logger.error(f"Error parsing MARC XML: {e}")
-            return []
+            raise AlmaValidationError(f"Unparseable MARC XML: {e}") from e
+
+        values = []
+        # Find all datafields with the specified tag
+        datafields = root.findall(f"./datafield[@tag='{field}']")
+
+        for datafield in datafields:
+            # Find all subfields with the specified code
+            subfields = datafield.findall(f"./subfield[@code='{subfield}']")
+            for sf in subfields:
+                if sf.text:
+                    values.append(sf.text.strip())
+
+        return values
 
     def get_record(self, mms_id: str, view: str = "full", expand: str = None) -> AlmaResponse:
         """
@@ -334,7 +402,8 @@ class BibliographicRecords:
         return response
 
     def create_record_from_fields(self, spec: Dict[str, Any], validate: bool = True,
-                                  override_warning: bool = False) -> AlmaResponse:
+                                  override_warning: bool = False,
+                                  require_245: bool = True) -> AlmaResponse:
         """
         Create a new bibliographic record from a native, structure-driven spec.
 
@@ -348,14 +417,19 @@ class BibliographicRecords:
                 :func:`build_alma_bib_xml`).
             validate: Whether Alma should validate the record.
             override_warning: Whether to override validation warnings.
+            require_245: Assert client-side that the record has exactly one
+                ``245`` before the network round-trip (issue #189). Defaults to
+                ``True`` for the create path — a real bib needs a title; pass
+                ``False`` to delegate the check to Alma.
 
         Returns:
             AlmaResponse containing the created record.
 
         Raises:
-            AlmaValidationError: If ``spec`` is malformed.
+            AlmaValidationError: If ``spec`` is malformed or (by default) has no
+                single ``245``.
         """
-        marc_xml = build_alma_bib_xml(spec)
+        marc_xml = build_alma_bib_xml(spec, require_245=require_245)
 
         self.logger.info("Creating bib record from field spec")
         return self.create_record(
@@ -363,7 +437,8 @@ class BibliographicRecords:
         )
 
     def create_record_from_pymarc(self, record: Any, validate: bool = True,
-                                 override_warning: bool = False) -> AlmaResponse:
+                                 override_warning: bool = False,
+                                 require_245: bool = True) -> AlmaResponse:
         """
         Create a new bibliographic record from a ``pymarc.Record``.
 
@@ -376,6 +451,8 @@ class BibliographicRecords:
             record: A ``pymarc.Record`` instance.
             validate: Whether Alma should validate the record.
             override_warning: Whether to override validation warnings.
+            require_245: Assert client-side that the record has exactly one
+                ``245`` before creating (issue #189); default ``True``.
 
         Returns:
             AlmaResponse containing the created record.
@@ -399,7 +476,8 @@ class BibliographicRecords:
 
         self.logger.info("Creating bib record from pymarc record")
         return self.create_record_from_fields(
-            spec, validate=validate, override_warning=override_warning
+            spec, validate=validate, override_warning=override_warning,
+            require_245=require_245
         )
 
     def update_record(self, mms_id: str, marc_xml: str, validate: bool = True,
@@ -451,18 +529,23 @@ class BibliographicRecords:
         
         Args:
             mms_id: The MMS ID of the record to delete
-            override_attached_items: Whether to delete even if items are attached
-        
+            override_attached_items: Whether to delete even if items are
+                attached (overrides Alma's deletion warnings).
+
         Returns:
             AlmaResponse confirming deletion
         """
         if not mms_id:
             raise AlmaValidationError("MMS ID is required")
-        
+
+        # #193: Alma's DELETE /bibs/{mms_id} 'override' is a boolean-valued
+        # string (true/false), per docs/alma-swagger/bibs.json. Sending
+        # 'attached_items' is rejected ("Make sure the override parameter is
+        # false or true"), so the override branch never worked. Send 'true'.
         params = {}
         if override_attached_items:
-            params["override"] = "attached_items"
-        
+            params["override"] = "true"
+
         endpoint = f"almaws/v1/bibs/{mms_id}"
         response = self.client.delete(endpoint, params=params)
         
@@ -1170,49 +1253,90 @@ class BibliographicRecords:
         self.logger.info(f"Removed bib {mms_id} from collection {collection_id}")
         return response
 
-    def get_marc_subfield(self, mms_id: str, field: str, subfield: str) -> List[str]:
+    def get_marc_subfield(self, mms_id: str, field: str, subfield: str,
+                          strict: bool = False) -> List[str]:
         """
         Get specific MARC subfield values from a bibliographic record.
-        
+
         Args:
             mms_id: The MMS ID of the record
-            field: MARC field number (e.g., "907")  
+            field: MARC data-field tag (e.g., "907"). Data fields (010-999)
+                only — control fields (00X) have no subfields.
             subfield: Subfield code (e.g., "e")
-            
+            strict: When ``True``, a failed record fetch or unparseable MARC
+                **raises** instead of returning ``[]``. This lets a caller tell
+                "the field/subfield is genuinely absent" (always ``[]``) from
+                "the fetch/parse failed" (raises). Default ``False`` keeps the
+                batch-friendly behaviour of swallowing errors and returning
+                ``[]`` so a bulk job continues (issue #190).
+
         Returns:
-            List of subfield values (empty list if not found)
+            List of subfield values; an **empty list** means the field/subfield
+            is genuinely absent from the record.
+
+        Raises:
+            AlmaValidationError: for a missing ``mms_id``, a tag that is not a
+                3-digit number, a control-field (00X) tag, or a ``subfield``
+                that is not a single character.
+            AlmaAPIError / Exception: on fetch/parse failure **only when**
+                ``strict`` is ``True``.
         """
         if not mms_id:
             raise AlmaValidationError("MMS ID is required")
-        
+
         if not field or not field.isdigit() or len(field) != 3:
             raise AlmaValidationError("Field must be a 3-digit number")
-        
+
+        # #190: control fields (00X) are <controlfield> elements with no
+        # subfields, so a subfield lookup could only ever return []. Reject the
+        # nonsensical request with a clear message instead of silently yielding
+        # an empty list that reads like "absent".
+        if field.startswith("00"):
+            raise AlmaValidationError(
+                f"get_marc_subfield reads data fields (010-999); {field} is a "
+                "control field (00X) with no subfields — read it via get_record"
+            )
+
         if not subfield or len(subfield) != 1:
             raise AlmaValidationError("Subfield must be a single character")
-        
+
         try:
-            # Get the bibliographic record
-            self.logger.info(f"Getting MARC field {field} subfield {subfield} for record {mms_id}")
-            
+            # Structured kwargs (never f-string interpolation) so the redactor
+            # sees each value (issue #154 pattern).
+            self.logger.info(
+                "Getting MARC subfield",
+                mms_id=mms_id, field=field, subfield=subfield,
+            )
+
             response = self.get_record(mms_id)
             if not response.success:
                 raise AlmaAPIError(f"Failed to retrieve record {mms_id}")
-            
+
             bib_data = response.json()
             marc_xml = bib_data.get('anies', [''])[0]
-            
+
             if not marc_xml:
-                self.logger.warning(f"No MARC XML found in record {mms_id}")
+                self.logger.warning("No MARC XML found in record", mms_id=mms_id)
                 return []
-            
+
             # Parse MARC XML and extract subfield values
             values = self._extract_marc_subfield_values(marc_xml, field, subfield)
-            
-            self.logger.info(f"Found {len(values)} values for {field}${subfield} in record {mms_id}")
+
+            self.logger.info(
+                "Found MARC subfield values",
+                mms_id=mms_id, field=field, subfield=subfield, count=len(values),
+            )
             return values
-            
+
         except Exception as e:
-            self.logger.error(f"Error getting MARC field {field}${subfield} for record {mms_id}: {e}")
-            # Return empty list instead of raising, so processing can continue
+            # #190: surface the failure in strict mode so callers can tell it
+            # apart from a genuine "absent"; otherwise swallow and return [] so
+            # batch processing continues. Structured kwargs keep the redactor
+            # in the loop.
+            self.logger.error(
+                "Error getting MARC subfield",
+                mms_id=mms_id, field=field, subfield=subfield, error=str(e),
+            )
+            if strict:
+                raise
             return []

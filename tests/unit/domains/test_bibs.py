@@ -169,14 +169,15 @@ class TestBuildAlmaBibXml:
         # A control field is not rendered as a datafield.
         assert record.find("datafield") is None
 
-    def test_control_field_via_explicit_data_on_non_00x_tag(self):
-        # Presence of 'data' makes a field a control field regardless of tag.
+    def test_rejects_data_key_on_data_range_tag(self):
+        # #187: control vs data is decided by the TAG, not the 'data' key. A
+        # data-range tag (010-999) carrying 'data' would emit <controlfield
+        # tag="245"> — structurally invalid MARC — and is now rejected. (This
+        # replaces the old test that asserted the buggy controlfield behavior.)
         spec = {"fields": [{"tag": "245", "data": "raw"}]}
 
-        root = ET.fromstring(build_alma_bib_xml(spec))
-        record = root.find("record")
-
-        assert record.find("controlfield").get("tag") == "245"
+        with pytest.raises(AlmaValidationError):
+            build_alma_bib_xml(spec)
 
     def test_blank_indicators_render_as_spaces(self):
         spec = {"fields": [{"tag": "650", "subfields": [["a", "X"]]}]}

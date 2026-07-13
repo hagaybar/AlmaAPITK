@@ -1,7 +1,18 @@
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from collections.abc import Sequence
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaResponse, AlmaValidationError
+
+# Accepted shapes for a datafield's subfields (issue #185). Either:
+#   * a ``dict`` — backward-compatible, but a dict key cannot repeat, so it
+#     can never express a repeated subfield code; or
+#   * an ordered list/sequence of ``[code, value]`` pairs — preserves order
+#     AND repeated codes (e.g. ``650 ... $x History $x 20th century``),
+#     mirroring the creation builder ``build_alma_bib_xml``.
+# Both normalise to an ordered ``list[(code, value)]`` via
+# ``BibliographicRecords._normalize_subfields``.
+SubfieldsArg = Union[Dict[str, str], Sequence[Sequence[str]]]
 
 
 class BibliographicRecords:
@@ -173,148 +184,308 @@ class BibliographicRecords:
         self.logger.info(f"Deleted bib record {mms_id}")
         return response
     
-    def update_marc_field(self, mms_id: str, field: str, subfields: Dict[str, str], 
-                         ind1: str = ' ', ind2: str = ' ') -> AlmaResponse:
+    def update_marc_field(self, mms_id: str, field: str, subfields: SubfieldsArg,
+                         ind1: str = ' ', ind2: str = ' ',
+                         mode: str = "replace_first") -> AlmaResponse:
         """
-        Update or create a MARC field in a bibliographic record.
-        Enhanced version of your existing method with better error handling.
-        
+        Update, replace, or append a MARC field in a bibliographic record.
+
+        Many MARC tags (6XX/5XX/7XX/020/490/856, etc.) are **repeatable**, so a
+        record routinely carries several occurrences of the same tag (e.g. three
+        650 subject headings). This method only touches the occurrence(s)
+        selected by ``mode`` and preserves every other occurrence untouched, so
+        an update to one instance never silently drops the rest (issue #184).
+
         Args:
-            mms_id: The MMS ID of the record
-            field: MARC field number (e.g., "594")
-            subfields: Dictionary of subfield codes and values
-            ind1: First indicator
-            ind2: Second indicator
-        
+            mms_id: The MMS ID of the record.
+            field: MARC field number (e.g. ``"650"``); must be a 3-digit tag.
+            subfields: Subfields for the new/updated field, in one of two
+                shapes (see :data:`SubfieldsArg`):
+
+                * an ordered list of ``[code, value]`` pairs, e.g.
+                  ``[["a", "Science"], ["x", "History"], ["x", "20th century"]]``
+                  — preserves order **and** repeated subfield codes (many
+                  MARC subfields are Repeatable); or
+                * a ``dict`` (``{"a": "Science", "x": "History"}``) —
+                  accepted for backward compatibility, but a dict key cannot
+                  repeat so it cannot express a repeated subfield code.
+            ind1: First indicator for the new/updated field.
+            ind2: Second indicator for the new/updated field.
+            mode: How to apply the change to the target tag:
+
+                * ``"replace_first"`` (default) — replace the *first* occurrence
+                  of ``field`` in place and preserve every other occurrence of
+                  the same tag. If the tag is absent it is created. This is the
+                  non-destructive default.
+                * ``"replace_all"`` — remove *all* existing occurrences of
+                  ``field`` and add a single new one built from ``subfields``.
+                  Use this to intentionally collapse a repeated tag to one value.
+                * ``"append"`` — keep every existing occurrence of ``field`` and
+                  add one additional occurrence built from ``subfields``.
+
         Returns:
-            AlmaResponse containing the updated record
+            AlmaResponse containing the updated record.
+
+        Raises:
+            AlmaValidationError: If ``mms_id`` is empty, ``field`` is not a
+                3-digit tag, ``subfields`` is empty or malformed (each pair
+                must be ``[code, value]`` with a single-character code), or
+                ``mode`` is not one of
+                ``"replace_first"``/``"replace_all"``/``"append"``.
+            AlmaAPIError: If the record cannot be retrieved or has no MARC XML.
         """
         if not mms_id:
             raise AlmaValidationError("MMS ID is required")
-        
+
         if not field or not field.isdigit() or len(field) != 3:
             raise AlmaValidationError("Field must be a 3-digit number")
-        
-        if not subfields:
-            raise AlmaValidationError("Subfields dictionary is required")
-        
+
+        # Normalise (and validate) subfields into ordered (code, value)
+        # pairs up front so bad input fails before any API round-trip.
+        # Accepts both a dict and a list of [code, value] pairs; the list
+        # form is the only one that can carry a repeated subfield code
+        # (issue #185).
+        subfield_pairs = self._normalize_subfields(subfields)
+
+        valid_modes = ("replace_first", "replace_all", "append")
+        if mode not in valid_modes:
+            raise AlmaValidationError(
+                f"mode must be one of {valid_modes}, got {mode!r}"
+            )
+
         try:
             # Get current record
-            self.logger.info(f"Updating MARC field {field} for record {mms_id}")
-            
+            self.logger.info(
+                f"Updating MARC field {field} for record {mms_id} (mode={mode})"
+            )
+
             response = self.get_record(mms_id)
             if not response.success:
                 raise AlmaAPIError(f"Failed to retrieve record {mms_id}")
-            
+
             bib_data = response.json()
             marc_xml = bib_data.get('anies', [''])[0]
-            
+
             if not marc_xml:
                 raise AlmaAPIError("No MARC XML found in record")
-            
+
             # Parse XML
             try:
                 root = ET.fromstring(marc_xml)
             except ET.ParseError as e:
                 raise AlmaValidationError(f"Invalid MARC XML: {e}")
-            
+
             # Build updated XML
-            updated_xml = self._build_updated_marc_xml(root, field, subfields, ind1, ind2)
-            
+            updated_xml = self._build_updated_marc_xml(
+                root, field, subfield_pairs, ind1, ind2, mode
+            )
+
             # Update the record
             return self.update_record(mms_id, updated_xml)
-            
+
         except Exception as e:
             self.logger.error(f"Error updating MARC field {field} for record {mms_id}: {e}")
             raise
-    
-    def _build_updated_marc_xml(self, root: ET.Element, field: str, 
-                               subfields: Dict[str, str], ind1: str, ind2: str) -> str:
+
+    def _build_updated_marc_xml(self, root: ET.Element, field: str,
+                               subfields: List[Tuple[str, str]],
+                               ind1: str, ind2: str,
+                               mode: str = "replace_first") -> str:
         """
-        Build updated MARC XML with the new/modified field.
-        Improved version with better XML formatting.
+        Rebuild the record's MARC XML applying the field change per ``mode``.
+
+        Repeatable tags are preserved: only the occurrence(s) selected by
+        ``mode`` are altered — every untargeted occurrence of ``field`` is
+        copied through verbatim. See :meth:`update_marc_field` for the semantics
+        of ``replace_first`` / ``replace_all`` / ``append``.
         """
         # Create new root structure
         bib_elem = ET.Element('bib')
         record_elem = ET.SubElement(bib_elem, 'record')
-        
+
         # Add leader
         leader = root.find('leader')
         if leader is not None:
             new_leader = ET.SubElement(record_elem, 'leader')
             new_leader.text = leader.text
-        
+
         # Add control fields
         for cf in root.findall('controlfield'):
             new_cf = ET.SubElement(record_elem, 'controlfield')
             new_cf.set('tag', cf.get('tag'))
             new_cf.text = cf.text
-        
-        # Add data fields, replacing the target field
-        field_added = False
+
+        # Add data fields, applying the requested change to the target tag only.
+        replacement_written = False
         for df in root.findall('datafield'):
             df_tag = df.get('tag')
-            
-            # Skip the field we're replacing
-            if df_tag == field:
-                if not field_added:
-                    self._add_datafield(record_elem, field, subfields, ind1, ind2)
-                    field_added = True
+
+            if df_tag == field and mode != "append":
+                if mode == "replace_first":
+                    if not replacement_written:
+                        # Replace the first occurrence in place.
+                        self._add_datafield(record_elem, field, subfields, ind1, ind2)
+                        replacement_written = True
+                    else:
+                        # Preserve every later occurrence of the repeatable tag
+                        # (the #184 fix: the old code dropped these).
+                        self._copy_datafield(record_elem, df)
+                elif mode == "replace_all":
+                    # Collapse all occurrences into one new field: emit the
+                    # replacement once and drop the remaining occurrences.
+                    if not replacement_written:
+                        self._add_datafield(record_elem, field, subfields, ind1, ind2)
+                        replacement_written = True
                 continue
-            
-            # Copy other fields
-            new_df = ET.SubElement(record_elem, 'datafield')
-            new_df.set('tag', df_tag)
-            new_df.set('ind1', df.get('ind1', ' '))
-            new_df.set('ind2', df.get('ind2', ' '))
-            
-            for sf in df.findall('subfield'):
-                new_sf = ET.SubElement(new_df, 'subfield')
-                new_sf.set('code', sf.get('code'))
-                new_sf.text = sf.text or ''
-        
-        # Add the field if it wasn't in the original record
-        if not field_added:
+
+            # Copy every other field (and, in append mode, the target tag too).
+            self._copy_datafield(record_elem, df)
+
+        # Field absent for replace_* modes -> create it; append always adds one.
+        if mode == "append" or not replacement_written:
             self._add_datafield(record_elem, field, subfields, ind1, ind2)
-        
+
         # Convert to string with proper formatting
         xml_str = ET.tostring(bib_elem, encoding='unicode')
         return xml_str
-    
-    def _add_datafield(self, parent: ET.Element, tag: str, subfields: Dict[str, str], 
-                      ind1: str, ind2: str) -> None:
-        """Add a datafield element with subfields."""
+
+    def _copy_datafield(self, parent: ET.Element, df: ET.Element) -> None:
+        """Copy an existing datafield (tag, indicators, subfields) verbatim."""
+        new_df = ET.SubElement(parent, 'datafield')
+        new_df.set('tag', df.get('tag'))
+        new_df.set('ind1', df.get('ind1', ' '))
+        new_df.set('ind2', df.get('ind2', ' '))
+
+        for sf in df.findall('subfield'):
+            new_sf = ET.SubElement(new_df, 'subfield')
+            new_sf.set('code', sf.get('code'))
+            new_sf.text = sf.text or ''
+
+    def _normalize_subfields(self, subfields: SubfieldsArg) -> List[Tuple[str, str]]:
+        """Normalise ``subfields`` into an ordered list of ``(code, value)`` pairs.
+
+        This is the single validation/normalisation point for the
+        MARC-editing path (issue #185). It accepts either shape described by
+        :data:`SubfieldsArg` and always returns ordered ``(code, value)``
+        tuples, so a subfield code may legitimately repeat — impossible when
+        the subfields were held in a ``dict``.
+
+        Args:
+            subfields: Either a ``dict`` of ``{code: value}`` or an ordered
+                sequence of ``[code, value]`` pairs.
+
+        Returns:
+            An ordered list of ``(code, value)`` tuples (values coerced to
+            ``str``), preserving input order and any repeated codes.
+
+        Raises:
+            AlmaValidationError: If ``subfields`` is ``None``/empty, is a
+                bare string, contains an entry that is not a 2-item
+                ``[code, value]`` pair, or a code that is not a single
+                character.
+        """
+        if subfields is None:
+            raise AlmaValidationError("subfields is required")
+
+        # A bare string is technically a Sequence but never a valid container.
+        if isinstance(subfields, str):
+            raise AlmaValidationError(
+                "subfields must be a dict or a list of [code, value] pairs, "
+                "not a bare string"
+            )
+
+        if isinstance(subfields, dict):
+            raw_pairs: List[Sequence[str]] = list(subfields.items())
+        elif isinstance(subfields, Sequence):
+            raw_pairs = list(subfields)
+        else:
+            raise AlmaValidationError(
+                "subfields must be a dict or a list of [code, value] pairs"
+            )
+
+        if not raw_pairs:
+            raise AlmaValidationError(
+                "subfields must contain at least one [code, value] pair"
+            )
+
+        normalized: List[Tuple[str, str]] = []
+        for entry in raw_pairs:
+            if isinstance(entry, str) or not isinstance(entry, Sequence):
+                raise AlmaValidationError(
+                    f"Each subfield must be a [code, value] pair; got {entry!r}"
+                )
+            if len(entry) != 2:
+                raise AlmaValidationError(
+                    "Each subfield pair must have exactly 2 items "
+                    f"[code, value]; got {entry!r}"
+                )
+            code, value = entry[0], entry[1]
+            if not isinstance(code, str) or len(code) != 1:
+                raise AlmaValidationError(
+                    f"Subfield code must be a single character; got {code!r}"
+                )
+            normalized.append((code, "" if value is None else str(value)))
+
+        return normalized
+
+    def _add_datafield(self, parent: ET.Element, tag: str,
+                       subfields: List[Tuple[str, str]],
+                       ind1: str, ind2: str) -> None:
+        """Add a datafield element with its subfields.
+
+        Iterates an ordered list of ``(code, value)`` pairs (as produced by
+        :meth:`_normalize_subfields`) rather than a ``dict``, so a subfield
+        code may repeat — e.g. ``650 ... $x History $x 20th century``
+        (issue #185).
+
+        Args:
+            parent: The ``<record>`` element to append the datafield to.
+            tag: 3-digit MARC tag for the new datafield.
+            subfields: Ordered ``(code, value)`` pairs for the datafield.
+            ind1: First indicator.
+            ind2: Second indicator.
+        """
         df = ET.SubElement(parent, 'datafield')
         df.set('tag', tag)
         df.set('ind1', ind1)
         df.set('ind2', ind2)
-        
-        for code, value in subfields.items():
+
+        for code, value in subfields:
             sf = ET.SubElement(df, 'subfield')
             sf.set('code', code)
-            sf.text = self._sanitize_xml_text(value)
+            sf.text = self._strip_illegal_xml_chars(value)
     
-    def _sanitize_xml_text(self, text: str) -> str:
-        """
-        Sanitize text for XML inclusion.
-        Improved version of your existing sanitization logic.
+    def _strip_illegal_xml_chars(self, text: str) -> str:
+        """Strip characters that XML 1.0 forbids, leaving everything else as-is.
+
+        Single sanitisation point for subfield text on the MARC-editing path.
+        It removes the C0 control characters that are illegal in XML 1.0
+        (keeping tab, newline and carriage return) and returns the value
+        otherwise **unchanged** -- crucially it does **not** pre-escape ``&`` /
+        ``<`` / ``>`` / ``"`` / ``'``. ElementTree escapes ``.text`` exactly
+        once at serialisation time, so pre-escaping here double-escaped every
+        special character (``&`` became ``&amp;amp;``) and mangled the stored
+        value (issue #186). Mirrors the strip-only approach the creation path
+        uses in ``build_alma_bib_xml`` (issue #179).
+
+        Args:
+            text: Raw subfield value.
+
+        Returns:
+            The value with illegal XML 1.0 control characters removed. XML
+            special characters are left untouched for ElementTree to escape
+            exactly once.
         """
         if not text:
             return ''
-        
-        # Remove control characters except tab, newline, carriage return
-        sanitized = ''.join(char for char in text 
-                          if ord(char) >= 32 or char in '\n\t\r')
-        
-        # Handle XML special characters
-        sanitized = (sanitized
-                    .replace('&', '&amp;')
-                    .replace('<', '&lt;')
-                    .replace('>', '&gt;')
-                    .replace('"', '&quot;')
-                    .replace("'", '&apos;'))
-        
-        return sanitized.strip()
+
+        # Drop the C0 control characters XML 1.0 disallows; keep tab/LF/CR
+        # (ord 9/10/13). Do NOT escape &/</>/quotes here -- ElementTree escapes
+        # .text exactly once, so pre-escaping would double-escape (issue #186).
+        return ''.join(
+            char for char in text
+            if ord(char) >= 32 or ord(char) in (9, 10, 13)
+        )
     
     # Holdings-related methods
     def get_holdings(self, mms_id: str, holding_id: str = None) -> AlmaResponse:

@@ -8,7 +8,7 @@
   "branch": "chunk/rs-borrowing-ergonomics",
   "createdAt": "2026-07-19T10:32:16Z",
   "updatedAt": "2026-07-19T10:32:16Z",
-  "lastEvent": "Chunk defined; awaiting implementation trigger.",
+  "lastEvent": "reset after phantom-implement run 01KXX5Q9PGWX9VXNDYPB7BYVB2 (see PR #203)",
   "nextAction": "chunks run-impl rs-borrowing-ergonomics",
   "openBreakpoints": [],
   "implRunId": null,

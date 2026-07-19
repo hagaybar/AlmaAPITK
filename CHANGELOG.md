@@ -42,6 +42,32 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   This consumer is pinned far back (`>= 0.3.1`), so these contracts plus its
   own live SANDBOX smoke de-risk the bump to the current release. Part of the
   consumer-rollout gate work (meta #158).
+- **Structure-driven bib creation** (issue #179). Three layers, all funnelling
+  into the existing `BibliographicRecords.create_record(xml)`:
+  - `build_alma_bib_xml(spec) -> str` — a new **public**, pure, network-free
+    helper (exported from `almaapitk`). Turns a plain JSON-serialisable `spec`
+    (`{"leader": ..., "fields": [...]}`) into Alma's **non-namespaced**
+    `<bib><record>…</record></bib>` MARCXML. Preserves field order, supports
+    repeated fields and repeated subfields, renders control fields (`00X` /
+    fields carrying `data`) as `<controlfield>` and data fields as
+    `ind1`/`ind2` + `<subfield>`. Uses a documented default leader when
+    omitted. Lets `ElementTree` handle escaping so `&`/`<` are escaped
+    **exactly once** (fixes the double-escaping of the old
+    `_sanitize_xml_text` + ET path); only illegal XML control characters are
+    stripped.
+  - `BibliographicRecords.create_record_from_fields(spec)` — builds XML from a
+    native field structure and creates the bib (`content_type=application/xml`).
+    Zero new runtime dependencies.
+  - `BibliographicRecords.create_record_from_pymarc(record)` — converts a
+    `pymarc.Record` → spec → XML → create. `pymarc` is a new **optional extra**
+    (`pip install almaapitk[pymarc]`) imported lazily; calling the adapter
+    without it installed raises a clear, actionable `AlmaValidationError`. The
+    core install pulls no pymarc.
+  - Malformed specs (missing `tag`, a data field with neither `data` nor
+    `subfields`, bad subfield pairs, multi-character indicators, …) raise
+    `AlmaValidationError`.
+
+  Purely additive — no existing signatures or behaviour change.
 
 ### Changed
 

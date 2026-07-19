@@ -1,0 +1,71 @@
+{
+  "chunk": "create-record-from-fields",
+  "branch": "chunk/create-record-from-fields",
+  "createdAt": "2026-07-08T18:40:18Z",
+  "issues": [
+    {
+      "number": 179,
+      "title": "create_record_from_fields — build & create a bib from a native JSON field structure (+ optional pymarc adapter)",
+      "classification": "general",
+      "subBranch": "feat/179-create-record-from-fields-buil",
+      "tests": [
+        {
+          "id": "t-179-1",
+          "kind": "round-trip",
+          "scope": "The one genuine live-SANDBOX test for #179. Drive BibliographicRecords.create_record_from_fields(spec) against SANDBOX with a synthetic native spec (default-ish leader, an 008 control field, a 245 whose $a carries an ampersand, and two repeated 650 subject fields), then retrieve the created bib and delete it. This exercises the full funnel spec -> build_alma_bib_xml -> create_record end-to-end: Alma accepting the POSTed XML proves the builder emits valid non-namespaced <bib><record> MARCXML (AC-1, AC-2 live facet), and re-fetching the record proves the ampersand survived as a single '&' (no double-escaping) and both 650s persisted in order (repeated fields preserved) through a real Alma round-trip (AC-4 live facet). The exact XML-shape/escaping/repetition correctness is authoritatively pinned by the offline unit + regression suites (tests/unit/domains/test_bibs.py, tests/unit/regressions/test_issue_179.py); this live test is end-to-end corroboration, not the primary verification of those offline assertions.",
+          "endpoints": [
+            "POST /almaws/v1/bibs",
+            "GET /almaws/v1/bibs/{mms_id}",
+            "DELETE /almaws/v1/bibs/{mms_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "bibs = BibliographicRecords(client)",
+            "spec = {'leader': '00000nam a2200000 a 4500', 'fields': [{'tag': '008', 'data': '230101s2023    xx            000 0 eng d'}, {'tag': '245', 'ind1': '1', 'ind2': '0', 'subfields': [['a', 'Data Reduction & Analysis :'], ['b', 'a structure-driven test record']]}, {'tag': '650', 'ind1': ' ', 'ind2': '0', 'subfields': [['a', 'Data reduction']]}, {'tag': '650', 'ind1': ' ', 'ind2': '0', 'subfields': [['a', 'Data science']]}]}",
+            "response = bibs.create_record_from_fields(spec, validate=True, override_warning=True)",
+            "created_mms_id = response.data.get('mms_id')",
+            "fetched = bibs.get_record(created_mms_id)"
+          ],
+          "passCriteria": [
+            "response.success is True — Alma accepted the structure-built <bib><record> XML and created the record end-to-end (live proof that build_alma_bib_xml emits valid, non-namespaced Alma MARCXML).",
+            "created_mms_id is a non-empty string (the newly created bib carries an mms_id in response.data).",
+            "fetched.success is True — the bib genuinely persisted in SANDBOX and can be retrieved.",
+            "The retrieved 245 title round-trips to the literal 'Data Reduction & Analysis' — the ampersand is preserved as a single '&'; it is NOT stored as the double-escaped literal 'Data Reduction &amp;amp; Analysis' nor as a literal '&amp;' (end-to-end confirmation of no double-escaping through a real Alma round-trip).",
+            "The retrieved record contains two 650 datafields, 'Data reduction' and 'Data science', in that order (repeated fields preserved end-to-end).",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised during create or retrieve."
+          ],
+          "cleanup": [
+            "bibs.delete_record(created_mms_id)"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-1: create_record_from_fields(spec) creates a bib in SANDBOX from the native structure.": [
+          "t-179-1"
+        ],
+        "AC-2: build_alma_bib_xml produces valid Alma <bib><record> XML (verified against the 4 ai_cataloging samples).": [
+          "t-179-1"
+        ],
+        "AC-4: No double-escaping; repeated fields/subfields preserved.": [
+          "t-179-1"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-2 (sub-clause): 'verified against the 4 ai_cataloging samples'.",
+          "reason": "The four ai_cataloging sample specs live in a separate project and are not accessible from this SANDBOX test harness; comparing build_alma_bib_xml output to those fixtures is a local golden-file/unit check, not an observable Alma API behaviour. The live facet of AC-2 — Alma accepts the built XML as valid — is mapped to t-179-1; the exact XML-shape correctness (non-namespaced <bib><record>, controlfield vs datafield, indicators, exactly-once escaping) is pinned deterministically by tests/unit/domains/test_bibs.py::TestBuildAlmaBibXml."
+        },
+        {
+          "ac": "AC-3: pymarc path works with almaapitk[pymarc]; clear error without it; core install pulls no pymarc.",
+          "reason": "All three facets are offline/packaging, not live-API behaviour. (a) The pymarc adapter create_record_from_pymarc is verified by unit tests with a mock client (tests/unit/domains/test_bibs.py::TestCreateRecordFromPymarc), and it merely funnels through build_alma_bib_xml -> create_record, the same path t-179-1 already exercises live. (b) 'clear error without it' is an import-guard assertion (lazy import raising AlmaValidationError), verified by the skipif-guarded unit test, not by SANDBOX. (c) 'core install pulls no pymarc' is a dependency-graph/packaging assertion (pymarc is an optional extra in pyproject.toml) verified by inspecting the install, not by any Alma call. Nothing here is observable via SANDBOX API behaviour."
+        },
+        {
+          "ac": "AC-5: Version bumped, changelog/docs updated.",
+          "reason": "Packaging/documentation assertion with no live-API surface: pyproject.toml version -> 0.5.0, the CHANGELOG.md 0.5.0 entry, the new almaapitk export, and the docstrings are all repo artifacts. None are observable via Alma SANDBOX behaviour; verified by reviewing the chunk diff (pyproject.toml, CHANGELOG.md, src/almaapitk/__init__.py)."
+        }
+      ]
+    }
+  ]
+}

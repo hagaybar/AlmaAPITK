@@ -1,0 +1,18 @@
+{
+  "chunk": "bibs-marc-fixes",
+  "issues": [
+    184,
+    185,
+    186
+  ],
+  "stage": "merged",
+  "branch": "chunk/bibs-marc-fixes",
+  "createdAt": "2026-07-12T10:19:24Z",
+  "updatedAt": "2026-07-19T12:04:48Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/201)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KXAXKGMWD15Z3PRTF6791GFJ",
+  "testRunId": "01KXB00RWKAJWQWFVYAN2AJMB9",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/201"
+}

@@ -1,0 +1,85 @@
+{
+  "chunk": "bibs-marc-fixes",
+  "issues": [
+    {
+      "number": 184,
+      "title": "bibs: update_marc_field silently deletes repeated instances of a repeatable MARC field (data loss)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/184",
+      "labels": [
+        "bug",
+        "priority:high",
+        "release-blocker"
+      ],
+      "body_raw": "**Severity:** 1 — silent data loss on live records\n**Priority:** High\n**Effort:** M\n**Type:** Bug\n**Found by:** MARC 21 compliance review 2026-07-12 (`/expert-cataloger`)\n**Affected code:** `src/almaapitk/domains/bibs.py`\n- `BibliographicRecords.update_marc_field` (~L461)\n- `BibliographicRecords._build_updated_marc_xml` (~L516)\n\n## Problem\n`_build_updated_marc_xml` rebuilds the record and replaces the target tag **once** (at its first occurrence), then `continue`s past every other occurrence of the same tag — so all further occurrences are dropped from the XML that is PUT back to Alma.\n\n## MARC rule\n6XX, 5XX, 7XX, 020, 490, 856, etc. are **Repeatable (R)** (LOC MARC 21 Bibliographic Format — general rule: every field may repeat unless its R/NR label precludes it). A record routinely carries several 650s.\n\n## Failure scenario\nRecord has three subject headings:\n- `650 _0 $a Physics`\n- `650 _0 $a Astrophysics`\n- `650 _0 $a Cosmology`\n\nCall: `update_marc_field(mms_id, \"650\", {\"a\": \"Physics -- data reduction\"})`\nResult: **two subject headings are deleted**; the record is left with a single 650. No error, no warning.\n\n## Fix (options)\n- Preserve untargeted occurrences of the tag.\n- Add an explicit `mode` = `replace_first` | `replace_all` | `append`, defaulting to a non-destructive behavior.\n- Provide a way to target a specific occurrence.\n\n## Acceptance criteria\n- [ ] Updating one instance of a repeated tag preserves the other instances.\n- [ ] There is a supported way to append an additional instance of a repeatable field without deleting existing ones.\n- [ ] R10 regression test under `tests/unit/regressions/` reproduces the 3→1 collapse; fails on current `main`, passes after the fix.\n\n## Release gating\nBlocks any new PyPI release (`release-blocker`).\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/bibs.py",
+        "tests/unit/regressions/test_issue_184.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "Updating one instance of a repeated tag preserves the other instances.",
+        "There is a supported way to append an additional instance of a repeatable field without deleting existing ones.",
+        "R10 regression test under `tests/unit/regressions/` reproduces the 3→1 collapse; fails on current `main`, passes after the fix."
+      ]
+    },
+    {
+      "number": 185,
+      "title": "bibs: MARC editing path cannot represent repeated subfield codes (dict-typed subfields)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/185",
+      "labels": [
+        "bug",
+        "priority:high",
+        "release-blocker"
+      ],
+      "body_raw": "**Severity:** 1 — cannot represent valid MARC; silent data loss\n**Priority:** High\n**Effort:** M\n**Type:** Bug\n**Found by:** MARC 21 compliance review 2026-07-12 (`/expert-cataloger`)\n**Affected code:** `src/almaapitk/domains/bibs.py`\n- `BibliographicRecords._add_datafield` (~L569, `subfields: Dict[str, str]`)\n- reached via `update_marc_field` (~L461)\n\n## Problem\nThe editing path types subfields as a `Dict[str, str]` and iterates `.items()`. A Python dict cannot hold two entries with the same key, so a repeated subfield code is impossible — the second value silently overwrites the first at dict-construction time, before the code even runs.\n\n## MARC rule\nSubfield codes repeat routinely: `650 _0 $a Science $x History $x 20th century`, `700 ... $e author $e editor`, `020 $z ... $z ...` (LOC MARC 21 Bibliographic Format; \"every subfield may repeat unless R/NR precludes it\").\n\n## Contrast (the correct pattern already exists)\nThe **creation** builder `build_alma_bib_xml` types subfields as a **list of `[code, value]` pairs** (~L153), which preserves both order and repetition. The editing path should adopt the same shape.\n\n## Failure scenario\nBuilding `650 _0 $a Science $x History $x 20th century` via `update_marc_field` is impossible; only the last `$x` survives.\n\n## Acceptance criteria\n- [ ] The editing path accepts an ordered list of `[code, value]` pairs (not a dict).\n- [ ] Repeated subfield codes round-trip correctly.\n- [ ] R10 regression test under `tests/unit/regressions/` covers a field with two `$x` subfields.\n\n## Release gating\nBlocks any new PyPI release (`release-blocker`).\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/bibs.py",
+        "tests/unit/regressions/test_issue_185.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "The editing path accepts an ordered list of `[code, value]` pairs (not a dict).",
+        "Repeated subfield codes round-trip correctly.",
+        "R10 regression test under `tests/unit/regressions/` covers a field with two `$x` subfields."
+      ]
+    },
+    {
+      "number": 186,
+      "title": "bibs: double-escaping of ampersand/lt/gt corrupts field content in MARC editing path",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/186",
+      "labels": [
+        "bug",
+        "priority:high",
+        "release-blocker"
+      ],
+      "body_raw": "**Severity:** 1 — corrupts field content\n**Priority:** High\n**Effort:** S\n**Type:** Bug\n**Found by:** MARC 21 compliance review 2026-07-12 (`/expert-cataloger`)\n**Affected code:** `src/almaapitk/domains/bibs.py`\n- `BibliographicRecords._sanitize_xml_text` (~L582)\n- reached via `update_marc_field` → `_build_updated_marc_xml` → `_add_datafield`\n\n## Problem\n`_sanitize_xml_text` manually rewrites `&`→`&amp;`, `<`→`&lt;`, `>`→`&gt;`, etc., **and then** the value is assigned to `.text` and re-serialized by `ElementTree`, which escapes it **again**. Each special character is therefore escaped twice.\n\n## Failure scenario\nUpdate a 245 to `Law & order`. The value stored in Alma becomes `Law &amp; order` — the ampersand is mangled in the actual bibliographic data. (Same for `<`, `>`.)\n\n## Root cause / context\nThis is exactly the double-escape bug that issue #179 fixed for the **creation** path: `_strip_illegal_xml_chars` (~L13) deliberately does **not** pre-escape, letting `ElementTree` escape exactly once. That fix was never applied to the **editing** path, so the two helpers now coexist and only `_strip_illegal_xml_chars` is correct.\n\n## Fix\nRemove the manual `&/</>/\"/'` replacement from the editing path; route it through `_strip_illegal_xml_chars` (strip illegal control chars only, let ET escape once). Consider deleting `_sanitize_xml_text` entirely.\n\n## Acceptance criteria\n- [ ] A field value containing `&`, `<`, `>` round-trips through `update_marc_field` unmangled.\n- [ ] R10 regression test under `tests/unit/regressions/` asserts a single level of escaping (e.g. `Law & order` stays `Law & order`).\n\n## Release gating\nBlocks any new PyPI release (`release-blocker`).\n\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/bibs.py",
+        "tests/unit/regressions/test_issue_186.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": [
+        "A field value containing `&`, `<`, `>` round-trips through `update_marc_field` unmangled.",
+        "R10 regression test under `tests/unit/regressions/` asserts a single level of escaping (e.g. `Law & order` stays `Law & order`)."
+      ]
+    }
+  ]
+}

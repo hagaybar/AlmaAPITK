@@ -1,0 +1,24 @@
+{
+  "chunk": "create-record-from-fields",
+  "testRunStartedAt": "2026-07-10T03:53:51Z",
+  "testRunFinishedAt": "2026-07-10T03:53:53Z",
+  "perTest": [
+    {
+      "id": "t-179-1",
+      "outcome": "passed",
+      "issueNumber": 179,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "pytest: 1 passed in 1.70s (chunks/create-record-from-fields/sandbox-tests/test_t-179-1.py::test_t_179_1). Live-SANDBOX round-trip verified: Alma accepted the structure-built <bib><record> XML on POST /almaws/v1/bibs (build_alma_bib_xml emits valid non-namespaced Alma MARCXML); the created bib re-fetched successfully via GET /almaws/v1/bibs/{mms_id}; the 245 $a ampersand round-tripped as a single '&' with no double-escaping; and the two repeated 650 subject fields ('Data reduction', 'Data science') persisted in order. State-changing test cleans up via try/finally delete_record(created_mms_id); passed with no error so cleanup succeeded."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 179,
+      "everyAcMapped": false,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

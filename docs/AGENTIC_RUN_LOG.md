@@ -39,3 +39,5 @@ Append-only log of chunk runs. One row per finished chunk.
 | users-notes | 2026-05-13 | #119 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/141 |
 | users-requests-followup | 2026-05-18 | #42, #43 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/147 |
 | electronic-bootstrap | 2026-05-19 | #66 |  | 1 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/152 |
+| bibs-marc-fixes | 2026-07-19 | #184, #185, #186 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/201 |
+| create-record-from-fields | 2026-07-19 | #179 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/201 |

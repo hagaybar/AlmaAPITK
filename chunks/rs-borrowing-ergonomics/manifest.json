@@ -1,0 +1,53 @@
+{
+  "chunk": "rs-borrowing-ergonomics",
+  "issues": [
+    {
+      "number": 197,
+      "title": "Add a builder for user resource-sharing request bodies (build_user_rs_request)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/197",
+      "labels": [
+        "enhancement",
+        "priority:medium"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** High\n\n## Problem\n\n`create_user_rs_request` forwards `request_data` **verbatim**, so every caller must\nhand-assemble the body and get the plain-vs-`{\"value\": ...}` wrapping right. This\nwas the direct cause of a long trial-and-error loop while building a borrowing\nrequest:\n\n- `owner` must be a **plain string** (not wrapped) \u2014 a well-known Alma quirk.\n- `format`, `citation_type`, `pickup_location` must be **wrapped** `{\"value\": ...}`.\n- `pickup_location_type` is a **plain string**.\n- Wrong shape or wrong code \u2192 cryptic Alma errors (e.g. `Invalid field value \u2026\n  Value: {1}`).\n\n## Proposed\n\nA helper that builds the correctly-shaped body from plain keyword arguments:\n\n```python\nbuild_user_rs_request(\n    owner=\"RES_SHARE\",\n    format=\"DIGITAL\",\n    citation_type=\"E_CR\",\n    title=..., journal_title=..., author=..., year=...,\n    pickup_location=\"RES_SHARE\", pickup_location_type=\"LIBRARY\",\n    agree_to_copyright_terms=True,\n    external_id=...,          # see idempotency issue\n    extra=None,               # escape hatch for advanced fields\n)\n```\n\nIt encodes the wrapping rules (and the `owner`-plain quirk) exactly once. Keep the\nraw-dict path available for advanced callers.\n\n## Related\n\nPairs with opt-in value validation (#194) and the idempotency/reconcile work.\n\n\n\n## Files to touch\n\n- `src/almaapitk/domains/users.py`\n- `src/almaapitk/__init__.py`\n- `tests/unit/domains/test_users.py`\n- `tests/unit/regressions/test_issue_197.py`\n",
+      "domain": "Architecture",
+      "priority": "high",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "src/almaapitk/__init__.py",
+        "tests/unit/domains/test_users.py",
+        "tests/unit/regressions/test_issue_197.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": []
+    },
+    {
+      "number": 194,
+      "title": "create_user_rs_request: no guardrail against wrong code-table values \u2192 cryptic Alma error",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/194",
+      "labels": [
+        "enhancement",
+        "priority:medium"
+      ],
+      "body_raw": "**Complexity:** S\n**Benefit:** Medium\n\n## Summary\n\n`Users.create_user_rs_request()` forwards `request_data` to Alma **verbatim** (by\ndesign \u2014 see its docstring) and performs no validation of code-table field\n*values*. When a caller sends a value from the **wrong Alma code table** \u2014 e.g.\n`format: {\"value\": \"P\"}` (a *purchase-request* format code) on the **borrowing**\nendpoint, which expects `PHYSICAL` / `DIGITAL` \u2014 Alma rejects it with a mangled,\nun-actionable error that does **not name the offending field**:\n\n```\nInvalid field value. Field: [Ljava.lang.Object;@2f3cde3, Value: {1}\n```\n\n(`[Ljava.lang.Object;@\u2026` is a Java array's `toString()`; `{1}` is an\nunsubstituted message-template placeholder \u2014 Alma itself fails to render which\nfield is bad. The developer gets no signal about which field or why.)\n\n## Reproduction\n\nPayload identical to the passing regression-smoke test\n(`chunks/users-requests-followup/sandbox-tests/test_t_42_3.py`) **except**\n`format`:\n\n```python\nusers.create_user_rs_request(user_id, {\n    \"owner\": \"<RS_LIB>\",\n    \"format\": {\"value\": \"P\"},            # \u2190 wrong table (purchase P/E); borrowing wants PHYSICAL/DIGITAL\n    \"citation_type\": {\"value\": \"BOOK\"},\n    \"title\": \"\u2026\",\n    \"pickup_location_type\": \"LIBRARY\",\n    \"pickup_location\": {\"value\": \"<LIB>\"},\n    \"agree_to_copyright_terms\": True,\n})\n# -> AlmaAPIError: Invalid field value. Field: [Ljava.lang.Object;@\u2026, Value: {1}\n```\n\nChanging `format` to `{\"value\": \"PHYSICAL\"}` makes the same call succeed.\n\n## Why this is easy to hit\n\nThree RS-adjacent surfaces use **different code values for the same conceptual\nfield**, and the docs partly disagree with each other:\n\n| Field | Purchase request | Lending request | **Borrowing (this endpoint)** |\n|---|---|---|---|\n| `format` | `P` / `E` | `PHYSICAL` / `DIGITAL` | `PHYSICAL` / `DIGITAL` |\n| `citation_type` | `BOOK` / `JOURNAL` | `BOOK` / `JOURNAL` | `BOOK` (empirical, per `test_t_42_3.py`) \u2014 but `docs/Alma Borrowing Request API Guide.md` lists the XSD codes `BK` / `CR` |\n\nA caller who reused a `format` code from the purchase or an older skill/reference\ngets the cryptic error above with nothing pointing at `format`.\n\n## Suggestions (non-prescriptive \u2014 code tables are tenant-extensible)\n\nA closed hardcoded allowlist would be brittle (institutions can extend code\ntables). Options, in increasing invasiveness:\n\n1. **Better error surfacing (low-risk, no behavior change to valid calls).**\n   In the response error handler, detect the\n   `Invalid field value \u2026 [Ljava.lang.Object; \u2026 {1}` shape and raise\n   `AlmaAPIError` with an appended hint, e.g. *\"a code-table field value was\n   rejected; on the RS-borrowing surface `format` expects PHYSICAL/DIGITAL and\n   `citation_type` expects BOOK/CR\"*. Purely additive.\n\n2. **Optional soft validation.** Validate the well-known borrowing code-table\n   fields (`format`, `citation_type`, `pickup_location_type`) against documented\n   defaults *before* the network call, raising `AlmaValidationError` naming the\n   field \u2014 gated behind a `validate=True` (or `strict=`) kwarg so tenants with\n   custom codes can opt out.\n\n3. **Docs / builder helper.** Document a known-good borrowing payload plus a\n   purchase-vs-lending-vs-borrowing code cheat sheet in the docstring / API\n   reference (partly exists in `docs/Alma Borrowing Request API Guide.md`, which\n   itself disagrees with the passing test on `citation_type`), and/or ship a\n   `build_user_rs_request_data(...)` helper that emits the correctly-wrapped body\n   so callers don't hand-roll wrapping + codes.\n\nEven option 1 alone would turn a dead-end error into an actionable one.\n\n## Environment\n\n- `almaapitk` 0.4.5 (source tree; `create_user_rs_request` present)\n- Endpoint: `POST /almaws/v1/users/{user_id}/resource-sharing-requests`\n- Observed in SANDBOX, 2026-07-19.\n\n\n\n## Files to touch\n\n- `src/almaapitk/domains/users.py`\n- `src/almaapitk/client/AlmaAPIClient.py`\n- `tests/unit/domains/test_users.py`\n- `tests/unit/regressions/test_issue_194.py`\n",
+      "domain": "Architecture",
+      "priority": "medium",
+      "effort": "S",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/users.py",
+        "src/almaapitk/client/AlmaAPIClient.py",
+        "tests/unit/domains/test_users.py",
+        "tests/unit/regressions/test_issue_194.py"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": []
+    }
+  ]
+}

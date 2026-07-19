@@ -21,6 +21,223 @@ from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIE
 _VALID_USER_EXPANDS = frozenset({"loans", "requests", "fees"})
 
 
+# Fields of an Alma *user* resource-sharing request body whose JSON encoding is
+# the code-table wrapper ``{"value": "<code>"}``. Source of truth: the POST body
+# schema ``rest_user_resource_sharing_request-post.json`` — reachable as the
+# ``requestBody`` ``$ref`` of
+# ``POST /almaws/v1/users/{user_id}/resource-sharing-requests`` in
+# ``docs/alma-swagger/users.json``. Exactly the properties that schema types as
+# ``object`` with a single ``value`` key are listed here; every other property
+# is a plain ``string`` / ``boolean`` / ``number``.
+#
+# The asymmetry this encodes is the whole point of issue #197: ``owner`` and
+# ``pickup_location_type`` are *plain strings* (the long-standing Alma quirk
+# that also applies to ``ResourceSharing.create_lending_request``), while
+# ``format``, ``citation_type`` and ``pickup_location`` sitting right next to
+# them are wrapped. Getting it backwards yields the cryptic Alma
+# "Invalid field value ... Value: {1}" error.
+_RS_REQUEST_WRAPPED_FIELDS = frozenset(
+    {
+        "citation_type",
+        "copyright_status",
+        "format",
+        "fund",
+        "level_of_service",
+        "partner",
+        "pickup_location",
+        "preferred_send_method",
+        "reading_room",
+        "requested_language",
+        "requester",
+    }
+)
+
+
+def _require_rs_text(value: Any, field: str) -> str:
+    """Validate a plain-text field of a resource-sharing request body.
+
+    Args:
+        value: Candidate value supplied by the caller.
+        field: Field name, used verbatim in the error message so the caller
+            knows which argument was wrong.
+
+    Returns:
+        The value stripped of surrounding whitespace.
+
+    Raises:
+        AlmaValidationError: If ``value`` is not a non-empty string.
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise AlmaValidationError(
+            f"{field} must be a non-empty string"
+        )
+    return value.strip()
+
+
+def _wrap_rs_value(field: str, value: Any) -> Any:
+    """Apply the code-table wrapper to one resource-sharing request field.
+
+    Idempotent: a value that is already wrapped (a dict) — or that belongs to a
+    plain-string field — is returned untouched, so callers may hand
+    already-shaped fragments to ``extra`` without double-wrapping them.
+
+    Args:
+        field: Field name as it appears in the Alma request body.
+        value: Value to encode.
+
+    Returns:
+        ``{"value": value}`` when ``field`` is a wrapped code-table field and
+        ``value`` is a plain string; otherwise ``value`` unchanged.
+    """
+    if field in _RS_REQUEST_WRAPPED_FIELDS and isinstance(value, str):
+        return {"value": value}
+    return value
+
+
+def build_user_rs_request(
+    owner: str,
+    format: str,
+    citation_type: str,
+    *,
+    title: Optional[str] = None,
+    journal_title: Optional[str] = None,
+    author: Optional[str] = None,
+    year: Optional[Any] = None,
+    pickup_location: Optional[str] = None,
+    pickup_location_type: Optional[str] = None,
+    agree_to_copyright_terms: Optional[bool] = True,
+    external_id: Optional[str] = None,
+    extra: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Build a correctly-shaped user resource-sharing request body.
+
+    Pure, network-free helper (the "plain data in, ready-to-POST dict out"
+    shape mirrors ``build_alma_bib_xml`` in ``almaapitk.domains.bibs``). It
+    exists because :meth:`Users.create_user_rs_request` forwards
+    ``request_data`` verbatim, which forced every caller to re-derive Alma's
+    plain-vs-``{"value": ...}`` wrapping by trial and error (issue #197). The
+    wrapping rules are encoded exactly once, here, from the POST body schema
+    ``rest_user_resource_sharing_request-post.json``::
+
+        from almaapitk import Users, build_user_rs_request
+
+        body = build_user_rs_request(
+            owner="<rs_library_code>",
+            format="DIGITAL",
+            citation_type="CR",
+            title="Sample article",
+            journal_title="Sample journal",
+            pickup_location="<pickup_library_code>",
+            pickup_location_type="LIBRARY",
+            external_id="my-app:42",
+        )
+        users.create_user_rs_request("<user_primary_id>", request_data=body)
+
+    The raw-dict path on :meth:`Users.create_user_rs_request` is unaffected —
+    this builder is opt-in.
+
+    Code-table *values* are deliberately **not** validated (that is issue
+    #194): any non-empty string is accepted for ``format``, ``citation_type``
+    and friends, so a caller with a locally-configured code is never blocked.
+
+    Args:
+        owner: Resource-sharing library code that owns the request. Sent as a
+            **plain string** — the Alma quirk this builder exists to hide.
+        format: Requested format code (e.g. ``PHYSICAL`` / ``DIGITAL``). Sent
+            **wrapped**.
+        citation_type: Citation-type code — on the borrowing surface ``BK`` /
+            ``CR``, not the lending-side ``BOOK`` / ``JOURNAL``. Sent
+            **wrapped**.
+        title: Optional resource title (plain string). Alma requires a title or
+            an ``mms_id``; the latter can be passed via ``extra``.
+        journal_title: Optional journal title for article-level requests
+            (plain string).
+        author: Optional author (plain string).
+        year: Optional publication year (plain string in the schema; an ``int``
+            is accepted and coerced with ``str()`` for convenience).
+        pickup_location: Optional pickup library code. Sent **wrapped**.
+        pickup_location_type: Optional pickup location type (e.g. ``LIBRARY``
+            / ``CIRCULATION_DESK``). Sent as a **plain string**. Alma expects
+            it alongside ``pickup_location`` for physical pickup.
+        agree_to_copyright_terms: Copyright-terms acknowledgement, mandatory on
+            the borrowing surface — defaults to ``True``. Pass ``None`` to omit
+            the field entirely.
+        external_id: Optional caller-side identifier echoed back by Alma
+            (plain string); useful as an idempotency / reconciliation key.
+        extra: Optional escape hatch for any other schema field. Merged **last**
+            (so it can override anything above), with the same wrapping rules
+            applied — a plain string given for a wrapped field is wrapped, and
+            an already-wrapped dict is passed through untouched.
+
+    Returns:
+        A ``dict`` ready to hand to :meth:`Users.create_user_rs_request` as
+        ``request_data``.
+
+    Raises:
+        AlmaValidationError: If ``owner`` / ``format`` / ``citation_type`` is
+            missing or not a non-empty string, if any supplied optional text
+            field is not a non-empty string, if ``year`` is neither a string
+            nor an ``int``, if ``agree_to_copyright_terms`` is not a bool, or
+            if ``extra`` is not a dict keyed by non-empty strings.
+    """
+    body: Dict[str, Any] = {
+        # Plain string — NOT wrapped. See _RS_REQUEST_WRAPPED_FIELDS.
+        "owner": _require_rs_text(owner, "owner"),
+        "format": {"value": _require_rs_text(format, "format")},
+        "citation_type": {
+            "value": _require_rs_text(citation_type, "citation_type")
+        },
+    }
+
+    # Optional plain-string fields, in schema order.
+    optional_text: List[Tuple[str, Any]] = [
+        ("external_id", external_id),
+        ("pickup_location_type", pickup_location_type),
+        ("title", title),
+        ("author", author),
+        ("journal_title", journal_title),
+    ]
+    for field, value in optional_text:
+        if value is not None:
+            body[field] = _require_rs_text(value, field)
+
+    if year is not None:
+        # The schema types ``year`` as a string; accept an int and coerce so
+        # callers don't have to remember. ``bool`` is an ``int`` subclass —
+        # exclude it explicitly.
+        if isinstance(year, bool) or not isinstance(year, (str, int)):
+            raise AlmaValidationError(
+                "year must be a non-empty string or an int"
+            )
+        body["year"] = _require_rs_text(str(year), "year")
+
+    if pickup_location is not None:
+        body["pickup_location"] = {
+            "value": _require_rs_text(pickup_location, "pickup_location")
+        }
+
+    if agree_to_copyright_terms is not None:
+        if not isinstance(agree_to_copyright_terms, bool):
+            raise AlmaValidationError(
+                "agree_to_copyright_terms must be a bool or None"
+            )
+        body["agree_to_copyright_terms"] = agree_to_copyright_terms
+
+    if extra is not None:
+        if not isinstance(extra, dict):
+            raise AlmaValidationError(
+                "extra must be a dictionary of Alma request fields"
+            )
+        for field, value in extra.items():
+            if not isinstance(field, str) or not field.strip():
+                raise AlmaValidationError(
+                    "extra keys must be non-empty strings"
+                )
+            body[field.strip()] = _wrap_rs_value(field.strip(), value)
+
+    return body
+
+
 class Users:
     """
     Enhanced Users domain class for Alma API operations.
@@ -2306,7 +2523,10 @@ class Users:
                 to Alma verbatim. Typical fields include
                 ``citation_type``, ``format``, ``title``,
                 ``pickup_location_*``, and ``owner`` (resource sharing
-                library code).
+                library code). Getting Alma's plain-vs-``{"value": ...}``
+                wrapping right is fiddly — :func:`build_user_rs_request`
+                builds a correctly-shaped dict from plain keyword
+                arguments (issue #197). Raw dicts remain fully supported.
             user_id_type: Optional user identifier type (any value from
                 the Alma "User Identifier Type" code table). Forwarded
                 as a **query** parameter only when non-``None``.

@@ -198,6 +198,19 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pymarc"
+version = "5.4.0"
+description = "Read, write and modify MARC bibliographic data"
+optional = true
+python-versions = ">=3.10"
+groups = ["main"]
+markers = "extra == \"pymarc\""
+files = [
+    {file = "pymarc-5.4.0-py3-none-any.whl", hash = "sha256:10549ce513c191f77b081e5e505c02aca76f6b9f1164c47a326bb635b24a77eb"},
+    {file = "pymarc-5.4.0.tar.gz", hash = "sha256:b2016b1674d1956636c99b9bf95b31840c5cb8f22645672a660e66326371b2f3"},
+]
+
+[[package]]
 name = "pytest"
 version = "8.4.2"
 description = "pytest: simple powerful testing with Python"
@@ -260,9 +273,10 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [extras]
+pymarc = ["pymarc"]
 smoke = ["pytest"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "2545a19ae966357e12786af4fc692c83062bb3d5595d6f77040d8b6e09805121"
+content-hash = "1004d4008dad87d2f8f3f50e62902ed491c24b370a4744e9f9ef644015b57af4"

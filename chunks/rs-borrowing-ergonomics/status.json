@@ -4,14 +4,14 @@
     197,
     194
   ],
-  "stage": "defined",
+  "stage": "impl-running",
   "branch": "chunk/rs-borrowing-ergonomics",
   "createdAt": "2026-07-19T10:32:16Z",
-  "updatedAt": "2026-07-19T10:32:16Z",
-  "lastEvent": "reset after phantom-implement run 01KXX5Q9PGWX9VXNDYPB7BYVB2 (see PR #203)",
-  "nextAction": "chunks run-impl rs-borrowing-ergonomics",
+  "updatedAt": "2026-07-19T14:38:36Z",
+  "lastEvent": "implementation babysitter run created",
+  "nextAction": "drive via /chunk-run-impl in chat, or babysitter run:iterate manually",
   "openBreakpoints": [],
-  "implRunId": null,
+  "implRunId": "01KXXD147MGH4K2EAFWD84SR44",
   "testRunId": null,
   "prUrl": null
 }

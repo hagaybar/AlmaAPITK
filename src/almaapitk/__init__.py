@@ -90,6 +90,8 @@ __all__ = [
     "ResourceSharing",
     "Analytics",
     "Configuration",
+    # Domain helpers
+    "build_alma_bib_xml",
     # Utilities
     "TSVGenerator",
     "CitationMetadataError",
@@ -119,6 +121,8 @@ _lazy_imports = {
     "ResourceSharing": ("almaapitk._internal", "ResourceSharing"),
     "Analytics": ("almaapitk._internal", "Analytics"),
     "Configuration": ("almaapitk._internal", "Configuration"),
+    # Domain helpers
+    "build_alma_bib_xml": ("almaapitk.domains.bibs", "build_alma_bib_xml"),
     # Utilities
     "TSVGenerator": ("almaapitk.utils.tsv_generator", "TSVGenerator"),
     "CitationMetadataError": ("almaapitk.utils.citation_metadata", "CitationMetadataError"),

@@ -307,6 +307,14 @@ class CredentialError(AlmaValidationError):
 # specific exception subclasses).
 ERROR_CODE_REGISTRY: Dict[str, type] = {
     "402459":   AlmaDuplicateInvoiceError,
+    # NOTE (issue #194): ``40166411`` is a *collision*. The acq swagger
+    # publishes it as "PO Line is not in the right mode", while the users
+    # swagger publishes the very same code as the generic "Parameter value is
+    # invalid." on ``POST /almaws/v1/users/{user_id}/resource-sharing-requests/
+    # {request_id}``. The registry is keyed by code alone, so a bad parameter on
+    # the RS action endpoint would otherwise surface as a POL-mode exception.
+    # ``_classify_error`` carries an endpoint-scoped override for exactly this
+    # pair; the mapping below remains the acq-side default.
     "40166411": AlmaInvalidPolModeError,
     # Alma returns HTTP 400 + errorCode 401861 ("User with identifier ... was not
     # found") for a missing user_primary_id — NOT HTTP 404 — so status-fallback
@@ -320,7 +328,106 @@ ERROR_CODE_REGISTRY: Dict[str, type] = {
     # the proof-of-concept that swagger-driven harvesting (issue #90) can
     # replace ad-hoc registry growth.
     "60224":    AlmaResourceNotFoundError,
+    # Issue #194 swagger cross-check (users domain). ``401890`` ("User with
+    # identifier X of type Y was not found", HTTP 400) is the near-twin of the
+    # already-mapped ``401861`` and is published on 18 users endpoints —
+    # including ``POST /almaws/v1/users/{user_id}/resource-sharing-requests``.
+    # Like ``401861`` it arrives as HTTP 400, so the 404 status-fallback never
+    # fires; map it explicitly.
+    "401890":   AlmaResourceNotFoundError,
 }
+
+
+# --------------------------------------------------------------------------
+# Code-table error surfacing (issue #194)
+#
+# Alma rejects a value that does not belong to the code table of the field it
+# was sent for with a message whose own template rendering has failed::
+#
+#     Invalid field value. Field: [Ljava.lang.Object;@2f3cde3, Value: {1}
+#
+# ``[Ljava.lang.Object;@…`` is a Java array's ``toString()`` and ``{1}`` is an
+# unsubstituted message-template placeholder — so Alma never names the
+# offending field and the caller is left with a dead-end error. The client
+# cannot recover the field name (it is not in the payload), but it *can* append
+# the shortlist of likely culprits for the endpoint that was called.
+#
+# This is purely additive: it only ever runs on the error path, only when the
+# mangled shape is detected, and it changes the exception *message* only — the
+# exception class is still chosen by ``_classify_error``.
+# --------------------------------------------------------------------------
+
+#: Path fragment identifying the user resource-sharing (borrowing) surface.
+_RS_REQUEST_PATH_MARKER = "/resource-sharing-requests"
+
+#: Substrings that mark Alma's failed message-template rendering. Requiring one
+#: of these (on top of the "Invalid field value" prefix) keeps the hint off
+#: errors that *did* name their field and are therefore already actionable.
+_MANGLED_FIELD_VALUE_MARKERS = ("[ljava.lang.object;", "{1}")
+
+_CODE_TABLE_HINT_GENERIC = (
+    " [almaapitk hint: Alma rejected a field value but failed to render which "
+    "field (the '[Ljava.lang.Object;' / '{1}' fragments are an Alma "
+    "message-template bug, not your data). Check every code-table value in the "
+    "request body against the code table for *this* endpoint — the same "
+    "conceptual field often uses different codes on different Alma surfaces.]"
+)
+
+_CODE_TABLE_HINT_RS_BORROWING = (
+    " [almaapitk hint: Alma rejected a field value but failed to render which "
+    "field. On the resource-sharing borrowing surface the usual culprits are "
+    "'format', which expects PHYSICAL/DIGITAL (P/E are the purchase-request "
+    "codes), and 'citation_type', which expects BK/CR per the XSD (BOOK is "
+    "also accepted; BOOK/JOURNAL are the lending-side codes). The same error "
+    "appears when a plain-string field ('owner', 'pickup_location_type') is "
+    "wrapped in {'value': ...} or a code-table field is not — see "
+    "almaapitk.build_user_rs_request, or pass validate=True to "
+    "Users.create_user_rs_request to catch bad codes before the call.]"
+)
+
+
+def _is_rs_request_url(url: Optional[str]) -> bool:
+    """Report whether a request URL targets the user RS-request surface.
+
+    Args:
+        url: Full request URL, or ``None`` / a non-string when unavailable
+            (e.g. a mocked response object).
+
+    Returns:
+        ``True`` when the URL path contains the user resource-sharing
+        requests fragment.
+    """
+    return isinstance(url, str) and _RS_REQUEST_PATH_MARKER in url
+
+
+def _augment_code_table_error_message(
+    error_msg: str, url: Optional[str] = None
+) -> str:
+    """Append an actionable hint to Alma's mangled "Invalid field value" error.
+
+    Args:
+        error_msg: Error message extracted from the Alma ``errorList`` payload.
+        url: Full request URL, used to pick the endpoint-specific hint. May be
+            ``None`` when the URL is unavailable.
+
+    Returns:
+        ``error_msg`` unchanged unless it matches the mangled
+        "Invalid field value … [Ljava.lang.Object; … {1}" shape, in which case
+        a bracketed ``[almaapitk hint: …]`` suffix naming the likely culprits
+        is appended.
+
+    Pattern source: GitHub issue #194, option 1 (better error surfacing).
+    """
+    if not isinstance(error_msg, str):
+        return error_msg
+    lowered = error_msg.lower()
+    if "invalid field value" not in lowered:
+        return error_msg
+    if not any(marker in lowered for marker in _MANGLED_FIELD_VALUE_MARKERS):
+        return error_msg
+    if _is_rs_request_url(url):
+        return error_msg + _CODE_TABLE_HINT_RS_BORROWING
+    return error_msg + _CODE_TABLE_HINT_GENERIC
 
 
 class AlmaAPIClient:
@@ -639,12 +746,18 @@ class AlmaAPIClient:
         return headers
     
     def _classify_error(
-        self, status_code: int, alma_code: Optional[str]
+        self,
+        status_code: int,
+        alma_code: Optional[str],
+        url: Optional[str] = None,
     ) -> type:
         """Pick the most specific ``AlmaAPIError`` subclass for an error.
 
         Resolution order:
 
+        0. If ``alma_code`` is one of the codes Alma publishes with different
+           meanings on different endpoints, and ``url`` identifies the
+           endpoint, the endpoint-scoped meaning wins (issue #194).
         1. If ``alma_code`` is in ``ERROR_CODE_REGISTRY``, return the mapped
            subclass — Alma error codes are more specific than HTTP status
            and should always win when both are available.
@@ -661,12 +774,22 @@ class AlmaAPIClient:
             alma_code: Alma-specific error code extracted from the
                 response body's ``errorList.error[0].errorCode``, or
                 ``None`` if no such code was present.
+            url: Full URL of the failing request, when available. Only used
+                to resolve cross-domain error-code collisions; ``None``
+                (the default) reproduces the pre-#194 behaviour exactly.
 
         Returns:
             The most specific ``AlmaAPIError`` subclass to raise.
 
         Pattern source: GitHub issue #9.
         """
+        # Collision guard (issue #194): the users swagger publishes
+        # ``40166411`` as the generic "Parameter value is invalid." on the RS
+        # request-action endpoint, where ``AlmaInvalidPolModeError`` (its
+        # acquisitions meaning) would be actively misleading.
+        if alma_code == "40166411" and _is_rs_request_url(url):
+            return AlmaAPIError
+
         if alma_code is not None and alma_code in ERROR_CODE_REGISTRY:
             return ERROR_CODE_REGISTRY[alma_code]
 
@@ -785,6 +908,12 @@ class AlmaAPIClient:
                 attributes extracted from the same ``errorList.error[0]``
                 payload so log lines and operator hand-offs to Ex Libris
                 support can quote the per-request trackingId (issue #10).
+                When Alma returns its mangled "Invalid field value ...
+                [Ljava.lang.Object; ... {1}" message — which names no field
+                at all — an ``[almaapitk hint: ...]`` suffix listing the
+                likely code-table culprits for the called endpoint is
+                appended to the message (issue #194). Message-only: the
+                exception class and attributes are unchanged.
         """
         if isinstance(response_or_wrapper, AlmaResponse):
             alma_response = response_or_wrapper
@@ -795,8 +924,16 @@ class AlmaAPIClient:
             error_msg, alma_code, tracking_id = self._extract_alma_error_fields(
                 alma_response
             )
+            # The request URL disambiguates cross-domain error codes and picks
+            # the endpoint-specific code-table hint (issue #194). Guarded with
+            # ``getattr`` because ``_handle_response`` also accepts response
+            # doubles that may not expose ``url``.
+            request_url = getattr(alma_response._response, "url", None)
+            error_msg = _augment_code_table_error_message(
+                error_msg, request_url
+            )
             exc_class = self._classify_error(
-                alma_response.status_code, alma_code
+                alma_response.status_code, alma_code, request_url
             )
             # ``alma_code`` is normalised to "" on the exception (the
             # default in ``AlmaAPIError.__init__``) so log formatters can

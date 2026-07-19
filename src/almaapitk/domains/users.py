@@ -53,6 +53,93 @@ _RS_REQUEST_WRAPPED_FIELDS = frozenset(
 )
 
 
+# Documented code-table values for the *borrowing* resource-sharing surface
+# (``POST /almaws/v1/users/{user_id}/resource-sharing-requests``), used by the
+# opt-in ``validate=True`` pre-flight check on
+# ``Users.create_user_rs_request`` (issue #194). Sources:
+# ``docs/Alma Borrowing Request API Guide.md`` (field table) plus the empirical
+# SANDBOX evidence recorded in issue #194.
+#
+# These are deliberately the *documented defaults*, not an authoritative list:
+# Alma code tables are tenant-extensible, which is exactly why the check is
+# opt-in rather than always-on.
+#
+# ``citation_type`` is the unresolved one. The borrowing XSD lists ``BK`` /
+# ``CR``; a passing SANDBOX request used ``BOOK``; the lending and
+# purchase-request surfaces use ``BOOK`` / ``JOURNAL``. Since the sources
+# genuinely disagree, the default is permissive and accepts all four rather
+# than silently picking a side.
+_RS_BORROWING_FORMAT_CODES = frozenset({"PHYSICAL", "DIGITAL"})
+_RS_BORROWING_CITATION_TYPE_CODES = frozenset(
+    {"BK", "CR", "BOOK", "JOURNAL"}
+)
+_RS_BORROWING_PICKUP_LOCATION_TYPE_CODES = frozenset(
+    {"LIBRARY", "CIRCULATION_DESK"}
+)
+
+_RS_BORROWING_CODE_TABLES: Dict[str, frozenset] = {
+    "format": _RS_BORROWING_FORMAT_CODES,
+    "citation_type": _RS_BORROWING_CITATION_TYPE_CODES,
+    "pickup_location_type": _RS_BORROWING_PICKUP_LOCATION_TYPE_CODES,
+}
+
+
+def _extract_rs_code(value: Any) -> Optional[str]:
+    """Read the code out of a resource-sharing request field value.
+
+    Accepts both encodings a caller may have used, since
+    ``create_user_rs_request`` forwards ``request_data`` verbatim: the
+    code-table wrapper ``{"value": "<code>"}`` and a bare string.
+
+    Args:
+        value: Raw field value taken from the request body.
+
+    Returns:
+        The stripped code, or ``None`` when no plain-string code can be read
+        (e.g. a wrapper carrying a nested object). ``None`` means "no
+        opinion" — the validator skips the field rather than guessing.
+    """
+    if isinstance(value, dict):
+        value = value.get("value")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _validate_rs_borrowing_codes(request_data: Dict[str, Any]) -> None:
+    """Check the well-known borrowing code-table fields before the network call.
+
+    Only the fields in :data:`_RS_BORROWING_CODE_TABLES` that are actually
+    present in ``request_data`` are inspected; everything else is forwarded
+    untouched. Fields whose value is not a plain string (nested objects,
+    numbers) are skipped rather than rejected.
+
+    Args:
+        request_data: The request body about to be POSTed to Alma.
+
+    Raises:
+        AlmaValidationError: If a checked field carries a value that is not a
+            documented borrowing code. The message names the offending field
+            — the whole point of issue #194, since Alma's own rejection does
+            not.
+    """
+    for field, allowed in _RS_BORROWING_CODE_TABLES.items():
+        if field not in request_data:
+            continue
+        code = _extract_rs_code(request_data[field])
+        if code is None or code in allowed:
+            continue
+        expected = ", ".join(sorted(allowed))
+        raise AlmaValidationError(
+            f"{field}={code!r} is not a documented Alma borrowing "
+            f"code-table value (expected one of: {expected}). Note that "
+            f"purchase and lending requests use different codes for the "
+            f"same fields. Alma code tables are tenant-extensible — omit "
+            f"validate=True (validation is off by default) to skip this "
+            f"check if your institution has extended the table."
+        )
+
+
 def _require_rs_text(value: Any, field: str) -> str:
     """Validate a plain-text field of a resource-sharing request body.
 
@@ -136,9 +223,11 @@ def build_user_rs_request(
     The raw-dict path on :meth:`Users.create_user_rs_request` is unaffected —
     this builder is opt-in.
 
-    Code-table *values* are deliberately **not** validated (that is issue
-    #194): any non-empty string is accepted for ``format``, ``citation_type``
-    and friends, so a caller with a locally-configured code is never blocked.
+    Code-table *values* are deliberately **not** validated here: any non-empty
+    string is accepted for ``format``, ``citation_type`` and friends, so a
+    caller with a locally-configured code is never blocked. Opt into a
+    documented-values check by passing ``validate=True`` to
+    :meth:`Users.create_user_rs_request` (issue #194).
 
     Args:
         owner: Resource-sharing library code that owns the request. Sent as a
@@ -2505,6 +2594,8 @@ class Users:
         request_data: Dict[str, Any],
         user_id_type: Optional[str] = None,
         override_blocks: Optional[bool] = None,
+        *,
+        validate: bool = False,
     ) -> AlmaResponse:
         """Create a resource-sharing request for a user.
 
@@ -2537,6 +2628,36 @@ class Users:
                 in practice Alma applies the default ``false`` when
                 omitted — surfaced here as an optional kwarg so callers
                 can opt in to override semantics explicitly).
+            validate: Opt-in pre-flight check of the well-known borrowing
+                code-table fields (``format``, ``citation_type``,
+                ``pickup_location_type``) against their documented values,
+                keyword-only and **off by default**. When a value is not
+                recognised, an ``AlmaValidationError`` naming the field is
+                raised *before* the network call — Alma's own rejection is
+                the un-actionable ``"Invalid field value. Field:
+                [Ljava.lang.Object;@…, Value: {1}"`` (issue #194). Leave it
+                off (the default) if your institution has extended the code
+                tables, since a locally-configured code would otherwise be
+                rejected client-side. Documented values used by the check:
+
+                * ``format`` — ``PHYSICAL`` / ``DIGITAL``. The ``P`` / ``E``
+                  codes belong to the *purchase-request* surface and are the
+                  reproduction case in issue #194.
+                * ``citation_type`` — accepted permissively as ``BK``,
+                  ``CR``, ``BOOK`` or ``JOURNAL``. The sources genuinely
+                  disagree: the borrowing XSD (and
+                  ``docs/Alma Borrowing Request API Guide.md``) lists
+                  ``BK`` / ``CR``, while a passing SANDBOX request used
+                  ``BOOK``, which is also the lending / purchase code
+                  alongside ``JOURNAL``. Until that is resolved the check
+                  refuses to pick a side.
+                * ``pickup_location_type`` — ``LIBRARY`` /
+                  ``CIRCULATION_DESK``.
+
+                Fields absent from ``request_data``, and values that are not
+                plain strings (or ``{"value": "<code>"}`` wrappers), are not
+                inspected. Nothing else about the body is normalised —
+                ``request_data`` still reaches Alma verbatim.
 
         Returns:
             ``AlmaResponse`` wrapping the Alma response (the created
@@ -2544,8 +2665,10 @@ class Users:
             ``request_id``).
 
         Raises:
-            AlmaValidationError: If ``user_id`` is empty / not a string
-                or if ``request_data`` is empty / not a dict.
+            AlmaValidationError: If ``user_id`` is empty / not a string,
+                if ``request_data`` is empty / not a dict, or — when
+                ``validate=True`` — if a checked code-table field carries an
+                undocumented value.
             AlmaAPIError: If the API request fails (e.g. error code
                 ``401768`` "Patron is not affiliated with a resource
                 sharing library", ``401607`` "Resource sharing library
@@ -2563,6 +2686,17 @@ class Users:
             raise AlmaValidationError(
                 "request_data must be a non-empty dictionary"
             )
+        if validate:
+            # Opt-in soft validation (issue #194). Deliberately runs before
+            # any query-param work so a bad code costs nothing.
+            try:
+                _validate_rs_borrowing_codes(request_data)
+            except AlmaValidationError as e:
+                self.logger.error(
+                    f"Rejected resource-sharing request body for user "
+                    f"{user_id.strip()} before sending: {e}"
+                )
+                raise
         clean_id = user_id.strip()
 
         params: Dict[str, Any] = {}

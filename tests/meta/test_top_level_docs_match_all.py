@@ -94,6 +94,9 @@ NON_DOMAIN_EXPORTS: frozenset[str] = frozenset(
         # Domain helper: a pure MARCXML builder function (issue #179), not a
         # domain class — no top-level docs surface to police.
         "build_alma_bib_xml",
+        # Domain helper: a pure resource-sharing request-body builder function
+        # (issue #197), not a domain class — same opt-out rationale.
+        "build_user_rs_request",
     }
 )
 

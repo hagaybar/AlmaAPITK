@@ -106,6 +106,52 @@ export const createSubBranchTask = defineTask('create-sub-branch', (args, taskCt
   io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
 }));
 
+// Anti-phantom gate (added 2026-07-19). Asserts that the implement step for
+// this issue actually produced work on the sub-branch, BEFORE the substantive
+// gates run and long before the merge.
+//
+// Why it exists: on chunk `rs-borrowing-ergonomics`, issue #194's implement
+// effect was never created — the run's task log held two `implement` effects,
+// both for #197. The per-issue loop went straight from create-sub-branch to
+// the gate chain. static/deny-paths/unit/contract all passed (correctly — the
+// branch was identical to the integration branch, so there was nothing to
+// fail), and `feat/194-…` was merged empty. The chunk would have been reported
+// implementation-complete with one of its two issues untouched.
+//
+// Two independent assertions, either of which would have caught it:
+//   1. at least one commit unique to the sub-branch references `Refs #<N>`
+//      (the commit-message convention the implement prompt mandates), and
+//   2. the sub-branch has a non-empty diff against the integration branch.
+//
+// Exit 2 on failure feeds the existing refinement loop, so a genuinely failed
+// implement attempt retries with feedback and ultimately raises a breakpoint
+// rather than silently merging nothing.
+export const verifyImplementedTask = defineTask('verify-implemented', (args, taskCtx) => ({
+  kind: 'shell',
+  title: `Verify issue #${args.issueNumber} actually produced work on its sub-branch`,
+  shell: {
+    command: `set -e
+cd "${args.repoRoot}"
+N=${args.issueNumber}
+BASE=chunk/${args.chunkName}
+COMMITS=$(git log --oneline "$BASE"..HEAD --grep="Refs #$N" | wc -l | tr -d ' ')
+if [ "$COMMITS" -lt 1 ]; then
+  echo "PHANTOM IMPLEMENT: no commit on this sub-branch references 'Refs #$N'." >&2
+  echo "Commits unique to the sub-branch:" >&2
+  git log --oneline "$BASE"..HEAD >&2 || true
+  exit 2
+fi
+if git diff --quiet "$BASE"...HEAD; then
+  echo "PHANTOM IMPLEMENT: sub-branch has no diff against $BASE for issue #$N." >&2
+  exit 2
+fi
+echo "ok: $COMMITS commit(s) referencing Refs #$N, diff is non-empty"
+`,
+    timeout: 30000,
+  },
+  io: { outputJsonPath: `tasks/${taskCtx.effectId}/output.json` },
+}));
+
 export const staticGatesTask = defineTask('static-gates', (args, taskCtx) => ({
   kind: 'shell',
   title: 'Static gates: py_compile + smoke_import',
@@ -329,11 +375,24 @@ export async function process(inputs, ctx) {
       // Convention: each shell task's posted output.json includes
       // {"exitCode": N}. exitCode === 0 means pass; anything else is a
       // gate failure that should drive the next refinement attempt.
+      // `implemented` MUST be first: it is the anti-phantom gate. Every other
+      // gate in this chain passes vacuously when the sub-branch is empty (there
+      // is no bad code to catch), so without this check a skipped or
+      // memo-resolved implement step sails through to merge and the issue is
+      // reported done with zero work on the branch. Observed 2026-07-19 on
+      // chunk rs-borrowing-ergonomics: #194's implement step never ran, all
+      // four gates went green, and the empty feat/194 branch was merged.
+      //
+      // Every entry carries `issueNumber` even where the command ignores it.
+      // The args object is what the SDK hashes into the invocation key, so
+      // omitting it made issue N's gates share an identity with issue N-1's —
+      // the same class of bug that let the phantom through.
       const gateChain = [
-        ['static', staticGatesTask, { repoRoot, chunkName }],
-        ['deny-paths', denyPathsTask, { repoRoot, chunkName }],
-        ['unit', unitTestsTask, { repoRoot }],
-        ['contract', contractTestTask, { repoRoot }],
+        ['implemented', verifyImplementedTask, { repoRoot, chunkName, issueNumber: issue.number }],
+        ['static', staticGatesTask, { repoRoot, chunkName, issueNumber: issue.number }],
+        ['deny-paths', denyPathsTask, { repoRoot, chunkName, issueNumber: issue.number }],
+        ['unit', unitTestsTask, { repoRoot, issueNumber: issue.number }],
+        ['contract', contractTestTask, { repoRoot, issueNumber: issue.number }],
       ];
       let firstFailedGate = null;
       let firstFailedExit = 0;

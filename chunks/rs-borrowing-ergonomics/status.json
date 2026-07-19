@@ -1,0 +1,17 @@
+{
+  "chunk": "rs-borrowing-ergonomics",
+  "issues": [
+    197,
+    194
+  ],
+  "stage": "defined",
+  "branch": "chunk/rs-borrowing-ergonomics",
+  "createdAt": "2026-07-19T10:32:16Z",
+  "updatedAt": "2026-07-19T10:32:16Z",
+  "lastEvent": "Chunk defined; awaiting implementation trigger.",
+  "nextAction": "chunks run-impl rs-borrowing-ergonomics",
+  "openBreakpoints": [],
+  "implRunId": null,
+  "testRunId": null,
+  "prUrl": null
+}

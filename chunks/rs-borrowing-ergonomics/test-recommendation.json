@@ -1,0 +1,336 @@
+{
+  "chunk": "rs-borrowing-ergonomics",
+  "branch": "chunk/rs-borrowing-ergonomics",
+  "createdAt": "2026-07-19T00:00:00+03:00",
+  "issues": [
+    {
+      "number": 197,
+      "title": "Add a builder for user resource-sharing request bodies (build_user_rs_request)",
+      "classification": "general",
+      "subBranch": "feat/197-add-a-builder-for-user-resourc",
+      "tests": [
+        {
+          "id": "t-197-1",
+          "kind": "smoke",
+          "scope": "Network-free proof, run against the shipped build the operator will actually install, that build_user_rs_request encodes Alma's plain-vs-{'value': ...} asymmetry correctly. Exercises: the package-root export (from almaapitk import build_user_rs_request); the wrapping asymmetry that is the whole point of issue #197 (owner plain, format/citation_type/pickup_location wrapped, pickup_location_type plain); plain-string handling of title/journal_title/author/external_id and int->str coercion of year; agree_to_copyright_terms defaulting to a real bool True; the 'extra' escape hatch (a plain string given for a wrapped field is wrapped, an already-wrapped dict passes through untouched, a plain field stays plain); the required-argument guards on owner/format/citation_type; and — via inspect — that Users.create_user_rs_request still takes request_data as a required positional (the raw-dict path is untouched) with validate as a keyword-only kwarg defaulting to False. The 'encoded exactly once' claim is checked structurally: both the builder and the extra-merge path resolve wrapping through the single module-level frozenset _RS_REQUEST_WRAPPED_FIELDS, so membership of that one set is asserted rather than each call site. The builder is a pure function: no SANDBOX state is read or mutated and no HTTP request is issued, which is exactly why this test carries no fixtures and no endpoints. The bulk of #197's behaviour is already pinned by tests/unit/regressions/test_issue_197.py and tests/unit/domains/test_users.py; this test exists only to confirm those guarantees survive into the installed artifact.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import inspect",
+            "from almaapitk import build_user_rs_request",
+            "from almaapitk.domains.users import Users, _RS_REQUEST_WRAPPED_FIELDS",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "root_export_ok = callable(build_user_rs_request)",
+            "body = build_user_rs_request(\n    owner='<RS_LIB>',\n    format='DIGITAL',\n    citation_type='CR',\n    title='AlmaAPITK chunk-test RS builder',\n    journal_title='AlmaAPITK test journal',\n    author='AlmaAPITK',\n    year=2026,\n    pickup_location='<PICKUP_LIB>',\n    pickup_location_type='LIBRARY',\n    agree_to_copyright_terms=True,\n    external_id='almaapitk-chunk-test-197',\n)",
+            "print(f'[t-197-1] built body keys={sorted(body)}')",
+            "owner_plain = isinstance(body['owner'], str) and body['owner'] == '<RS_LIB>'",
+            "wrapped_ok = (\n    body['format'] == {'value': 'DIGITAL'}\n    and body['citation_type'] == {'value': 'CR'}\n    and body['pickup_location'] == {'value': '<PICKUP_LIB>'}\n)",
+            "pickup_type_plain = body['pickup_location_type'] == 'LIBRARY'",
+            "plain_text_ok = (\n    body['title'] == 'AlmaAPITK chunk-test RS builder'\n    and body['journal_title'] == 'AlmaAPITK test journal'\n    and body['author'] == 'AlmaAPITK'\n    and body['external_id'] == 'almaapitk-chunk-test-197'\n    and body['year'] == '2026'\n)",
+            "copyright_ok = body['agree_to_copyright_terms'] is True",
+            "single_source_ok = (\n    {'format', 'citation_type', 'pickup_location'} <= _RS_REQUEST_WRAPPED_FIELDS\n    and 'owner' not in _RS_REQUEST_WRAPPED_FIELDS\n    and 'pickup_location_type' not in _RS_REQUEST_WRAPPED_FIELDS\n    and 'external_id' not in _RS_REQUEST_WRAPPED_FIELDS\n)",
+            "extra_body = build_user_rs_request(\n    owner='<RS_LIB>',\n    format='PHYSICAL',\n    citation_type='BK',\n    title='AlmaAPITK chunk-test extra escape hatch',\n    extra={\n        'partner': 'ILL_PARTNER',\n        'pickup_location': {'value': '<PICKUP_LIB>'},\n        'note': 'plain note',\n    },\n)",
+            "extra_wraps = extra_body['partner'] == {'value': 'ILL_PARTNER'}",
+            "extra_passthrough = extra_body['pickup_location'] == {'value': '<PICKUP_LIB>'}",
+            "extra_plain = extra_body['note'] == 'plain note'",
+            "guard_errors = {}\nfor label, kwargs in (\n    ('owner', {'owner': '', 'format': 'PHYSICAL', 'citation_type': 'BK'}),\n    ('format', {'owner': '<RS_LIB>', 'format': '', 'citation_type': 'BK'}),\n    ('citation_type', {'owner': '<RS_LIB>', 'format': 'PHYSICAL', 'citation_type': None}),\n):\n    try:\n        build_user_rs_request(**kwargs)\n    except AlmaValidationError as e:\n        guard_errors[label] = str(e)",
+            "sig = inspect.signature(Users.create_user_rs_request)",
+            "raw_dict_path_ok = (\n    'request_data' in sig.parameters\n    and sig.parameters['request_data'].default is inspect.Parameter.empty\n)",
+            "builder_is_opt_in = (\n    sig.parameters['validate'].default is False\n    and sig.parameters['validate'].kind is inspect.Parameter.KEYWORD_ONLY\n)",
+            "print(f'[t-197-1] owner_plain={owner_plain} wrapped_ok={wrapped_ok} pickup_type_plain={pickup_type_plain} single_source_ok={single_source_ok}')"
+          ],
+          "passCriteria": [
+            "root_export_ok is True — build_user_rs_request is importable from the package root (from almaapitk import build_user_rs_request) and callable",
+            "owner_plain is True — owner is emitted as a plain string, never wrapped in {'value': ...}",
+            "wrapped_ok is True — format, citation_type and pickup_location are each emitted as {'value': <code>}",
+            "pickup_type_plain is True — pickup_location_type is emitted as a plain string",
+            "plain_text_ok is True — title, journal_title, author and external_id are plain strings, and an int year is coerced to the string '2026'",
+            "copyright_ok is True — agree_to_copyright_terms defaults to the bool True (not the string 'True')",
+            "single_source_ok is True — the wrapped-field set _RS_REQUEST_WRAPPED_FIELDS contains format/citation_type/pickup_location and excludes owner/pickup_location_type/external_id, i.e. the wrapping rule has exactly one definition site",
+            "extra_wraps is True — a plain string passed through extra for a wrapped field is wrapped",
+            "extra_passthrough is True — an already-wrapped dict passed through extra is not double-wrapped",
+            "extra_plain is True — a plain field passed through extra is left plain",
+            "guard_errors has exactly the keys 'owner', 'format' and 'citation_type', and each message names the field it rejected",
+            "raw_dict_path_ok is True — Users.create_user_rs_request still accepts request_data as a required positional argument, so the raw-dict path is unchanged",
+            "builder_is_opt_in is True — validate is keyword-only and defaults to False, so neither the builder nor the new validation changes existing caller behaviour",
+            "No HTTP request is issued by this test (endpoints is empty) and no SANDBOX state is read or mutated"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-197-2",
+          "kind": "round-trip",
+          "scope": "Operator-authorized live round-trip: the one genuinely live-worthy check for #197 — that a body produced entirely by build_user_rs_request is ACCEPTED BY ALMA on a real create. Everything else about the builder is pure-function behaviour already covered by t-197-1 and the unit suite; only Alma can confirm that the emitted shape (owner plain, format/citation_type/pickup_location wrapped, pickup_location_type plain) is the shape Alma actually wants. Sequence: build -> create -> get (confirm request_id round-trips) -> cancel (DELETE with reason 'AUTOMATED_REGRESSION_TEST_CLEANUP' and notify_user=False so the test user is not emailed). The cancel is the cleanup happy path; the cleanup block only retries if it did not run or did not succeed. Code values are the empirically-passing SANDBOX values from the previous chunk's live test (format PHYSICAL, citation_type BOOK) so that a failure here points at the builder's SHAPE, not at a code-table guess. This also supplies the positive half of issue #194's reproduction ('changing format to PHYSICAL makes the same call succeed') and the 'no behavior change to valid calls' evidence for the error-hint work: a valid call must still succeed with no hint anywhere. external_id is sent as an idempotency/reconciliation key; whether Alma echoes it back on GET is recorded for information only and is NOT a pass criterion, since the issue does not claim Alma echoes it. Prerequisites: the test user must be affiliated with a resource-sharing library (Alma error 401768 otherwise) and ${rs_library_code} must be that library's code (error 401607 otherwise). Net SANDBOX state on a happy run: one created-then-cancelled RS request in the user's request history — the same audit artifact the previous chunk's t-42-3 produced. If the cancel fails, the operator must cancel the leftover request via the Alma staff UI; the printed reason string makes it unambiguous.",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/resource-sharing-requests",
+            "GET /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}",
+            "DELETE /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write resource-sharing-request smoke testing. The user MUST be affiliated with a resource-sharing library (Alma error 401768 otherwise). Used by t-197-2 (live create -> get -> cancel of a builder-produced body) and t-194-2 (deliberately-rejected wrong-code create). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            },
+            {
+              "key": "rs_library_code",
+              "description": "The Alma resource-sharing library code that ${existing_user_primary_id} is affiliated with — the 'owner' field of the resource-sharing request body. Required by Alma per error code 401607 ('Resource sharing library (owner) is missing'). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<RS_LIB>"
+            },
+            {
+              "key": "pickup_library_code",
+              "description": "The Alma library code to use as the pickup location for the resource-sharing request (the 'pickup_location' field, sent wrapped alongside pickup_location_type='LIBRARY'). Alma returns error 401894 ('Missing mandatory field: Pickup location library code') when it is absent. May be the same code as ${rs_library_code} if the RS library also accepts pickups. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<PICKUP_LIB>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk import build_user_rs_request",
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "users = Users(client)",
+            "built_body = None\ncreate_response = None\ncreate_data = None\nrequest_id = None\nget_response = None\nget_request_id_echo = None\nexternal_id_echo = None\ncancel_response = None\nraised_error = None",
+            "built_body = build_user_rs_request(\n    owner='${rs_library_code}',\n    format='PHYSICAL',\n    citation_type='BOOK',\n    title='AlmaAPITK chunk-test RS request (issue 197 builder)',\n    author='AlmaAPITK',\n    pickup_location='${pickup_library_code}',\n    pickup_location_type='LIBRARY',\n    agree_to_copyright_terms=True,\n    external_id='almaapitk-chunk-test-197',\n)",
+            "print(\n    '[t-197-2] built body: keys=%s owner_is_plain=%s format=%s pickup_location_type=%s'\n    % (\n        sorted(built_body),\n        isinstance(built_body['owner'], str),\n        built_body['format'],\n        built_body['pickup_location_type'],\n    )\n)",
+            "create_response = users.create_user_rs_request('${existing_user_primary_id}', built_body)",
+            "create_data = getattr(create_response, 'data', None)\nif isinstance(create_data, dict):\n    request_id = create_data.get('request_id') or create_data.get('id')\nprint(f'[t-197-2] RS request created: request_id={request_id!r}')",
+            "get_response = users.get_user_rs_request('${existing_user_primary_id}', str(request_id)) if request_id else None\nif isinstance(get_response, dict):\n    get_request_id_echo = get_response.get('request_id') or get_response.get('id')\n    external_id_echo = get_response.get('external_id')\nprint(f'[t-197-2] external_id echoed back by Alma: {external_id_echo!r} (informational only)')",
+            "cancel_response = users.cancel_user_rs_request(\n    '${existing_user_primary_id}',\n    str(request_id),\n    reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n    notify_user=False,\n) if request_id else None",
+            "print(f'[t-197-2] cancel success={getattr(cancel_response, \"success\", None)}')"
+          ],
+          "passCriteria": [
+            "create_response is not None and getattr(create_response, 'success', False) is True — Alma ACCEPTED a request body produced entirely by build_user_rs_request",
+            "No AlmaAPIError was raised on the create; in particular Alma did not return the cryptic 'Invalid field value ... Value: {1}' rejection that issue #197 exists to prevent",
+            "isinstance(create_data, dict) and request_id is not None — Alma returned a request_id for the created request",
+            "isinstance(get_response, dict) and str(get_request_id_echo) == str(request_id) — the created request is retrievable and round-trips its identifier",
+            "cancel_response is not None and getattr(cancel_response, 'success', False) is True — the request was cancelled, leaving no live SANDBOX state",
+            "No '[almaapitk hint:' text appears anywhere in this test's output — the issue-194 code-table hint must not fire on a valid call"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users as _UsersCleanup",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# Belt-and-braces: if the in-band cancel did not run (an earlier\n# assertion raised) or did not succeed, retry it with the same\n# documented reason. If it still fails, print a manual-cleanup banner\n# so the operator can cancel the leftover RS request via the Alma\n# staff UI. Do NOT re-raise from cleanup — let the original failure\n# surface.\ntry:\n    if request_id and (cancel_response is None or not getattr(cancel_response, 'success', False)):\n        _users_cleanup = _UsersCleanup(client)\n        _users_cleanup.cancel_user_rs_request(\n            '${existing_user_primary_id}',\n            str(request_id),\n            reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n            notify_user=False,\n        )\n        print(f'[t-197-2 cleanup] in-cleanup cancel succeeded for request_id={request_id!r}')\nexcept AlmaAPIError as cleanup_err:\n    print(\n        '\\n!!! [t-197-2] MANUAL CLEANUP REQUIRED !!!'\n        f'\\n!!! request_id: {request_id!r}'\n        '\\n!!! user: ${existing_user_primary_id}   RS library (owner): ${rs_library_code}'\n        f'\\n!!! reason: {cleanup_err}'\n        \"\\n!!! Cancel the leftover RS request via the Alma staff UI (title starts 'AlmaAPITK chunk-test').\\n\"\n    )"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-197-1 (derived from issue body — the issue has no formal AC section): a build_user_rs_request(...) helper exists that builds the correctly-shaped body from plain keyword arguments (owner, format, citation_type, title, journal_title, author, year, pickup_location, pickup_location_type, agree_to_copyright_terms, external_id, extra)": [
+          "t-197-1"
+        ],
+        "AC-197-2: owner is emitted as a plain string, NOT wrapped — the well-known Alma quirk": [
+          "t-197-1",
+          "t-197-2"
+        ],
+        "AC-197-3: format, citation_type and pickup_location are emitted wrapped as {\"value\": ...}": [
+          "t-197-1",
+          "t-197-2"
+        ],
+        "AC-197-4: pickup_location_type is emitted as a plain string": [
+          "t-197-1",
+          "t-197-2"
+        ],
+        "AC-197-5: extra= is an escape hatch for advanced fields, merged with the same wrapping rules (plain string for a wrapped field gets wrapped; an already-wrapped fragment passes through untouched)": [
+          "t-197-1"
+        ],
+        "AC-197-6: the wrapping rules (including the owner-plain quirk) are encoded exactly once": [
+          "t-197-1"
+        ],
+        "AC-197-7: the raw-dict path stays available for advanced callers — create_user_rs_request still accepts a hand-assembled request_data and forwards it verbatim": [
+          "t-197-1",
+          "t-194-2"
+        ],
+        "AC-197-8: the helper is part of the package's public surface (importable from the package root, per the 'Files to touch' entry src/almaapitk/__init__.py)": [
+          "t-197-1"
+        ],
+        "AC-197-9: a body produced by the builder is accepted by Alma on a real create — the correct shape avoids the cryptic 'Invalid field value ... Value: {1}' error the issue cites as the motivation": [
+          "t-197-2"
+        ]
+      },
+      "unmappable": []
+    },
+    {
+      "number": 194,
+      "title": "create_user_rs_request: no guardrail against wrong code-table values → cryptic Alma error",
+      "classification": "general",
+      "subBranch": "feat/194-create-user-rs-request-no-guar",
+      "tests": [
+        {
+          "id": "t-194-1",
+          "kind": "smoke",
+          "scope": "Network-free proof that the opt-in soft validation (issue #194 option 2) is wired into the public Users.create_user_rs_request path in the shipped build and fires BEFORE any HTTP request. Exercises: a wrong-table format code ('P', the purchase-request code that is the issue's reproduction case) raising AlmaValidationError that NAMES the field — the entire point, since Alma's own rejection names nothing; the same for pickup_location_type and citation_type; the deliberate permissiveness on citation_type (all four of BK, CR, BOOK, JOURNAL pass, because the XSD, the docs and the empirically-passing SANDBOX request disagree and the shipped code refuses to pick a side); acceptance of both encodings a caller may have used ({'value': '<code>'} wrapper and bare string), since create_user_rs_request forwards request_data verbatim; skipping (rather than rejecting) values that are not plain strings; validate being keyword-only with default False so tenants with extended code tables are unaffected; and the docstring carrying the purchase-vs-lending-vs-borrowing code cheat sheet (issue #194 option 3). The user id used is the literal placeholder '<user_primary_id>' which does not exist in SANDBOX — it passes the wrapper's non-empty-string guard but nothing more, so if validation ever FAILED to short-circuit the call, the leaked network request would surface as an AlmaAPIError instead of the expected AlmaValidationError and the test would fail loudly. That is deliberate: it is what makes 'before the network call' observable without a fixture. No SANDBOX state is read or mutated. The pass-direction assertions call the module-level pure helper _validate_rs_borrowing_codes directly, because driving them through the public method with a valid body would issue a real POST — which is exactly what this network-free test must not do.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import inspect",
+            "from almaapitk.domains.users import Users, _validate_rs_borrowing_codes",
+            "from almaapitk.client.AlmaAPIClient import AlmaValidationError",
+            "users = Users(client)",
+            "base_body = {\n    'owner': '<RS_LIB>',\n    'format': {'value': 'PHYSICAL'},\n    'citation_type': {'value': 'BOOK'},\n    'title': 'AlmaAPITK chunk-test validation probe (issue 194)',\n    'pickup_location_type': 'LIBRARY',\n    'pickup_location': {'value': '<PICKUP_LIB>'},\n    'agree_to_copyright_terms': True,\n}",
+            "format_error = None\ntry:\n    users.create_user_rs_request(\n        '<user_primary_id>',\n        {**base_body, 'format': {'value': 'P'}},\n        validate=True,\n    )\nexcept AlmaValidationError as e:\n    format_error = str(e)",
+            "pickup_type_error = None\ntry:\n    users.create_user_rs_request(\n        '<user_primary_id>',\n        {**base_body, 'pickup_location_type': 'BRANCH'},\n        validate=True,\n    )\nexcept AlmaValidationError as e:\n    pickup_type_error = str(e)",
+            "citation_error = None\ntry:\n    users.create_user_rs_request(\n        '<user_primary_id>',\n        {**base_body, 'citation_type': {'value': 'NOT_A_CODE'}},\n        validate=True,\n    )\nexcept AlmaValidationError as e:\n    citation_error = str(e)",
+            "permissive_ok = True\nfor code in ('BK', 'CR', 'BOOK', 'JOURNAL'):\n    try:\n        _validate_rs_borrowing_codes({'format': {'value': 'DIGITAL'}, 'citation_type': {'value': code}, 'pickup_location_type': 'LIBRARY'})\n    except AlmaValidationError:\n        permissive_ok = False",
+            "bare_string_ok = True\ntry:\n    _validate_rs_borrowing_codes({'format': 'DIGITAL', 'citation_type': 'BK'})\nexcept AlmaValidationError:\n    bare_string_ok = False",
+            "bare_string_rejects_bad_code = False\ntry:\n    _validate_rs_borrowing_codes({'format': 'P'})\nexcept AlmaValidationError:\n    bare_string_rejects_bad_code = True",
+            "skip_nonstring_ok = True\ntry:\n    _validate_rs_borrowing_codes({'format': {'value': {'nested': 'object'}}})\nexcept AlmaValidationError:\n    skip_nonstring_ok = False",
+            "unchecked_fields_ok = True\ntry:\n    _validate_rs_borrowing_codes({'owner': 'ANYTHING', 'title': 'anything at all'})\nexcept AlmaValidationError:\n    unchecked_fields_ok = False",
+            "sig = inspect.signature(Users.create_user_rs_request)\nvalidate_default_off = (\n    sig.parameters['validate'].default is False\n    and sig.parameters['validate'].kind is inspect.Parameter.KEYWORD_ONLY\n)",
+            "doc = Users.create_user_rs_request.__doc__ or ''\ncheatsheet_ok = (\n    'PHYSICAL' in doc\n    and 'DIGITAL' in doc\n    and 'purchase' in doc.lower()\n    and 'lending' in doc.lower()\n)",
+            "print(f'[t-194-1] format_error_raised={format_error is not None} pickup_type_error_raised={pickup_type_error is not None} citation_error_raised={citation_error is not None} validate_default_off={validate_default_off}')"
+          ],
+          "passCriteria": [
+            "format_error is not None — an AlmaValidationError (not an AlmaAPIError) was raised, proving the check ran before any HTTP request left the process",
+            "format_error contains the field name 'format' and the rejected value 'P' — the guardrail names the offending field, which Alma's own error never does",
+            "format_error lists the expected codes: it contains both 'PHYSICAL' and 'DIGITAL'",
+            "pickup_type_error is not None and contains 'pickup_location_type'",
+            "citation_error is not None and contains 'citation_type'",
+            "permissive_ok is True — all four of BK, CR, BOOK and JOURNAL are accepted for citation_type; the shipped check does not pick a side in the XSD-vs-empirical disagreement",
+            "bare_string_ok is True and bare_string_rejects_bad_code is True — both the {'value': ...} wrapper and a bare string are understood, since request_data is forwarded verbatim",
+            "skip_nonstring_ok is True — a value that is not a plain string is skipped rather than rejected",
+            "unchecked_fields_ok is True — only format, citation_type and pickup_location_type are inspected; nothing else about the body is validated or normalised",
+            "validate_default_off is True — validate is keyword-only and defaults to False, so tenants with extended code tables are opted out by default",
+            "cheatsheet_ok is True — the create_user_rs_request docstring carries the borrowing code values and references the purchase and lending surfaces",
+            "No HTTP request is issued by this test (endpoints is empty) and no SANDBOX state is read or mutated"
+          ],
+          "cleanup": null
+        },
+        {
+          "id": "t-194-2",
+          "kind": "edge-case",
+          "scope": "Operator-authorized live reproduction of the issue: deliberately POST a wrong-code-table value to the RS-borrowing endpoint and confirm the client turns Alma's dead-end error into an actionable one. This is the one part of #194 that unit tests cannot settle, because it depends on Alma actually still emitting the mangled 'Invalid field value. Field: [Ljava.lang.Object;@..., Value: {1}' message — the client only appends its hint when it detects that exact shape. The payload is byte-for-byte the known-good body from the previous chunk's passing live test EXCEPT format, which is set to the purchase-request code 'P' (the issue's exact reproduction). validate= is deliberately NOT passed, which does double duty: it proves validation is off by default (the request reaches Alma at all) and it lets the error-hint path run. Expected outcome: Alma rejects the create with HTTP 400, the wrapper raises AlmaAPIError, and the message carries an appended '[almaapitk hint: ...]' naming format/PHYSICAL/DIGITAL and pointing at build_user_rs_request and validate=True. Because the create is rejected, no request should be created — but this test still issues a POST to a mutating endpoint, so it is declared stateChanging with a defensive cleanup that cancels anything Alma unexpectedly accepted. IF THE REPRODUCTION NO LONGER REPRODUCES: should Alma have fixed its message-template rendering upstream so the error now names the field, 'mangled_shape' will be False and the client will (correctly, by design) append no hint. That is an upstream environment change, not a defect in this chunk — record it in the results and treat the hint criteria as not-applicable; the hint logic itself is pinned unconditionally by t-194-3 and by tests/unit/regressions/test_issue_194.py. Prerequisites are the same as t-197-2: the test user must be affiliated with the resource-sharing library supplied as ${rs_library_code}.",
+          "endpoints": [
+            "POST /almaws/v1/users/{user_id}/resource-sharing-requests",
+            "DELETE /almaws/v1/users/{user_id}/resource-sharing-requests/{request_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [
+            {
+              "key": "existing_user_primary_id",
+              "description": "An existing Alma user_primary_id in SANDBOX that the operator has authorized for read/write resource-sharing-request smoke testing. The user MUST be affiliated with a resource-sharing library (Alma error 401768 otherwise). Used by t-197-2 (live create -> get -> cancel of a builder-produced body) and t-194-2 (deliberately-rejected wrong-code create). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real user_primary_id into this file.",
+              "example": "<user_primary_id>"
+            },
+            {
+              "key": "rs_library_code",
+              "description": "The Alma resource-sharing library code that ${existing_user_primary_id} is affiliated with — the 'owner' field of the resource-sharing request body. Required by Alma per error code 401607 ('Resource sharing library (owner) is missing'). Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<RS_LIB>"
+            },
+            {
+              "key": "pickup_library_code",
+              "description": "The Alma library code to use as the pickup location for the resource-sharing request (the 'pickup_location' field, sent wrapped alongside pickup_location_type='LIBRARY'). Alma returns error 401894 ('Missing mandatory field: Pickup location library code') when it is absent. May be the same code as ${rs_library_code} if the RS library also accepts pickups. Synthetic placeholder only — the SANDBOX-test runner substitutes a real value at runtime; never write a real library code into this file.",
+              "example": "<PICKUP_LIB>"
+            }
+          ],
+          "pythonCalls": [
+            "from almaapitk.domains.users import Users",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError, AlmaInvalidPolModeError",
+            "users = Users(client)",
+            "raised = None\nunexpected_response = None\nunexpected_request_id = None\nmessage = ''",
+            "wrong_code_body = {\n    'owner': '${rs_library_code}',\n    'format': {'value': 'P'},\n    'citation_type': {'value': 'BOOK'},\n    'title': 'AlmaAPITK chunk-test wrong-code probe (issue 194)',\n    'author': 'AlmaAPITK',\n    'pickup_location_type': 'LIBRARY',\n    'pickup_location': {'value': '${pickup_library_code}'},\n    'agree_to_copyright_terms': True,\n}",
+            "print('[t-194-2] posting a deliberately wrong format code (P = purchase-request table) with validate= NOT passed, to provoke Alma mangled error')",
+            "try:\n    unexpected_response = users.create_user_rs_request('${existing_user_primary_id}', wrong_code_body)\n    _data = getattr(unexpected_response, 'data', None)\n    if isinstance(_data, dict):\n        unexpected_request_id = _data.get('request_id') or _data.get('id')\nexcept AlmaAPIError as e:\n    raised = e",
+            "message = str(raised) if raised is not None else ''",
+            "mangled_shape = 'invalid field value' in message.lower()",
+            "hint_present = '[almaapitk hint:' in message",
+            "hint_names_format = \"'format'\" in message and 'PHYSICAL/DIGITAL' in message",
+            "hint_points_at_helpers = 'build_user_rs_request' in message and 'validate=True' in message",
+            "not_a_pol_error = not isinstance(raised, AlmaInvalidPolModeError)",
+            "raw_dict_reached_alma = raised is not None or unexpected_response is not None",
+            "print(f'[t-194-2] raised={type(raised).__name__ if raised is not None else None} mangled_shape={mangled_shape} hint_present={hint_present} unexpected_request_id={unexpected_request_id!r}')"
+          ],
+          "passCriteria": [
+            "raised is not None and isinstance(raised, AlmaAPIError) — Alma rejected the wrong-code body",
+            "unexpected_response is None and unexpected_request_id is None — no resource-sharing request was created",
+            "raw_dict_reached_alma is True — the hand-assembled raw dict was forwarded to Alma verbatim and the request left the process, proving validation is OFF by default (validate= was not passed)",
+            "mangled_shape is True — Alma still returns its 'Invalid field value ...' message, i.e. the issue-194 reproduction still reproduces in SANDBOX (see the scope note if this is False)",
+            "hint_present is True — the client appended an '[almaapitk hint: ...]' suffix to Alma's un-actionable message",
+            "hint_names_format is True — the hint names 'format' and its expected PHYSICAL/DIGITAL values",
+            "hint_points_at_helpers is True — the hint points the caller at build_user_rs_request and validate=True",
+            "not_a_pol_error is True — the exception is not AlmaInvalidPolModeError; the acquisitions meaning of a colliding error code must not leak onto the RS surface",
+            "hasattr(raised, 'tracking_id') is True — the hint is message-only; the exception's attributes are unchanged"
+          ],
+          "cleanup": [
+            "from almaapitk.domains.users import Users as _UsersCleanup",
+            "from almaapitk.client.AlmaAPIClient import AlmaAPIError",
+            "# The create is EXPECTED to be rejected, so normally there is nothing\n# to clean up. This block exists because the test issues a POST to a\n# mutating endpoint: if Alma unexpectedly ACCEPTED the wrong-code body,\n# cancel the resulting request immediately so no live SANDBOX state is\n# left behind. Do NOT re-raise — let the original failure surface.\ntry:\n    if unexpected_request_id:\n        _users_cleanup = _UsersCleanup(client)\n        _users_cleanup.cancel_user_rs_request(\n            '${existing_user_primary_id}',\n            str(unexpected_request_id),\n            reason='AUTOMATED_REGRESSION_TEST_CLEANUP',\n            notify_user=False,\n        )\n        print(f'[t-194-2 cleanup] cancelled unexpectedly-created request_id={unexpected_request_id!r}')\n    else:\n        print('[t-194-2 cleanup] nothing to clean up: Alma rejected the wrong-code create, as expected')\nexcept AlmaAPIError as cleanup_err:\n    print(\n        '\\n!!! [t-194-2] MANUAL CLEANUP REQUIRED !!!'\n        f'\\n!!! request_id: {unexpected_request_id!r}'\n        '\\n!!! user: ${existing_user_primary_id}   RS library (owner): ${rs_library_code}'\n        f'\\n!!! reason: {cleanup_err}'\n        \"\\n!!! Cancel the leftover RS request via the Alma staff UI (title starts 'AlmaAPITK chunk-test').\\n\"\n    )"
+          ]
+        },
+        {
+          "id": "t-194-3",
+          "kind": "smoke",
+          "scope": "Network-free proof, against the shipped build, of the two client-side error-surfacing behaviours that t-194-2 can only sample once: (a) the mangled-message detector and its endpoint-scoped hint selection, and (b) the error-code classification changes. Exercises: the RS-borrowing hint is chosen when the failing URL is on the resource-sharing surface; the generic hint is chosen elsewhere; a well-rendered Alma 'Invalid field value' message that DOES name its field is left completely untouched (no hint — the additive change must not degrade already-actionable errors); an unrelated error message is returned unchanged; the 40166411 collision is resolved endpoint-scoped, so the code keeps its acquisitions AlmaInvalidPolModeError meaning by default but does NOT produce a misleading POL-mode exception on the RS surface; and 401890 ('User with identifier X of type Y was not found', delivered as HTTP 400 so the 404 status fallback never fires) is mapped to AlmaResourceNotFoundError like its near-twin 401861. All calls are pure functions over strings — no HTTP request is issued and no SANDBOX state is read or mutated.",
+          "endpoints": [],
+          "stateChanging": false,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "from almaapitk.client.AlmaAPIClient import (\n    ERROR_CODE_REGISTRY,\n    AlmaAPIError,\n    AlmaInvalidPolModeError,\n    AlmaResourceNotFoundError,\n    _augment_code_table_error_message,\n)",
+            "rs_url = 'https://api-eu.hosted.exlibrisgroup.com/almaws/v1/users/<user_primary_id>/resource-sharing-requests'\nrs_action_url = rs_url + '/00000000000000'\nother_url = 'https://api-eu.hosted.exlibrisgroup.com/almaws/v1/acq/po-lines/POL-00000'",
+            "mangled = 'Invalid field value. Field: [Ljava.lang.Object;@2f3cde3, Value: {1}'",
+            "rs_hinted = _augment_code_table_error_message(mangled, rs_url)",
+            "generic_hinted = _augment_code_table_error_message(mangled, other_url)",
+            "well_rendered = 'Invalid field value. Field: format, Value: P'\nuntouched = _augment_code_table_error_message(well_rendered, rs_url)",
+            "unrelated_in = 'User with identifier X of type Y was not found.'\nunrelated_out = _augment_code_table_error_message(unrelated_in, rs_url)",
+            "pol_default = client._classify_error(400, '40166411', None)",
+            "pol_on_rs = client._classify_error(400, '40166411', rs_action_url)",
+            "user_not_found = client._classify_error(400, '401890', rs_url)",
+            "registry_401890 = ERROR_CODE_REGISTRY.get('401890')\nregistry_40166411 = ERROR_CODE_REGISTRY.get('40166411')",
+            "print(f'[t-194-3] pol_default={pol_default.__name__} pol_on_rs={pol_on_rs.__name__} user_not_found={user_not_found.__name__}')"
+          ],
+          "passCriteria": [
+            "rs_hinted starts with the original mangled message and contains '[almaapitk hint:', 'PHYSICAL/DIGITAL', 'BK/CR', 'build_user_rs_request' and 'validate=True'",
+            "generic_hinted contains '[almaapitk hint:' but does NOT contain 'PHYSICAL/DIGITAL' — the hint is endpoint-scoped, not one-size-fits-all",
+            "untouched == well_rendered — an Alma error that DID name its field gets no hint appended (purely additive, never degrading)",
+            "unrelated_out == unrelated_in — messages that are not the mangled 'Invalid field value' shape are returned unchanged",
+            "pol_default is AlmaInvalidPolModeError — off the RS surface, error code 40166411 keeps its acquisitions meaning (no regression)",
+            "pol_on_rs is AlmaAPIError and pol_on_rs is not AlmaInvalidPolModeError — on the RS surface the collision is resolved so a bad parameter is not reported as a POL-mode error",
+            "user_not_found is AlmaResourceNotFoundError and registry_401890 is AlmaResourceNotFoundError — 401890 is mapped despite arriving as HTTP 400",
+            "registry_40166411 is AlmaInvalidPolModeError — the registry default is unchanged; only the endpoint-scoped override differs",
+            "No HTTP request is issued by this test (endpoints is empty) and no SANDBOX state is read or mutated"
+          ],
+          "cleanup": null
+        }
+      ],
+      "acceptanceMapping": {
+        "AC-194-1 (derived from issue body — the issue has no formal AC section; taken from 'Suggestions' option 1): the response error handler detects the 'Invalid field value ... [Ljava.lang.Object; ... {1}' shape and raises AlmaAPIError with an appended actionable hint": [
+          "t-194-2",
+          "t-194-3"
+        ],
+        "AC-194-2 (option 1): the hint names the likely culprits for the RS-borrowing surface — format expects PHYSICAL/DIGITAL, citation_type expects BOOK/CR": [
+          "t-194-2",
+          "t-194-3"
+        ],
+        "AC-194-3 (option 1): the change is purely additive — no behaviour change to valid calls, exception class and attributes unchanged, and already-actionable Alma errors are left alone": [
+          "t-194-3",
+          "t-194-2",
+          "t-197-2"
+        ],
+        "AC-194-4 (option 2): the well-known borrowing code-table fields (format, citation_type, pickup_location_type) are validated against documented defaults BEFORE the network call, raising AlmaValidationError that names the field": [
+          "t-194-1"
+        ],
+        "AC-194-5 (option 2): the validation is gated behind a validate= kwarg so tenants with custom/extended code tables can opt out": [
+          "t-194-1",
+          "t-194-2"
+        ],
+        "AC-194-6 (Reproduction section): sending format {\"value\": \"P\"} on the borrowing endpoint is rejected by Alma with the un-actionable error, while the same payload with a documented format code succeeds": [
+          "t-194-2",
+          "t-197-2"
+        ],
+        "AC-194-7 (option 3): a known-good borrowing payload and the purchase-vs-lending-vs-borrowing code cheat sheet are documented in the docstring / API reference, and/or a builder helper that emits the correctly-wrapped body is shipped": [
+          "t-194-1",
+          "t-197-1",
+          "t-197-2"
+        ],
+        "AC-194-8 (derived from the shipped diff, within this issue's error-surfacing scope): the swagger cross-check results land in the registry — 401890 maps to AlmaResourceNotFoundError, and the 40166411 cross-domain collision is disambiguated on the RS surface without changing its acquisitions meaning": [
+          "t-194-3"
+        ]
+      },
+      "unmappable": [
+        {
+          "ac": "AC-194-9 (from the issue's 'Why this is easy to hit' table): settle which citation_type codes the borrowing surface actually accepts — the borrowing XSD and docs/Alma Borrowing Request API Guide.md say BK/CR, while the passing SANDBOX request in chunks/users-requests-followup/sandbox-tests/test_t_42_3.py used BOOK, and the lending/purchase surfaces use BOOK/JOURNAL.",
+          "reason": "Determining Alma's real accepted set would take one state-changing live create per candidate code (four creates plus four cancels, each leaving an audit artifact on the test user), and the answer would still not generalise: Alma code tables are tenant-extensible, so a SANDBOX result is evidence about this institution's configuration only — which is precisely why the shipped check is opt-in and accepts all four codes rather than picking a side. Testing it here would produce a library-level guarantee the library cannot make. Recommend resolving with Ex Libris support (or by inspecting the tenant's own Citation Type code table in the Alma config UI) and then narrowing _RS_BORROWING_CITATION_TYPE_CODES in a follow-up issue, rather than probing SANDBOX."
+        }
+      ]
+    }
+  ]
+}

@@ -4869,6 +4869,185 @@ class TestCreateUserRsRequest:
 
 
 # ---------------------------------------------------------------------------
+# create_user_rs_request — opt-in code-table validation  (issue #194)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserRsRequestValidation:
+    """Tests for the ``validate=`` kwarg on ``Users.create_user_rs_request``."""
+
+    @staticmethod
+    def _client() -> MockAlmaAPIClient:
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "rs-194"}
+        )
+        return mock_client
+
+    def test_validation_is_off_by_default(self):
+        """A wrong-table code must still be forwarded when ``validate`` is
+        omitted — the check is strictly opt-in."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {"format": {"value": "P"}, "citation_type": {"value": "BOOK"}}
+        response = users.create_user_rs_request("u1", request_data=body)
+
+        assert mock_client.calls["post"][0]["data"] == body
+        assert response.data["request_id"] == "rs-194"
+
+    def test_validate_true_rejects_purchase_format_code(self):
+        """``format: P`` is the purchase-request code — reject and name the
+        field instead of letting Alma return its unrenderable error."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={
+                    "format": {"value": "P"},
+                    "citation_type": {"value": "BOOK"},
+                },
+                validate=True,
+            )
+
+        assert "format" in str(exc_info.value)
+        assert "PHYSICAL" in str(exc_info.value)
+        # No network call may be made once validation fails.
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_accepts_documented_codes(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {
+            "owner": "RS_LIB",
+            "format": {"value": "PHYSICAL"},
+            "citation_type": {"value": "BK"},
+            "pickup_location_type": "LIBRARY",
+        }
+        users.create_user_rs_request("u1", request_data=body, validate=True)
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/resource-sharing-requests"
+        )
+        # Validation must not normalise or rewrite the body.
+        assert call["data"] == body
+
+    @pytest.mark.parametrize("code", ["BK", "CR", "BOOK", "JOURNAL"])
+    def test_validate_true_is_permissive_about_citation_type(self, code):
+        """The XSD says BK/CR, SANDBOX accepted BOOK, lending uses
+        BOOK/JOURNAL — the sources disagree, so all four pass."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        users.create_user_rs_request(
+            "u1",
+            request_data={
+                "format": {"value": "DIGITAL"},
+                "citation_type": {"value": code},
+            },
+            validate=True,
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+
+    def test_validate_true_rejects_unknown_citation_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={"citation_type": {"value": "ARTICLE"}},
+                validate=True,
+            )
+
+        assert "citation_type" in str(exc_info.value)
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_rejects_unknown_pickup_location_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={"pickup_location_type": "DESK"},
+                validate=True,
+            )
+
+        assert "pickup_location_type" in str(exc_info.value)
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_accepts_unwrapped_code_values(self):
+        """``request_data`` is forwarded verbatim, so a caller may have used
+        the bare-string encoding — validate it the same way."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        users.create_user_rs_request(
+            "u1", request_data={"format": "DIGITAL"}, validate=True
+        )
+        assert len(mock_client.calls["post"]) == 1
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_rs_request(
+                "u1", request_data={"format": "E"}, validate=True
+            )
+        assert len(mock_client.calls["post"]) == 1
+
+    def test_validate_true_ignores_absent_and_unreadable_fields(self):
+        """Fields not present, and values that are not plain strings, are
+        forwarded without an opinion."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {
+            "title": "Sample title",
+            # No ``value`` key — nothing to check against a code table.
+            "format": {"desc": "Physical"},
+            "citation_type": {"value": 7},
+        }
+        users.create_user_rs_request("u1", request_data=body, validate=True)
+
+        assert mock_client.calls["post"][0]["data"] == body
+
+    def test_validate_true_still_rejects_empty_request_data_first(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_rs_request("u1", request_data={}, validate=True)
+        assert mock_client.calls["post"] == []
+
+
+# ---------------------------------------------------------------------------
 # get_user_rs_request  (issue #42)
 # ---------------------------------------------------------------------------
 

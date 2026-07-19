@@ -1,0 +1,31 @@
+{
+  "chunk": "create-record-from-fields",
+  "issues": [
+    {
+      "number": 179,
+      "title": "create_record_from_fields \u2014 build & create a bib from a native JSON field structure (+ optional pymarc adapter)",
+      "url": "https://github.com/hagaybar/AlmaAPITK/issues/179",
+      "labels": [
+        "enhancement",
+        "priority:medium"
+      ],
+      "body_raw": "**Complexity:** M\n**Benefit:** Medium\n\n**Context**\n\nToday the only way to create a bib is `BibliographicRecords.create_record(marc_xml)`, which requires the caller to hand-build Alma's non-namespaced `<bib><record>\u2026</record></bib>` XML. Callers that hold structured field data (e.g. an incoming feed, a Power Automate flow, the new `ai_cataloging` project) have to assemble MARCXML by hand \u2014 error-prone, and it re-invents escaping/indicator/subfield handling each time.\n\nAdd a higher-level, structure-driven way to create a record, without forcing any particular MARC library on callers.\n\n**Proposed API** (three layers, all funnel into the existing `create_record`)\n\n```\ncreate_record(xml)                \u2190 exists: caller brings raw <bib><record> XML\ncreate_record_from_fields(spec)   \u2190 NEW core: native JSON structure, zero extra deps\ncreate_record_from_pymarc(record) \u2190 NEW optional: pymarc adapter \u2192 spec \u2192 builder\n```\n\n**Native structure** (`spec`) \u2014 plain JSON-serializable dicts/lists, so it's usable from non-Python callers (Power Automate) too:\n\n```python\nspec = {\n  \"leader\": \"     nam a22     3u 4500\",   # optional; documented default if omitted\n  \"fields\": [\n    {\"tag\": \"008\", \"data\": \"...\"},                          # control field: 'data'\n    {\"tag\": \"245\", \"ind1\": \"1\", \"ind2\": \"0\",                # data field: indicators + subfields\n     \"subfields\": [[\"a\", \"Data Reduction Methods\"]]},\n    {\"tag\": \"650\", \"ind1\": \" \", \"ind2\": \"0\", \"subfields\": [[\"a\", \"Data reduction\"]]},\n    {\"tag\": \"650\", \"ind1\": \" \", \"ind2\": \"0\", \"subfields\": [[\"a\", \"Data science\"]]},\n  ],\n}\n```\n\n**Pure builder helper:** `build_alma_bib_xml(spec) -> str` \u2014 no network, unit-testable in isolation. Requirements:\n- Emit Alma's **non-namespaced** `<bib><record>` shape (NOT pymarc slim-MARCXML namespace).\n- Preserve field order; support **repeated fields** (multiple `650`) and **repeated subfields** within a field.\n- Control fields (`00X`) \u2192 `<controlfield tag=\"\u2026\">data</controlfield>`; data fields \u2192 `ind1`/`ind2` attrs + `<subfield code=\"\u2026\">`.\n- Let `ElementTree` handle XML escaping \u2014 **do not** pre-escape (avoids the double-escaping in the current `_sanitize_xml_text` + ET path); strip only illegal control chars.\n- Use `spec[\"leader\"]` if present, else a documented default; caller owns leader validity.\n\n**Optional pymarc adapter:** `create_record_from_pymarc(record)` converts a `pymarc.Record` \u2192 `spec` \u2192 `build_alma_bib_xml` \u2192 `create_record`. `pymarc` is declared as an **optional extra** (`almaapitk[pymarc]`) and imported lazily; using the adapter without it installed raises a clear, actionable error. Core install stays dependency-light.\n\n**Backward compatibility & versioning**\n- Purely additive; no change to existing signatures/behavior. Minor bump (\u2192 `0.5.0`), publish to PyPI.\n\n**Testing**\n- Unit tests for `build_alma_bib_xml`: repeated `650`s, repeated subfields, control field, indicators (incl. blank), special chars (`&`, `<`) escaped exactly once, leader present/defaulted.\n- `create_record_from_fields`/`_from_pymarc`: mock client, assert POST body + `content_type=application/xml`.\n- Adapter test skipped when pymarc absent (guard).\n- Regression test `tests/unit/regressions/test_issue_179.py`.\n\n**Acceptance criteria**\n- [ ] `create_record_from_fields(spec)` creates a bib in SANDBOX from the native structure.\n- [ ] `build_alma_bib_xml` produces valid Alma `<bib><record>` XML (verified against the 4 `ai_cataloging` samples).\n- [ ] pymarc path works with `almaapitk[pymarc]`; clear error without it; core install pulls no pymarc.\n- [ ] No double-escaping; repeated fields/subfields preserved.\n- [ ] Version bumped, changelog/docs updated.\n\n**Out of scope**\n- Thesis-specific enrichment (008/502/040) and the input-text parsing \u2014 those live in `ai_cataloging`.\n\n\n## Files to touch\n\n- `src/almaapitk/domains/bibs.py` \u2014 add `create_record_from_fields`, `create_record_from_pymarc`, and the pure `build_alma_bib_xml` helper (funnel into the existing `create_record`)\n- `src/almaapitk/__init__.py` \u2014 export `build_alma_bib_xml` if it becomes a public symbol\n- `pyproject.toml` \u2014 add the optional `pymarc` extra; version bump \u2192 `0.5.0`\n- `tests/unit/domains/test_bibs.py` \u2014 `build_alma_bib_xml` + method unit tests (mock client, assert POST body + `content_type=application/xml`)\n- `tests/unit/regressions/test_issue_179.py` \u2014 regression test for #179\n- `CHANGELOG.md` \u2014 `0.5.0` entry documenting the additive API\n",
+      "domain": "Architecture",
+      "priority": "medium",
+      "effort": "M",
+      "endpoints": [],
+      "files_to_touch": [
+        "src/almaapitk/domains/bibs.py",
+        "src/almaapitk/__init__.py",
+        "pyproject.toml",
+        "tests/unit/domains/test_bibs.py",
+        "tests/unit/regressions/test_issue_179.py",
+        "CHANGELOG.md"
+      ],
+      "references": [],
+      "hard_prereqs": [],
+      "soft_prereqs": [],
+      "acceptance_criteria": []
+    }
+  ]
+}

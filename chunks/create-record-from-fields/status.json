@@ -1,0 +1,16 @@
+{
+  "chunk": "create-record-from-fields",
+  "issues": [
+    179
+  ],
+  "stage": "merged",
+  "branch": "chunk/create-record-from-fields",
+  "createdAt": "2026-07-08T18:40:18Z",
+  "updatedAt": "2026-07-19T12:04:48Z",
+  "lastEvent": "PR merged (https://github.com/hagaybar/AlmaAPITK/pull/201)",
+  "nextAction": "soak before prod release; promotion is manual (R1)",
+  "openBreakpoints": [],
+  "implRunId": "01KX1GHX3JBJ8F5W8YDH3YQ8E7",
+  "testRunId": "01KX51P17ZZHXZ0NXZ26RJCT9S",
+  "prUrl": "https://github.com/hagaybar/AlmaAPITK/pull/201"
+}

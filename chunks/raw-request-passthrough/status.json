@@ -1,0 +1,16 @@
+{
+  "chunk": "raw-request-passthrough",
+  "issues": [
+    183
+  ],
+  "stage": "aborted",
+  "branch": "chunk/raw-request-passthrough",
+  "createdAt": "2026-07-12T04:07:29Z",
+  "updatedAt": "2026-07-19T12:00:26Z",
+  "lastEvent": "aborted by operator",
+  "nextAction": "inspect branches and clean up manually",
+  "openBreakpoints": [],
+  "implRunId": null,
+  "testRunId": null,
+  "prUrl": null
+}

@@ -1,0 +1,62 @@
+{
+  "chunk": "bibs-marc-fixes",
+  "testRunStartedAt": "2026-07-12T11:30:58Z",
+  "testRunFinishedAt": "2026-07-12T11:32:15Z",
+  "perTest": [
+    {
+      "id": "t-184-1",
+      "outcome": "passed",
+      "issueNumber": 184,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "PASSED (pytest: 1 passed in 1.79s). Repeatable-650 non-destructive update: created a throwaway seed bib with three 650 subject headings, ran default replace_first update_marc_field(mms,'650',{'a':'Physics -- data reduction'}); re-fetch showed all three 650s survive (len==3), first occurrence rewritten in place, Astrophysics + Cosmology preserved verbatim. Seed bib deleted (CLEANUP OK). Live corroboration of #184 3->1 silent-data-loss fix; offline pin tests/unit/regressions/test_issue_184.py."
+    },
+    {
+      "id": "t-184-2",
+      "outcome": "passed",
+      "issueNumber": 184,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "PASSED (pytest: 1 passed in 1.82s). mode='append' path: created a three-650 seed bib, ran update_marc_field(mms,'650',{'a':'Particle physics'},mode='append'); re-fetch showed four 650s (len==4) with the three originals intact plus the appended heading, no deletion. Seed bib deleted (CLEANUP OK). Covers the #184 supported-non-destructive-append acceptance criterion."
+    },
+    {
+      "id": "t-185-1",
+      "outcome": "passed",
+      "issueNumber": 185,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "PASSED (pytest: 1 passed in 1.89s). Ordered [code,value]-pair editing path with repeated $x: created a single-650 seed bib, ran update_marc_field(mms,'650',[['a','Science'],['x','History'],['x','20th century']]); re-fetch round-tripped pairs_650 == [('a','Science'),('x','History'),('x','20th century')] with both distinct $x values in order (impossible via the pre-fix dict path). Seed bib deleted (CLEANUP OK). Covers #185 dict-typed-subfield fix; offline pin test_issue_185.py."
+    },
+    {
+      "id": "t-186-1",
+      "outcome": "passed",
+      "issueNumber": 186,
+      "stateChanging": true,
+      "cleanupStatus": "ok",
+      "details": "PASSED (pytest: 1 passed in 2.68s). Escaping round-trip: created a 245 seed bib, ran update_marc_field(mms,'245',[['a','Law & order <suppl> report']],ind1='1',ind2='0'); re-fetch decoded 245 $a exactly once to the literal 'Law & order <suppl> report' and raw MARCXML carried no doubly-escaped '&amp;amp;'. Seed bib deleted (CLEANUP OK). Covers #186 double-escaping fix; offline pin test_issue_186.py."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 184,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 185,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 186,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": false
+    }
+  ]
+}

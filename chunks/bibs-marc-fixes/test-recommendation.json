@@ -1,0 +1,219 @@
+{
+  "chunk": "bibs-marc-fixes",
+  "branch": "chunk/bibs-marc-fixes",
+  "createdAt": "2026-07-12T10:19:24Z",
+  "issues": [
+    {
+      "number": 184,
+      "title": "bibs: update_marc_field silently deletes repeated instances of a repeatable MARC field (data loss)",
+      "classification": "general",
+      "subBranch": "feat/184-bibs-update-marc-field-silentl",
+      "tests": [
+        {
+          "id": "t-184-1",
+          "kind": "round-trip",
+          "scope": "Live-SANDBOX proof of the #184 fix: updating one instance of a repeatable tag must not delete the others. Creates a throwaway seed bib carrying three 650 subject headings (Physics / Astrophysics / Cosmology), calls update_marc_field(created_mms_id, '650', {'a': 'Physics -- data reduction'}) with the default non-destructive mode (replace_first), re-fetches the record and asserts all three 650s survive with only the first occurrence rewritten. Pre-fix, _build_updated_marc_xml replaced the first 650 and continue-d past the rest, collapsing three subject headings to one silently. The starting state is fully self-contained (a bib this test creates), so no operator record is touched; cleanup deletes the seed bib. The exact XML-rebuild logic is pinned offline by tests/unit/regressions/test_issue_184.py; this is end-to-end corroboration through a real Alma GET+PUT round-trip.",
+          "endpoints": [
+            "POST /almaws/v1/bibs",
+            "GET /almaws/v1/bibs/{mms_id}",
+            "PUT /almaws/v1/bibs/{mms_id}",
+            "DELETE /almaws/v1/bibs/{mms_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import xml.etree.ElementTree as ET",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "bibs = BibliographicRecords(client)",
+            "seed_xml = '<bib><record><leader>00000nam a2200000 a 4500</leader><controlfield tag=\"008\">230101s2023    xx            000 0 eng d</controlfield><datafield tag=\"245\" ind1=\"1\" ind2=\"0\"><subfield code=\"a\">AlmaAPITK MARC-fix seed 184</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Physics</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Astrophysics</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Cosmology</subfield></datafield></record></bib>'",
+            "create_response = bibs.create_record(seed_xml, validate=True, override_warning=True)",
+            "created_mms_id = create_response.data.get('mms_id')",
+            "update_response = bibs.update_marc_field(created_mms_id, '650', {'a': 'Physics -- data reduction'})",
+            "fetched = bibs.get_record(created_mms_id)",
+            "root = ET.fromstring(fetched.data['anies'][0])",
+            "record = root.find('record') if root.tag == 'bib' else root",
+            "subj_650 = [sf.text for df in record.findall(\"datafield[@tag='650']\") for sf in df.findall(\"subfield[@code='a']\")]"
+          ],
+          "passCriteria": [
+            "create_response.success is True and created_mms_id is a non-empty string — the throwaway seed bib with three 650 subject headings was created in SANDBOX.",
+            "update_response.success is True — the default replace_first update of the 650 tag completed.",
+            "len(subj_650) == 3 — all three 650 subject headings survive the update (pre-fix this collapsed to a single 650: the #184 silent-data-loss symptom).",
+            "subj_650[0] == 'Physics -- data reduction' — the first occurrence was rewritten in place.",
+            "'Astrophysics' in subj_650 and 'Cosmology' in subj_650 — the two untargeted subject headings are preserved verbatim.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised during create, update, or retrieve."
+          ],
+          "cleanup": [
+            "if created_mms_id:\n    bibs.delete_record(created_mms_id)"
+          ]
+        },
+        {
+          "id": "t-184-2",
+          "kind": "round-trip",
+          "scope": "Live-SANDBOX proof of the #184 'supported non-destructive append' AC. Creates a throwaway seed bib with three 650s, calls update_marc_field(created_mms_id, '650', {'a': 'Particle physics'}, mode='append'), re-fetches and asserts the record now carries four 650s — the original three intact plus the appended one. Exercises the explicit mode='append' path that lets a caller add an occurrence of a repeatable field without deleting existing ones. Self-contained starting state; cleanup deletes the seed bib.",
+          "endpoints": [
+            "POST /almaws/v1/bibs",
+            "GET /almaws/v1/bibs/{mms_id}",
+            "PUT /almaws/v1/bibs/{mms_id}",
+            "DELETE /almaws/v1/bibs/{mms_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import xml.etree.ElementTree as ET",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "bibs = BibliographicRecords(client)",
+            "seed_xml = '<bib><record><leader>00000nam a2200000 a 4500</leader><controlfield tag=\"008\">230101s2023    xx            000 0 eng d</controlfield><datafield tag=\"245\" ind1=\"1\" ind2=\"0\"><subfield code=\"a\">AlmaAPITK MARC-fix seed 184</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Physics</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Astrophysics</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Cosmology</subfield></datafield></record></bib>'",
+            "create_response = bibs.create_record(seed_xml, validate=True, override_warning=True)",
+            "created_mms_id = create_response.data.get('mms_id')",
+            "update_response = bibs.update_marc_field(created_mms_id, '650', {'a': 'Particle physics'}, mode='append')",
+            "fetched = bibs.get_record(created_mms_id)",
+            "root = ET.fromstring(fetched.data['anies'][0])",
+            "record = root.find('record') if root.tag == 'bib' else root",
+            "subj_650 = [sf.text for df in record.findall(\"datafield[@tag='650']\") for sf in df.findall(\"subfield[@code='a']\")]"
+          ],
+          "passCriteria": [
+            "create_response.success is True and created_mms_id is a non-empty string — the seed bib with three 650s was created.",
+            "update_response.success is True — the mode='append' update completed.",
+            "len(subj_650) == 4 — append kept all three original 650s and added exactly one more.",
+            "'Physics' in subj_650 and 'Astrophysics' in subj_650 and 'Cosmology' in subj_650 and 'Particle physics' in subj_650 — every original heading survives and the new one is present.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised during create, update, or retrieve."
+          ],
+          "cleanup": [
+            "if created_mms_id:\n    bibs.delete_record(created_mms_id)"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "Updating one instance of a repeated tag preserves the other instances.": [
+          "t-184-1"
+        ],
+        "There is a supported way to append an additional instance of a repeatable field without deleting existing ones.": [
+          "t-184-2"
+        ],
+        "R10 regression test under `tests/unit/regressions/` reproduces the 3→1 collapse; fails on current `main`, passes after the fix.": []
+      },
+      "unmappable": [
+        {
+          "ac": "R10 regression test under `tests/unit/regressions/` reproduces the 3→1 collapse; fails on current `main`, passes after the fix.",
+          "reason": "This AC is a local pytest-suite deliverable, not an observable SANDBOX API behaviour. The regression file tests/unit/regressions/test_issue_184.py is present in the chunk diff and is verified by running `pytest tests/unit/regressions/test_issue_184.py` (it fails on current `main` and passes on this branch) — nothing about the presence/pass-state of a unit test is visible via any Alma REST call. The live behavioural facet this regression pins IS separately exercised against SANDBOX by t-184-1 (three 650s survive a single-instance update) and t-184-2 (append adds without deleting)."
+        }
+      ]
+    },
+    {
+      "number": 185,
+      "title": "bibs: MARC editing path cannot represent repeated subfield codes (dict-typed subfields)",
+      "classification": "general",
+      "subBranch": "feat/185-bibs-marc-editing-path-cannot-",
+      "tests": [
+        {
+          "id": "t-185-1",
+          "kind": "round-trip",
+          "scope": "Live-SANDBOX proof of the #185 fix: the editing path must accept an ordered list of [code, value] pairs (not a dict) and preserve repeated subfield codes. Creates a throwaway seed bib with a single 650, then calls update_marc_field(created_mms_id, '650', [['a','Science'],['x','History'],['x','20th century']]) — a shape a dict could never express (two '$x'). Re-fetches and asserts the 650 comes back as $a Science / $x History / $x 20th century, in order, with BOTH $x values present. Pre-fix the dict-typed path silently dropped the second $x at dict-construction time. Self-contained starting state; cleanup deletes the seed bib. The exact ordering/normalisation is pinned offline by tests/unit/regressions/test_issue_185.py.",
+          "endpoints": [
+            "POST /almaws/v1/bibs",
+            "GET /almaws/v1/bibs/{mms_id}",
+            "PUT /almaws/v1/bibs/{mms_id}",
+            "DELETE /almaws/v1/bibs/{mms_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import xml.etree.ElementTree as ET",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "bibs = BibliographicRecords(client)",
+            "seed_xml = '<bib><record><leader>00000nam a2200000 a 4500</leader><controlfield tag=\"008\">230101s2023    xx            000 0 eng d</controlfield><datafield tag=\"245\" ind1=\"1\" ind2=\"0\"><subfield code=\"a\">AlmaAPITK MARC-fix seed 185</subfield></datafield><datafield tag=\"650\" ind1=\" \" ind2=\"0\"><subfield code=\"a\">Science</subfield></datafield></record></bib>'",
+            "create_response = bibs.create_record(seed_xml, validate=True, override_warning=True)",
+            "created_mms_id = create_response.data.get('mms_id')",
+            "update_response = bibs.update_marc_field(created_mms_id, '650', [['a', 'Science'], ['x', 'History'], ['x', '20th century']])",
+            "fetched = bibs.get_record(created_mms_id)",
+            "root = ET.fromstring(fetched.data['anies'][0])",
+            "record = root.find('record') if root.tag == 'bib' else root",
+            "pairs_650 = [(sf.get('code'), sf.text) for df in record.findall(\"datafield[@tag='650']\") for sf in df.findall('subfield')]"
+          ],
+          "passCriteria": [
+            "create_response.success is True and created_mms_id is a non-empty string — the seed bib was created.",
+            "update_response.success is True — update_marc_field accepted an ordered list of [code, value] pairs (not a dict) and Alma accepted the resulting field.",
+            "pairs_650 == [('a', 'Science'), ('x', 'History'), ('x', '20th century')] — the two repeated $x subfields both round-trip, in order.",
+            "[v for c, v in pairs_650 if c == 'x'] == ['History', '20th century'] — both distinct $x values survive (impossible via the pre-fix dict-typed path).",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised during create, update, or retrieve."
+          ],
+          "cleanup": [
+            "if created_mms_id:\n    bibs.delete_record(created_mms_id)"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "The editing path accepts an ordered list of `[code, value]` pairs (not a dict).": [
+          "t-185-1"
+        ],
+        "Repeated subfield codes round-trip correctly.": [
+          "t-185-1"
+        ],
+        "R10 regression test under `tests/unit/regressions/` covers a field with two `$x` subfields.": []
+      },
+      "unmappable": [
+        {
+          "ac": "R10 regression test under `tests/unit/regressions/` covers a field with two `$x` subfields.",
+          "reason": "This AC is a local pytest-suite deliverable, not an observable SANDBOX API behaviour. The regression file tests/unit/regressions/test_issue_185.py is present in the chunk diff and is verified by running `pytest tests/unit/regressions/test_issue_185.py` (it fails on current `main` and passes on this branch) — nothing about the presence/pass-state of a unit test is visible via any Alma REST call. The live behavioural facet this regression pins IS separately exercised against SANDBOX by t-185-1 (two $x subfields round-trip in order through a real Alma GET+PUT)."
+        }
+      ]
+    },
+    {
+      "number": 186,
+      "title": "bibs: double-escaping of ampersand/lt/gt corrupts field content in MARC editing path",
+      "classification": "general",
+      "subBranch": "feat/186-bibs-double-escaping-of-ampers",
+      "tests": [
+        {
+          "id": "t-186-1",
+          "kind": "round-trip",
+          "scope": "Live-SANDBOX proof of the #186 fix: a field value containing '&', '<' and '>' must round-trip through update_marc_field unmangled (escaped exactly once). Creates a throwaway seed bib with a 245, calls update_marc_field(created_mms_id, '245', [['a','Law & order <suppl> report']], ind1='1', ind2='0'), re-fetches and asserts the decoded 245 $a is the exact literal and the raw re-fetched MARCXML shows no doubly-escaped '&amp;amp;'. Pre-fix, _sanitize_xml_text pre-escaped '&'->'&amp;' and then ElementTree escaped again, so Alma stored 'Law &amp; order' — a mangled ampersand. Self-contained starting state; cleanup deletes the seed bib. Single-level-escaping is also pinned offline by tests/unit/regressions/test_issue_186.py.",
+          "endpoints": [
+            "POST /almaws/v1/bibs",
+            "GET /almaws/v1/bibs/{mms_id}",
+            "PUT /almaws/v1/bibs/{mms_id}",
+            "DELETE /almaws/v1/bibs/{mms_id}"
+          ],
+          "stateChanging": true,
+          "needsHumanInput": [],
+          "pythonCalls": [
+            "import xml.etree.ElementTree as ET",
+            "from almaapitk.domains.bibs import BibliographicRecords",
+            "bibs = BibliographicRecords(client)",
+            "seed_xml = '<bib><record><leader>00000nam a2200000 a 4500</leader><controlfield tag=\"008\">230101s2023    xx            000 0 eng d</controlfield><datafield tag=\"245\" ind1=\"1\" ind2=\"0\"><subfield code=\"a\">AlmaAPITK MARC-fix seed 186</subfield></datafield></record></bib>'",
+            "create_response = bibs.create_record(seed_xml, validate=True, override_warning=True)",
+            "created_mms_id = create_response.data.get('mms_id')",
+            "update_response = bibs.update_marc_field(created_mms_id, '245', [['a', 'Law & order <suppl> report']], ind1='1', ind2='0')",
+            "fetched = bibs.get_record(created_mms_id)",
+            "root = ET.fromstring(fetched.data['anies'][0])",
+            "record = root.find('record') if root.tag == 'bib' else root",
+            "title_245 = [sf.text for df in record.findall(\"datafield[@tag='245']\") for sf in df.findall(\"subfield[@code='a']\")]",
+            "raw_anies = fetched.data['anies'][0]"
+          ],
+          "passCriteria": [
+            "create_response.success is True and created_mms_id is a non-empty string — the seed bib was created.",
+            "update_response.success is True — the 245 update completed.",
+            "title_245 == ['Law & order <suppl> report'] — the value round-trips with '&', '<' and '>' intact (decoded exactly once). Pre-fix double-escaping would have stored a literal '&amp;' and the decoded re-fetch would read 'Law &amp; order ...'.",
+            "'&amp;amp;' not in raw_anies — the raw re-fetched MARCXML carries a single level of escaping, never a doubly-escaped entity.",
+            "No AlmaAPIError, AlmaValidationError, or AlmaRateLimitError is raised during create, update, or retrieve."
+          ],
+          "cleanup": [
+            "if created_mms_id:\n    bibs.delete_record(created_mms_id)"
+          ]
+        }
+      ],
+      "acceptanceMapping": {
+        "A field value containing `&`, `<`, `>` round-trips through `update_marc_field` unmangled.": [
+          "t-186-1"
+        ],
+        "R10 regression test under `tests/unit/regressions/` asserts a single level of escaping (e.g. `Law & order` stays `Law & order`).": []
+      },
+      "unmappable": [
+        {
+          "ac": "R10 regression test under `tests/unit/regressions/` asserts a single level of escaping (e.g. `Law & order` stays `Law & order`).",
+          "reason": "This AC is a local pytest-suite deliverable, not an observable SANDBOX API behaviour. The regression file tests/unit/regressions/test_issue_186.py is present in the chunk diff and is verified by running `pytest tests/unit/regressions/test_issue_186.py` (it fails on current `main` and passes on this branch) — nothing about the presence/pass-state of a unit test is visible via any Alma REST call. The live behavioural facet this regression pins IS separately exercised against SANDBOX by t-186-1 ('Law & order <suppl> report' round-trips unmangled with no '&amp;amp;' in the re-fetched MARCXML)."
+        }
+      ]
+    }
+  ]
+}

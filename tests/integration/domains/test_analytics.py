@@ -14,16 +14,30 @@ Run with: pytest tests/integration/domains/test_analytics.py -v
 """
 
 import os
+
 import pytest
+import requests
 
 from almaapitk import AlmaAPIClient, Analytics, AlmaAPIError, AlmaValidationError
 
 
-# Test configuration - use a known report path
-# Override with environment variable if needed
+# Test configuration - a real report path must be supplied via environment
+# variable; the fallback is a placeholder that exists in no tenant. Tests
+# that hit a real report skip unless the variable is explicitly set,
+# because Alma Analytics answers nonexistent paths with HTTP 500s (not
+# 404), which the client's transport retries into a RetryError rather
+# than a skippable AlmaAPIError (verified live 2026-07-22).
 TEST_REPORT_PATH = os.getenv(
     'TEST_ANALYTICS_REPORT_PATH',
     '/shared/Your University/Reports/Production/AAS Loans'
+)
+
+skip_if_no_report_path = pytest.mark.skipif(
+    not os.getenv('TEST_ANALYTICS_REPORT_PATH'),
+    reason=(
+        "TEST_ANALYTICS_REPORT_PATH not set — no real Analytics report "
+        "path configured for this tenant"
+    ),
 )
 
 
@@ -71,6 +85,7 @@ class TestAnalyticsIntegration:
     Analytics API is only available in production environments.
     """
 
+    @skip_if_no_report_path
     def test_get_report_headers_real(self, analytics):
         """
         Test fetching real report headers from Analytics API.
@@ -100,6 +115,7 @@ class TestAnalyticsIntegration:
                 pytest.skip(f"Invalid report path or access denied: {TEST_REPORT_PATH}")
             raise
 
+    @skip_if_no_report_path
     def test_fetch_report_rows_real(self, analytics):
         """
         Test fetching real report rows from Analytics API.
@@ -114,7 +130,7 @@ class TestAnalyticsIntegration:
         try:
             rows = analytics.fetch_report_rows(
                 TEST_REPORT_PATH,
-                limit=10,
+                limit=25,  # Alma Analytics API minimum page size
                 max_rows=10
             )
 
@@ -140,6 +156,7 @@ class TestAnalyticsIntegration:
                 pytest.skip(f"Invalid report path or access denied: {TEST_REPORT_PATH}")
             raise
 
+    @skip_if_no_report_path
     def test_fetch_report_rows_pagination_real(self, analytics):
         """
         Test pagination behavior when fetching report rows.
@@ -156,19 +173,19 @@ class TestAnalyticsIntegration:
             # First, fetch with a small limit per page and max_rows
             rows_small_limit = analytics.fetch_report_rows(
                 TEST_REPORT_PATH,
-                limit=3,  # Small page size to force pagination
-                max_rows=10
+                limit=25,  # API minimum; >1 page forced via max_rows
+                max_rows=30
             )
 
             assert rows_small_limit is not None, "Rows should not be None"
             assert isinstance(rows_small_limit, list), "Rows should be a list"
-            assert len(rows_small_limit) <= 10, f"Should respect max_rows=10, got {len(rows_small_limit)}"
+            assert len(rows_small_limit) <= 30, f"Should respect max_rows=30, got {len(rows_small_limit)}"
 
             # Verify all rows are dictionaries
             for row in rows_small_limit:
                 assert isinstance(row, dict), "Each row should be a dictionary"
 
-            print(f"Pagination test: fetched {len(rows_small_limit)} rows with limit=3, max_rows=10")
+            print(f"Pagination test: fetched {len(rows_small_limit)} rows with limit=25, max_rows=30")
 
         except AlmaAPIError as e:
             if e.status_code == 404:
@@ -186,7 +203,7 @@ class TestAnalyticsIntegration:
         """
         rows = analytics.fetch_report_rows(
             TEST_REPORT_PATH,
-            limit=10,
+            limit=25,  # Alma Analytics API minimum page size
             max_rows=0
         )
 
@@ -202,12 +219,13 @@ class TestAnalyticsIntegration:
         """
         invalid_report_path = "/shared/NonExistent/Reports/InvalidReport123"
 
-        with pytest.raises(AlmaAPIError) as exc_info:
+        # Alma Analytics answers nonexistent paths with HTTP 500 (not
+        # 400/404); the client transport retries 500s and ultimately
+        # raises requests.exceptions.RetryError (verified live
+        # 2026-07-22). Either error type proves the invalid path was
+        # rejected rather than silently returning data.
+        with pytest.raises((AlmaAPIError, requests.exceptions.RetryError)):
             analytics.get_report_headers(invalid_report_path)
-
-        # Expect 400 (Bad Request) or 404 (Not Found) for invalid paths
-        assert exc_info.value.status_code in [400, 404], \
-            f"Expected 400/404 for invalid report, got {exc_info.value.status_code}"
 
     def test_fetch_report_rows_invalid_path(self, analytics):
         """
@@ -219,11 +237,10 @@ class TestAnalyticsIntegration:
         """
         invalid_report_path = "/shared/NonExistent/Reports/InvalidReport123"
 
-        with pytest.raises(AlmaAPIError) as exc_info:
-            analytics.fetch_report_rows(invalid_report_path, limit=10, max_rows=5)
-
-        assert exc_info.value.status_code in [400, 404], \
-            f"Expected 400/404 for invalid report, got {exc_info.value.status_code}"
+        # See test_get_report_headers_invalid_path: invalid paths come
+        # back as retried 500s -> RetryError, not a 400/404 AlmaAPIError.
+        with pytest.raises((AlmaAPIError, requests.exceptions.RetryError)):
+            analytics.fetch_report_rows(invalid_report_path, limit=25, max_rows=5)
 
 
 @pytest.mark.integration
@@ -276,6 +293,7 @@ class TestAnalyticsWorkflow:
     These tests verify complete workflows combining multiple methods.
     """
 
+    @skip_if_no_report_path
     def test_headers_and_rows_consistency(self, analytics):
         """
         Test that headers and row columns are consistent.
@@ -296,7 +314,7 @@ class TestAnalyticsWorkflow:
             # Fetch a few rows
             rows = analytics.fetch_report_rows(
                 TEST_REPORT_PATH,
-                limit=5,
+                limit=25,  # Alma Analytics API minimum page size
                 max_rows=5
             )
 

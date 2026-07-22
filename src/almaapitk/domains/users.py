@@ -66,12 +66,15 @@ _RS_REQUEST_WRAPPED_FIELDS = frozenset(
 #
 # ``citation_type`` is the unresolved one. The borrowing XSD lists ``BK`` /
 # ``CR``; a passing SANDBOX request used ``BOOK``; the lending and
-# purchase-request surfaces use ``BOOK`` / ``JOURNAL``. Since the sources
-# genuinely disagree, the default is permissive and accepts all four rather
-# than silently picking a side.
+# purchase-request surfaces use ``BOOK`` / ``JOURNAL``; live SANDBOX creates
+# (2026-07-22) confirmed the electronic siblings ``E_CR`` ("Electronic
+# Article", same ReadingListCitationTypes table) are accepted too, so
+# ``E_CR`` / ``E_BK`` are included. Since the sources genuinely disagree,
+# the default is permissive and accepts all six rather than silently
+# picking a side.
 _RS_BORROWING_FORMAT_CODES = frozenset({"PHYSICAL", "DIGITAL"})
 _RS_BORROWING_CITATION_TYPE_CODES = frozenset(
-    {"BK", "CR", "BOOK", "JOURNAL"}
+    {"BK", "CR", "BOOK", "JOURNAL", "E_CR", "E_BK"}
 )
 _RS_BORROWING_PICKUP_LOCATION_TYPE_CODES = frozenset(
     {"LIBRARY", "CIRCULATION_DESK"}
@@ -2644,12 +2647,14 @@ class Users:
                   codes belong to the *purchase-request* surface and are the
                   reproduction case in issue #194.
                 * ``citation_type`` — accepted permissively as ``BK``,
-                  ``CR``, ``BOOK`` or ``JOURNAL``. The sources genuinely
-                  disagree: the borrowing XSD (and
+                  ``CR``, ``E_BK``, ``E_CR``, ``BOOK`` or ``JOURNAL``. The
+                  sources genuinely disagree: the borrowing XSD (and
                   ``docs/Alma Borrowing Request API Guide.md``) lists
-                  ``BK`` / ``CR``, while a passing SANDBOX request used
-                  ``BOOK``, which is also the lending / purchase code
-                  alongside ``JOURNAL``. Until that is resolved the check
+                  ``BK`` / ``CR``, a passing SANDBOX request used
+                  ``BOOK`` (also the lending / purchase code alongside
+                  ``JOURNAL``), and live SANDBOX creates (2026-07-22)
+                  confirmed the electronic siblings ``E_CR`` / ``E_BK``
+                  from the same code table. Until that is resolved the check
                   refuses to pick a side.
                 * ``pickup_location_type`` — ``LIBRARY`` /
                   ``CIRCULATION_DESK``.

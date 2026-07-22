@@ -170,6 +170,29 @@ def test_citation_type_ambiguity_is_not_silently_resolved(code):
     assert len(client.calls["post"]) == 1
 
 
+@pytest.mark.parametrize("code", ["E_CR", "E_BK"])
+def test_electronic_citation_type_codes_pass_validation(code):
+    # Live SANDBOX evidence (2026-07-22, chunk rs-borrowing-ergonomics test
+    # run): citation_type E_CR ("Electronic Article") is ACCEPTED by Alma on
+    # a real borrowing-request create — it sits in the same
+    # ReadingListCitationTypes code table as BK/CR (E_BK is its book
+    # sibling). The original guardrail set lacked both, so validate=True
+    # wrongly rejected a request shape Alma demonstrably accepts.
+    client = _MockClient()
+    users = Users(client)
+
+    users.create_user_rs_request(
+        "u1",
+        request_data={
+            "format": {"value": "DIGITAL"},
+            "citation_type": {"value": code},
+        },
+        validate=True,
+    )
+
+    assert len(client.calls["post"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # Option 1 — better error surfacing (client layer)
 # ---------------------------------------------------------------------------

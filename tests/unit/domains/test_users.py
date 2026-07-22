@@ -4943,10 +4943,15 @@ class TestCreateUserRsRequestValidation:
         # Validation must not normalise or rewrite the body.
         assert call["data"] == body
 
-    @pytest.mark.parametrize("code", ["BK", "CR", "BOOK", "JOURNAL"])
+    @pytest.mark.parametrize("code", ["BK", "CR", "E_BK", "E_CR"])
     def test_validate_true_is_permissive_about_citation_type(self, code):
-        """The XSD says BK/CR, SANDBOX accepted BOOK, lending uses
-        BOOK/JOURNAL — the sources disagree, so all four pass."""
+        """The allow-set is the RS ReadingListCitationTypes table.
+
+        Originally also BOOK/JOURNAL (the sources disagreed and a 2026-05-18
+        SANDBOX create passed with BOOK). Resolved 2026-07-22 by the #207
+        decomposition matrix: wrong-table codes now die as a raw
+        pre-validation 500, so the set was tightened — see
+        tests/unit/regressions/test_issue_207.py for the pin."""
         from almaapitk.domains.users import Users
 
         mock_client = self._client()

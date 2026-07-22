@@ -41,3 +41,4 @@ Append-only log of chunk runs. One row per finished chunk.
 | electronic-bootstrap | 2026-05-19 | #66 |  | 1 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/152 |
 | bibs-marc-fixes | 2026-07-19 | #184, #185, #186 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/201 |
 | create-record-from-fields | 2026-07-19 | #179 |  | 0 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/201 |
+| rs-borrowing-ergonomics | 2026-07-22 | #197, #194 |  | 5 | 0 | 0 | 0 | https://github.com/hagaybar/AlmaAPITK/pull/206 |

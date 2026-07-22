@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-22
+
 ### Documentation
 
 - **Hosted documentation site** (MkDocs Material) published to GitHub Pages at
@@ -69,6 +71,61 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
   Purely additive — no existing signatures or behaviour change.
 
+- **Resource-sharing borrowing-request builder** (issue #197).
+  `build_user_rs_request(...)` — a new **public**, pure, network-free helper
+  (`from almaapitk import build_user_rs_request`) that assembles the body for
+  `Users.create_user_rs_request` from plain keyword arguments. Alma's
+  plain-vs-`{"value": ...}` wrapping asymmetry (`owner` and
+  `pickup_location_type` plain; `format`, `citation_type`, `pickup_location`
+  wrapped) is encoded exactly once; `extra=` merges advanced fields under the
+  same rules. The raw-dict path of `create_user_rs_request` is unchanged —
+  `request_data` is still forwarded verbatim.
+- **Opt-in validation + actionable errors for RS-borrowing creates**
+  (issue #194). `Users.create_user_rs_request(..., validate=True)` rejects
+  wrong code-table values for `format` / `citation_type` /
+  `pickup_location_type` with an `AlmaValidationError` naming the field
+  **before any HTTP request** — replacing Alma's unrenderable
+  `Invalid field value. Field: [Ljava.lang.Object;@… Value: {1}` dead end.
+  Validation is opt-in (default off) because Alma code tables are
+  tenant-extensible. The accepted `citation_type` set includes the
+  electronic siblings `E_CR`/`E_BK` (live-verified against SANDBOX
+  2026-07-22). Even with validation off, a mangled Alma rejection on the
+  RS surface gets an appended `[almaapitk hint: ...]` naming the likely
+  field and pointing at the builder.
+
+### Fixed
+
+- **MARC editing path: repeatable-field data loss** (issue #184).
+  `update_marc_field` used to replace the first occurrence of the target tag
+  and silently DROP every other occurrence (three 650s in, one 650 out). It
+  now only touches the occurrence(s) selected by the new `mode` parameter
+  (`replace_first` — the default — `replace_all`, or `append`) and preserves
+  the rest.
+- **MARC editing path: repeated subfield codes** (issue #185).
+  `update_marc_field` accepts an ordered list of `[code, value]` pairs, so
+  fields like `650 $a Science $x History $x 20th century` are expressible;
+  the legacy dict shape (which cannot hold a repeated code) still works.
+- **MARC editing path: double-escaping** (issue #186). Field values are
+  XML-escaped exactly once; `Law & order` no longer lands in Alma as
+  `Law &amp; order`.
+- **`get_marc_subfield`: failures no longer hidden** (issue #190). A new
+  `strict=` flag distinguishes "subfield absent" (`[]`) from "fetch/parse
+  failed" (raises under `strict=True`); control-field (00X) tags are rejected
+  with a clear message instead of a misleading `[]`.
+- **`delete_record(override_attached_items=True)` no longer always 400s**
+  (issue #193). The override now sends `override=true` (boolean, per the
+  Alma bibs swagger) instead of the invalid `override=attached_items`.
+- **Alma error `40166411` no longer misclassified off the acq surface**
+  (issue #209). Five domain swaggers publish the code as the generic
+  "Param value is invalid"; the PO-line meaning is the acq-observed
+  exception. `AlmaInvalidPolModeError` is now raised only for acq URLs (or
+  when no URL is available); bibs/conf/partners/users surfaces get the base
+  `AlmaAPIError`. (Behavior change for callers matching the exception class
+  on non-acq calls — see *Changed*.)
+- **`poetry.lock` regenerated for the `pymarc` extra** (#202) — unbreaks the
+  release workflow's locked install. Internal packaging fix, no runtime
+  change.
+
 ### Changed
 
 - **`almaapitk.testing.build_smoke_client` now enforces R-H2 in the Infra.**
@@ -79,6 +136,25 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   Read-only PRODUCTION smokes and writable SANDBOX smokes are unchanged.
   Surfaced by the first mutating consumer (RS-lending), whose L3 smoke is the
   first to pass `readonly=False`.
+- **`build_alma_bib_xml` enforces MARC content designation** (issue #187,
+  behavior change). Input the old builder silently accepted is now rejected:
+  tags must be exactly 3 digits; control-vs-data is decided by the TAG
+  (00X = control with `data`; 010–999 = data with `subfields` — a data-range
+  tag carrying `data` raises instead of emitting a bogus `<controlfield>`);
+  subfield codes must be a single lowercase letter or digit; indicators must
+  be blank / digit / lowercase letter (fill character `|` rejected). Callers
+  feeding sloppy specs will start seeing validation errors after this bump.
+- **`DEFAULT_LEADER` byte 18 changed `u` → `i`** (issue #188, behavior
+  change): records created without an explicit leader now declare RDA/ISBD
+  punctuation conventions instead of "unknown". 24-char length and Ldr/09=a
+  (Unicode) kept.
+- **`create_record_from_fields` / `create_record_from_pymarc` pre-flight a
+  245 check** (issue #189): they default `require_245=True` (a title check
+  before the network round-trip); the pure `build_alma_bib_xml` defaults
+  `False` and delegates completeness to Alma.
+- **Exception class on non-acq `40166411` errors** (issue #209, behavior
+  change — see *Fixed*): code that caught `AlmaInvalidPolModeError` for
+  bibs/conf/partners/users calls must catch `AlmaAPIError` instead.
 
 ## [0.4.6] — 2026-06-01
 
@@ -364,7 +440,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.0
 [0.4.6]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.6
 [0.4.5]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.5
 [0.4.3]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.3

@@ -14,11 +14,14 @@ A Python toolkit for interacting with the Ex Libris Alma ILS (Integrated Library
   - `Acquisitions` - POL operations, invoicing, item receiving
   - `Admin` - Sets management (BIB_MMS, USER), full CRUD + member management
   - `Analytics` - Analytics reports with pagination support
-  - `BibliographicRecords` - Bib records, holdings, items
+  - `BibliographicRecords` - Bib records, holdings, items; structure-driven
+    record creation (`create_record_from_fields`, optional pymarc adapter)
   - `Configuration` - Libraries/locations, code tables, letters, mapping tables
     *(active expansion area — more endpoints land in each 0.x release)*
   - `ResourceSharing` - Lending/borrowing via Partners API
-  - `Users` - User management, loans, requests, CRUD, search, expiry processing
+  - `Users` - User management, loans, requests, CRUD, search, expiry
+    processing; resource-sharing borrowing requests with a body builder
+    (`build_user_rs_request`) and opt-in code-table validation
 - **Environment Support**: Seamless switching between Sandbox and Production
 - **Response Wrapper**: Consistent response handling with `AlmaResponse`
 - **Comprehensive Logging**: Built-in logging with automatic API key redaction

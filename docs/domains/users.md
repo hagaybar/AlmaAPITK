@@ -1279,6 +1279,70 @@ def perform_user_request_action(
 
 ---
 
+### Resource-Sharing (Borrowing) Requests *(builder + guardrails new in 0.5.0)*
+
+Endpoints under `/almaws/v1/users/{user_id}/resource-sharing-requests` create
+and manage **borrowing** requests (the user-side of resource sharing; the
+partner/lending side lives in the `ResourceSharing` domain).
+
+#### `build_user_rs_request(...)` *(module-level helper, new in 0.5.0)*
+
+```python
+from almaapitk import build_user_rs_request
+
+body = build_user_rs_request(
+    owner="<RS_LIBRARY_CODE>",          # emitted as a PLAIN string (Alma quirk)
+    format="DIGITAL",                    # wrapped as {"value": "DIGITAL"}
+    citation_type="CR",                  # wrapped
+    title="Life is pretty meaningful",
+    journal_title="American Psychologist",  # mandatory for DIGITAL articles
+    author="Heintzelman, Samantha J.; King, Laura A.",
+    year=2014,                           # coerced to str
+    pickup_location="<PICKUP_LIBRARY_CODE>",   # wrapped
+    pickup_location_type="LIBRARY",      # plain string
+    extra={"volume": "69", "doi": "10.1037/a0035049"},  # same wrapping rules
+)
+```
+
+Pure and network-free. Encodes Alma's plain-vs-`{"value": ...}` wrapping
+asymmetry exactly once (issue #197) so callers stop re-deriving it by trial
+and error. `extra=` is the escape hatch for any other documented body field.
+
+#### `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False)`
+
+`POST` the body (hand-assembled or builder-produced — `request_data` is
+forwarded verbatim, so advanced callers lose nothing).
+
+With `validate=True` *(new in 0.5.0, issue #194)*: wrong code-table values
+for `format` / `citation_type` / `pickup_location_type` raise
+`AlmaValidationError` naming the offending field **before any HTTP call** —
+instead of Alma's unrenderable `Invalid field value. Field:
+[Ljava.lang.Object;@… Value: {1}` rejection. Validation is opt-in because
+Alma code tables are tenant-extensible. Accepted documented values:
+`format` `PHYSICAL`/`DIGITAL`; `citation_type` `BK`/`CR`/`E_BK`/`E_CR`/
+`BOOK`/`JOURNAL`; `pickup_location_type` `LIBRARY`/`CIRCULATION_DESK`.
+Even with validation off, a rejected create on this surface gets an
+appended `[almaapitk hint: ...]` naming the likely field.
+
+```python
+users = Users(client)
+response = users.create_user_rs_request("<user_primary_id>", body, validate=True)
+request_id = response.data["request_id"]
+```
+
+**SANDBOX tips** (live-verified 2026-07-22): a DIGITAL article requires
+`journal_title` + `year` + `author` (alma_code `401930`); an invalid pickup
+returns `401929`; a title your institution already holds returns `401604`
+("institutional inventory has services…") — `override_blocks=True` forces
+past it, knowingly. Prefer `citation_type="CR"` over `"E_CR"` when journal
+metadata must persist into the stored request.
+
+#### `get_user_rs_request(user_id, request_id, ...)` / `cancel_user_rs_request(user_id, request_id, ...)`
+
+Fetch or cancel one borrowing request.
+
+---
+
 ### Expiry Date Analysis Methods
 
 #### `get_user_expiry_date(user_data)`

@@ -1,6 +1,6 @@
 # AlmaAPITK API Reference
 
-**Version:** 0.4.6
+**Version:** 0.5.0
 **Package:** `almaapitk`
 
 This document provides comprehensive API reference documentation for the AlmaAPITK Python library.
@@ -964,6 +964,60 @@ Update a user's primary email address.
 | `process_users_batch(user_ids, years_threshold=2, max_workers=5)` | Process multiple users |
 | `bulk_update_emails(email_updates, dry_run=True)` | Update multiple users' emails |
 
+##### Resource-Sharing (Borrowing) Request Methods
+
+| Method | Description |
+|--------|-------------|
+| `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False)` | `POST /users/{user_id}/resource-sharing-requests`. Forwards `request_data` verbatim. With `validate=True` *(new in 0.5.0)*, wrong code-table values for `format` / `citation_type` / `pickup_location_type` raise `AlmaValidationError` naming the field **before** any HTTP call — instead of Alma's unrenderable `Invalid field value … Value: {1}` rejection |
+| `get_user_rs_request(user_id, request_id, ...)` | Fetch one borrowing request |
+| `cancel_user_rs_request(user_id, request_id, ...)` | Cancel a borrowing request |
+
+##### build_user_rs_request() *(new in 0.5.0, module-level helper)*
+
+```python
+from almaapitk import build_user_rs_request
+
+def build_user_rs_request(
+    owner: str,
+    format: str,
+    citation_type: str,
+    *,
+    title: str | None = None,
+    journal_title: str | None = None,
+    author: str | None = None,
+    year: Any | None = None,
+    pickup_location: str | None = None,
+    pickup_location_type: str | None = None,
+    agree_to_copyright_terms: bool | None = True,
+    external_id: str | None = None,
+    extra: dict | None = None,
+) -> dict
+```
+
+Pure, network-free builder for the borrowing-request body. Encodes Alma's
+plain-vs-`{"value": ...}` wrapping asymmetry exactly once: `owner` and
+`pickup_location_type` are emitted as **plain strings**, while `format`,
+`citation_type` and `pickup_location` are wrapped as `{"value": ...}`.
+`extra=` merges advanced fields under the same wrapping rules (a plain
+string destined for a wrapped field gets wrapped; an already-wrapped
+fragment passes through untouched).
+
+```python
+body = build_user_rs_request(
+    owner="<RS_LIBRARY>",
+    format="DIGITAL",
+    citation_type="CR",
+    title="Life is pretty meaningful",
+    journal_title="American Psychologist",
+    author="Heintzelman, Samantha J.; King, Laura A.",
+    year=2014,
+    pickup_location="<PICKUP_LIBRARY>",
+    pickup_location_type="LIBRARY",
+    extra={"volume": "69", "issue": "6", "doi": "10.1037/a0035049"},
+)
+response = users.create_user_rs_request("<user_primary_id>", body)
+```
+
 ---
 
 ### BibliographicRecords
@@ -1040,6 +1094,67 @@ Create a new bibliographic record.
 | `override_warning` | `bool` | `False` | Whether to override validation warnings |
 
 **Returns:** `AlmaResponse` containing the created record
+
+##### create_record_from_fields() *(new in 0.5.0)*
+
+```python
+def create_record_from_fields(
+    self,
+    spec: Dict[str, Any],
+    validate: bool = True,
+    override_warning: bool = False
+) -> AlmaResponse
+```
+
+Create a bibliographic record from a native, JSON-serializable field
+structure — no hand-built MARCXML required. The `spec` is converted with
+`build_alma_bib_xml(spec)` and funnelled into `create_record()`.
+
+```python
+spec = {
+    "leader": "     nam a22     3i 4500",   # optional; documented default if omitted
+    "fields": [
+        {"tag": "008", "data": "..."},                       # control field
+        {"tag": "245", "ind1": "1", "ind2": "0",
+         "subfields": [["a", "Data Reduction Methods"]]},
+        {"tag": "650", "ind1": " ", "ind2": "0",
+         "subfields": [["a", "Data reduction"]]},
+        {"tag": "650", "ind1": " ", "ind2": "0",             # repeated tags OK
+         "subfields": [["a", "Data science"]]},
+    ],
+}
+response = bibs.create_record_from_fields(spec)
+```
+
+##### create_record_from_pymarc() *(new in 0.5.0)*
+
+```python
+def create_record_from_pymarc(
+    self,
+    record: Any,          # a pymarc.Record
+    validate: bool = True,
+    override_warning: bool = False
+) -> AlmaResponse
+```
+
+Adapter from a `pymarc.Record` to `create_record_from_fields()`. Requires
+the optional extra `pip install almaapitk[pymarc]`; without it the method
+raises a clear, actionable error. The core install pulls no pymarc.
+
+##### build_alma_bib_xml() *(new in 0.5.0, module-level helper)*
+
+```python
+from almaapitk import build_alma_bib_xml
+
+def build_alma_bib_xml(spec: Dict[str, Any], require_245: bool = False) -> str
+```
+
+Pure, network-free builder: converts the field `spec` (shape above) into
+Alma's non-namespaced `<bib><record>` XML. Preserves field order, repeated
+tags and repeated subfield codes; escapes XML exactly once; enforces MARC
+content designation (3-digit tags, control-vs-data decided by the tag,
+single lowercase letter/digit subfield codes, valid indicators). With
+`require_245=True` it additionally rejects a spec lacking a 245 field.
 
 ##### update_record()
 
@@ -1121,8 +1236,8 @@ bibs.scan_in_item(
 
 | Method | Description |
 |--------|-------------|
-| `get_marc_subfield(mms_id, field, subfield)` | Get MARC subfield values |
-| `update_marc_field(mms_id, field, subfields, ind1, ind2)` | Update a MARC field |
+| `get_marc_subfield(mms_id, field, subfield, strict=False)` | Get MARC subfield values; reads control fields too. With `strict=True`, fetch/parse failures raise instead of returning `[]` (0.5.0) |
+| `update_marc_field(mms_id, field, subfields, ind1, ind2, mode="replace_first")` | Update/replace/append a MARC field. `mode` = `replace_first` \| `replace_all` \| `append`; untargeted occurrences of a repeatable tag are always preserved (0.5.0). `subfields` accepts an ordered list of `[code, value]` pairs (repeated codes survive) alongside the legacy dict |
 
 ---
 

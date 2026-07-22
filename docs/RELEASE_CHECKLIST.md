@@ -52,6 +52,7 @@ Each domain class shipped in this release must appear in **every** discoverabili
 - [ ] **`pyproject.toml` is the *only* place a version literal lives.** Verify with `grep -rn 'version *= *"[0-9]' src/almaapitk/` and `grep -rn '__version__ *= *"[0-9]' src/almaapitk/`. **If either returns a literal version string, fix it before continuing — use `importlib.metadata.version("almaapitk")` instead.**
 - [ ] **`pyproject.toml` version bumped** to the new value. Anchored sed: `sed -i 's/^version = "<old>"$/version = "<new>"/' pyproject.toml`. The `^version =` anchor avoids matching `docs/releases/<old>.md` paths in the include list.
 - [ ] **`docs/api-reference.md` Version header bumped** if present.
+- [ ] **`docs/index.md` and `docs/getting-started.md` `**Version:**` headings bumped.** The meta guard (`tests/meta/test_docs_version_matches_pyproject.py`) fails Phase F otherwise — caught in the 0.5.0 walk.
 - [ ] **No hardcoded fallback equals the new version.** If `src/almaapitk/__init__.py` has a `PackageNotFoundError` fallback for `__version__`, it should be `"0.0.0+unknown"` or similar — never a real-looking version string.
 
 ---
@@ -118,6 +119,7 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 
 As of `0.4.x` post-cycle (issue #128), pushing a `v<version>` tag triggers `.github/workflows/release.yml`, which re-runs the full Phase F validation, rebuilds the wheel, verifies the wheel filename matches `pyproject.toml`, and publishes to PyPI via Trusted Publishing (OIDC, no token in repo secrets).
 
+- [ ] **New/changed unit tests run credential-less.** The workflow's validation VM has no `ALMA_SB_API_KEY`; any test constructing `AlmaAPIClient(...)` must patch a synthetic key (see `tests/unit/regressions/test_issue_194.py` / `test_issue_209.py` fixture pattern). A test that passes locally (where the key exists) but needs credentials will fail the publish gate — caught in the 0.5.0 walk (tag had to be moved).
 - [ ] **Tag the merged commit.** `git tag -a v<version> -m "Release <version>" && git push origin v<version>`. This triggers the workflow.
 - [ ] **Watch the workflow run.** `gh run watch` (or the **Actions** tab). If the `release` GitHub Environment has required reviewers, the publish step waits for approval — click **Review deployments → Approve and deploy**.
 - [ ] **Verify on `https://pypi.org/project/almaapitk/<version>/`** — version listed, README renders. The workflow's publish step is the gate; this is the human confirmation.

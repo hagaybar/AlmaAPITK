@@ -102,7 +102,10 @@ def _repro_body(format_code: str = "P") -> Dict[str, Any]:
     return {
         "owner": "RS_LIB",
         "format": {"value": format_code},
-        "citation_type": {"value": "BOOK"},
+        # The original #194 reproduction used BOOK; changed to BK after the
+        # #207 tightening removed the wrong-table codes from the allow-set
+        # (see tests/unit/regressions/test_issue_207.py).
+        "citation_type": {"value": "BK"},
         "title": "Sample title",
         "pickup_location_type": "LIBRARY",
         "pickup_location": {"value": "PICKUP_LIB"},
@@ -150,11 +153,14 @@ def test_validation_is_opt_in_so_tenant_extended_codes_still_work():
     assert client.calls["post"][0]["data"] == body
 
 
-@pytest.mark.parametrize("code", ["BK", "CR", "BOOK"])
+@pytest.mark.parametrize("code", ["BK", "CR"])
 def test_citation_type_ambiguity_is_not_silently_resolved(code):
-    # The borrowing XSD lists BK/CR; the passing SANDBOX request used BOOK.
-    # The sources conflict and the conflict is unresolved, so the check must
-    # accept both rather than reject half of the documented reality.
+    # The borrowing XSD lists BK/CR. This test originally also accepted BOOK
+    # (a 2026-05-18 SANDBOX create passed with it, so the sources conflicted
+    # and the check refused to pick a side). The conflict was RESOLVED by the
+    # 2026-07-22 decomposition matrix (#207): BOOK/JOURNAL are wrong-table
+    # codes that Alma now answers with a raw pre-validation 500, so they were
+    # removed from the allow-set — see test_issue_207.py for the pin.
     client = _MockClient()
     users = Users(client)
 

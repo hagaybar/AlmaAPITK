@@ -64,17 +64,20 @@ _RS_REQUEST_WRAPPED_FIELDS = frozenset(
 # Alma code tables are tenant-extensible, which is exactly why the check is
 # opt-in rather than always-on.
 #
-# ``citation_type`` is the unresolved one. The borrowing XSD lists ``BK`` /
-# ``CR``; a passing SANDBOX request used ``BOOK``; the lending and
-# purchase-request surfaces use ``BOOK`` / ``JOURNAL``; live SANDBOX creates
-# (2026-07-22) confirmed the electronic siblings ``E_CR`` ("Electronic
-# Article", same ReadingListCitationTypes table) are accepted too, so
-# ``E_CR`` / ``E_BK`` are included. Since the sources genuinely disagree,
-# the default is permissive and accepts all six rather than silently
-# picking a side.
+# ``citation_type`` was originally the unresolved one: the borrowing XSD
+# lists ``BK`` / ``CR``, a 2026-05-18 SANDBOX request passed with ``BOOK``
+# (a lending / purchase-request-table value), and the set shipped permissive
+# with all six. The 2026-07-22 decomposition matrix (issue #207) resolved
+# it: Alma answers ANY ``citation_type`` outside the RS table with a raw
+# pre-validation HTTP 500 (no alma_code, no errorList) — reproduced with
+# ``BOOK``, ``JOURNAL``, and a deliberately bogus code — while ``BK`` /
+# ``CR`` / ``E_BK`` / ``E_CR`` (all in the same ReadingListCitationTypes
+# table) create cleanly. The historical ``BOOK`` acceptance was SB leniency
+# that ended between 2026-05-18 and 2026-07-19, so the set is now exactly
+# the RS table. R10 pin: tests/unit/regressions/test_issue_207.py.
 _RS_BORROWING_FORMAT_CODES = frozenset({"PHYSICAL", "DIGITAL"})
 _RS_BORROWING_CITATION_TYPE_CODES = frozenset(
-    {"BK", "CR", "BOOK", "JOURNAL", "E_CR", "E_BK"}
+    {"BK", "CR", "E_BK", "E_CR"}
 )
 _RS_BORROWING_PICKUP_LOCATION_TYPE_CODES = frozenset(
     {"LIBRARY", "CIRCULATION_DESK"}
@@ -2646,16 +2649,14 @@ class Users:
                 * ``format`` — ``PHYSICAL`` / ``DIGITAL``. The ``P`` / ``E``
                   codes belong to the *purchase-request* surface and are the
                   reproduction case in issue #194.
-                * ``citation_type`` — accepted permissively as ``BK``,
-                  ``CR``, ``E_BK``, ``E_CR``, ``BOOK`` or ``JOURNAL``. The
-                  sources genuinely disagree: the borrowing XSD (and
-                  ``docs/Alma Borrowing Request API Guide.md``) lists
-                  ``BK`` / ``CR``, a passing SANDBOX request used
-                  ``BOOK`` (also the lending / purchase code alongside
-                  ``JOURNAL``), and live SANDBOX creates (2026-07-22)
-                  confirmed the electronic siblings ``E_CR`` / ``E_BK``
-                  from the same code table. Until that is resolved the check
-                  refuses to pick a side.
+                * ``citation_type`` — ``BK``, ``CR``, ``E_BK`` or ``E_CR``
+                  (the RS ReadingListCitationTypes table). The lending /
+                  purchase-request codes ``BOOK`` / ``JOURNAL`` were
+                  accepted permissively until the 2026-07-22 decomposition
+                  matrix (issue #207) showed Alma answers any citation code
+                  outside the RS table with a raw pre-validation HTTP 500 —
+                  the most opaque failure the endpoint has, and exactly what
+                  this check exists to pre-empt.
                 * ``pickup_location_type`` — ``LIBRARY`` /
                   ``CIRCULATION_DESK``.
 

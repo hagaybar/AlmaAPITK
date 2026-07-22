@@ -1,0 +1,63 @@
+{
+  "chunk": "rs-borrowing-ergonomics",
+  "testRunStartedAt": "2026-07-22T13:42:39+03:00",
+  "testRunFinishedAt": "2026-07-22T13:44:41+03:00",
+  "perTest": [
+    {
+      "id": "t-197-1",
+      "outcome": "passed",
+      "issueNumber": 197,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Passed (network-free smoke, 1 passed in 0.01s). build_user_rs_request correctly encodes Alma's plain-vs-{'value': ...} field asymmetry (owner plain; format/citation_type/pickup_location wrapped; pickup_location_type plain), int->str year coercion, agree_to_copyright_terms bool default, the 'extra' escape hatch, and required-argument guards; Users.create_user_rs_request signature pinned (request_data required positional, validate keyword-only defaulting False). No HTTP request issued."
+    },
+    {
+      "id": "t-197-2",
+      "outcome": "failed",
+      "issueNumber": 197,
+      "stateChanging": true,
+      "cleanupStatus": "n/a",
+      "details": "FAILED at test_t_197_2.py:116: assert raised_error is None — live SANDBOX create of a builder-produced body raised AlmaServerError (HTTP 500, alma_code=INTERNAL_SERVER_ERROR): 'The web server encountered an unexpected condition that prevented it from fulfilling the request. If the error persists, please use the unique tracking ID when reporting it.' Built body keys: agree_to_copyright_terms, author, citation_type, external_id, format, owner, pickup_location, pickup_location_type, title; owner plain, format PHYSICAL, pickup_location_type LIBRARY (the empirically-passing code values from the previous chunk's live test, so the failure points at body shape or an Alma-side condition, not a code-table guess). No tracking ID value was surfaced in the pytest or detail logs. Because the create was rejected, no LEFT-IN-PLACE request was produced. Cleanup waived by operator (created resource-sharing requests are intentionally left in SANDBOX for inspection this run)."
+    },
+    {
+      "id": "t-194-1",
+      "outcome": "passed",
+      "issueNumber": 194,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Passed (network-free smoke, 1 passed in 0.01s). validate=True pre-flight on Users.create_user_rs_request raises AlmaValidationError naming the offending field BEFORE any HTTP request for wrong-table codes: format='P' (purchase-request code), pickup_location_type='BRANCH', citation_type='NOT_A_CODE'. Also pinned: permissive citation_type set (BK/CR/BOOK/JOURNAL all pass), both encodings accepted (wrapped and bare string), non-string values skipped, only the three code-table fields inspected, validate keyword-only defaulting False."
+    },
+    {
+      "id": "t-194-2",
+      "outcome": "passed",
+      "issueNumber": 194,
+      "stateChanging": true,
+      "cleanupStatus": "n/a",
+      "details": "Passed (live reproduction, 1 passed in 0.43s). POSTing the known-good body with the purchase-request code format='P' (validate= deliberately not passed, proving validation is off by default) reproduced issue #194: Alma returned HTTP 400 'Invalid field value' with the unrendered field placeholder, and the client appended the '[almaapitk hint: ...]' naming format/PHYSICAL/DIGITAL and pointing at build_user_rs_request and validate=True. The create was rejected by Alma as expected, so no request was left in SANDBOX. Cleanup waived by operator (state-changing test; any created requests intentionally left in SANDBOX for inspection this run)."
+    },
+    {
+      "id": "t-194-3",
+      "outcome": "passed",
+      "issueNumber": 194,
+      "stateChanging": false,
+      "cleanupStatus": "n/a",
+      "details": "Passed (network-free smoke, 1 passed in 0.01s). Pinned the error-surfacing internals: mangled-message detector with endpoint-scoped hint selection (RS-borrowing hint on the resource-sharing surface, generic hint elsewhere), well-rendered Alma errors that name their field left untouched, unrelated messages unchanged, the 40166411 code collision resolved endpoint-scoped (AlmaInvalidPolModeError kept on acquisitions, plain AlmaAPIError on the RS surface), and 401890 mapped to AlmaResourceNotFoundError despite arriving as HTTP 400. Pure string-level calls; no HTTP issued."
+    }
+  ],
+  "perIssue": [
+    {
+      "number": 197,
+      "everyAcMapped": true,
+      "everyTestPassed": false,
+      "anySkips": false,
+      "autoCloseEligible": false
+    },
+    {
+      "number": 194,
+      "everyAcMapped": true,
+      "everyTestPassed": true,
+      "anySkips": false,
+      "autoCloseEligible": true
+    }
+  ]
+}

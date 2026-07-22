@@ -346,6 +346,20 @@ phases:
     description: |
       Mostly read + tightly bounded CRUD. Two audit Not-aligned cases (#52, #57). #103 adds SRU-based keyword search (post-0.4.x).
     chunks:
+      - name: create-record-from-fields
+        issues: [179]
+        risk: low
+        prereqs: []
+        audit: clean
+        notes: |
+          **Merged 2026-07-19 via PR #201** (recorded retroactively — the chunk ran before this entry existed). Structure-driven bib creation: `build_alma_bib_xml(spec)` pure builder (non-namespaced `<bib><record>`, order + repeated fields/subfields preserved, single ET-escaping), `create_record_from_fields(spec)`, and the optional `create_record_from_pymarc` behind the `almaapitk[pymarc]` extra. R10: `tests/unit/regressions/test_issue_179.py`.
+      - name: bibs-marc-fixes
+        issues: [184, 185, 186]
+        risk: med
+        prereqs: []
+        audit: clean
+        notes: |
+          **Merged 2026-07-19 via PR #201** (recorded retroactively). MARC-editing-path release-blockers from the 2026-07-12 `/expert-cataloger` compliance review: #184 repeatable-field data loss on `update_marc_field`, #185 dict-typed subfields can't express repeated codes (now ordered `[code, value]` pairs), #186 double-escaping of `&`/`<`/`>`. The consolidation commit also closed review follow-ups #187/#188/#189/#190 + #193. R10: `tests/unit/regressions/test_issue_184/185/186*.py`.
       - name: bibs-holdings-and-items
         issues: [46, 47]
         risk: med

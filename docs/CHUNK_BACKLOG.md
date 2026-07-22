@@ -1,6 +1,6 @@
 # Chunk Backlog
 
-_Last rendered: 2026-07-22T13:48:40Z_
+_Last rendered: 2026-07-22T14:49:06Z_
 
 > **Generated artifact** — do not hand-edit. Source: `docs/chunks-backlog.yaml`.
 > Regenerate with `scripts/agentic/chunks render-backlog`.
@@ -136,34 +136,36 @@ Mostly read + tightly bounded CRUD. Two audit Not-aligned cases (#52, #57). #103
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 38 | · planned | `bibs-holdings-and-items` | #46, #47 | med | none | #46 partially aligned (`bib` not `override_attached_items`); #47 partially aligned (`bib` not `bibs`, missing `override`) | Already rewritten. Both complete CRUD on tightly related concepts. Test fixture: dedicated test bib MMS. |
-| 39 | · planned | `bibs-portfolios-and-ecollections` | #48, #54 | low | #66 | clean | Both bib-level electronic resource access; #48 is CRUD, #54 is read-only. |
-| 40 | · planned | `bibs-requests` | #49, #50 | med | none | #49 partially aligned (missing `user_id`/`user_id_type`/`allow_same_request`) | Bib-level + item-level requests. Highly parallel. |
-| 41 | · planned | `bibs-loans` | #51 | high | none | #51 partially aligned (query vs body confusion, `op=renew` only) | Already rewritten. Solo for review. |
-| 42 | · planned | `bibs-booking` | #52 | high | none | #52 NOT ALIGNED (`period` mandatory `int`, missing `period_type`, `consider_dlr`) | Already rewritten. Verify `period` integer requirement and `consider_dlr` semantics in SANDBOX before final commit (audit's next-action #9). |
-| 43 | · planned | `bibs-collections-and-reminders` | #53, #55 | low | none | clean | Both standalone CRUD; group for review economy. |
-| 44 | · planned | `bibs-authorities` | #56 | high | none | #56 partially aligned (`authority_xml` not `marc_xml`; missing `normalization`/`override_warning`/`check_match`/`import_profile`) | Already rewritten. Authority XML wrapper; not raw MARC. Solo. |
-| 45 | · planned | `bibs-record-ops` | #57 | high | none | #57 NOT ALIGNED (only `op=unlink_from_nz` documented; `suppress_bib`/`unsuppress_bib` removed) | Already rewritten — the original `suppress` wrappers must NOT be reintroduced. Solo. |
-| 46 | · planned | `bibs-sru-search` | #103 | med | none | clean | Post-cleanup-monolith. Replaces the removed `search_records()` with an SRU-based keyword-search method. Needs SRU CQL knowledge; design pass recommended before chunking. Off-pipeline candidate if scope is well-bounded. |
+| 38 | ✅ merged | `create-record-from-fields` | #179 | low | none | clean | **Merged 2026-07-19 via PR #201** (recorded retroactively — the chunk ran before this entry existed). Structure-driven bib creation: `build_alma_bib_xml(spec)` pure builder (non-namespaced `<bib><record>`, order + repeated fields/subfields preserved, single ET-escaping), `create_record_from_fields(spec)`, and the optional `create_record_from_pymarc` behind the `almaapitk[pymarc]` extra. R10: `tests/unit/regressions/test_issue_179.py`. |
+| 39 | ✅ merged | `bibs-marc-fixes` | #184, #185, #186 | med | none | clean | **Merged 2026-07-19 via PR #201** (recorded retroactively). MARC-editing-path release-blockers from the 2026-07-12 `/expert-cataloger` compliance review: #184 repeatable-field data loss on `update_marc_field`, #185 dict-typed subfields can't express repeated codes (now ordered `[code, value]` pairs), #186 double-escaping of `&`/`<`/`>`. The consolidation commit also closed review follow-ups #187/#188/#189/#190 + #193. R10: `tests/unit/regressions/test_issue_184/185/186*.py`. |
+| 40 | · planned | `bibs-holdings-and-items` | #46, #47 | med | none | #46 partially aligned (`bib` not `override_attached_items`); #47 partially aligned (`bib` not `bibs`, missing `override`) | Already rewritten. Both complete CRUD on tightly related concepts. Test fixture: dedicated test bib MMS. |
+| 41 | · planned | `bibs-portfolios-and-ecollections` | #48, #54 | low | #66 | clean | Both bib-level electronic resource access; #48 is CRUD, #54 is read-only. |
+| 42 | · planned | `bibs-requests` | #49, #50 | med | none | #49 partially aligned (missing `user_id`/`user_id_type`/`allow_same_request`) | Bib-level + item-level requests. Highly parallel. |
+| 43 | · planned | `bibs-loans` | #51 | high | none | #51 partially aligned (query vs body confusion, `op=renew` only) | Already rewritten. Solo for review. |
+| 44 | · planned | `bibs-booking` | #52 | high | none | #52 NOT ALIGNED (`period` mandatory `int`, missing `period_type`, `consider_dlr`) | Already rewritten. Verify `period` integer requirement and `consider_dlr` semantics in SANDBOX before final commit (audit's next-action #9). |
+| 45 | · planned | `bibs-collections-and-reminders` | #53, #55 | low | none | clean | Both standalone CRUD; group for review economy. |
+| 46 | · planned | `bibs-authorities` | #56 | high | none | #56 partially aligned (`authority_xml` not `marc_xml`; missing `normalization`/`override_warning`/`check_match`/`import_profile`) | Already rewritten. Authority XML wrapper; not raw MARC. Solo. |
+| 47 | · planned | `bibs-record-ops` | #57 | high | none | #57 NOT ALIGNED (only `op=unlink_from_nz` documented; `suppress_bib`/`unsuppress_bib` removed) | Already rewritten — the original `suppress` wrappers must NOT be reintroduced. Solo. |
+| 48 | · planned | `bibs-sru-search` | #103 | med | none | clean | Post-cleanup-monolith. Replaces the removed `search_records()` with an SRU-based keyword-search method. Needs SRU CQL knowledge; design pass recommended before chunking. Off-pipeline candidate if scope is well-bounded. |
 
 ## Phase 10 — Acquisitions
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 47 | · planned | `acq-vendors-and-funds` | #58, #59 | med | none | #58 partially aligned (lowercase status, missing `type` filter); #59 partially aligned (op only `activate`/`deactivate`; transfers via #60) | Already rewritten. Top-level acquisition entities. |
-| 48 | · planned | `acq-fund-transactions` | #60 | high | #59 | clean | State-changing fund operations (allocate/transfer). Round-trip with cleanup. **Reserve a test fund** so production funds aren't touched. |
-| 49 | · planned | `acq-pol` | #61 | high | none | #61 partially aligned (`reason` not `reason_code`; missing `inform_vendor`/`override`/`bib`) | Already rewritten. Cancel POL is destructive; round-trip with a dedicated test POL. |
-| 50 | · planned | `acq-attachments` | #62 | med | none | clean | Invoice attachments. Open question flagged: base64 vs multipart upload semantics (audit's next-action #10) — verify in SANDBOX. |
-| 51 | · planned | `acq-licenses` | #63 | med | none | clean | 15 endpoints — biggest single chunk in Acq. Mostly CRUD. |
-| 52 | · planned | `acq-lookups` | #64 | low | none | clean | Read-only lookups (currencies + fiscal periods). Quickest in this phase. |
-| 53 | · planned | `acq-purchase-requests` | #65 | med | none | #65 partially aligned (op constrained to `approve`/`reject`; reject needs reason) | Already rewritten. |
+| 49 | · planned | `acq-vendors-and-funds` | #58, #59 | med | none | #58 partially aligned (lowercase status, missing `type` filter); #59 partially aligned (op only `activate`/`deactivate`; transfers via #60) | Already rewritten. Top-level acquisition entities. |
+| 50 | · planned | `acq-fund-transactions` | #60 | high | #59 | clean | State-changing fund operations (allocate/transfer). Round-trip with cleanup. **Reserve a test fund** so production funds aren't touched. |
+| 51 | · planned | `acq-pol` | #61 | high | none | #61 partially aligned (`reason` not `reason_code`; missing `inform_vendor`/`override`/`bib`) | Already rewritten. Cancel POL is destructive; round-trip with a dedicated test POL. |
+| 52 | · planned | `acq-attachments` | #62 | med | none | clean | Invoice attachments. Open question flagged: base64 vs multipart upload semantics (audit's next-action #10) — verify in SANDBOX. |
+| 53 | · planned | `acq-licenses` | #63 | med | none | clean | 15 endpoints — biggest single chunk in Acq. Mostly CRUD. |
+| 54 | · planned | `acq-lookups` | #64 | low | none | clean | Read-only lookups (currencies + fiscal periods). Quickest in this phase. |
+| 55 | · planned | `acq-purchase-requests` | #65 | med | none | #65 partially aligned (op constrained to `approve`/`reject`; reject needs reason) | Already rewritten. |
 
 ## Phase 11 — Electronic
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 54 | ✅ merged | `electronic-bootstrap` | #66 | low | none | clean | Foundation. **Blocks #67, #68, #69.** |
-| 55 | · planned | `electronic-coverage` | #67, #68, #69 | med | #66 | #69 partially aligned (`limit` default 10 not 100; no `q` param) | Already rewritten. e-collections + e-services + portfolios share fixtures and patterns. **All three together** is fine — same shape; one PR is enough. |
+| 56 | ✅ merged | `electronic-bootstrap` | #66 | low | none | clean | Foundation. **Blocks #67, #68, #69.** |
+| 57 | · planned | `electronic-coverage` | #67, #68, #69 | med | #66 | #69 partially aligned (`limit` default 10 not 100; no `q` param) | Already rewritten. e-collections + e-services + portfolios share fixtures and patterns. **All three together** is fine — same shape; one PR is enough. |
 
 ## Phase 12 — TaskLists
 
@@ -171,23 +173,23 @@ Three of four tickets in this phase are previously-flagged. Take care.
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 56 | · planned | `tasklists-bootstrap` | #70 | low | none | clean | Foundation. **Blocks #71, #72, #73.** |
-| 57 | · planned | `tasklists-requested-resources` | #71 | high | #70 | #71 partially aligned (`library`+`circ_desk` mandatory; only `op=mark_reported`; dropped invented `request_ids`) | Already rewritten. |
-| 58 | · planned | `tasklists-lending-requests` | #72 | high | #70 | #72 NOT ALIGNED (proposed ship/receive don't map to that endpoint; only `op=mark_reported`) | Already rewritten. Audit's next-action #2 calls for a separate partner-side follow-up ticket — don't try to add ship/receive helpers here. |
-| 59 | · planned | `tasklists-printouts` | #73 | high | #70 | #73 partially aligned (no `POST /printouts/create`; documented `op=mark_as_printed`/`mark_as_canceled` only) | Already rewritten. `create_printout` was removed. |
+| 58 | · planned | `tasklists-bootstrap` | #70 | low | none | clean | Foundation. **Blocks #71, #72, #73.** |
+| 59 | · planned | `tasklists-requested-resources` | #71 | high | #70 | #71 partially aligned (`library`+`circ_desk` mandatory; only `op=mark_reported`; dropped invented `request_ids`) | Already rewritten. |
+| 60 | · planned | `tasklists-lending-requests` | #72 | high | #70 | #72 NOT ALIGNED (proposed ship/receive don't map to that endpoint; only `op=mark_reported`) | Already rewritten. Audit's next-action #2 calls for a separate partner-side follow-up ticket — don't try to add ship/receive helpers here. |
+| 61 | · planned | `tasklists-printouts` | #73 | high | #70 | #73 partially aligned (no `POST /printouts/create`; documented `op=mark_as_printed`/`mark_as_canceled` only) | Already rewritten. `create_printout` was removed. |
 
 ## Phase 13 — ResourceSharing
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 60 | · planned | `rs-partners` | #74 | med | #120 | #74 partially aligned (no `q`/`type_filter`; documented filter is `status`) | Already rewritten. **Hard prereq: `partners-rename` (#120) must land first** — otherwise this chunk ships partner CRUD into a name that's about to be deprecated. |
-| 61 | · planned | `rs-directory-members` | #78 | high | #120 | #78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented) | Already rewritten — bodyless POST. Solo. Same `#120` prereq as `rs-partners`. |
+| 62 | · planned | `rs-partners` | #74 | med | #120 | #74 partially aligned (no `q`/`type_filter`; documented filter is `status`) | Already rewritten. **Hard prereq: `partners-rename` (#120) must land first** — otherwise this chunk ships partner CRUD into a name that's about to be deprecated. |
+| 63 | · planned | `rs-directory-members` | #78 | high | #120 | #78 NOT ALIGNED (`localize` POST has no body params; `localization_data` was invented) | Already rewritten — bodyless POST. Solo. Same `#120` prereq as `rs-partners`. |
 
 ## Phase 15 — Analytics
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 62 | · planned | `analytics-paths` | #79 | low | none | #79 partially aligned (root `/paths` endpoint — `{path}` is optional) | Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand. |
+| 64 | · planned | `analytics-paths` | #79 | low | none | #79 partially aligned (root `/paths` endpoint — `{path}` is optional) | Already rewritten with single `get_analytics_paths(path=None)`. **Memory note: analytics is PRODUCTION-only** (per project memory `feedback_analytics_prod_only.md`). The SANDBOX test for this MUST use the PROD client + `ALMA_PROD_API_KEY`, BUT R8 forbids the prod key in the orchestration env. **This chunk requires manual SANDBOX-step substitution OR explicit user approval to relax R8 just for this test.** Likely: mark all paths-related ACs `unmappable` and verify by hand. |
 
 ## Phase 16 — Pipeline & dev-experience improvements
 
@@ -195,8 +197,8 @@ Improvements to the chunk pipeline itself, surfaced from running it at scale acr
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 63 | · planned | `pipeline-swagger-enrich` | #123 | med | none | clean | Enrich `_swagger_*.json` sidecars with per-endpoint description/requestBody/responses so the implement agent has structured context instead of just error codes. Pipeline internals only. |
-| 64 | · planned | `re-verify-create-user-request` | #129 | low | none | clean | Calendar-tied: re-verify `Users.create_user_request` live SANDBOX behavior around 2026-05-25. Not really a chunk — surface here so it isn't forgotten; execute as a one-shot when the date arrives. |
+| 65 | · planned | `pipeline-swagger-enrich` | #123 | med | none | clean | Enrich `_swagger_*.json` sidecars with per-endpoint description/requestBody/responses so the implement agent has structured context instead of just error codes. Pipeline internals only. |
+| 66 | · planned | `re-verify-create-user-request` | #129 | low | none | clean | Calendar-tied: re-verify `Users.create_user_request` live SANDBOX behavior around 2026-05-25. Not really a chunk — surface here so it isn't forgotten; execute as a one-shot when the date arrives. |
 
 ## Phase 17 — Advanced architecture (deferred until coverage stabilizes)
 
@@ -204,12 +206,12 @@ The handbook recommends doing these in wave 7, after most of the high-priority c
 
 | # | Status | Chunk | Issues | Risk | Prereqs | Audit | Notes |
 |---|---|---|---|---|---|---|---|
-| 65 | · planned | `rate-limiting` | #8 | high | #3, #4, #5 | clean | Rolling-window throttler. Hard to validate in SANDBOX. |
-| 66 | · planned | `async-bulk` | #18 | high | #3, #4 | clean | Sibling async client + `bulk_call`. Big surface; mostly mock-tested. |
-| 67 | · planned | `marc-layer` | #19 | high | #46 | clean | Optional `pymarc` integration; needs careful design review. |
-| 68 | · planned | `openapi-validation` | #20 | high | none | clean | Optional opt-in validator vendoring Ex Libris specs. Defer until specs are stable. |
-| 69 | · planned | `batch-runner` | #21 | high | #18 | clean | DataFrame batch orchestrator built on #18 async. |
-| 70 | · planned | `pydantic-models` | #12 | high | none | clean | Schema-derived models. Defer to last; benefits most from real fixtures. |
+| 67 | · planned | `rate-limiting` | #8 | high | #3, #4, #5 | clean | Rolling-window throttler. Hard to validate in SANDBOX. |
+| 68 | · planned | `async-bulk` | #18 | high | #3, #4 | clean | Sibling async client + `bulk_call`. Big surface; mostly mock-tested. |
+| 69 | · planned | `marc-layer` | #19 | high | #46 | clean | Optional `pymarc` integration; needs careful design review. |
+| 70 | · planned | `openapi-validation` | #20 | high | none | clean | Optional opt-in validator vendoring Ex Libris specs. Defer until specs are stable. |
+| 71 | · planned | `batch-runner` | #21 | high | #18 | clean | DataFrame batch orchestrator built on #18 async. |
+| 72 | · planned | `pydantic-models` | #12 | high | none | clean | Schema-derived models. Defer to last; benefits most from real fixtures. |
 
 ## Blocked — resolve before chunking
 

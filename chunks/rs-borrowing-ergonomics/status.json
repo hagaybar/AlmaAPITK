@@ -4,14 +4,14 @@
     197,
     194
   ],
-  "stage": "test-done",
+  "stage": "test-data-pending",
   "branch": "chunk/rs-borrowing-ergonomics",
   "createdAt": "2026-07-19T10:32:16Z",
-  "updatedAt": "2026-07-22T10:48:43Z",
-  "lastEvent": "tests complete",
-  "nextAction": "triage and PR",
+  "updatedAt": "2026-07-22T12:20:17Z",
+  "lastEvent": "test process started (headless: pre-supplied test-data.json)",
+  "nextAction": "drive via /chunk-run-test or babysitter run:iterate",
   "openBreakpoints": [],
   "implRunId": "01KXXD147MGH4K2EAFWD84SR44",
-  "testRunId": "01KY4NZ5MNNZGHN4SSTG75Y6ZS",
+  "testRunId": "01KY4WA0KPA3RSJZ1CPXY9P6G3",
   "prUrl": null
 }

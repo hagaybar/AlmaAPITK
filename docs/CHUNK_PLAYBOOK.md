@@ -14,7 +14,7 @@ The agent then asks what you want to do (drill into one, define a new one, no-op
 
 | Rule | Plain English |
 |---|---|
-| R1 | Never push or merge to `prod`. The agent never touches `prod`. *(The `prod` branch is obsolete and being retired — see §7 and issue #178.)* |
+| R1 | *(Retired.)* Historically: never push or merge to `prod`. The `prod` branch was **removed on 2026-07-22** (issue #178); its final state is preserved as tag `prod-archived-2026-06-03`. Releases ship via PyPI tags cut from `main` — see §7. |
 | R2 | No PR is auto-merged. PRs always open as drafts. You merge. |
 | R3 | Implementation and testing are separate runs. You trigger each. |
 | R4 | Auto-close only when every AC has a passing SANDBOX test. |
@@ -137,24 +137,16 @@ scripts/agentic/chunks status http-foundation  # to refresh after manual update 
 You can manually transition the chunk to `merged`:
 
 ```bash
-python -c "from scripts.agentic.chunk_status import transition; from pathlib import Path; transition(Path('chunks/http-foundation'), 'merged', 'merged via gh', 'soak before prod release')"
+python -c "from scripts.agentic.chunk_status import transition; from pathlib import Path; transition(Path('chunks/http-foundation'), 'merged', 'merged via gh', 'ships in next PyPI release')"
 ```
 
-### 7. Prod promotion (DEPRECATED — the `prod` branch is being retired)
+### 7. Prod promotion (REMOVED — the `prod` branch no longer exists)
 
-> **⚠️ DEPRECATED (2026-06-03).** `almaapitk` ships via **PyPI tag-releases cut
-> from `main`** (`vX.Y.Z` tag → build → PyPI + GitHub Release; see
-> `docs/RELEASE_CHECKLIST.md`). There is no `prod` branch to promote to — it is
-> obsolete, archived as tag `prod-archived-2026-06-03`, and slated for removal
-> ~2026-10-03 (tracking issue #178). **Skip this section.**
-
-The former manual flow (no longer used):
-
-1. Cut a GitHub test release from `main`.
-2. Soak it.
-3. `git checkout prod && git merge main && git push origin prod`.
-
-The agent never participated in step 1, 2, or 3.
+> **Removed 2026-07-22.** `almaapitk` ships via **PyPI tag-releases cut from
+> `main`** (`vX.Y.Z` tag → build → PyPI + GitHub Release; see
+> `docs/RELEASE_CHECKLIST.md`). The former `prod` branch was deleted on
+> 2026-07-22 (issue #178); its final state is preserved indefinitely as the
+> annotated tag `prod-archived-2026-06-03`.
 
 ## Coverage-issue acceptance criterion: swagger error codes accounted for
 

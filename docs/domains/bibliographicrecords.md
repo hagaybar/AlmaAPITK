@@ -200,6 +200,49 @@ if response.success:
 
 ---
 
+#### `create_record_from_fields(spec, validate, override_warning)` *(new in 0.5.0)*
+
+Create a record from a native, JSON-serializable field structure — no
+hand-built MARCXML. Internally: `build_alma_bib_xml(spec)` →
+`create_record()`.
+
+```python
+spec = {
+    # leader optional; RDA-friendly default used if omitted
+    "fields": [
+        {"tag": "008", "data": "260722s2026    xx            000 0 eng d"},
+        {"tag": "245", "ind1": "1", "ind2": "0",
+         "subfields": [["a", "Data Reduction Methods"]]},
+        {"tag": "650", "ind1": " ", "ind2": "0",
+         "subfields": [["a", "Data reduction"]]},
+        {"tag": "650", "ind1": " ", "ind2": "0",
+         "subfields": [["a", "Data science"]]},          # repeated tags OK
+    ],
+}
+response = bibs.create_record_from_fields(spec)
+```
+
+The spec grammar: control fields (`00X`) carry `"data"`; data fields carry
+`"ind1"`/`"ind2"` and ordered `"subfields"` `[code, value]` pairs (repeated
+tags and repeated codes preserved). MARC content designation is enforced
+client-side: 3-digit tags, control-vs-data decided by the tag, single
+lowercase-letter/digit subfield codes, valid indicators (issue #187).
+
+#### `create_record_from_pymarc(record, validate, override_warning)` *(new in 0.5.0)*
+
+Adapter from a `pymarc.Record`. Requires the optional extra
+`pip install almaapitk[pymarc]` (lazily imported; a clear error tells you to
+install it if missing — the core install stays dependency-light).
+
+#### `build_alma_bib_xml(spec, require_245=False)` *(new in 0.5.0, module-level)*
+
+The pure, network-free builder both methods above use — importable directly
+(`from almaapitk import build_alma_bib_xml`) when you want the XML without
+creating anything. `require_245=True` adds a client-side completeness check
+(issue #189).
+
+---
+
 #### `update_record(mms_id, marc_xml, validate, override_warning, override_lock, stale_version_check)`
 
 Update an existing bibliographic record.
@@ -279,51 +322,60 @@ response = bibs.delete_record(
 
 ---
 
-#### `update_marc_field(mms_id, field, subfields, ind1, ind2)`
+#### `update_marc_field(mms_id, field, subfields, ind1, ind2, mode="replace_first")`
 
-Update or create a specific MARC field in a bibliographic record.
+Update, replace, or append a MARC field in a bibliographic record.
 
-**Signature:**
+**Signature** *(changed in 0.5.0 — issues #184/#185)*:
 ```python
-def update_marc_field(self, mms_id: str, field: str, subfields: Dict[str, str],
-                      ind1: str = ' ', ind2: str = ' ') -> AlmaResponse
+def update_marc_field(self, mms_id: str, field: str, subfields: SubfieldsArg,
+                      ind1: str = ' ', ind2: str = ' ',
+                      mode: str = "replace_first") -> AlmaResponse
 ```
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `mms_id` | str | Yes | - | MMS ID of the record |
-| `field` | str | Yes | - | MARC field number (3 digits, e.g., "594") |
-| `subfields` | dict | Yes | - | Dictionary of subfield codes and values |
+| `field` | str | Yes | - | MARC field number (3 digits, e.g., "650") |
+| `subfields` | list of `[code, value]` pairs, or dict | Yes | - | Ordered pairs preserve order **and repeated subfield codes** (e.g. two `$x`); the legacy dict shape still works for non-repeating codes |
 | `ind1` | str | No | ' ' | First indicator |
 | `ind2` | str | No | ' ' | Second indicator |
+| `mode` | str | No | `"replace_first"` | `replace_first` \| `replace_all` \| `append` |
 
 **Returns:** `AlmaResponse` containing the updated record
 
+**Repeatable-field safety** *(0.5.0)*: many MARC tags (6XX/5XX/7XX/020/490/856…)
+are repeatable, and a record routinely carries several occurrences. Only the
+occurrence(s) selected by `mode` are touched — every other occurrence is
+preserved. (Before 0.5.0 the first occurrence was replaced and **all other
+occurrences of the tag were silently dropped** — issue #184.) Values are
+escaped exactly once; `&`, `<`, `>` round-trip unmangled (issue #186).
+
 **Example:**
 ```python
-# Add/update local note field 590
+# Replace the first 590 (legacy dict shape still accepted)
 response = bibs.update_marc_field(
     mms_id="991234567890123456",
     field="590",
-    subfields={
-        "a": "Local processing note",
-        "b": "Additional info"
-    },
-    ind1=" ",
-    ind2=" "
+    subfields={"a": "Local processing note", "b": "Additional info"},
 )
 
-# Add subject heading field 650
+# Repeated subfield codes need the ordered-pairs shape
 response = bibs.update_marc_field(
     mms_id="991234567890123456",
     field="650",
-    subfields={
-        "a": "Library science",
-        "x": "Data processing"
-    },
-    ind1=" ",
-    ind2="0"
+    subfields=[["a", "Science"], ["x", "History"], ["x", "20th century"]],
+    ind2="0",
+)
+
+# Add ANOTHER 650 without touching the existing ones
+response = bibs.update_marc_field(
+    mms_id="991234567890123456",
+    field="650",
+    subfields=[["a", "Data science"]],
+    ind2="0",
+    mode="append",
 )
 ```
 

@@ -15,6 +15,9 @@ inverted: POL meaning only on the acq surface (and for URL-less legacy
 calls, preserving the issue-#194 pins), plain ``AlmaAPIError`` elsewhere.
 """
 
+import os
+from unittest.mock import patch
+
 import pytest
 
 from almaapitk import AlmaAPIClient
@@ -28,7 +31,12 @@ _BASE = "https://api-eu.hosted.exlibrisgroup.com/almaws/v1"
 
 @pytest.fixture(scope="module")
 def client():
-    return AlmaAPIClient("SANDBOX")
+    # Same pattern as test_issue_194: a synthetic key so construction works
+    # in credential-less CI. _classify_error never touches the network.
+    with patch.dict(
+        os.environ, {"ALMA_SB_API_KEY": "test-sandbox-key"}, clear=False
+    ):
+        yield AlmaAPIClient("SANDBOX")
 
 
 @pytest.mark.parametrize(

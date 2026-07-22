@@ -3,9 +3,12 @@
 The one genuinely live-worthy check for #197: a body produced entirely by
 build_user_rs_request is ACCEPTED BY ALMA on a real create. Sequence:
 build -> create -> get (confirm request_id round-trips). Code values are
-the empirically-passing SANDBOX values from the previous chunk's live
-test (format PHYSICAL, citation_type BOOK) so a failure here points at
-the builder's SHAPE, not at a code-table guess. This also supplies the
+the empirically-proven SANDBOX values from the 2026-07-22 A/B run
+(format DIGITAL, citation_type CR — the PHYSICAL+BOOK shape reproducibly
+500s in SB, and CR persists+enriches the citation) so a failure here
+points at the builder's SHAPE, not at a code-table guess. DIGITAL
+articles make journal_title+year+author mandatory (401930), so both
+journal_title and year are supplied. This also supplies the
 positive half of issue #194's reproduction and the 'no behavior change
 to valid calls' evidence: a valid call must succeed with no
 '[almaapitk hint:' anywhere.
@@ -80,10 +83,12 @@ def test_t_197_2(capsys) -> None:
     # --- BUILD ----------------------------------------------------------
     built_body = build_user_rs_request(
         owner=rs_library_code,
-        format="PHYSICAL",
-        citation_type="BOOK",
+        format="DIGITAL",
+        citation_type="CR",
         title="AlmaAPITK chunk-test RS request (issue 197 builder)",
+        journal_title="AlmaAPITK Chunk Test Journal",
         author="AlmaAPITK",
+        year=2026,
         pickup_location=pickup_library_code,
         pickup_location_type="LIBRARY",
         agree_to_copyright_terms=True,

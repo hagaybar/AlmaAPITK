@@ -92,6 +92,7 @@ __all__ = [
     "Configuration",
     # Domain helpers
     "build_alma_bib_xml",
+    "build_user_rs_request",
     # Utilities
     "TSVGenerator",
     "CitationMetadataError",
@@ -123,6 +124,7 @@ _lazy_imports = {
     "Configuration": ("almaapitk._internal", "Configuration"),
     # Domain helpers
     "build_alma_bib_xml": ("almaapitk.domains.bibs", "build_alma_bib_xml"),
+    "build_user_rs_request": ("almaapitk.domains.users", "build_user_rs_request"),
     # Utilities
     "TSVGenerator": ("almaapitk.utils.tsv_generator", "TSVGenerator"),
     "CitationMetadataError": ("almaapitk.utils.citation_metadata", "CitationMetadataError"),

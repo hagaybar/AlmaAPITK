@@ -4869,6 +4869,185 @@ class TestCreateUserRsRequest:
 
 
 # ---------------------------------------------------------------------------
+# create_user_rs_request — opt-in code-table validation  (issue #194)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateUserRsRequestValidation:
+    """Tests for the ``validate=`` kwarg on ``Users.create_user_rs_request``."""
+
+    @staticmethod
+    def _client() -> MockAlmaAPIClient:
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "rs-194"}
+        )
+        return mock_client
+
+    def test_validation_is_off_by_default(self):
+        """A wrong-table code must still be forwarded when ``validate`` is
+        omitted — the check is strictly opt-in."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {"format": {"value": "P"}, "citation_type": {"value": "BOOK"}}
+        response = users.create_user_rs_request("u1", request_data=body)
+
+        assert mock_client.calls["post"][0]["data"] == body
+        assert response.data["request_id"] == "rs-194"
+
+    def test_validate_true_rejects_purchase_format_code(self):
+        """``format: P`` is the purchase-request code — reject and name the
+        field instead of letting Alma return its unrenderable error."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={
+                    "format": {"value": "P"},
+                    "citation_type": {"value": "BOOK"},
+                },
+                validate=True,
+            )
+
+        assert "format" in str(exc_info.value)
+        assert "PHYSICAL" in str(exc_info.value)
+        # No network call may be made once validation fails.
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_accepts_documented_codes(self):
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {
+            "owner": "RS_LIB",
+            "format": {"value": "PHYSICAL"},
+            "citation_type": {"value": "BK"},
+            "pickup_location_type": "LIBRARY",
+        }
+        users.create_user_rs_request("u1", request_data=body, validate=True)
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/resource-sharing-requests"
+        )
+        # Validation must not normalise or rewrite the body.
+        assert call["data"] == body
+
+    @pytest.mark.parametrize("code", ["BK", "CR", "BOOK", "JOURNAL"])
+    def test_validate_true_is_permissive_about_citation_type(self, code):
+        """The XSD says BK/CR, SANDBOX accepted BOOK, lending uses
+        BOOK/JOURNAL — the sources disagree, so all four pass."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        users.create_user_rs_request(
+            "u1",
+            request_data={
+                "format": {"value": "DIGITAL"},
+                "citation_type": {"value": code},
+            },
+            validate=True,
+        )
+
+        assert len(mock_client.calls["post"]) == 1
+
+    def test_validate_true_rejects_unknown_citation_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={"citation_type": {"value": "ARTICLE"}},
+                validate=True,
+            )
+
+        assert "citation_type" in str(exc_info.value)
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_rejects_unknown_pickup_location_type(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            users.create_user_rs_request(
+                "u1",
+                request_data={"pickup_location_type": "DESK"},
+                validate=True,
+            )
+
+        assert "pickup_location_type" in str(exc_info.value)
+        assert mock_client.calls["post"] == []
+
+    def test_validate_true_accepts_unwrapped_code_values(self):
+        """``request_data`` is forwarded verbatim, so a caller may have used
+        the bare-string encoding — validate it the same way."""
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        users.create_user_rs_request(
+            "u1", request_data={"format": "DIGITAL"}, validate=True
+        )
+        assert len(mock_client.calls["post"]) == 1
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_rs_request(
+                "u1", request_data={"format": "E"}, validate=True
+            )
+        assert len(mock_client.calls["post"]) == 1
+
+    def test_validate_true_ignores_absent_and_unreadable_fields(self):
+        """Fields not present, and values that are not plain strings, are
+        forwarded without an opinion."""
+        from almaapitk.domains.users import Users
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        body = {
+            "title": "Sample title",
+            # No ``value`` key — nothing to check against a code table.
+            "format": {"desc": "Physical"},
+            "citation_type": {"value": 7},
+        }
+        users.create_user_rs_request("u1", request_data=body, validate=True)
+
+        assert mock_client.calls["post"][0]["data"] == body
+
+    def test_validate_true_still_rejects_empty_request_data_first(self):
+        from almaapitk.domains.users import Users
+        from almaapitk import AlmaValidationError
+
+        mock_client = self._client()
+        users = Users(mock_client)
+
+        with pytest.raises(AlmaValidationError):
+            users.create_user_rs_request("u1", request_data={}, validate=True)
+        assert mock_client.calls["post"] == []
+
+
+# ---------------------------------------------------------------------------
 # get_user_rs_request  (issue #42)
 # ---------------------------------------------------------------------------
 
@@ -6019,3 +6198,314 @@ class TestPerformUserPurchaseRequestAction:
             )
 
         assert exc_info.value.alma_code == "401873"
+
+
+# ---------------------------------------------------------------------------
+# build_user_rs_request  (issue #197)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildUserRsRequest:
+    """Tests for ``almaapitk.domains.users.build_user_rs_request``.
+
+    Pure builder — no HTTP is involved except in the round-trip test, which
+    uses the same ``MockAlmaAPIClient`` stand-in as the rest of this module.
+    """
+
+    def test_builds_minimal_body_with_correct_wrapping(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            owner="RS_LIB",
+            format="DIGITAL",
+            citation_type="CR",
+        )
+
+        assert body == {
+            # owner is a PLAIN string — the Alma quirk (issue #197).
+            "owner": "RS_LIB",
+            "format": {"value": "DIGITAL"},
+            "citation_type": {"value": "CR"},
+            "agree_to_copyright_terms": True,
+        }
+
+    def test_builds_full_body(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            owner="RS_LIB",
+            format="PHYSICAL",
+            citation_type="BK",
+            title="Sample title",
+            journal_title="Sample journal",
+            author="Sample, Author",
+            year="2009",
+            pickup_location="PICKUP_LIB",
+            pickup_location_type="LIBRARY",
+            external_id="caller-app:42",
+        )
+
+        assert body == {
+            "owner": "RS_LIB",
+            "format": {"value": "PHYSICAL"},
+            "citation_type": {"value": "BK"},
+            "external_id": "caller-app:42",
+            # pickup_location_type is plain, pickup_location is wrapped.
+            "pickup_location_type": "LIBRARY",
+            "title": "Sample title",
+            "author": "Sample, Author",
+            "journal_title": "Sample journal",
+            "year": "2009",
+            "pickup_location": {"value": "PICKUP_LIB"},
+            "agree_to_copyright_terms": True,
+        }
+
+    def test_omits_optional_fields_that_are_none(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request("RS_LIB", "DIGITAL", "CR")
+
+        for field in (
+            "title",
+            "journal_title",
+            "author",
+            "year",
+            "pickup_location",
+            "pickup_location_type",
+            "external_id",
+        ):
+            assert field not in body
+
+    def test_agree_to_copyright_terms_none_omits_field(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB", "DIGITAL", "CR", agree_to_copyright_terms=None
+        )
+
+        assert "agree_to_copyright_terms" not in body
+
+    def test_agree_to_copyright_terms_false_is_kept(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB", "DIGITAL", "CR", agree_to_copyright_terms=False
+        )
+
+        assert body["agree_to_copyright_terms"] is False
+
+    def test_year_accepts_int(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request("RS_LIB", "PHYSICAL", "BK", year=2009)
+
+        assert body["year"] == "2009"
+
+    def test_strips_surrounding_whitespace(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "  RS_LIB  ",
+            "  DIGITAL ",
+            " CR ",
+            title="  Sample title  ",
+            pickup_location=" PICKUP_LIB ",
+        )
+
+        assert body["owner"] == "RS_LIB"
+        assert body["format"] == {"value": "DIGITAL"}
+        assert body["citation_type"] == {"value": "CR"}
+        assert body["title"] == "Sample title"
+        assert body["pickup_location"] == {"value": "PICKUP_LIB"}
+
+    def test_extra_wraps_known_code_table_fields(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB",
+            "DIGITAL",
+            "CR",
+            extra={"level_of_service": "REGULAR", "partner": "PARTNER_CODE"},
+        )
+
+        assert body["level_of_service"] == {"value": "REGULAR"}
+        assert body["partner"] == {"value": "PARTNER_CODE"}
+
+    def test_extra_passes_plain_fields_through_unwrapped(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB",
+            "PHYSICAL",
+            "BK",
+            extra={
+                "mms_id": "99123456789",
+                "note": "Automated request",
+                "allow_other_formats": True,
+                "maximum_fee": 12.5,
+            },
+        )
+
+        assert body["mms_id"] == "99123456789"
+        assert body["note"] == "Automated request"
+        assert body["allow_other_formats"] is True
+        assert body["maximum_fee"] == 12.5
+
+    def test_extra_does_not_double_wrap_already_wrapped_values(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB",
+            "DIGITAL",
+            "CR",
+            extra={"level_of_service": {"value": "EXPEDITED"}},
+        )
+
+        assert body["level_of_service"] == {"value": "EXPEDITED"}
+
+    def test_extra_overrides_explicit_arguments(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB",
+            "DIGITAL",
+            "CR",
+            title="Sample title",
+            extra={"title": "Override title"},
+        )
+
+        assert body["title"] == "Override title"
+
+    def test_extra_supports_unknown_fields_verbatim(self):
+        from almaapitk.domains.users import build_user_rs_request
+
+        body = build_user_rs_request(
+            "RS_LIB", "DIGITAL", "CR", extra={"future_field": "abc"}
+        )
+
+        assert body["future_field"] == "abc"
+
+    def test_result_round_trips_through_create_user_rs_request(self):
+        from almaapitk.domains.users import Users, build_user_rs_request
+
+        mock_client = MockAlmaAPIClient()
+        mock_client.post_response = MockAlmaResponse(
+            body={"request_id": "rs-197"}
+        )
+        users = Users(mock_client)
+
+        body = build_user_rs_request(
+            "RS_LIB", "DIGITAL", "CR", title="Sample title"
+        )
+        response = users.create_user_rs_request("u1", request_data=body)
+
+        call = mock_client.calls["post"][0]
+        assert call["endpoint"] == (
+            "almaws/v1/users/u1/resource-sharing-requests"
+        )
+        # The builder output is forwarded verbatim — no re-shaping.
+        assert call["data"] == body
+        assert response.data["request_id"] == "rs-197"
+
+    @pytest.mark.parametrize(
+        "kwargs,field",
+        [
+            ({"owner": ""}, "owner"),
+            ({"owner": "   "}, "owner"),
+            ({"owner": None}, "owner"),
+            ({"format": ""}, "format"),
+            ({"format": 5}, "format"),
+            ({"citation_type": ""}, "citation_type"),
+            ({"citation_type": None}, "citation_type"),
+        ],
+    )
+    def test_raises_on_missing_required_field(self, kwargs, field):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        call_kwargs = {
+            "owner": "RS_LIB",
+            "format": "DIGITAL",
+            "citation_type": "CR",
+        }
+        call_kwargs.update(kwargs)
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(**call_kwargs)  # type: ignore[arg-type]
+
+        assert field in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "title",
+            "journal_title",
+            "author",
+            "pickup_location",
+            "pickup_location_type",
+            "external_id",
+        ],
+    )
+    def test_raises_on_empty_optional_text_field(self, field):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(
+                "RS_LIB", "DIGITAL", "CR", **{field: "  "}
+            )
+
+        assert field in str(exc_info.value)
+
+    def test_raises_on_non_string_year(self):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(
+                "RS_LIB", "PHYSICAL", "BK", year=[2009]  # type: ignore[arg-type]
+            )
+
+        assert "year" in str(exc_info.value)
+
+    def test_raises_on_non_bool_agree_to_copyright_terms(self):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(
+                "RS_LIB",
+                "DIGITAL",
+                "CR",
+                agree_to_copyright_terms="yes",  # type: ignore[arg-type]
+            )
+
+        assert "agree_to_copyright_terms" in str(exc_info.value)
+
+    def test_raises_on_non_dict_extra(self):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(
+                "RS_LIB", "DIGITAL", "CR", extra=["note"]  # type: ignore[arg-type]
+            )
+
+        assert "extra" in str(exc_info.value)
+
+    def test_raises_on_empty_extra_key(self):
+        from almaapitk.domains.users import build_user_rs_request
+        from almaapitk import AlmaValidationError
+
+        with pytest.raises(AlmaValidationError) as exc_info:
+            build_user_rs_request(
+                "RS_LIB", "DIGITAL", "CR", extra={"   ": "value"}
+            )
+
+        assert "extra" in str(exc_info.value)
+
+    def test_exported_from_package_root(self):
+        import almaapitk
+
+        assert "build_user_rs_request" in almaapitk.__all__
+        assert callable(almaapitk.build_user_rs_request)

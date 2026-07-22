@@ -4,14 +4,14 @@
     197,
     194
   ],
-  "stage": "defined",
+  "stage": "pr-opened",
   "branch": "chunk/rs-borrowing-ergonomics",
   "createdAt": "2026-07-19T10:32:16Z",
-  "updatedAt": "2026-07-19T10:32:16Z",
-  "lastEvent": "Chunk defined; awaiting implementation trigger.",
-  "nextAction": "chunks run-impl rs-borrowing-ergonomics",
+  "updatedAt": "2026-07-22T13:18:32Z",
+  "lastEvent": "draft PR opened: https://github.com/hagaybar/AlmaAPITK/pull/206",
+  "nextAction": "review and merge manually",
   "openBreakpoints": [],
-  "implRunId": null,
-  "testRunId": null,
+  "implRunId": "01KXXD147MGH4K2EAFWD84SR44",
+  "testRunId": "01KY4WA0KPA3RSJZ1CPXY9P6G3",
   "prUrl": null
 }

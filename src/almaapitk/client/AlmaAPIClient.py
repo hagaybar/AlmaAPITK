@@ -307,14 +307,13 @@ class CredentialError(AlmaValidationError):
 # specific exception subclasses).
 ERROR_CODE_REGISTRY: Dict[str, type] = {
     "402459":   AlmaDuplicateInvoiceError,
-    # NOTE (issue #194): ``40166411`` is a *collision*. The acq swagger
-    # publishes it as "PO Line is not in the right mode", while the users
-    # swagger publishes the very same code as the generic "Parameter value is
-    # invalid." on ``POST /almaws/v1/users/{user_id}/resource-sharing-requests/
-    # {request_id}``. The registry is keyed by code alone, so a bad parameter on
-    # the RS action endpoint would otherwise surface as a POL-mode exception.
-    # ``_classify_error`` carries an endpoint-scoped override for exactly this
-    # pair; the mapping below remains the acq-side default.
+    # NOTE (issues #194, #209): ``40166411`` is a *collision*. Five domain
+    # swaggers (acq, bibs, conf, partners, users) publish it as the generic
+    # "Param(eter) value is invalid"; the "PO Line is not in the right mode"
+    # meaning is the acq-observed exception. The registry is keyed by code
+    # alone, so ``_classify_error`` carries an endpoint-scoped override:
+    # this POL mapping applies only on the acq surface (or when no URL is
+    # available); every other surface gets the base ``AlmaAPIError``.
     "40166411": AlmaInvalidPolModeError,
     # Alma returns HTTP 400 + errorCode 401861 ("User with identifier ... was not
     # found") for a missing user_primary_id — NOT HTTP 404 — so status-fallback
@@ -783,11 +782,18 @@ class AlmaAPIClient:
 
         Pattern source: GitHub issue #9.
         """
-        # Collision guard (issue #194): the users swagger publishes
-        # ``40166411`` as the generic "Parameter value is invalid." on the RS
-        # request-action endpoint, where ``AlmaInvalidPolModeError`` (its
-        # acquisitions meaning) would be actively misleading.
-        if alma_code == "40166411" and _is_rs_request_url(url):
+        # Collision guard (issues #194, #209): five domain swaggers (acq,
+        # bibs, conf, partners, users) all publish ``40166411`` as the
+        # generic "Param(eter) value is invalid"; the PO-line-mode meaning
+        # is the narrow exception observed on acq endpoints. POL meaning is
+        # therefore kept only on the acq surface — and for URL-less legacy
+        # calls, preserving the issue-#194 pins — and every other surface
+        # gets the base class.
+        if (
+            alma_code == "40166411"
+            and url is not None
+            and "/acq/" not in url
+        ):
             return AlmaAPIError
 
         if alma_code is not None and alma_code in ERROR_CODE_REGISTRY:

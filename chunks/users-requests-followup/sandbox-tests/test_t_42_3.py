@@ -68,15 +68,26 @@ def test_t_42_3(test_data, detail_log_path):
         #     field: Pickup location library code."
         #   - pickup_location_type = "LIBRARY" (plain string)
         #   - owner = plain string (matches lending-side quirk)
-        #   - citation_type = object {value: "BOOK"}
+        #   - citation_type = object {value: "BK"} — the RS-table physical-book
+        #     code. "BOOK" is a purchase-request-table value that SB tolerated
+        #     until ~2026-07; it now dies as a raw 500 pre-validation, like any
+        #     code outside the RS table BK/E_BK/CR/E_CR (issue #207).
         #   - agree_to_copyright_terms = True (mandatory boolean for borrowing)
         with rec.stage("create") as st:
             resp = users.create_user_rs_request(
                 test_data["existing_user_primary_id"],
                 {
-                    "citation_type": {"value": "BOOK"},
+                    "citation_type": {"value": "BK"},
+                    # BK validates Publication Date as mandatory (the old
+                    # BOOK path 500'd before validation ever ran) — synthetic
+                    # year, no real citation implied.
+                    "year": "2024",
                     "format": {"value": "PHYSICAL"},
-                    "title": "AlmaAPITK regression-smoke RS request",
+                    # Unique per run: SB soft-cancels BR requests (they stay
+                    # retrievable as CANCEL_REQUESTED) and duplicate detection
+                    # (402362) matches cancelled requests too — a static title
+                    # would fail the second run (observed 2026-07-22).
+                    "title": f"AlmaAPITK regression-smoke RS request {now_iso()}",
                     "author": "AlmaAPITK",
                     "owner": test_data["rs_library_code"],
                     "pickup_location_type": "LIBRARY",
@@ -166,17 +177,24 @@ def test_t_42_3(test_data, detail_log_path):
                     raise AlmaAPIError("cancel did not succeed", 0, None)
                 cleanup_ok = True
 
-        # --- POST-CANCEL GET (must fail with AlmaAPIError) ---------------
+        # --- POST-CANCEL GET (gone, or retrievable in a cancelled state) --
+        # Pre-2026-07 SB hard-deleted a cancelled BR request (GET raised
+        # AlmaAPIError). Current SB soft-cancels: the request stays
+        # retrievable with status CANCEL_REQUESTED ("Cancelled by staff") —
+        # observed 2026-07-22. Accept either behavior; fail only if the
+        # request comes back in a NON-cancelled state.
         if request_id:
             with rec.stage("post_cancel_get") as st:
                 st.expected_failure = True
-                users.get_user_rs_request(
+                got = users.get_user_rs_request(
                     test_data["existing_user_primary_id"], request_id
                 )
-                # If we reach here, no exception was raised — that's a fail.
-                raise AssertionError(
-                    "post-cancel get unexpectedly succeeded; request not cancelled?"
-                )
+                status_value = str(((got or {}).get("status") or {}).get("value", ""))
+                if not status_value.startswith("CANCEL"):
+                    raise AssertionError(
+                        "post-cancel get returned a non-cancelled request "
+                        f"(status={status_value or '<absent>'})"
+                    )
 
     finally:
         # Belt-and-braces finally-cancel (if in-band cancel didn't run).

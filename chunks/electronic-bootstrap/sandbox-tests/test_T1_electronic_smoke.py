@@ -2,8 +2,11 @@
 
 Smoke test against the live SANDBOX tenant:
 
-1. ``from almaapitk import AlmaAPIClient, Electronic`` succeeds — proves the
-   lazy public-API wiring for ``Electronic`` is in place.
+1. ``from almaapitk.domains.electronic import Electronic`` succeeds — the
+   class exists at its canonical module home. (It was originally re-exported
+   from the top-level ``almaapitk`` namespace, but the public export was
+   deliberately deferred in 0.4.6 until the class gains real endpoints in
+   #67/#68/#69; restore the top-level import here when that ships.)
 2. Instantiating ``Electronic(client)`` does not raise.
 3. ``electronic.get_environment()`` returns the literal string ``'SANDBOX'``.
 4. ``electronic.test_connection()`` returns ``True`` — the foundation
@@ -27,7 +30,8 @@ import pathlib
 
 import pytest
 
-from almaapitk import AlmaAPIClient, Electronic
+from almaapitk import AlmaAPIClient
+from almaapitk.domains.electronic import Electronic
 
 # Runtime-load fixture file for consistency with sibling sandbox-tests, even
 # though no fixtures are required for the foundation smoke test.

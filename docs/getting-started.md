@@ -75,7 +75,7 @@ pip install -e .
 ```python
 import almaapitk
 print(almaapitk.__version__)
-# Expected output: 0.4.3
+# Prints the installed almaapitk version
 ```
 
 ---

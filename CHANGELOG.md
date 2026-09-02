@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-02
+
 ### Fixed
 
 - **PubMed publication year is no longer lost to `MedlineDate`** (#214).
@@ -29,6 +31,17 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   `PubDate/MedlineDate` string when the record has one, else `''`. Keeps the
   original available to consumers whenever the year above had to be derived
   from it. Purely additive; existing keys are unchanged.
+
+### Internal
+
+- **`valid_collection_id` test fixture now verifies before use.** With
+  `TEST_COLLECTION_ID` unset, `tests/integration/domains/test_bibs_collections.py`
+  sent its placeholder default to the live SANDBOX and Alma answered "The
+  parameter pid is invalid" — four hard failures unrelated to any code under
+  test, which blocked Phase F of the release checklist. The fixture now probes
+  the collection and skips when it is not usable, matching the `valid_mms_id`
+  fixture beside it. No package behaviour changes. Surfaced during the 0.5.1
+  release walk; see #216.
 
 ## [0.5.0] — 2026-07-22
 
@@ -463,7 +476,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.1
 [0.5.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.0
 [0.4.6]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.6
 [0.4.5]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.5

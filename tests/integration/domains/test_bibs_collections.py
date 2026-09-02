@@ -53,12 +53,22 @@ def bibs(alma_client):
 @pytest.fixture(scope='module')
 def valid_collection_id(bibs):
     """
-    Get or verify a valid collection ID for testing.
+    Verify TEST_COLLECTION_ID exists in the sandbox, else skip.
 
-    Attempts to use TEST_COLLECTION_ID, but can be extended to
-    dynamically find a collection in the sandbox.
+    This mirrors ``valid_mms_id`` below. It used to return the id blindly, so
+    with TEST_COLLECTION_ID unset the placeholder default was sent to the live
+    API and Alma answered "The parameter pid is invalid" — four hard failures
+    that had nothing to do with the code under test and blocked the release
+    checklist's Phase F. An unconfigured fixture must skip, not fail.
     """
-    return TEST_COLLECTION_ID
+    try:
+        response = bibs.get_collection_members(TEST_COLLECTION_ID, limit=1)
+        if response.success:
+            return TEST_COLLECTION_ID
+    except AlmaAPIError:
+        pass
+
+    pytest.skip(f"Test collection {TEST_COLLECTION_ID} not usable in sandbox")
 
 
 @pytest.fixture(scope='module')

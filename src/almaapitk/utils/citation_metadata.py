@@ -18,6 +18,7 @@ Usage:
 """
 
 import logging
+import re
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, Optional
 from urllib.parse import quote
@@ -67,7 +68,11 @@ def get_pubmed_metadata(pmid: str) -> Dict[str, Any]:
             - title: Article title
             - authors: List of author names
             - journal: Journal name
-            - year: Publication year
+            - year: Publication year. Taken from PubDate/Year, falling back to
+              the year inside PubDate/MedlineDate and then to ArticleDate/Year,
+              because PubMed omits <Year> on irregular cover dates (issue #214)
+            - medline_date: Raw PubDate/MedlineDate string when the record has
+              one ("2023 Jan-Feb 01"), else '' — the original of a derived year
             - volume: Journal volume
             - issue: Journal issue
             - pages: Page range
@@ -142,6 +147,31 @@ def get_pubmed_metadata(pmid: str) -> Dict[str, Any]:
         raise PubMedError(f"Failed to parse PubMed article data: {e}")
 
 
+#: A 4-digit year anywhere in a free-text date. MEDLINE records run from the
+#: 1800s, so 1xxx is in range; the alternation keeps 3-digit page numbers and
+#: volume/issue values from ever matching.
+_YEAR_IN_TEXT = re.compile(r'\b(1[0-9]{3}|20[0-9]{2})\b')
+
+
+def _element_text(elem: Optional[ET.Element]) -> str:
+    """Text of *elem*, or '' when the element is absent or empty."""
+    if elem is None or elem.text is None:
+        return ''
+    return elem.text.strip()
+
+
+def _first_year(text: str) -> str:
+    """First 4-digit year in *text*, or '' when it holds none.
+
+    PubMed's ``MedlineDate`` is free text covering every date PubMed cannot
+    express structurally: ``2023 Jan-Feb 01``, ``2022 Winter``, ``1998-1999``,
+    ``Spring 2019``. A record with no year at all (``n.d.``) must yield '' —
+    never a partial or invented value.
+    """
+    match = _YEAR_IN_TEXT.search(text or '')
+    return match.group(0) if match else ''
+
+
 def _parse_pubmed_xml(article: ET.Element, pmid: str) -> Dict[str, Any]:
     """
     Parse PubMed XML article element into metadata dictionary.
@@ -183,10 +213,28 @@ def _parse_pubmed_xml(article: ET.Element, pmid: str) -> Dict[str, Any]:
     year_elem = pub_date.find('Year') if pub_date is not None else None
     month_elem = pub_date.find('Month') if pub_date is not None else None
     day_elem = pub_date.find('Day') if pub_date is not None else None
+    medline_elem = pub_date.find('MedlineDate') if pub_date is not None else None
 
-    metadata['year'] = year_elem.text if year_elem is not None else ''
-    metadata['month'] = month_elem.text if month_elem is not None else ''
-    metadata['day'] = day_elem.text if day_elem is not None else ''
+    metadata['medline_date'] = _element_text(medline_elem)
+    metadata['month'] = _element_text(month_elem)
+    metadata['day'] = _element_text(day_elem)
+
+    # PubMed omits <Year> whenever the issue's cover date is irregular — a
+    # month range, a season, a year span — and puts the whole date in
+    # <MedlineDate> instead ("2023 Jan-Feb 01"). Reading <Year> alone dropped
+    # the year on those records even though it was in the response: issue #214,
+    # hit in production 2026-09-02 by a borrowing request Alma then rejected
+    # for having no year (401930).
+    #
+    # MedlineDate is tried before ArticleDate deliberately. MedlineDate is the
+    # issue's own cover date, which is the year a citation should carry;
+    # ArticleDate is the online-ahead-of-print date and is often a year
+    # earlier (2022 vs. 2023 in the record that surfaced this).
+    metadata['year'] = (
+        _element_text(year_elem)
+        or _first_year(metadata['medline_date'])
+        or _element_text(article.find('.//ArticleDate/Year'))
+    )
 
     # Build publication_date string
     date_parts = []

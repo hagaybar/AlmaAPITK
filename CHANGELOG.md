@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **PubMed publication year is no longer lost to `MedlineDate`** (#214).
+  `get_pubmed_metadata` read the year only from `PubDate/Year`, but PubMed
+  omits `<Year>` whenever the issue's cover date is irregular — a month range,
+  a season, a year span — and puts the whole date in `<MedlineDate>` instead
+  (`2023 Jan-Feb 01`). Those records came back with `year=''` even though the
+  year was in the response. The year now falls back to the first 4-digit year
+  inside `PubDate/MedlineDate`, then to `ArticleDate/Year`; `MedlineDate` is
+  tried first because it is the issue's cover date, which is the year a
+  citation should carry, while `ArticleDate` is the online-ahead-of-print date
+  and can be a year earlier. A record with no year anywhere still yields `''`
+  — never a guess. Found in production by the
+  `Alma-RS-lending-request-automation` borrowing pipeline, where Alma rejects
+  an article citation with no year (`alma_code 401930`).
+
+### Added
+
+- **`medline_date` on the PubMed metadata dict** — the raw
+  `PubDate/MedlineDate` string when the record has one, else `''`. Keeps the
+  original available to consumers whenever the year above had to be derived
+  from it. Purely additive; existing keys are unchanged.
+
 ## [0.5.0] — 2026-07-22
 
 ### Documentation

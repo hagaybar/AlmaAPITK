@@ -1,6 +1,6 @@
 # AlmaAPITK API Reference
 
-**Version:** 0.5.0
+**Version:** 0.5.1
 **Package:** `almaapitk`
 
 This document provides comprehensive API reference documentation for the AlmaAPITK Python library.
@@ -1678,14 +1678,24 @@ Fetch article metadata from PubMed using PubMed ID.
 - `authors`: List of author names
 - `author`: Comma-separated author string
 - `journal`: Journal name
-- `year`: Publication year
+- `year`: Publication year. Read from `PubDate/Year`, falling back to the first
+  4-digit year inside `PubDate/MedlineDate` and then to `ArticleDate/Year`
+  *(0.5.1)*. PubMed omits `<Year>` on irregular cover dates — a month range, a
+  season, a year span — so `<Year>` alone silently lost the year on those
+  records. `MedlineDate` is tried before `ArticleDate` because it is the
+  issue's cover date, which is the year a citation should carry
+- `medline_date`: Raw `PubDate/MedlineDate` string when the record has one
+  (e.g. `'2023 Jan-Feb 01'`), else `''` *(new in 0.5.1)*. The original of a
+  year that had to be derived
 - `volume`: Journal volume
 - `issue`: Journal issue
 - `pages`: Page range
 - `doi`: DOI if available
 - `pmid`: PubMed ID
 - `issn`: ISSN
-- `publication_date`: Full publication date
+- `publication_date`: Full publication date — the joined year/month/day, never
+  the raw `MedlineDate` string (`ResourceSharing` passes this straight into
+  Alma's `year` field)
 
 **Raises:**
 - `PubMedError`: If API request fails

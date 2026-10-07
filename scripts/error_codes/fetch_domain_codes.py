@@ -184,7 +184,7 @@ def extract_codes(swagger: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def build_report(
     domain: str, swagger: dict[str, Any], *, source_url: str | None = None
 ) -> dict[str, Any]:
-    """Build the JSON report shape consumed by chunk-template-impl.js.
+    """Build the JSON error-code report for one domain.
 
     Stable shape so downstream tooling can rely on it::
 

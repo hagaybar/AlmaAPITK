@@ -24,7 +24,8 @@ Two guardrails, both from the issue's option list:
   *names the field*. Opt-in because Alma code tables are tenant-extensible.
 
 Also pinned here: the two ``ERROR_CODE_REGISTRY`` findings cross-checked against
-``chunks/rs-borrowing-ergonomics/_swagger_errors_194.json`` — the newly mapped
+the swagger error-code report for the RS domain (regenerate with
+``scripts/error_codes/fetch_domain_codes.py``) — the newly mapped
 ``401890`` and the ``40166411`` cross-domain collision.
 
 Every test below fails on the pre-fix tree (no hint text, no ``validate``

@@ -2234,7 +2234,7 @@ class Users:
             message) in the error string, and retry a small number of
             times with a brief sleep (e.g. 5 attempts spaced 2 seconds
             apart) before bubbling the failure. See
-            ``chunks/users-requests/sandbox-tests/test_t-41-3.py``
+            ``tests/sandbox/users-requests/test_t-41-3.py``
             (loan-then-hold flow) for a worked example.
         """
         # Pattern source: create_user_loan (issue #40) for "validate

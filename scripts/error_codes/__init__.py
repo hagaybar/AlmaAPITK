@@ -1,8 +1,8 @@
 """Tools for harvesting Alma error codes from per-domain swagger.
 
-See ``fetch_domain_codes.py`` for the CLI. The harvested JSON is consumed
-by ``.a5c/processes/chunk-template-impl.js`` so each coverage chunk has
-documented-error context attached to the implement-agent prompt.
+See ``fetch_domain_codes.py`` for the CLI. The harvested JSON lists the
+documented error codes per domain; use it to cross-check
+``ERROR_CODE_REGISTRY`` coverage when adding or changing domain methods.
 
-Scoped, internal: the chunk pipeline is the only consumer.
+Internal developer tooling; not part of the published package.
 """

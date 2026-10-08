@@ -9,7 +9,6 @@ Each section below has a one-line **what** and **why**. If a box can't be checke
 ## Phase A — Pre-flight (before touching anything)
 
 - [ ] **On `main`, clean tree, synced with `origin/main`.** `git checkout main && git pull && git status -sb && git diff --quiet`. The remote and local tip must match.
-- [ ] **All chunks intended for this release are merged.** `scripts/agentic/chunks list` shows no in-flight chunks whose merge was promised in the changelog.
 - [ ] **No critical open issues block the release.** `gh issue list --label "priority:high" --state open --search "in:title release"` returns nothing fresh.
 - [ ] **Zero open `release-blocker` issues.** `gh issue list --label "release-blocker" --state open` **must return nothing.** Every issue carrying this label is a hard gate on *any* new version — close it (fix + R10 regression test where applicable), or, if the team decides it is not release-gating, remove the `release-blocker` label with a one-line justification in the issue before proceeding. Never ship past an open `release-blocker`.
 - [ ] **`ALMA_PROD_API_KEY` is unset.** R8 enforcement: `env | grep ALMA_PROD` returns nothing.
@@ -65,8 +64,8 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 - [ ] `poetry run python scripts/smoke_import.py` passes.
 - [ ] `poetry run pytest tests/test_public_api_contract.py -v` passes.
 - [ ] `poetry run pytest tests/test_version.py -v` passes. **This is the version-drift guard.** If it fails, Phase E was incomplete.
-- [ ] `poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q` — 0 failures, 0 errors (not just "skipped"). (`tests/agentic/` is intentionally excluded from the release gate — it validates the chunk-pipeline dev tooling, not the package, and needs the gitignored Node `@a5c-ai/babysitter-sdk`. Run it separately during chunk-pipeline work.) `tests/meta/` is the structural-guard tier (no-print, no-hardcoded-`__version__`, docs vs `__all__` consistency, Version-heading vs `pyproject.toml`) — it catches Phase-C / Phase-E drift before TestPyPI does (issue #131). If pre-existing broken-test files surface, move them out of `tests/` (e.g., to `scripts/investigations/`) and document in CHANGELOG.
-- [ ] _(chunk-pipeline, **not** a package-release gate)_ `scripts/agentic/chunks regression-smoke` — run this during chunk-pipeline work, not as a release blocker. The chunk SANDBOX smokes (`chunks/*/sandbox-tests/`) exercise live Alma and belong to the chunk pipeline, not the published package. The package's own R10 regression suite (`tests/unit/regressions/`) runs in the validation step above.
+- [ ] `poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q` — 0 failures, 0 errors (not just "skipped"). `tests/meta/` is the structural-guard tier (no-print, no-hardcoded-`__version__`, docs vs `__all__` consistency, Version-heading vs `pyproject.toml`) — it catches Phase-C / Phase-E drift before TestPyPI does (issue #131). If pre-existing broken-test files surface, move them out of `tests/` (e.g., to `scripts/investigations/`) and document in CHANGELOG.
+- [ ] _(optional, **not** a package-release gate)_ `poetry run python -m scripts.regression_smoke` — re-runs the live SANDBOX smokes in `tests/sandbox/` (needs SANDBOX credentials and per-suite `test-data.json`; refuses to run with `ALMA_PROD_API_KEY` set). Not a release blocker. The package's own R10 regression suite (`tests/unit/regressions/`) runs in the validation step above.
 
 ---
 
@@ -74,7 +73,7 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 
 - [ ] `rm -rf dist/ && poetry build` — produces `dist/almaapitk-<version>-py3-none-any.whl` and `dist/almaapitk-<version>.tar.gz`. The filename version must match `pyproject.toml`.
 - [ ] **Wheel filename matches `pyproject.toml`.** `ls dist/` should show only the just-bumped version. If you see two versions, you have a stale `dist/` — re-run the `rm -rf`.
-- [ ] **Wheel contents verified.** `unzip -l dist/almaapitk-<version>-py3-none-any.whl` must show only `almaapitk/` package code + `almaapitk-<version>.dist-info/`. No `tests/`, `scripts/`, `docs/` (except inside dist-info), `.a5c/`, `logs/`, `config/`, `CLAUDE.md`, `AGENTS.md`.
+- [ ] **Wheel contents verified.** `unzip -l dist/almaapitk-<version>-py3-none-any.whl` must show only `almaapitk/` package code + `almaapitk-<version>.dist-info/`. No `tests/`, `scripts/`, `docs/` (except inside dist-info), `logs/`, `config/`, `CLAUDE.md`, `AGENTS.md`.
 
 ---
 

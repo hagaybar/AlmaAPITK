@@ -2,16 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Session-start protocol (chunk-driven work)
+## Working rules
 
-This project's primary mode of work is the **chunk-driven implementation pipeline** (design: `docs/superpowers/specs/2026-05-03-chunk-driven-implementation-design.md`). At the start of every Claude Code session in this repo, **before responding to anything else**:
+The babysitter-driven chunk pipeline was retired on 2026-10-07 (archived under `docs/archive/chunk-pipeline/`). Work issues directly from GitHub; there is no session-start dashboard to run.
 
-1. **Run `scripts/agentic/chunks list`** to surface any chunks not in a terminal stage (`merged` / `aborted`).
-2. **If any chunks are active**, include a one-paragraph dashboard in your first message: chunk name, current stage, last event, and recommended next action (each chunk's `nextAction` field).
-3. **If no chunks are active**, mention the recommended next pickup from `docs/CHUNK_BACKLOG.md` — the lowest-numbered phase whose hard prereqs are merged in `main`, and within it the first chunk that isn't already done. Cross-reference recent rows in `docs/AGENTIC_RUN_LOG.md` to know what's already shipped. (The R11 consumer-rollout gate that previously overrode this step is **CLOSED as of 2026-07-08** — see below; normal backlog pickup applies again.)
-4. **Then await the user's instruction.** Do NOT auto-trigger any chunk action; the pipeline is human-paced (R3).
-
-**✅ Rule R11 — consumer-rollout gate: CLOSED 2026-07-08** (was OPEN 2026-05-28 → 2026-07-08). The feature freeze is **lifted**; `enhancement` and `api-coverage` work is unblocked again, and normal backlog pickup (session-start step 3) applies. All five production consumer repos were bumped to the current released `almaapitk` (**0.4.6**) and promoted to their `prod` branches:
+**✅ Rule R11 — consumer-rollout gate: CLOSED 2026-07-08** (was OPEN 2026-05-28 → 2026-07-08). The feature freeze is **lifted**; `enhancement` and `api-coverage` work is unblocked again, and normal backlog pickup applies. All five production consumer repos were bumped to the current released `almaapitk` (**0.4.6**) and promoted to their `prod` branches:
 - `Fetch_Alma_Analytics_Reports` and `Alma-RS-lending-request-automation` — live in prod (earlier).
 - `Update_Alma_Digital_Collections` — prod-validated live + masedet Prod folder activated and confirmed clean.
 - `Alma-Digital-Upload` — offline-validated (manual/on-demand repo) + promoted.
@@ -19,34 +14,12 @@ This project's primary mode of work is the **chunk-driven implementation pipelin
 
 The `blocked:consumer-rollout` label was removed from all 53 issues. Tracking: meta-issue **#158**; history in `docs/session-handoff-2026-05-27.md` and the `docs/manual-qa/` board. **Going forward:** keep the production consumers current on each new `almaapitk` release so this drift doesn't reopen (per-repo flow: bump pin → validate → `main`→`prod` → masedet).
 
-**Drift check:** `docs/CHUNK_BACKLOG.md` is now a generated artifact (source: `docs/chunks-backlog.yaml`). If you suspect the backlog or run-log is out of sync with GitHub, run `scripts/agentic/chunks reconcile`. To rebuild the markdown after editing the YAML, run `scripts/agentic/chunks render-backlog`. CI gates with `chunks render-backlog --check`.
+**Hard rule R8:** never run SANDBOX tooling with `ALMA_PROD_API_KEY` set. `scripts/regression_smoke.py` refuses to run if it is; instruct the operator to `unset ALMA_PROD_API_KEY` and retry.
 
-This implements the operator-UX dashboard from spec §8.5. The user has explicitly opted into chunk-driven work — don't propose alternative workflows unless they ask.
-
-**CLI cheat sheet** (`scripts/agentic/chunks <subcommand>`):
-- `list` — one-line summary of every active chunk
-- `status <name>` — full status block for one chunk
-- `next` — recommended next actions across all chunks
-- `define --name N --issues 3,4` — create a new chunk
-- `run-impl <name>` — bash entry that creates an impl babysitter run (does NOT drive iteration; type `/chunk-run-impl <name>` in chat for the driven path)
-- `run-test <name>` — bash entry that creates a test babysitter run (does NOT drive iteration; type `/chunk-run-test <name>` in chat for the driven path)
-- `abort <name>` — mark chunk aborted; leave branches in place
-- `complete <name> [--pr-url U]` — mark chunk merged; close lifecycle (run after manual PR merge); auto-appends a row to `docs/AGENTIC_RUN_LOG.md`
-- `render-backlog [--check]` — rebuild `docs/CHUNK_BACKLOG.md` from `docs/chunks-backlog.yaml` + GitHub state; `--check` exits 1 on drift (CI gate)
-- `reconcile` — diff backlog and run-log against GitHub; non-zero exit on drift
-
-**Slash commands** (chat-driven, recommended):
-- `/chunk-run-impl <name>` — drive the impl pipeline for a chunk to completion or breakpoint
-- `/chunk-run-test <name>` — drive the SANDBOX-test pipeline for a chunk to completion or breakpoint
-
-**Operator playbook:** `docs/CHUNK_PLAYBOOK.md` — full lifecycle walkthrough, R1–R8 cheat sheet, failure recipes.
-
-**Hard rule R8:** the chunks CLI refuses to run if `ALMA_PROD_API_KEY` is set in the environment. If `chunks list` exits with that error, the operator's shell has the prod key set; instruct them to `unset ALMA_PROD_API_KEY` and retry.
-
-**R7 (deny-paths):** As of 2026-05-06 (Phase 1 of the guardrails registry), R7 is enforced by `guardrails.json` `enforced.deny_paths` rather than a per-issue allow-list. The current deny-list is small (`.github/`, `secrets/`); broader scope discipline lives in the implement agent's prompt and (Phase 4) in the post-implement critique pass. See `docs/superpowers/plans/2026-05-06-guardrails-registry-phase-1.md`.
+**R7 (deny-paths):** edits to `.github/**` and `secrets/**` are blocked by permission deny rules in `.claude/settings.json`. Changes there need explicit human action.
 
 **Hard rule R9 — never put actual identifiers in publicly-visible content.** This is a public PyPI repo. Never include real operator-supplied identifiers (user_primary_id, MMS ID, vendor code, POL ID, institution code, email addresses, etc.) in:
-- Committed files (especially `test-data.json` — gitignored for this reason)
+- Committed files (especially `tests/sandbox/<suite>/test-data.json` — gitignored for this reason)
 - Commit messages
 - GitHub PR descriptions or titles
 - GitHub issue comments or titles
@@ -55,17 +28,17 @@ This implements the operator-UX dashboard from spec §8.5. The user has explicit
 
 When summarizing a SANDBOX test run, refer to fixtures generically (e.g., "the supplied test user", not the literal value). When the operator volunteers an ID in chat, use it for the run but redact it in any artifact that gets written or pushed.
 
-**Hard rule R10 — bug-driven regression tests.** When a real-world bug is discovered (in production, by an operator, or by a chunk's SANDBOX testing), the workflow is:
+**Hard rule R10 — bug-driven regression tests.** When a real-world bug is discovered (in production, by an operator, or by SANDBOX testing), the workflow is:
 
-1. **First** write a failing test that reproduces the bug — preferably as a unit test under `tests/unit/`, but a SANDBOX smoke under `chunks/<name>/sandbox-tests/` is also acceptable if it requires live behavior.
+1. **First** write a failing test that reproduces the bug — preferably as a unit test under `tests/unit/`, but a SANDBOX smoke under `tests/sandbox/<suite>/` is also acceptable if it requires live behavior.
 2. Confirm the test fails on current `main`.
 3. Implement the fix.
 4. Confirm the test now passes.
 5. Commit both the test AND the fix in the same change.
 
-The test stays in the suite forever; the bug can never silently regress. This applies to bugs found post-merge (cleanup commit) AND bugs found mid-chunk (extra test in the chunk's diff). The cumulative suite is run via `scripts/agentic/chunks regression-smoke` before each test release. R10 is the discipline that makes the suite worth running: a regression suite without bug-driven tests is just smoke tests by another name.
+The test stays in the suite forever; the bug can never silently regress. This applies to bugs found post-merge (cleanup commit) AND bugs found mid-feature (extra test in the feature's diff). The live SANDBOX smokes in `tests/sandbox/` can be re-run with `poetry run python -m scripts.regression_smoke` before a test release (not a release gate). R10 is the discipline that makes the suite worth running: a regression suite without bug-driven tests is just smoke tests by another name.
 
-**Canonical home for R10 tests:** `tests/unit/regressions/test_issue_<N>.py` (one file per bug, named after the GitHub issue or `test_bug_found_at_<YYYY-MM-DD>.py` if no issue exists). The cumulative regression suite is exactly `pytest tests/unit/regressions/` — no further intersection logic. Chunks `sandbox-tests/` smokes are a separate testing pattern (live-API verification) and do NOT count as the R10 test for a bug; if a SANDBOX smoke was the discovery vehicle, the R10 unit test still lands under `tests/unit/regressions/`.
+**Canonical home for R10 tests:** `tests/unit/regressions/test_issue_<N>.py` (one file per bug, named after the GitHub issue or `test_bug_found_at_<YYYY-MM-DD>.py` if no issue exists). The cumulative regression suite is exactly `pytest tests/unit/regressions/` — no further intersection logic. The `tests/sandbox/` smokes are a separate testing pattern (live-API verification) and do NOT count as the R10 test for a bug; if a SANDBOX smoke was the discovery vehicle, the R10 unit test still lands under `tests/unit/regressions/`.
 
 ---
 
@@ -687,7 +660,8 @@ AlmaAPITK/
 │   ├── logging/                # Logging tests
 │   ├── unit/                   # Unit tests (domains, utils)
 │   ├── integration/client/     # Client integration tests
-│   └── meta/                   # Dependency/reorganization tests
+│   ├── meta/                   # Dependency/reorganization tests
+│   └── sandbox/                # Live SANDBOX smokes (not run in CI)
 │
 ├── scripts/
 │   ├── smoke_import.py         # Package validation
@@ -695,6 +669,5 @@ AlmaAPITK/
 │
 ├── config/                     # Configuration templates
 ├── docs/                       # Documentation
-├── .a5c/                       # Babysitter artifacts
 └── logs/                       # Log files (gitignored)
 ```

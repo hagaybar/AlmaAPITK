@@ -1,0 +1,155 @@
+<!doctype html>
+<!-- Built from html-dashboard patterns: data-metrics + diagram-flowchart + compare-decision-matrix (static). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chunk pipeline decision</title>
+<style>
+  :root { --bg:#0f1116; --ink:#e6e9ef; --muted:#9aa4b2; --line:#2b313c; --panel:#181b22; --panel-2:#1f242d;
+          --good:#3fb950; --warn:#d29922; --bad:#f85149; --accent:#58a6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); padding:24px 16px; max-width:1100px; margin-inline:auto;
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.5; }
+  h1 { margin:0 0 4px; } h2 { margin:36px 0 10px; font-size:1.15rem; border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .sub { color:var(--muted); }
+  .verdict { margin:20px 0; padding:16px 18px; border-left:4px solid var(--good); background:var(--panel); border-radius:6px; }
+  .verdict b { color:var(--good); }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .tile .n { font-size:1.6rem; font-weight:700; } .tile .l { color:var(--muted); font-size:.85rem; }
+  .bars { display:flex; align-items:flex-end; gap:14px; height:170px; padding:10px; background:var(--panel); border-radius:8px; border:1px solid var(--line); }
+  .bar { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; font-size:.8rem; color:var(--muted); }
+  .bar div { width:100%; max-width:60px; background:var(--accent); border-radius:4px 4px 0 0; }
+  .bar span.v { color:var(--ink); font-weight:600; }
+  .note { color:var(--muted); font-size:.85rem; margin-top:6px; }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+  .card h3 { margin:0 0 8px; font-size:1rem; } .card ul { margin:0; padding-left:18px; } .card li { margin:4px 0; }
+  .good h3 { color:var(--good); } .bad h3 { color:var(--bad); } .warn h3 { color:var(--warn); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:560px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; background:var(--panel); }
+  tfoot th { color:var(--ink); background:var(--panel-2); }
+  td.s { text-align:center; font-weight:600; } .win { color:var(--good); }
+  code { background:var(--panel-2); padding:1px 5px; border-radius:4px; font-size:.88em; }
+  .mermaid { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .legend { font-size:.85rem; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle; margin:0 4px 0 10px; }
+</style>
+</head>
+<body>
+<h1>AlmaAPITK chunk pipeline: rebuild or retire?</h1>
+<div class="sub">Evidence from <code>origin/main</code> at de2013d (2026-09-02), gathered 2026-10-07 after the babysitter plugin was uninstalled.</div>
+
+<div class="verdict">
+  <b>Recommendation: Option B.</b> Retire the orchestrated pipeline, and keep the parts that actually caught bugs.
+  The live SANDBOX tests and the swagger error-code tool earned their keep. The orchestration layer around them caused most of the incidents and hasn't been used since July 22.
+  Rebuilding it without babysitter would mean re-creating the most expensive part of the system for a working style you no longer use.
+</div>
+
+<h2>The pipeline at a glance</h2>
+<div class="tiles">
+  <div class="tile"><div class="n">25</div><div class="l">chunks run: 24 merged, 1 aborted</div></div>
+  <div class="tile"><div class="n">23</div><div class="l">PRs merged from chunk branches</div></div>
+  <div class="tile"><div class="n">2026-07-22</div><div class="l">last chunk (rs-borrowing-ergonomics, PR #206)</div></div>
+  <div class="tile"><div class="n">0</div><div class="l">chunks since; recent fixes (#213, #215, #217) were all made outside the pipeline</div></div>
+  <div class="tile"><div class="n">42</div><div class="l">chunks still "planned" in chunks-backlog.yaml</div></div>
+  <div class="tile"><div class="n">~20k</div><div class="l">lines of code and docs (scripts, tests, .a5c, docs)</div></div>
+</div>
+
+<h2>Chunks run per month</h2>
+<div class="bars">
+  <div class="bar"><span class="v">18</span><div style="height:90%"></div>May</div>
+  <div class="bar"><span class="v">0</span><div style="height:0"></div>Jun*</div>
+  <div class="bar"><span class="v">3</span><div style="height:15%"></div>Jul</div>
+  <div class="bar"><span class="v">0</span><div style="height:0"></div>Aug</div>
+  <div class="bar"><span class="v">0</span><div style="height:0"></div>Sep</div>
+  <div class="bar"><span class="v">0</span><div style="height:0"></div>Oct</div>
+</div>
+<div class="note">* June was a repo-wide feature freeze (rule R11, 2026-05-28 to 07-08), not abandonment. After the freeze lifted, only 3 chunks ran.</div>
+
+<h2>How it works, and what broke when babysitter left</h2>
+<pre class="mermaid">
+flowchart LR
+  B[chunks-backlog.yaml] --> D["chunks define"]
+  D --> RI["chunks run-impl"]:::dead
+  RI --> P1[".a5c chunk-template-impl.js"]:::dead
+  P1 --> IMP["implement agent (up to 3 tries)"]:::dead
+  IMP --> G["static, deny-paths, unit and contract gates"]:::dead
+  G --> TR[test-recommendation.json]
+  TR --> RT["chunks run-test (.a5c chunk-test.js)"]:::dead
+  RT --> SB["SANDBOX live tests"]:::keep
+  SB --> PR[PR opened]
+  PR --> C["chunks complete, then AGENTIC_RUN_LOG row"]
+  SB -.-> RS["regression-smoke"]:::keep
+  classDef dead fill:#3a1d1d,stroke:#f85149,color:#e6e9ef;
+  classDef keep fill:#16301d,stroke:#3fb950,color:#e6e9ef;
+</pre>
+<div class="legend"><i style="background:#3a1d1d;border:1px solid #f85149"></i>needs babysitter, dead today
+<i style="background:#16301d;border:1px solid #3fb950"></i>proven value, worth keeping
+<i style="background:#181b22;border:1px solid #2b313c"></i>plain Python bookkeeping, still runs</div>
+
+<h2>What the record shows</h2>
+<div class="cols">
+  <div class="card good"><h3>Earned its keep</h3><ul>
+    <li><b>SANDBOX live tests</b> (59 files) caught real API-shape bugs: the user_note PUT shape (#119), user delete returning 204 rather than 200, update_letter needing an XML body (#114), RS citation codes (#194), and a borrowing-request 500 (#207).</li>
+    <li><b>regression-smoke</b> flagged two failing suites, fixed in #213.</li>
+    <li><b>Batching</b> worked during the May burst: 18 chunks in 15 days.</li>
+  </ul></div>
+  <div class="card bad"><h3>Cost more than it gave</h3><ul>
+    <li><b>Orchestration upkeep:</b> about 6 pipeline-fix PRs (#91, #98, #102, #106, #182, #203).</li>
+    <li><b>Phantom merge:</b> an empty implementation passed all 4 gates (#203).</li>
+    <li><b>Run hygiene:</b> 20 runs stuck as "active", and up to 4 duplicate runs per chunk.</li>
+    <li><b>Gaps the gates let through,</b> found in a release review: a bare except, a logger never fixed despite 7 chunks touching it, and four version bumps in one cycle.</li>
+    <li><b>Run-log metrics are empty:</b> attempts is never filled in and time_s is always 0.</li>
+    <li><b>Deny-paths guard:</b> blocks only <code>.github/</code> and <code>secrets/</code>, with no recorded trigger.</li>
+  </ul></div>
+  <div class="card warn"><h3>How work actually happens now</h3><ul>
+    <li>Bug fixes have mostly bypassed the pipeline all along: #146, #154, #166, #177, #209, #214.</li>
+    <li>The last 3 merged PRs and the 0.5.1 release (2026-09-02) were all done directly.</li>
+    <li>Plain Claude Code subagents already cover the implement-then-review loop, with no separate harness to maintain.</li>
+  </ul></div>
+</div>
+
+<h2>Options, scored</h2>
+<div class="scroll"><table>
+  <thead><tr><th>Criterion</th><th>Weight</th><th>A. Rebuild without babysitter</th><th>B. Retire, keep proven pieces</th><th>C. Remove everything</th></tr></thead>
+  <tbody>
+    <tr><td>Keeps the bug-catching live SANDBOX net</td><td>3</td><td class="s">5</td><td class="s">5</td><td class="s">1</td></tr>
+    <tr><td>Low ongoing maintenance</td><td>3</td><td class="s">1</td><td class="s">4</td><td class="s">5</td></tr>
+    <tr><td>Fits how you actually work now (direct fixes)</td><td>2</td><td class="s">2</td><td class="s">5</td><td class="s">4</td></tr>
+    <tr><td>Serves the remaining backlog (37 open api-coverage issues)</td><td>2</td><td class="s">4</td><td class="s">4</td><td class="s">2</td></tr>
+    <tr><td>One-time effort (higher means less)</td><td>1</td><td class="s">1</td><td class="s">3</td><td class="s">4</td></tr>
+  </tbody>
+  <tfoot><tr><th>Weighted total (max 55)</th><th></th><th>31</th><th class="win">48</th><th>34</th></tr></tfoot>
+</table></div>
+<div class="note">The scores are judgement calls built on the facts above. A wins only if you plan to work through the 42 planned chunks in bulk again soon.</div>
+
+<h2>What Option B means in practice</h2>
+<div class="cols">
+  <div class="card good"><h3>Keep and relocate</h3><ul>
+    <li>Move <code>chunks/*/sandbox-tests/</code> to <code>tests/sandbox/</code>, and keep <code>regression_smoke.py</code> as a plain runner.</li>
+    <li>Keep <code>scripts/error_codes/</code>, and move its test from <code>tests/agentic/</code> to <code>tests/unit/</code>.</li>
+    <li>Keep the R10 convention: <code>tests/unit/regressions/</code>.</li>
+    <li>Fold <code>chunks-backlog.yaml</code> groupings into GitHub milestones or labels.</li>
+    <li>Replace <code>guardrails.json</code> with Claude Code permission deny rules for the same two paths.</li>
+  </ul></div>
+  <div class="card bad"><h3>Remove</h3><ul>
+    <li><code>.a5c/</code>, the <code>/chunk-run-*</code> commands, and the <code>chunks</code> CLI state machine</li>
+    <li><code>reconcile.py</code> and its pipeline-only regression test</li>
+    <li>The SessionStart hook and CLAUDE.md's session-start protocol (about 67 lines)</li>
+    <li>The rest of <code>scripts/agentic/</code> and <code>tests/agentic/</code></li>
+  </ul></div>
+  <div class="card warn"><h3>Archive, don't delete</h3><ul>
+    <li><code>AGENTIC_RUN_LOG.md</code>, <code>AGENTIC_ORCHESTRATION_HANDBOOK.md</code>, <code>CHUNK_PLAYBOOK.md</code>, <code>ISSUE_PIPELINE.md</code>: move to <code>docs/archive/</code></li>
+    <li>The <code>chunks/*</code> manifests: archive alongside them as history</li>
+  </ul></div>
+</div>
+<div class="note">Estimated effort: one PR, about 59 test files moved plus the CI path updates. <code>main</code> deploys to DevSandbox only. AlmaAPITK has no prod branch.</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad:true, theme:'dark' });</script>
+</body>
+</html>

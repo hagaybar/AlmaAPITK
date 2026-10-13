@@ -73,12 +73,8 @@ exclude = [
     "scripts/**",
     "docs/**",
     "logs/**",
-    "backups/**",
     "config/**",
-    "AGENTS.md",
     "CLAUDE.md",
-    "CLAUDE_tmp.html",
-    "ALMA_DIGITAL_DOCUMENTATION_EVALUATION.md",
 ]
 
 [tool.poetry.group.dev.dependencies]

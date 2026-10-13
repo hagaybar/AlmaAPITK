@@ -4,7 +4,7 @@
 **Scope:** `src/`, `scripts/`, `tests/`, `docs/`, `config/`. Dependency
 behavior and git-history rewrites are out of scope per the issue.
 **Auditor:** Claude Code session, 2026-05-20.
-**Method:** Worked through the checklist in `docs/security-audit-issue.md`
+**Method:** Worked through the checklist in `security-audit-issue.md` (same folder)
 sections 1–7. No code changes were applied during the audit per the
 issue's instruction ("produce the findings report first").
 

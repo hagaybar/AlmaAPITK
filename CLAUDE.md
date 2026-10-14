@@ -35,8 +35,7 @@ in `docs/archive/chunk-pipeline/`). The loop:
 
 1. One issue, or a small group of related issues (grouped by GitHub milestone), per branch.
 2. Bugs: R10 test first. Features: tests alongside the code.
-3. Before the PR, run `poetry run python scripts/smoke_import.py` and
-   `poetry run pytest tests/unit tests/logging tests/integration tests/meta -q`.
+3. Before the PR, run `make check` (smoke_import + the CI/release test set).
 4. PR → CI green → review (`/code-review`) → merge when the user asks.
 5. If a change alters API request/response shapes, run the live SANDBOX smokes before the next
    release: `poetry run python -m scripts.regression_smoke` (needs `ALMA_SB_API_KEY` and local
@@ -100,6 +99,7 @@ are `get_*` / `create_*` / `update_*` / `delete_*`.
 
 ```bash
 poetry install
+make check                                                                # smoke_import + CI/release test set
 poetry run python scripts/smoke_import.py                                 # public API imports
 poetry run pytest tests/unit tests/logging tests/integration tests/meta -q   # release test set
 poetry run pytest tests/unit/regressions/ -q                              # R10 suite

@@ -6,6 +6,7 @@ This is designed to be 'pluggable' - other classes will use this as their founda
 import os
 import sys
 import requests
+import urllib3.exceptions
 import json
 from typing import Optional, Dict, Any, Iterator
 import time
@@ -284,6 +285,39 @@ class AlmaInvalidPolModeError(AlmaAPIError):
     pass
 
 
+class AlmaTimeoutError(AlmaAPIError, requests.exceptions.Timeout):
+    """The HTTP request to Alma timed out (issue #196).
+
+    Wraps ``requests`` connect / read timeouts. It also subclasses
+    ``requests.exceptions.Timeout`` so handlers written for the raw
+    ``requests`` exception, raised before this type existed, still catch it.
+
+    Attributes:
+        method: HTTP verb of the request that timed out.
+        endpoint: Endpoint of the request that timed out.
+        timeout: The timeout in seconds that was exceeded.
+        request_sent: ``False`` for a connect timeout (the request never
+            reached Alma, so retrying is safe). ``True`` for a read timeout:
+            Alma received the request and may still have acted on it, so a
+            write may have succeeded.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        method: str = "",
+        endpoint: str = "",
+        timeout: Optional[float] = None,
+        request_sent: bool = True,
+    ):
+        super().__init__(message)
+        self.method = method
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.request_sent = request_sent
+
+
 class CredentialError(AlmaValidationError):
     """No API key could be resolved for the client (issue #143).
 
@@ -295,6 +329,32 @@ class CredentialError(AlmaValidationError):
     continue to work unchanged.
     """
     pass
+
+
+def _timeout_request_sent(
+    error: requests.exceptions.RequestException,
+) -> Optional[bool]:
+    """Classify a ``requests`` error as a timeout (issue #196).
+
+    Returns ``False`` for a connect timeout (the request never reached
+    Alma), ``True`` for a read timeout (it did), and ``None`` when the error
+    is not a timeout. Retried methods (GET/PUT/DELETE) that time out on
+    every attempt surface as ``ConnectionError`` wrapping urllib3's
+    ``MaxRetryError``, so the retry's ``reason`` is inspected too.
+    """
+    if isinstance(error, requests.exceptions.ConnectTimeout):
+        return False
+    if isinstance(error, requests.exceptions.Timeout):
+        return True
+    cause = error.args[0] if error.args else None
+    reason = getattr(cause, "reason", None)
+    if isinstance(reason, urllib3.exceptions.NewConnectionError):
+        return None  # Refused / DNS failure; subclasses ConnectTimeoutError.
+    if isinstance(reason, urllib3.exceptions.ConnectTimeoutError):
+        return False
+    if isinstance(reason, urllib3.exceptions.ReadTimeoutError):
+        return True
+    return None
 
 
 # Mapping of Alma-specific error codes to typed exception subclasses.
@@ -1026,10 +1086,12 @@ class AlmaAPIClient:
         # explicit content_type go via ``json=`` so requests sets the
         # Content-Type to application/json correctly; everything else goes
         # via ``data=``. This preserves the prior per-verb dispatch.
+        self._validate_timeout(timeout)
+        effective_timeout = timeout if timeout is not None else self.timeout
         request_kwargs: Dict[str, Any] = {
             'headers': headers,
             'params': params,
-            'timeout': timeout if timeout is not None else self.timeout,
+            'timeout': effective_timeout,
         }
         if isinstance(data, dict) and not content_type:
             request_kwargs['json'] = data
@@ -1039,7 +1101,32 @@ class AlmaAPIClient:
         # Route through self._session so TCP+TLS connections are pooled
         # across calls (issue #3).
         start_time = time.time()
-        response = self._session.request(method, url, **request_kwargs)
+        try:
+            response = self._session.request(method, url, **request_kwargs)
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError) as e:
+            # Issue #196: surface a typed error that says whether Alma got
+            # the request. A read timeout on a write is ambiguous: Alma may
+            # have created the record after the client gave up.
+            request_sent = _timeout_request_sent(e)
+            if request_sent is None:
+                raise  # A connection error that is not a timeout.
+            self.logger.error(
+                "Alma request timed out",
+                method=method,
+                endpoint=endpoint,
+                timeout=effective_timeout,
+                request_sent=request_sent,
+            )
+            raise AlmaTimeoutError(
+                f"{method} {endpoint} timed out after {effective_timeout}s "
+                + ("(request reached Alma; outcome unknown)"
+                   if request_sent else "(request was not sent)"),
+                method=method,
+                endpoint=endpoint,
+                timeout=effective_timeout,
+                request_sent=request_sent,
+            ) from e
         duration_ms = (time.time() - start_time) * 1000
 
         # Log the response (status + timing). The detailed body trace below
@@ -1066,7 +1153,8 @@ class AlmaAPIClient:
         return self._handle_response(alma_response)
 
     def get(self, endpoint: str, params: Optional[Dict] = None,
-            custom_headers: Optional[Dict] = None) -> AlmaResponse:
+            custom_headers: Optional[Dict] = None,
+            timeout: Optional[float] = None) -> AlmaResponse:
         """
         Make a GET request.
 
@@ -1074,17 +1162,21 @@ class AlmaAPIClient:
             endpoint: API endpoint (e.g., 'almaws/v1/bibs/123456')
             params: Query parameters
             custom_headers: Additional headers
+            timeout: Per-call timeout in seconds; ``None`` uses the
+                client default (issue #196).
 
         Returns:
             AlmaResponse object
         """
         return self._request(
-            'GET', endpoint, params=params, custom_headers=custom_headers
+            'GET', endpoint, params=params, custom_headers=custom_headers,
+            timeout=timeout,
         )
 
     def post(self, endpoint: str, data: Any = None, params: Optional[Dict] = None,
              content_type: Optional[str] = None,
-             custom_headers: Optional[Dict] = None) -> requests.Response:
+             custom_headers: Optional[Dict] = None,
+             timeout: Optional[float] = None) -> requests.Response:
         """
         Make a POST request.
 
@@ -1094,6 +1186,8 @@ class AlmaAPIClient:
             params: Query parameters
             content_type: Override content type ('application/xml', etc.)
             custom_headers: Additional headers
+            timeout: Per-call timeout in seconds; ``None`` uses the
+                client default (issue #196).
 
         Returns:
             AlmaResponse object
@@ -1102,11 +1196,13 @@ class AlmaAPIClient:
             'POST', endpoint,
             params=params, data=data,
             content_type=content_type, custom_headers=custom_headers,
+            timeout=timeout,
         )
 
     def put(self, endpoint: str, data: Any = None, params: Optional[Dict] = None,
             content_type: Optional[str] = None,
-            custom_headers: Optional[Dict] = None) -> AlmaResponse:
+            custom_headers: Optional[Dict] = None,
+            timeout: Optional[float] = None) -> AlmaResponse:
         """
         Make a PUT request.
 
@@ -1116,6 +1212,8 @@ class AlmaAPIClient:
             params: Query parameters
             content_type: Override content type ('application/xml', etc.)
             custom_headers: Additional headers
+            timeout: Per-call timeout in seconds; ``None`` uses the
+                client default (issue #196).
 
         Returns:
             AlmaResponse object
@@ -1124,10 +1222,12 @@ class AlmaAPIClient:
             'PUT', endpoint,
             params=params, data=data,
             content_type=content_type, custom_headers=custom_headers,
+            timeout=timeout,
         )
 
     def delete(self, endpoint: str, params: Optional[Dict] = None,
-               custom_headers: Optional[Dict] = None)  -> AlmaResponse:
+               custom_headers: Optional[Dict] = None,
+               timeout: Optional[float] = None) -> AlmaResponse:
         """
         Make a DELETE request.
 
@@ -1135,6 +1235,8 @@ class AlmaAPIClient:
             endpoint: API endpoint
             params: Query parameters
             custom_headers: Additional headers
+            timeout: Per-call timeout in seconds; ``None`` uses the
+                client default (issue #196).
 
         Returns:
             AlmaResponse object
@@ -1142,6 +1244,7 @@ class AlmaAPIClient:
         return self._request(
             'DELETE', endpoint,
             params=params, custom_headers=custom_headers,
+            timeout=timeout,
         )
     
     def iter_paged(

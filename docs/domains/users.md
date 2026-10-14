@@ -1308,7 +1308,7 @@ Pure and network-free. Encodes Alma's plain-vs-`{"value": ...}` wrapping
 asymmetry exactly once (issue #197) so callers stop re-deriving it by trial
 and error. `extra=` is the escape hatch for any other documented body field.
 
-#### `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False)`
+#### `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False, timeout=None, reconcile=False)`
 
 `POST` the body (hand-assembled or builder-produced — `request_data` is
 forwarded verbatim, so advanced callers lose nothing).
@@ -1336,6 +1336,44 @@ returns `401929`; a title your institution already holds returns `401604`
 ("institutional inventory has services…") — `override_blocks=True` forces
 past it, knowingly. Prefer `citation_type="CR"` over `"E_CR"` when journal
 metadata must persist into the stored request.
+
+**`override_blocks=True` is coarse** (issue #196): it bypasses patron blocks
+*and* the `401604` warning, and makes the create much slower (over 60 s
+observed, vs ~3 s without). Never make it a default; use it deliberately,
+log that you did, and raise `timeout=` for that call.
+
+**Timeouts and reconciliation** *(issue #196)*. A create can time out on the
+client while Alma still creates the request. Pass `reconcile=True`:
+
+```python
+response = users.create_user_rs_request(
+    "<user_primary_id>", body, timeout=180, reconcile=True,
+    reconcile_marker="<stable-per-request, e.g. order number>",  # optional
+)
+```
+
+A marker is appended to the request `note` (yours, or a generated
+`almaapitk-<hex>`); the note is stored on the request and visible in Alma.
+After a read timeout, the user's active requests are searched for it (up to 3
+times, 10 s apart) and the request is returned if Alma created it. After
+`402362` "Patron has duplicate request", one search tells whether the duplicate
+is an earlier attempt with the same marker, so a marker that stays the same
+across runs is what makes that case recoverable. If nothing is found, the
+original error is raised with `reconcile_marker` set on it; check later with
+`find_user_rs_request_by_marker(user_id, marker)`.
+
+How it works, verified in SANDBOX (2026-10-14): every borrowing request
+creates a linked hold in `GET /users/{user_id}/requests` whose `comment` is the
+request `note` verbatim and whose `resource_sharing.id` is the borrowing
+request's id. Alma's `402362` duplicate check ignores the note, so a different
+marker does not let a duplicate through.
+
+**`external_id` cannot be used to find a borrowing request.** Alma replaces the
+POSTed value with its own (`972TAU…`), so
+`get_user_rs_request(user_id, <your id>, request_id_type="external")` returns
+`40166450` "No result found". Alma's own value works, but it arrives only in
+the create response, which a timeout loses. (SANDBOX, 2026-07-20 and
+2026-10-14; the swagger does not say so.)
 
 #### `get_user_rs_request(user_id, request_id, ...)` / `cancel_user_rs_request(user_id, request_id, ...)`
 

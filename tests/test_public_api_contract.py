@@ -116,6 +116,7 @@ class TestPublicAPIContract(unittest.TestCase):
             AlmaResourceNotFoundError,
             AlmaDuplicateInvoiceError,
             AlmaInvalidPolModeError,
+            AlmaTimeoutError,
         )
         # Each must be a non-None class.
         for cls in (
@@ -125,6 +126,7 @@ class TestPublicAPIContract(unittest.TestCase):
             AlmaResourceNotFoundError,
             AlmaDuplicateInvoiceError,
             AlmaInvalidPolModeError,
+            AlmaTimeoutError,
         ):
             self.assertIsNotNone(cls)
             # All typed subclasses must remain ``AlmaAPIError`` so existing
@@ -144,6 +146,7 @@ class TestPublicAPIContract(unittest.TestCase):
             'AlmaResourceNotFoundError',
             'AlmaDuplicateInvoiceError',
             'AlmaInvalidPolModeError',
+            'AlmaTimeoutError',
         ]
         for symbol in expected_typed_errors:
             self.assertIn(

@@ -10,7 +10,7 @@ codes — without a network round-trip.
 
 | Field | Value |
 |-------|-------|
-| **Retrieved** | **2026-05-29** (per-file timestamps in each `*.fetched.json` sidecar) |
+| **Retrieved** | **2026-05-29**; `users` refreshed **2026-10-14** (per-file timestamps in each `*.fetched.json` sidecar) |
 | **Source URL** | `https://developers.exlibrisgroup.com/wp-content/uploads/alma/openapi/<domain>.json` |
 | **Fetched by** | `python -m scripts.error_codes.fetch_domain_codes <domain> --force --cache-dir docs/alma-swagger` |
 
@@ -72,3 +72,8 @@ against current Alma behavior.
 
 - **2026-05-29** — initial snapshot, captured during the repo-wide API-contract
   audit that filed issues #162–#176 (+ comments on #139, #144).
+- **2026-10-14** — `users` refreshed for #196. Only change: `order_by` and
+  `direction` query params on the purchase-requests list. Not in the swagger,
+  found in SANDBOX: a borrowing request's POSTed `external_id` is replaced by
+  Alma's own, so `request_id_type=external` cannot find it by the caller's id
+  (see `docs/domains/users.md`).

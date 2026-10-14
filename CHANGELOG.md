@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`AlmaTimeoutError`** (#196): `requests` connect / read timeouts are now
+  raised as a typed `AlmaAPIError`. It is still a
+  `requests.exceptions.Timeout`, so existing handlers keep working.
+  `request_sent` tells a safe-to-retry connect timeout from an ambiguous read
+  timeout.
+- **Per-call `timeout=`** on `AlmaAPIClient.get/post/put/delete` and on
+  `Users.create_user_rs_request` (#196).
+- **`create_user_rs_request(..., reconcile=True, reconcile_marker=None)`**
+  (#196): puts a marker in the request `note`. After a read timeout, or a
+  `402362` "Patron has duplicate request", it finds the request through the
+  linked hold in the user's active requests, which carries the note and the
+  request id, and returns it. Verified end to end in SANDBOX with a forced
+  timeout. Also `Users.find_user_rs_request_by_marker()` for checking later.
+  (`external_id` cannot do this: Alma replaces the POSTed value.) Found in
+  SANDBOX: a create with `override_blocks=True` took over 60 s, timed out on
+  the client, and was created anyway.
+
 ### Changed
 
 - **`list_invoices` / `search_invoices`: `total_record_count` is now always

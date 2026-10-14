@@ -81,6 +81,7 @@ __all__ = [
     "AlmaResourceNotFoundError",
     "AlmaDuplicateInvoiceError",
     "AlmaInvalidPolModeError",
+    "AlmaTimeoutError",
     "CredentialError",
     # Domain classes
     "Admin",
@@ -114,6 +115,7 @@ _lazy_imports = {
     "AlmaDuplicateInvoiceError": ("almaapitk._internal", "AlmaDuplicateInvoiceError"),
     "CredentialError": ("almaapitk._internal", "CredentialError"),
     "AlmaInvalidPolModeError": ("almaapitk._internal", "AlmaInvalidPolModeError"),
+    "AlmaTimeoutError": ("almaapitk._internal", "AlmaTimeoutError"),
     # Domains
     "Admin": ("almaapitk._internal", "Admin"),
     "Users": ("almaapitk._internal", "Users"),

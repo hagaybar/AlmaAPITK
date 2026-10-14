@@ -15,9 +15,13 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   make one direct request and return Alma's payload unchanged. Callers that
   read `total_record_count` as "records in this page" should use
   `len(result["invoice"])`.
-- **`TSVGenerator` rejects `use_direct_tsv` / `skip_tsv_generation`** (#170).
-  The mode passed validation but was never implemented, so it crashed later
-  with `KeyError: 'alma_set_id'`. It now fails at load with a clear message.
+- **`TSVGenerator`: the unbuilt "direct TSV" mode is removed** (#170). With
+  `use_direct_tsv` / `skip_tsv_generation` set, `alma_set_id` stopped being
+  required, but nothing read those flags, so generation crashed later with
+  `KeyError: 'alma_set_id'`. No consumer used the mode and it was never
+  documented. `alma_set_id` is now always required, so such a config fails at
+  load with "Missing 'alma_set_id'"; a config that also has `alma_set_id` runs
+  exactly as before.
 
 ### Fixed
 

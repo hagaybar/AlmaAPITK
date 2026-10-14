@@ -1,10 +1,10 @@
 """R10 regression test for issue #170.
 
-``TSVGenerator._load_config`` accepted ``use_direct_tsv`` /
-``skip_tsv_generation`` configs that omit ``alma_set_id``, but no execution
-path ever reads those flags: ``generate_tsv`` then crashed with
-``KeyError: 'alma_set_id'``. The half-wired mode is now rejected up front with
-a clear error instead of passing validation.
+``TSVGenerator._load_config`` had a half-built "direct TSV" mode: with
+``use_direct_tsv`` / ``skip_tsv_generation`` set it stopped requiring
+``alma_set_id``, but nothing downstream read those flags, so ``generate_tsv``
+crashed later with ``KeyError: 'alma_set_id'``. No consumer used the mode, so
+it was removed: ``alma_set_id`` is required unconditionally.
 """
 import json
 
@@ -14,7 +14,7 @@ from almaapitk.utils.tsv_generator import TSVGenerator
 
 
 @pytest.mark.parametrize("flag", ["use_direct_tsv", "skip_tsv_generation"])
-def test_direct_tsv_mode_is_rejected_at_load(tmp_path, flag):
+def test_config_without_set_id_fails_at_load(tmp_path, flag):
     tsv = tmp_path / "input.tsv"
     tsv.write_text("x\n", encoding="utf-8")
     config = {
@@ -25,5 +25,5 @@ def test_direct_tsv_mode_is_rejected_at_load(tmp_path, flag):
     cfg = tmp_path / "config.json"
     cfg.write_text(json.dumps(config), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="not supported"):
+    with pytest.raises(ValueError, match="alma_set_id"):
         TSVGenerator(str(cfg))

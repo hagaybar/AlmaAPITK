@@ -53,15 +53,6 @@ class TSVGenerator:
             
             # Validate input section
             input_config = config['input']
-            # Direct-TSV / skip-generation mode was validated here but never
-            # implemented downstream, so it crashed later with KeyError
-            # (#170). Reject it up front until it is actually wired.
-            for flag in ('use_direct_tsv', 'skip_tsv_generation'):
-                if input_config.get(flag):
-                    raise ValueError(
-                        f"'{flag}' is not supported: TSVGenerator only reads "
-                        "MMS IDs from an Alma set ('alma_set_id')"
-                    )
             if 'alma_set_id' not in input_config:
                 raise ValueError("Missing 'alma_set_id' in input configuration")
             self.logger.info(f"✓ Using Alma set ID: {input_config['alma_set_id']}")

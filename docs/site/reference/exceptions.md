@@ -21,4 +21,6 @@ derive from `ValueError`.
 
 ::: almaapitk.client.AlmaAPIClient.AlmaInvalidPolModeError
 
+::: almaapitk.client.AlmaAPIClient.AlmaTimeoutError
+
 ::: almaapitk.client.AlmaAPIClient.CredentialError

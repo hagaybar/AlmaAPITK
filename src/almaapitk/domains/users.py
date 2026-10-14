@@ -11,8 +11,18 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import requests
+
 from almaapitk.alma_logging import get_logger
-from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError
+from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError, AlmaTimeoutError
+
+# Issue #196: after a read timeout on a resource-sharing create, Alma may
+# still be finishing the request, so the external_id lookup is retried a few
+# times before giving up.
+RS_RECONCILE_ATTEMPTS = 3
+RS_RECONCILE_INTERVAL_SECONDS = 10.0
+# "Patron has duplicate request": may be our own earlier, timed-out attempt.
+_RS_DUPLICATE_REQUEST_CODE = "402362"
 
 
 # Valid `expand` options for GET /almaws/v1/users/{user_id} per the committed
@@ -2602,6 +2612,8 @@ class Users:
         override_blocks: Optional[bool] = None,
         *,
         validate: bool = False,
+        timeout: Optional[float] = None,
+        reconcile: bool = False,
     ) -> AlmaResponse:
         """Create a resource-sharing request for a user.
 
@@ -2633,7 +2645,12 @@ class Users:
                 non-``None`` (the swagger lists this as required, but
                 in practice Alma applies the default ``false`` when
                 omitted — surfaced here as an optional kwarg so callers
-                can opt in to override semantics explicitly).
+                can opt in to override semantics explicitly). It is
+                coarse: it bypasses patron blocks *and* the ``401604``
+                availability warning, and makes the call much slower
+                (over 60 s observed, vs ~3 s without; issue #196). Never
+                set it by default; use it as a deliberate, logged choice,
+                and consider a larger ``timeout``.
             validate: Opt-in pre-flight check of the well-known borrowing
                 code-table fields (``format``, ``citation_type``,
                 ``pickup_location_type``) against their documented values,
@@ -2664,17 +2681,41 @@ class Users:
                 plain strings (or ``{"value": "<code>"}`` wrappers), are not
                 inspected. Nothing else about the body is normalised —
                 ``request_data`` still reaches Alma verbatim.
+            timeout: Per-call timeout in seconds, keyword-only. ``None``
+                uses the client default (60 s). Raise it for slow creates,
+                e.g. with ``override_blocks=True`` (issue #196).
+            reconcile: Opt-in, keyword-only. Requires a non-empty
+                ``external_id`` in ``request_data``, which acts as an
+                idempotency key: give every logical request its own. When
+                the create's outcome is unknown, the request is looked up
+                by that ``external_id`` and returned if it exists:
+
+                * after a read timeout (``AlmaTimeoutError`` with
+                  ``request_sent=True``), up to ``RS_RECONCILE_ATTEMPTS``
+                  lookups ``RS_RECONCILE_INTERVAL_SECONDS`` apart, since
+                  Alma may still be finishing the create;
+                * after ``402362`` "Patron has duplicate request", one
+                  lookup: if it finds our ``external_id``, an earlier
+                  attempt already created the request.
+
+                If the lookup finds nothing, the original error is raised.
+                A connect timeout is re-raised without a lookup: the
+                request never reached Alma, so it is safe to retry.
 
         Returns:
             ``AlmaResponse`` wrapping the Alma response (the created
             resource-sharing request body, including the new
-            ``request_id``).
+            ``request_id``). With ``reconcile=True`` it may instead wrap
+            the request found by ``external_id`` (same shape).
 
         Raises:
             AlmaValidationError: If ``user_id`` is empty / not a string,
-                if ``request_data`` is empty / not a dict, or — when
-                ``validate=True`` — if a checked code-table field carries an
-                undocumented value.
+                if ``request_data`` is empty / not a dict, if
+                ``reconcile=True`` and ``request_data`` has no
+                ``external_id``, or — when ``validate=True`` — if a checked
+                code-table field carries an undocumented value.
+            AlmaTimeoutError: If the call times out and is not reconciled.
+                ``request_sent`` says whether Alma received it.
             AlmaAPIError: If the API request fails (e.g. error code
                 ``401768`` "Patron is not affiliated with a resource
                 sharing library", ``401607`` "Resource sharing library
@@ -2691,6 +2732,12 @@ class Users:
         if not isinstance(request_data, dict) or not request_data:
             raise AlmaValidationError(
                 "request_data must be a non-empty dictionary"
+            )
+        external_id = request_data.get("external_id")
+        if reconcile and (not isinstance(external_id, str) or not external_id.strip()):
+            raise AlmaValidationError(
+                "reconcile=True requires a non-empty string external_id in "
+                "request_data (it is the key used to find the request)"
             )
         if validate:
             # Opt-in soft validation (issue #194). Deliberately runs before
@@ -2727,11 +2774,17 @@ class Users:
             f"(user_id_type={user_id_type!r}, "
             f"override_blocks={override_blocks!r})"
         )
+        # Only pass ``timeout`` when set, so the call is unchanged for
+        # everyone who doesn't use it.
+        post_kwargs: Dict[str, Any] = {}
+        if timeout is not None:
+            post_kwargs["timeout"] = timeout
         try:
             response = self.client.post(
                 endpoint,
                 data=request_data,
                 params=params if params else None,
+                **post_kwargs,
             )
             request_id: Any = None
             try:
@@ -2748,7 +2801,55 @@ class Users:
                 f"API error creating resource-sharing request for "
                 f"user {clean_id}: {e}"
             )
+            if reconcile:
+                found = self._reconcile_rs_request(
+                    clean_id, external_id.strip(), e
+                )
+                if found is not None:
+                    return found
             raise
+
+    def _reconcile_rs_request(
+        self, user_id: str, external_id: str, error: AlmaAPIError
+    ) -> Optional[AlmaResponse]:
+        """Look up a resource-sharing request whose create failed ambiguously.
+
+        Issue #196. Returns the request found by ``external_id``, or
+        ``None`` when the error is not ambiguous or nothing is found.
+        """
+        if isinstance(error, AlmaTimeoutError):
+            if not error.request_sent:
+                return None  # Never reached Alma: nothing to find.
+            attempts = RS_RECONCILE_ATTEMPTS
+        elif error.alma_code == _RS_DUPLICATE_REQUEST_CODE:
+            attempts = 1
+        else:
+            return None
+
+        endpoint = (
+            f"almaws/v1/users/{user_id}/resource-sharing-requests/{external_id}"
+        )
+        for attempt in range(1, attempts + 1):
+            if attempt > 1:
+                time.sleep(RS_RECONCILE_INTERVAL_SECONDS)
+            try:
+                found = self.client.get(
+                    endpoint, params={"request_id_type": "external"}
+                )
+            except (AlmaAPIError, requests.exceptions.RequestException) as lookup_error:
+                # Not found, or the lookup itself failed: either way the
+                # caller gets the original error, not this one.
+                self.logger.info(
+                    f"Reconcile lookup {attempt}/{attempts} for user "
+                    f"{user_id}: not found ({lookup_error})"
+                )
+                continue
+            self.logger.warning(
+                f"Reconciled resource-sharing request for user {user_id}: "
+                f"found by external_id after '{error}'"
+            )
+            return found
+        return None
 
     def get_user_rs_request(
         self,

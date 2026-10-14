@@ -1308,7 +1308,7 @@ Pure and network-free. Encodes Alma's plain-vs-`{"value": ...}` wrapping
 asymmetry exactly once (issue #197) so callers stop re-deriving it by trial
 and error. `extra=` is the escape hatch for any other documented body field.
 
-#### `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False)`
+#### `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False, timeout=None, reconcile=False)`
 
 `POST` the body (hand-assembled or builder-produced — `request_data` is
 forwarded verbatim, so advanced callers lose nothing).
@@ -1336,6 +1336,28 @@ returns `401929`; a title your institution already holds returns `401604`
 ("institutional inventory has services…") — `override_blocks=True` forces
 past it, knowingly. Prefer `citation_type="CR"` over `"E_CR"` when journal
 metadata must persist into the stored request.
+
+**`override_blocks=True` is coarse** (issue #196): it bypasses patron blocks
+*and* the `401604` warning, and makes the create much slower (over 60 s
+observed, vs ~3 s without). Never make it a default; use it deliberately,
+log that you did, and raise `timeout=` for that call.
+
+**Timeouts and reconciliation** *(issue #196)*. A create can time out on the
+client while Alma still creates the request. Give every logical request its
+own `external_id` (the builder's `external_id=`) and pass `reconcile=True`:
+
+```python
+body = build_user_rs_request(..., external_id="<unique-per-request>")
+response = users.create_user_rs_request(
+    "<user_primary_id>", body, timeout=180, reconcile=True
+)
+```
+
+After a read timeout the request is looked up by `external_id` (up to 3
+times, 10 s apart) and returned if Alma created it. After `402362` "Patron has
+duplicate request", one lookup tells whether the duplicate is our own earlier
+attempt. If nothing is found, the original error is raised: an
+`AlmaTimeoutError` (check `request_sent`) or the `402362` `AlmaAPIError`.
 
 #### `get_user_rs_request(user_id, request_id, ...)` / `cancel_user_rs_request(user_id, request_id, ...)`
 

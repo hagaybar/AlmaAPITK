@@ -7,6 +7,7 @@ for users expired 2+ years from Alma sets.
 import base64
 import re
 import time
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -17,7 +18,7 @@ from almaapitk.alma_logging import get_logger
 from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError, AlmaTimeoutError
 
 # Issue #196: after a read timeout on a resource-sharing create, Alma may
-# still be finishing the request, so the external_id lookup is retried a few
+# still be finishing the request, so the marker lookup is retried a few
 # times before giving up.
 RS_RECONCILE_ATTEMPTS = 3
 RS_RECONCILE_INTERVAL_SECONDS = 10.0
@@ -195,6 +196,14 @@ def _wrap_rs_value(field: str, value: Any) -> Any:
     if field in _RS_REQUEST_WRAPPED_FIELDS and isinstance(value, str):
         return {"value": value}
     return value
+
+
+def _with_note_marker(request_data: Dict[str, Any], marker: str) -> Dict[str, Any]:
+    """A copy of ``request_data`` whose ``note`` contains ``marker`` (#196)."""
+    note = request_data.get("note") or ""
+    if marker in note:
+        return request_data
+    return {**request_data, "note": f"{note} {marker}".strip()}
 
 
 def build_user_rs_request(
@@ -2614,6 +2623,7 @@ class Users:
         validate: bool = False,
         timeout: Optional[float] = None,
         reconcile: bool = False,
+        reconcile_marker: Optional[str] = None,
     ) -> AlmaResponse:
         """Create a resource-sharing request for a user.
 
@@ -2684,36 +2694,47 @@ class Users:
             timeout: Per-call timeout in seconds, keyword-only. ``None``
                 uses the client default (60 s). Raise it for slow creates,
                 e.g. with ``override_blocks=True`` (issue #196).
-            reconcile: Opt-in, keyword-only. Requires a non-empty
-                ``external_id`` in ``request_data``, which acts as an
-                idempotency key: give every logical request its own. When
-                the create's outcome is unknown, the request is looked up
-                by that ``external_id`` and returned if it exists:
+            reconcile: Opt-in, keyword-only. Lets the call recover when a
+                create's outcome is unknown. A marker is added to the
+                request ``note`` (``reconcile_marker``, or a generated
+                ``almaapitk-<hex>``); the note is stored on the request and
+                visible in Alma. Every borrowing request creates a linked
+                hold in ``GET /users/{user_id}/requests`` whose ``comment``
+                is that note and whose ``resource_sharing.id`` is the
+                request id, so the request can be found by marker:
 
                 * after a read timeout (``AlmaTimeoutError`` with
                   ``request_sent=True``), up to ``RS_RECONCILE_ATTEMPTS``
                   lookups ``RS_RECONCILE_INTERVAL_SECONDS`` apart, since
                   Alma may still be finishing the create;
                 * after ``402362`` "Patron has duplicate request", one
-                  lookup: if it finds our ``external_id``, an earlier
-                  attempt already created the request.
+                  lookup. It only finds an earlier attempt that used the
+                  same marker, so pass a stable ``reconcile_marker`` (e.g.
+                  your order number) to recover across runs.
 
-                If the lookup finds nothing, the original error is raised.
-                A connect timeout is re-raised without a lookup: the
-                request never reached Alma, so it is safe to retry.
+                If nothing is found, the original error is raised with the
+                marker on it as ``reconcile_marker``, so the caller can
+                check later with :meth:`find_user_rs_request_by_marker`. A
+                connect timeout is re-raised without a lookup: the request
+                never reached Alma, so it is safe to retry. The
+                ``external_id`` cannot serve here: Alma replaces the POSTed
+                value with its own (verified in SANDBOX).
+            reconcile_marker: Optional, keyword-only; used only with
+                ``reconcile=True``. A string unique to this logical
+                request. Appended to ``note`` unless already in it.
 
         Returns:
             ``AlmaResponse`` wrapping the Alma response (the created
             resource-sharing request body, including the new
             ``request_id``). With ``reconcile=True`` it may instead wrap
-            the request found by ``external_id`` (same shape).
+            the request found by marker (same shape).
 
         Raises:
             AlmaValidationError: If ``user_id`` is empty / not a string,
                 if ``request_data`` is empty / not a dict, if
-                ``reconcile=True`` and ``request_data`` has no
-                ``external_id``, or — when ``validate=True`` — if a checked
-                code-table field carries an undocumented value.
+                ``reconcile_marker`` is not a non-empty string, or — when
+                ``validate=True`` — if a checked code-table field carries
+                an undocumented value.
             AlmaTimeoutError: If the call times out and is not reconciled.
                 ``request_sent`` says whether Alma received it.
             AlmaAPIError: If the API request fails (e.g. error code
@@ -2733,12 +2754,18 @@ class Users:
             raise AlmaValidationError(
                 "request_data must be a non-empty dictionary"
             )
-        external_id = request_data.get("external_id")
-        if reconcile and (not isinstance(external_id, str) or not external_id.strip()):
-            raise AlmaValidationError(
-                "reconcile=True requires a non-empty string external_id in "
-                "request_data (it is the key used to find the request)"
+        marker: Optional[str] = None
+        if reconcile:
+            if reconcile_marker is not None and (
+                not isinstance(reconcile_marker, str) or not reconcile_marker.strip()
+            ):
+                raise AlmaValidationError(
+                    "reconcile_marker must be a non-empty string"
+                )
+            marker = (reconcile_marker or "").strip() or (
+                f"almaapitk-{uuid.uuid4().hex[:12]}"
             )
+            request_data = _with_note_marker(request_data, marker)
         if validate:
             # Opt-in soft validation (issue #194). Deliberately runs before
             # any query-param work so a bad code costs nothing.
@@ -2801,21 +2828,20 @@ class Users:
                 f"API error creating resource-sharing request for "
                 f"user {clean_id}: {e}"
             )
-            if reconcile:
-                found = self._reconcile_rs_request(
-                    clean_id, external_id.strip(), e
-                )
+            if marker is not None:
+                found = self._reconcile_rs_request(clean_id, marker, e)
                 if found is not None:
                     return found
+                e.reconcile_marker = marker
             raise
 
     def _reconcile_rs_request(
-        self, user_id: str, external_id: str, error: AlmaAPIError
+        self, user_id: str, marker: str, error: AlmaAPIError
     ) -> Optional[AlmaResponse]:
-        """Look up a resource-sharing request whose create failed ambiguously.
+        """Find a resource-sharing request whose create failed ambiguously.
 
-        Issue #196. Returns the request found by ``external_id``, or
-        ``None`` when the error is not ambiguous or nothing is found.
+        Issue #196. Returns the request found by ``marker``, or ``None`` when
+        the error is not ambiguous or nothing is found.
         """
         if isinstance(error, AlmaTimeoutError):
             if not error.request_sent:
@@ -2826,30 +2852,84 @@ class Users:
         else:
             return None
 
-        endpoint = (
-            f"almaws/v1/users/{user_id}/resource-sharing-requests/{external_id}"
-        )
         for attempt in range(1, attempts + 1):
             if attempt > 1:
                 time.sleep(RS_RECONCILE_INTERVAL_SECONDS)
             try:
+                rs_id = self._find_rs_request_id_by_marker(user_id, marker)
+                if rs_id is None:
+                    self.logger.info(
+                        f"Reconcile lookup {attempt}/{attempts} for user "
+                        f"{user_id}: not found yet"
+                    )
+                    continue
                 found = self.client.get(
-                    endpoint, params={"request_id_type": "external"}
+                    f"almaws/v1/users/{user_id}/resource-sharing-requests/{rs_id}"
                 )
             except (AlmaAPIError, requests.exceptions.RequestException) as lookup_error:
-                # Not found, or the lookup itself failed: either way the
-                # caller gets the original error, not this one.
+                # The lookup itself failed; the caller gets the original
+                # error, not this one.
                 self.logger.info(
                     f"Reconcile lookup {attempt}/{attempts} for user "
-                    f"{user_id}: not found ({lookup_error})"
+                    f"{user_id} failed: {lookup_error}"
                 )
                 continue
             self.logger.warning(
-                f"Reconciled resource-sharing request for user {user_id}: "
-                f"found by external_id after '{error}'"
+                f"Reconciled resource-sharing request {rs_id} for user "
+                f"{user_id} by note marker after '{error}'"
             )
             return found
         return None
+
+    def _find_rs_request_id_by_marker(
+        self, user_id: str, marker: str
+    ) -> Optional[str]:
+        """Return the id of the user's RS request whose note holds ``marker``.
+
+        Reads the user's active requests: each borrowing request has a
+        linked hold whose ``comment`` is the request note and whose
+        ``resource_sharing.id`` is the request id (issue #196).
+        """
+        for user_request in self.client.iter_paged(
+            f"almaws/v1/users/{user_id}/requests",
+            record_key="user_request",
+            page_size=100,
+        ):
+            rs_id = (user_request.get("resource_sharing") or {}).get("id")
+            if rs_id and marker in (user_request.get("comment") or ""):
+                return str(rs_id)
+        return None
+
+    def find_user_rs_request_by_marker(
+        self, user_id: str, marker: str
+    ) -> Optional[Dict[str, Any]]:
+        """Find a user's active resource-sharing request by a note marker.
+
+        For checking later whether a create whose outcome was unknown went
+        through: pass the ``reconcile_marker`` from the raised error, or
+        your own marker that was in the request ``note``.
+
+        Args:
+            user_id: User identifier. Must be a non-empty string.
+            marker: Text that was in the request ``note``. Must be a
+                non-empty string.
+
+        Returns:
+            The resource-sharing request dict, or ``None`` if no active
+            request of this user carries the marker.
+
+        Raises:
+            AlmaValidationError: If ``user_id`` or ``marker`` is empty.
+            AlmaAPIError: If an API request fails.
+        """
+        if not isinstance(user_id, str) or not user_id.strip():
+            raise AlmaValidationError("User ID cannot be empty")
+        if not isinstance(marker, str) or not marker.strip():
+            raise AlmaValidationError("marker must be a non-empty string")
+        rs_id = self._find_rs_request_id_by_marker(user_id.strip(), marker.strip())
+        if rs_id is None:
+            return None
+        return self.get_user_rs_request(user_id.strip(), rs_id)
 
     def get_user_rs_request(
         self,

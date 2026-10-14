@@ -2315,6 +2315,26 @@
               "type": "string"
             },
             "description": "For filtering based on the purchase request's status. Optional. Possible values:  INREVIEW, APPROVED, REJECTED, DEFERRED. Default is no status."
+          },
+          {
+            "name": "order_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "type": "string"
+            },
+            "description": "Order by parameter. Optional. Available option is create_date. Not considered by default."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "type": "string"
+            },
+            "description": "Direction of ordering. Optional. Relevant only when order by parameter is populated. Possible values: asc, desc. Default: desc."
           }
         ],
         "responses": {

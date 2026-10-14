@@ -16,12 +16,15 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   timeout.
 - **Per-call `timeout=`** on `AlmaAPIClient.get/post/put/delete` and on
   `Users.create_user_rs_request` (#196).
-- **`create_user_rs_request(..., reconcile=True)`** (#196): uses the body's
-  `external_id` as an idempotency key. After a read timeout, or a `402362`
-  "Patron has duplicate request", it looks the request up by `external_id`
-  and returns it if Alma created it. Found in SANDBOX: a create with
-  `override_blocks=True` took over 60 s, timed out on the client, and was
-  created anyway.
+- **`create_user_rs_request(..., reconcile=True, reconcile_marker=None)`**
+  (#196): puts a marker in the request `note`. After a read timeout, or a
+  `402362` "Patron has duplicate request", it finds the request through the
+  linked hold in the user's active requests, which carries the note and the
+  request id, and returns it. Verified end to end in SANDBOX with a forced
+  timeout. Also `Users.find_user_rs_request_by_marker()` for checking later.
+  (`external_id` cannot do this: Alma replaces the POSTed value.) Found in
+  SANDBOX: a create with `override_blocks=True` took over 60 s, timed out on
+  the client, and was created anyway.
 
 ### Changed
 

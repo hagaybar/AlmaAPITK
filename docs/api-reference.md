@@ -619,7 +619,7 @@ so existing `except AlmaAPIError:` blocks keep catching them.
 | `AlmaServerError` | HTTP **5xx** | Transient Alma-side failure. The retry adapter has already retried; consider re-queueing the job and alerting an operator. |
 | `AlmaDuplicateInvoiceError` | Alma error code **402459** | Invoice already exists for the given vendor. Branch on this in invoice-creation flows to skip / surface a "duplicate" outcome instead of bubbling a generic error. |
 | `AlmaInvalidPolModeError` | Alma error code **40166411** | POL is not in the right mode for the requested operation. Re-check POL status before retrying (e.g., POL must be SENT before receiving). |
-| `AlmaTimeoutError` | A connect or read timeout (also a `requests.exceptions.Timeout`, so older handlers still catch it) | Check `request_sent`: `False` means Alma never got the request, so retrying is safe; `True` means a write may have succeeded. For resource-sharing creates, `create_user_rs_request(..., reconcile=True)` resolves this by `external_id` (issue #196). Raise the limit per call with `timeout=`. |
+| `AlmaTimeoutError` | A connect or read timeout (also a `requests.exceptions.Timeout`, so older handlers still catch it) | Check `request_sent`: `False` means Alma never got the request, so retrying is safe; `True` means a write may have succeeded. For resource-sharing creates, `create_user_rs_request(..., reconcile=True)` resolves this with a note marker (issue #196). Raise the limit per call with `timeout=`. |
 
 **Example — branch on type instead of inspecting message strings:**
 
@@ -969,7 +969,7 @@ Update a user's primary email address.
 
 | Method | Description |
 |--------|-------------|
-| `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False, timeout=None, reconcile=False)` | `POST /users/{user_id}/resource-sharing-requests`. Forwards `request_data` verbatim. `timeout=` sets a per-call limit; `reconcile=True` (needs `external_id` in the body) returns the request found by `external_id` after a read timeout or a `402362` duplicate *(issue #196)*. With `validate=True` *(new in 0.5.0)*, wrong code-table values for `format` / `citation_type` / `pickup_location_type` raise `AlmaValidationError` naming the field **before** any HTTP call — instead of Alma's unrenderable `Invalid field value … Value: {1}` rejection |
+| `create_user_rs_request(user_id, request_data, user_id_type=None, override_blocks=None, *, validate=False, timeout=None, reconcile=False)` | `POST /users/{user_id}/resource-sharing-requests`. Forwards `request_data` verbatim. `timeout=` sets a per-call limit; `reconcile=True` puts a marker in `note` and, after a read timeout or a `402362` duplicate, returns the request found by that marker *(issue #196)*. See also `find_user_rs_request_by_marker(user_id, marker)`. With `validate=True` *(new in 0.5.0)*, wrong code-table values for `format` / `citation_type` / `pickup_location_type` raise `AlmaValidationError` naming the field **before** any HTTP call — instead of Alma's unrenderable `Invalid field value … Value: {1}` rejection |
 | `get_user_rs_request(user_id, request_id, ...)` | Fetch one borrowing request |
 | `cancel_user_rs_request(user_id, request_id, ...)` | Cancel a borrowing request |
 

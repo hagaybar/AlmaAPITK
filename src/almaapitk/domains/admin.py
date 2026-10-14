@@ -285,36 +285,29 @@ class Admin:
             content_type: Type of set ("BIB_MMS" or "USER")
             
         Returns:
-            List of member IDs extracted from the links
+            List of member IDs. The canonical ``id`` field is preferred;
+            the ``link`` is parsed only as a fallback (#176).
         """
+        link_markers = {"BIB_MMS": "/bibs/", "USER": "/users/"}
+        marker = link_markers.get(content_type)
         member_ids = []
-        
+
         for member in members:
+            member_id = member.get("id")
             link = member.get("link", "")
-            if link:
-                try:
-                    if content_type == "BIB_MMS":
-                        # Extract MMS ID from bibliographic link
-                        # Link format: .../almaws/v1/bibs/{mms_id}
-                        member_id = link.split("/bibs/")[-1]
-                    elif content_type == "USER":
-                        # Extract User ID from user link
-                        # Link format: .../almaws/v1/users/{user_id}
-                        member_id = link.split("/users/")[-1]
-                    else:
-                        self.logger.warning(f"Unknown content type for ID extraction: {content_type}")
-                        continue
-                    
-                    if member_id:
-                        member_ids.append(member_id)
-                        self.logger.debug(f"Extracted {content_type} ID: {member_id}")
-                    else:
-                        self.logger.warning(f"Could not extract ID from link: {link}")
-                        
-                except Exception as e:
-                    self.logger.error(f"Error extracting member ID from link: {link} - {e}")
+            if not member_id and link:
+                if marker is None:
+                    self.logger.warning(f"Unknown content type for ID extraction: {content_type}")
                     continue
-        
+                # Link format: .../almaws/v1/bibs/{mms_id} or .../users/{user_id}
+                member_id = link.split(marker)[-1]
+
+            if member_id:
+                member_ids.append(member_id)
+                self.logger.debug(f"Extracted {content_type} ID: {member_id}")
+            else:
+                self.logger.warning(f"Could not extract ID from member (link: {link!r})")
+
         return member_ids
     
     # Enhanced Set Information Methods

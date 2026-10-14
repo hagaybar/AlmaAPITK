@@ -140,7 +140,7 @@ Create an invoice with simplified parameters (recommended).
 | `invoice_due_date` | str | No | - | Due date for payment |
 | `vendor_account` | str | No | - | Vendor account code |
 | `reference_number` | str | No | - | Reference number |
-| `payment_method` | str | No | - | Payment method |
+| `payment_method` | str | No | - | Payment method code (sent as `{"value": code}`) |
 | `notes` | List[str] | No | - | Invoice notes |
 | `payment` | Dict | No | - | Payment info (voucher, etc.) |
 | `invoice_vat` | Dict | No | - | VAT details |
@@ -328,7 +328,7 @@ List invoices with optional filtering.
 | `status` | str | No | None | Filter by invoice status |
 | `vendor_code` | str | No | None | Filter by vendor code |
 
-**Returns:** `Dict[str, Any]` - List response with `invoice` array and `total_record_count`
+**Returns:** `Dict[str, Any]` - Alma's list response: one page in the `invoice` array, and `total_record_count` = the grand total of matches (any offset)
 
 **Example:**
 ```python
@@ -398,12 +398,12 @@ Create an invoice line with simplified parameters (recommended).
 | `amount` | float | Yes | - | Line amount |
 | `quantity` | int | No | 1 | Line quantity |
 | `fund_code` | str | No | None | Fund code (auto-extracted from POL if not provided) |
-| `currency` | str | No | "ILS" | Currency code |
-| `invoice_line_type` | str | No | "REGULAR" | Line type |
+| `currency` | str | No | "ILS" | Ignored: lines inherit the invoice currency |
+| `invoice_line_type` | str | No | "REGULAR" | Line type (sent to Alma as `type`) |
 | `note` | str | No | - | Line note |
 | `subscription_from_date` | str | No | - | Subscription start date |
 | `subscription_to_date` | str | No | - | Subscription end date |
-| `vat` | Dict | No | - | VAT details |
+| `vat` | Dict | No | - | Line VAT details (sent to Alma as `invoice_line_vat`) |
 
 **Returns:** `Dict[str, Any]` - Created line data
 

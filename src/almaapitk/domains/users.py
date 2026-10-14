@@ -4089,8 +4089,8 @@ class Users:
             self.logger.info("Updated user email", user_id=user_id, new_email=new_email)
             return response
             
-        except AlmaAPIError:
-            raise  # Re-raise API errors
+        except (AlmaAPIError, AlmaValidationError):
+            raise  # Re-raise API and validation errors unchanged (#174)
         except Exception as e:
             raise AlmaAPIError(f"Failed to update user email: {e}")
     

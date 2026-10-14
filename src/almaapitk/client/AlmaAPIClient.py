@@ -1274,11 +1274,15 @@ class AlmaAPIClient:
             total = body.get("total_record_count", 0) or 0
             offset += page_size
             # Stop conditions:
-            # 1. We've walked past the reported total_record_count.
-            # 2. The page came back empty (defensive: handles endpoints
-            #    that omit total_record_count or report it as 0 even
-            #    when records are present on the last page).
-            if offset >= total or not items:
+            # 1. The page came back empty.
+            # 2. With a reported total_record_count: we've walked past it.
+            # 3. Without one (absent or 0): the page came back short.
+            #    A full page means there may be more (#173).
+            if not items:
+                return
+            if total > 0 and offset >= total:
+                return
+            if total <= 0 and len(items) < page_size:
                 return
 
     def test_connection(self) -> bool:

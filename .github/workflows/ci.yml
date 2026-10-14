@@ -56,3 +56,27 @@ jobs:
 
       - name: Fail on High-severity findings
         run: python scripts/ci/check_bandit.py bandit.json
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project (locked)
+        run: poetry install --sync
+
+      - name: Smoke import
+        run: poetry run python scripts/smoke_import.py
+
+      # Same set as release.yml; tests/sandbox/ (live Alma) stays excluded.
+      - name: Test suite
+        run: poetry run pytest tests/test_public_api_contract.py tests/test_version.py tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q

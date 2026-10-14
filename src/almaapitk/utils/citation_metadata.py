@@ -187,7 +187,7 @@ def _parse_pubmed_xml(article: ET.Element, pmid: str) -> Dict[str, Any]:
 
     # Title
     title_elem = article.find('.//ArticleTitle')
-    metadata['title'] = title_elem.text if title_elem is not None else ''
+    metadata['title'] = ''.join(title_elem.itertext()) if title_elem is not None else ''
 
     # Authors
     authors = []
@@ -262,8 +262,9 @@ def _parse_pubmed_xml(article: ET.Element, pmid: str) -> Dict[str, Any]:
     # Abstract
     abstract_texts = []
     for abstract_elem in article.findall('.//AbstractText'):
-        if abstract_elem.text:
-            abstract_texts.append(abstract_elem.text)
+        abstract_text = ''.join(abstract_elem.itertext())
+        if abstract_text:
+            abstract_texts.append(abstract_text)
     metadata['abstract'] = ' '.join(abstract_texts)
 
     # ISSN
@@ -414,7 +415,7 @@ def _parse_crossref_json(work: Dict[str, Any], doi: str) -> Dict[str, Any]:
     published = work.get('published-print') or work.get('published-online') or work.get('created')
     if published and 'date-parts' in published:
         date_parts = published['date-parts'][0]  # First date
-        metadata['year'] = str(date_parts[0]) if len(date_parts) > 0 else ''
+        metadata['year'] = str(date_parts[0]) if len(date_parts) > 0 and date_parts[0] is not None else ''
         metadata['month'] = str(date_parts[1]) if len(date_parts) > 1 else ''
         metadata['day'] = str(date_parts[2]) if len(date_parts) > 2 else ''
 

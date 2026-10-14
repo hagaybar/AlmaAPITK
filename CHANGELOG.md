@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`list_invoices` / `search_invoices`: `total_record_count` is now always
+  Alma's grand total** (#173). At `offset=0` it used to be the length of the
+  returned page, while at `offset>0` it was the grand total. Both methods now
+  make one direct request and return Alma's payload unchanged. Callers that
+  read `total_record_count` as "records in this page" should use
+  `len(result["invoice"])`.
+- **`TSVGenerator`: the unbuilt "direct TSV" mode is removed** (#170). With
+  `use_direct_tsv` / `skip_tsv_generation` set, `alma_set_id` stopped being
+  required, but nothing read those flags, so generation crashed later with
+  `KeyError: 'alma_set_id'`. No consumer used the mode and it was never
+  documented. `alma_set_id` is now always required, so such a config fails at
+  load with "Missing 'alma_set_id'"; a config that also has `alma_set_id` runs
+  exactly as before.
+
+### Fixed
+
+- **Invoice builders send schema-correct fields** (#172): line type as `type`,
+  line VAT as `invoice_line_vat`, and `payment_method` as `{"value": code}`.
+  Alma silently dropped the old names.
+- **`iter_paged` no longer stops after one full page when Alma omits
+  `total_record_count`** (#173); it now stops on a short or empty page.
+- **PubMed titles and abstracts keep text inside inline markup** (`<i>`,
+  `<sub>`, ...) instead of being cut at the first tag (#173).
+- **Crossref `date-parts: [[null]]` gives an empty year, not `'None'`** (#173).
+- **`get_request_summary` reports `owner`** instead of always `'N/A'` (#171).
+- **`update_user_email` raises `AlmaValidationError` for invalid input**, as
+  documented, instead of wrapping it in `AlmaAPIError` (#174).
+- **Set members without a `link` are no longer dropped**: the canonical `id`
+  is read first (#176).
+- **`create_sample_config()` returns its path** instead of raising
+  `NameError` (#169).
+- `_build_invoice_line_structure`'s `currency` argument is documented as
+  ignored: invoice lines inherit the invoice currency (#173).
+
 ## [0.5.1] — 2026-09-02
 
 ### Fixed

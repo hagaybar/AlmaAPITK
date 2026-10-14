@@ -473,7 +473,7 @@ class ResourceSharing:
             "format": safe_get(request_data, 'format', 'value'),
             "status": safe_get(request_data, 'status', 'value'),
             "partner": safe_get(request_data, 'partner', 'value'),
-            "owner": safe_get(request_data, 'owner', 'value'),
+            "owner": safe_get(request_data, 'owner'),  # plain string (#171)
         }
 
     def create_lending_request_from_citation(

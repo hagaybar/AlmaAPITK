@@ -110,7 +110,8 @@ class Acquisitions:
                 - invoice_due_date: str
                 - vendor_account: str
                 - reference_number: str
-                - payment_method: str
+                - payment_method: str (payment method code; sent as
+                  ``{"value": code}``, #172)
                 - notes: List[str]
                 - payment: Dict (voucher info, etc.)
                 - invoice_vat: Dict (VAT details)
@@ -166,7 +167,7 @@ class Acquisitions:
             invoice_data["reference_number"] = optional_fields["reference_number"]
 
         if "payment_method" in optional_fields:
-            invoice_data["payment_method"] = optional_fields["payment_method"]
+            invoice_data["payment_method"] = {"value": optional_fields["payment_method"]}
 
         if "notes" in optional_fields:
             invoice_data["notes"] = optional_fields["notes"]
@@ -202,13 +203,16 @@ class Acquisitions:
             amount: Line amount
             quantity: Line quantity
             fund_code: Fund code for distribution
-            currency: Currency code (default: "ILS")
+            currency: Ignored. Alma invoice lines have no currency of
+                their own; they inherit the parent invoice's (#173).
+                Kept for backwards compatibility.
             **optional_fields: Additional optional fields:
-                - invoice_line_type: str (default: "REGULAR")
+                - invoice_line_type: str (default: "REGULAR"); sent as
+                  ``type`` (#172)
                 - note: str
                 - subscription_from_date: str
                 - subscription_to_date: str
-                - vat: Dict
+                - vat: Dict; sent as ``invoice_line_vat`` (#172)
 
         Returns:
             Complete invoice line data dict ready for API submission
@@ -243,7 +247,7 @@ class Acquisitions:
             "po_line": po_line,
             "price": amount,  # API expects numeric value
             "quantity": quantity,
-            "invoice_line_type": {"value": optional_fields.get("invoice_line_type", "REGULAR")},
+            "type": {"value": optional_fields.get("invoice_line_type", "REGULAR")},
             "fund_distribution": [
                 {
                     "fund_code": {"value": fund_code},
@@ -267,7 +271,7 @@ class Acquisitions:
             )
 
         if "vat" in optional_fields:
-            line_data["vat"] = optional_fields["vat"]
+            line_data["invoice_line_vat"] = optional_fields["vat"]
 
         return line_data
 
@@ -305,7 +309,8 @@ class Acquisitions:
                 - invoice_due_date: str or datetime
                 - vendor_account: str
                 - reference_number: str
-                - payment_method: str
+                - payment_method: str (payment method code; sent as
+                  ``{"value": code}``, #172)
                 - notes: List[str]
                 - payment: Dict (voucher info, etc.)
                 - invoice_vat: Dict (VAT details)
@@ -1433,19 +1438,11 @@ class Acquisitions:
         """
         List invoices with optional filtering.
 
-        Pre-#11 behaviour is preserved bit-for-bit: the method still
-        accepts ``limit`` / ``offset`` and returns a single Alma list
-        payload (``{"invoice": [...], "total_record_count": N}``). The
-        ``offset`` kwarg is honoured by passing it as a base param into
-        ``client.iter_paged`` so callers that page manually
-        (e.g., ``offset=200`` to skip the first two pages) still see
-        the records they expect.
-
-        Pattern source: GitHub issue #11 (API: add iter_paged()
-        generator at the client level) -- proof-point migration #1.
-        ``list_invoices`` keeps a list-shaped public return for
-        backwards compatibility; callers that want streaming should
-        switch to ``client.iter_paged(...)`` directly.
+        Fetches one page (``limit`` records from ``offset``) and returns
+        Alma's list payload unchanged. ``total_record_count`` is Alma's
+        grand total of matching invoices, not the page length (#173), so
+        callers can page manually. Callers that want to stream every
+        match should use ``client.iter_paged(...)`` directly.
 
         Args:
             limit: Maximum number of results to return.
@@ -1470,46 +1467,16 @@ class Acquisitions:
             base_params["q"] = " AND ".join(query_parts)
 
         try:
-            if offset:
-                # Deep-paging fall-through: ``iter_paged`` always starts
-                # at offset 0 by design (the issue-#11 contract). The
-                # legacy ``offset>0`` window is rarely used in this
-                # toolkit (no in-tree caller exercises it), so we fall
-                # back to a direct one-page fetch rather than walking
-                # ``offset+limit`` records and slicing.
-                page_params = {
-                    **base_params,
-                    "limit": str(limit),
-                    "offset": str(offset),
-                }
-                invoices_data = self.client.get(
-                    "almaws/v1/acq/invoices", params=page_params
-                ).json()
-                total_count = invoices_data.get('total_record_count', 0)
-                self.logger.info(
-                    f"✓ Successfully retrieved {total_count} invoices"
-                )
-                return invoices_data
-
-            invoices = list(
-                self.client.iter_paged(
-                    "almaws/v1/acq/invoices",
-                    params=base_params,
-                    page_size=limit,
-                    record_key="invoice",
-                    max_records=limit,
-                )
-            )
-
-            total_count = len(invoices)
-            self.logger.info(f"✓ Successfully retrieved {total_count} invoices")
-            # Re-shape into the legacy Alma list payload so existing
-            # callers that read ``result["invoice"]`` /
-            # ``result["total_record_count"]`` keep working.
-            return {
-                "invoice": invoices,
-                "total_record_count": total_count,
-            }
+            # One page is one request, so fetch it directly and return
+            # Alma's payload as-is: ``total_record_count`` is always the
+            # grand total, whatever the offset (#173).
+            page_params = {**base_params, "limit": str(limit), "offset": str(offset)}
+            invoices_data = self.client.get(
+                "almaws/v1/acq/invoices", params=page_params
+            ).json()
+            total_count = invoices_data.get('total_record_count', 0)
+            self.logger.info(f"✓ Successfully retrieved invoices (total: {total_count})")
+            return invoices_data
 
         except Exception:
             self.logger.exception("Failed to list invoices")
@@ -1519,13 +1486,9 @@ class Acquisitions:
         """
         Search invoices with a custom query.
 
-        Pattern source: GitHub issue #11 (API: add iter_paged()
-        generator at the client level) -- proof-point migration #2.
-        The method routes through ``client.iter_paged`` for the
-        common offset=0 case so the page-size, max_records cap, and
-        total_record_count bookkeeping live in one place. The
-        legacy ``offset > 0`` window falls back to a direct one-page
-        GET, matching the ``list_invoices`` migration for symmetry.
+        Fetches one page and returns Alma's list payload unchanged;
+        ``total_record_count`` is Alma's grand total of matches (#173).
+        To stream every match use ``client.iter_paged(...)``.
 
         Args:
             query: Search query (e.g., ``"vendor~VENDOR_CODE AND
@@ -1536,7 +1499,8 @@ class Acquisitions:
 
         Returns:
             Dict in the legacy Alma list shape:
-            ``{"invoice": [...], "total_record_count": N}``.
+            ``{"invoice": [...], "total_record_count": N}`` where ``N``
+            is the grand total of matches.
 
         Raises:
             AlmaValidationError: If ``query`` is empty or ``limit``
@@ -1553,39 +1517,15 @@ class Acquisitions:
         base_params: Dict[str, Any] = {"q": query}
 
         try:
-            if offset:
-                page_params = {
-                    **base_params,
-                    "limit": str(limit),
-                    "offset": str(offset),
-                }
-                search_results = self.client.get(
-                    "almaws/v1/acq/invoices", params=page_params
-                ).json()
-                total_count = search_results.get("total_record_count", 0)
-                self.logger.info(
-                    f"✓ Search found {total_count} invoices matching query"
-                )
-                return search_results
-
-            invoices = list(
-                self.client.iter_paged(
-                    "almaws/v1/acq/invoices",
-                    params=base_params,
-                    page_size=limit,
-                    record_key="invoice",
-                    max_records=limit,
-                )
-            )
-
-            total_count = len(invoices)
-            self.logger.info(
-                f"✓ Search found {total_count} invoices matching query"
-            )
-            return {
-                "invoice": invoices,
-                "total_record_count": total_count,
-            }
+            # Single direct GET for every offset: Alma's payload is returned
+            # as-is, so ``total_record_count`` is always the grand total (#173).
+            page_params = {**base_params, "limit": str(limit), "offset": str(offset)}
+            search_results = self.client.get(
+                "almaws/v1/acq/invoices", params=page_params
+            ).json()
+            total_count = search_results.get("total_record_count", 0)
+            self.logger.info(f"✓ Search found {total_count} invoices matching query")
+            return search_results
 
         except Exception:
             self.logger.exception("Invoice search failed")

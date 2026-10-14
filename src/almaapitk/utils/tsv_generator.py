@@ -53,27 +53,9 @@ class TSVGenerator:
             
             # Validate input section
             input_config = config['input']
-            # Check if we're using direct TSV input or Alma set
-            use_direct_tsv = input_config.get('use_direct_tsv', False)
-            skip_tsv_generation = input_config.get('skip_tsv_generation', False)
-            if use_direct_tsv or skip_tsv_generation:
-                # When using direct TSV input, we don't need alma_set_id
-                if 'direct_tsv_path' not in input_config:
-                    raise ValueError("Missing 'direct_tsv_path' in input configuration when using direct TSV input")
-                
-                # Check if the TSV file exists
-                tsv_path = input_config['direct_tsv_path']
-                if not os.path.exists(tsv_path):
-                    raise ValueError(f"Direct TSV file not found: {tsv_path}")
-                
-                self.logger.info(f"✓ Using direct TSV input: {tsv_path}")
-            else:
-
-
-
-                if 'alma_set_id' not in input_config:
-                    raise ValueError("Missing 'alma_set_id' in input configuration")
-                self.logger.info(f"✓ Using Alma set ID: {input_config['alma_set_id']}")
+            if 'alma_set_id' not in input_config:
+                raise ValueError("Missing 'alma_set_id' in input configuration")
+            self.logger.info(f"✓ Using Alma set ID: {input_config['alma_set_id']}")
                 
             if 'environment' not in input_config:
                 raise ValueError("Missing 'environment' in input configuration")
@@ -357,7 +339,7 @@ def create_sample_config(output_path: str = "alma_tsv_config.json") -> str:
     """
     sample_config = {
         "input": {
-            "alma_set_id": "25793308630004146",
+            "alma_set_id": "<alma_set_id>",
             "environment": "SANDBOX"
         },
         "columns": [
@@ -389,7 +371,7 @@ def create_sample_config(output_path: str = "alma_tsv_config.json") -> str:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(sample_config, f, indent=2)
         
-        self.logger.info(f"✓ Sample configuration created: {output_path}")
+        get_logger("tsv_generator").info(f"✓ Sample configuration created: {output_path}")
         return output_path
         
     except Exception as e:

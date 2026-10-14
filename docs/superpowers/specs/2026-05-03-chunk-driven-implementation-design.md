@@ -5,7 +5,7 @@
 **Supersedes:** the autonomous-loop sections of `docs/AGENTIC_ORCHESTRATION_HANDBOOK.md` (§5, §7, §10). The handbook's prompt-design guidance (§6), failure-mode catalog (§13), and operational setup (§11) remain valid and are referenced inline.
 **Inputs read while drafting:**
 - `docs/AGENTIC_ORCHESTRATION_HANDBOOK.md`
-- `docs/issue-finalization-report-2026-05-01.md`
+- `docs/archive/reports/issue-finalization-report-2026-05-01.md`
 - User-stated principles (1) careful and gradual; (2) multiple branches for rollback; (3) priority infra → domains; (4) clear plan and execution; (5) acceptance = real SANDBOX tests.
 
 ---

@@ -1,6 +1,6 @@
 """R10 regression tests for issue #154 — sensitive-data leak audit.
 
-The 2026-05-20 security audit (``docs/security-audit-2026-05-20.md``)
+The 2026-05-20 security audit (``docs/archive/reports/security-audit-2026-05-20.md``)
 flagged three concrete leak vectors that these tests pin down so they
 cannot silently regress:
 

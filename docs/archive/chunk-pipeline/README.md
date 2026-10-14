@@ -17,7 +17,7 @@ tests.
 
 The babysitter orchestration plugin was uninstalled, so the driven
 impl/test paths no longer run. The decision and the options considered are in
-[`docs/dashboards/chunk-pipeline-decision.html`](../../dashboards/chunk-pipeline-decision.html).
+[`chunk-pipeline-decision.html`](chunk-pipeline-decision.html).
 
 ## What was kept, and where it went
 

@@ -16,7 +16,6 @@ Run with: pytest tests/integration/domains/test_analytics.py -v
 import os
 
 import pytest
-import requests
 
 from almaapitk import AlmaAPIClient, Analytics, AlmaAPIError, AlmaValidationError
 
@@ -24,9 +23,9 @@ from almaapitk import AlmaAPIClient, Analytics, AlmaAPIError, AlmaValidationErro
 # Test configuration - a real report path must be supplied via environment
 # variable; the fallback is a placeholder that exists in no tenant. Tests
 # that hit a real report skip unless the variable is explicitly set,
-# because Alma Analytics answers nonexistent paths with HTTP 500s (not
-# 404), which the client's transport retries into a RetryError rather
-# than a skippable AlmaAPIError (verified live 2026-07-22).
+# because Alma Analytics answers nonexistent paths with HTTP 500 (not
+# 404), which the client raises as AlmaServerError (issue #208; verified
+# live 2026-07-22).
 TEST_REPORT_PATH = os.getenv(
     'TEST_ANALYTICS_REPORT_PATH',
     '/shared/Your University/Reports/Production/AAS Loans'
@@ -220,11 +219,9 @@ class TestAnalyticsIntegration:
         invalid_report_path = "/shared/NonExistent/Reports/InvalidReport123"
 
         # Alma Analytics answers nonexistent paths with HTTP 500 (not
-        # 400/404); the client transport retries 500s and ultimately
-        # raises requests.exceptions.RetryError (verified live
-        # 2026-07-22). Either error type proves the invalid path was
-        # rejected rather than silently returning data.
-        with pytest.raises((AlmaAPIError, requests.exceptions.RetryError)):
+        # 400/404, verified live 2026-07-22). Since issue #208 the client
+        # does not retry that 500 and raises AlmaServerError.
+        with pytest.raises(AlmaAPIError):
             analytics.get_report_headers(invalid_report_path)
 
     def test_fetch_report_rows_invalid_path(self, analytics):
@@ -238,8 +235,8 @@ class TestAnalyticsIntegration:
         invalid_report_path = "/shared/NonExistent/Reports/InvalidReport123"
 
         # See test_get_report_headers_invalid_path: invalid paths come
-        # back as retried 500s -> RetryError, not a 400/404 AlmaAPIError.
-        with pytest.raises((AlmaAPIError, requests.exceptions.RetryError)):
+        # back as a 500, raised as AlmaServerError (issue #208).
+        with pytest.raises(AlmaAPIError):
             analytics.fetch_report_rows(invalid_report_path, limit=25, max_rows=5)
 
 

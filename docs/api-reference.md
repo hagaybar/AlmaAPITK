@@ -112,7 +112,7 @@ AlmaAPIClient(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `environment` | `str` | `'SANDBOX'` | Environment to use. Must be `'SANDBOX'` or `'PRODUCTION'` |
-| `max_retries` | `int` | `3` | Retry attempts on 429/5xx responses (issue #5). Ignored when `retry` is provided. |
+| `max_retries` | `int` | `3` | Retry attempts on 429/5xx responses (issue #5). On `almaws/v1/analytics/` a 500 is not retried (issue #208). When retries run out, the last response is raised as the matching typed error (e.g. `AlmaServerError`). Ignored when `retry` is provided. |
 | `backoff_factor` | `float` | `1.0` | Exponential backoff multiplier (1s, 2s, 4s, ...). Ignored when `retry` is provided. |
 | `retry` | `Optional[Retry]` | `None` | Fully-built `urllib3.util.Retry` for advanced tuning. Wins over `max_retries`/`backoff_factor`. |
 | `timeout` | `Optional[float]` | `None` -> `60` | Default per-request timeout in seconds (issue #6). Lowered from the pre-0.3 default of `300` to `60`. Per-call overrides via `_request(..., timeout=...)`. |

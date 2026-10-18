@@ -8,7 +8,7 @@ import sys
 import requests
 import urllib3.exceptions
 import json
-from typing import Optional, Dict, Any, Iterator
+from typing import Optional, Dict, Any, Iterator, Tuple
 import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -36,6 +36,13 @@ DEFAULT_RETRY_STATUS_FORCELIST = (429, 500, 502, 503, 504)
 DEFAULT_RETRY_TOTAL = 3
 DEFAULT_RETRY_BACKOFF_FACTOR = 1.0
 DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "PUT", "DELETE"})
+
+# Issue #208: Alma Analytics answers a nonexistent report path (a permanent
+# error) with HTTP 500, so on the analytics surface a 500 is not retried.
+# The other transient statuses still are. Mounted as a second adapter on
+# the analytics URL prefix; requests picks the longest matching prefix.
+ANALYTICS_ENDPOINT_PREFIX = "almaws/v1/analytics/"
+ANALYTICS_RETRY_STATUS_FORCELIST = (429, 502, 503, 504)
 
 
 # Mapping of Alma hosting regions to their public API base URLs.
@@ -669,24 +676,33 @@ class AlmaAPIClient:
             )
 
     @staticmethod
-    def _build_retry(max_retries: int, backoff_factor: float) -> Retry:
+    def _build_retry(
+        max_retries: int,
+        backoff_factor: float,
+        status_forcelist: Tuple[int, ...] = DEFAULT_RETRY_STATUS_FORCELIST,
+    ) -> Retry:
         """Construct the default ``urllib3.util.Retry`` policy.
 
         Args:
             max_retries: Total number of retry attempts.
             backoff_factor: Exponential backoff multiplier.
+            status_forcelist: HTTP statuses to retry.
 
         Returns:
             A configured ``Retry`` instance with the project defaults
             applied (status forcelist, allowed methods, Retry-After
-            header respected).
+            header respected). ``raise_on_status=False`` makes urllib3
+            hand back the last response once the retries run out, so
+            ``_handle_response`` raises a typed ``AlmaAPIError`` with
+            Alma's tracking ID instead of a raw ``RetryError`` (#208).
         """
         return Retry(
             total=max_retries,
-            status_forcelist=list(DEFAULT_RETRY_STATUS_FORCELIST),
+            status_forcelist=list(status_forcelist),
             backoff_factor=backoff_factor,
             allowed_methods=DEFAULT_RETRY_ALLOWED_METHODS,
             respect_retry_after_header=True,
+            raise_on_status=False,
         )
 
     def _setup_logger(self) -> None:
@@ -730,6 +746,18 @@ class AlmaAPIClient:
         adapter = HTTPAdapter(max_retries=retry_policy)
         self._session.mount("https://", adapter)
         self._session.mount("http://", adapter)
+
+        # Issue #208: no retry on a 500 from Analytics. A caller-supplied
+        # ``retry=`` policy is used verbatim everywhere, analytics included.
+        if self._retry_override is None:
+            analytics_retry = self._build_retry(
+                self._max_retries, self._backoff_factor,
+                ANALYTICS_RETRY_STATUS_FORCELIST,
+            )
+            self._session.mount(
+                self._build_url(ANALYTICS_ENDPOINT_PREFIX),
+                HTTPAdapter(max_retries=analytics_retry),
+            )
 
 
     def _load_configuration(self) -> None:
@@ -1126,6 +1154,18 @@ class AlmaAPIClient:
                 endpoint=endpoint,
                 timeout=effective_timeout,
                 request_sent=request_sent,
+            ) from e
+        except requests.exceptions.RetryError as e:
+            # Issue #208: only a caller-supplied ``retry=`` policy with
+            # ``raise_on_status=True`` gets here; the default policy returns
+            # the last response instead. Keep the error contract anyway.
+            self.logger.error(
+                "Alma request failed after retries",
+                method=method,
+                endpoint=endpoint,
+            )
+            raise AlmaServerError(
+                f"{method} {endpoint} failed after retries: {e}"
             ) from e
         duration_ms = (time.time() - start_time) * 1000
 

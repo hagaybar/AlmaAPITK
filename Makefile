@@ -2,8 +2,10 @@
 # "validate this version" is one command.
 .PHONY: check smoke smoke-live
 
-# One local gate (issue #221): same set CI runs on every PR.
+# One local gate (issue #221): same set CI runs on every PR. The lock check
+# mirrors CI's `poetry install --sync`, which fails on lock drift (#204).
 check:
+	poetry check --lock
 	poetry run python scripts/smoke_import.py
 	poetry run pytest tests/test_public_api_contract.py tests/test_version.py tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q
 

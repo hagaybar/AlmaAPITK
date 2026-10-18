@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-18
+
 ### Added
 
 - **`AlmaTimeoutError`** (#196): `requests` connect / read timeouts are now
@@ -69,6 +71,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   `NameError` (#169).
 - `_build_invoice_line_structure`'s `currency` argument is documented as
   ignored: invoice lines inherit the invoice currency (#173).
+
+### Internal
+
+- **`make check` is the one local gate** (#221): the same test set CI runs,
+  plus `poetry check --lock` (#204). CI gained a Tests job that runs
+  `poetry install --sync`, so a stale `poetry.lock` now fails the PR instead
+  of the release workflow.
+- Repo housekeeping: the chunk pipeline is retired (#218), dated reports are
+  archived (#223), and `CLAUDE.md` is trimmed (#222). Nothing in the wheel
+  changes.
 
 ## [0.5.1] — 2026-09-02
 
@@ -539,7 +551,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.6.0
 [0.5.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.1
 [0.5.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.0
 [0.4.6]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.4.6

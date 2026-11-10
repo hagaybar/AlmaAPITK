@@ -79,28 +79,20 @@ Run from `release/<version>` after Phase C–E commits. Any failure stops the re
 
 ## Phase H — TestPyPI dry-run
 
-- [ ] **Upload to TestPyPI.** `poetry run twine upload --repository testpypi dist/almaapitk-<version>*`. (Twine reads `~/.pypirc`; poetry does not. The `--repository testpypi` line requires `repositories.testpypi.url = "https://test.pypi.org/legacy/"` configured in poetry — see `poetry config repositories.testpypi`.)
-- [ ] **Wait for TestPyPI indexing** — 90–180 seconds. Don't trust the immediate-publish "view at" URL; pip won't see the new version for a minute or two.
-- [ ] **Install from TestPyPI into a throwaway venv.** Standard pattern: `python3.12 -m venv $(mktemp -d)/venv && . .../bin/activate && pip install --upgrade pip && pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ almaapitk==<version>`. The `--extra-index-url https://pypi.org/simple/` is required because TestPyPI doesn't mirror runtime deps.
-- [ ] **Smoke import reads `__version__` *dynamically*.** **The smoke command must NOT have a hardcoded version string in its `print` call** — that's the line that masked the `0.4.2` bug. Use:
+Runs in GitHub Actions through Trusted Publishing (OIDC): no TestPyPI token exists anywhere, so the sandbox can run it. The workflow (`.github/workflows/testpypi.yml`) runs the same validation and build as `release.yml` (both call `_build.yml`), builds `<version>.dev<run number>` so the dry-run can be repeated, publishes to TestPyPI, waits for indexing (up to ~5 minutes), installs that version into a fresh venv from TestPyPI (with PyPI as the extra index for runtime deps), and smoke-tests it: `scripts/smoke_import.py`, plus `__version__` == metadata version == the built version, plus every name in `__all__` resolves.
 
-  ```python
-  python -c "
-  import almaapitk
-  from importlib.metadata import version
-  expected = '<EXPECTED_VERSION>'
-  attr = almaapitk.__version__
-  meta = version('almaapitk')
-  assert attr == meta == expected, f'version mismatch: attr={attr!r} meta={meta!r} expected={expected!r}'
-  # exercise every public symbol from __init__.py __all__
-  from almaapitk import (AlmaAPIClient, AlmaResponse, AlmaAPIError, AlmaValidationError, AlmaAuthenticationError, AlmaRateLimitError, AlmaServerError, AlmaResourceNotFoundError, AlmaDuplicateInvoiceError, AlmaInvalidPolModeError, Admin, Users, BibliographicRecords, Acquisitions, ResourceSharing, Analytics, Configuration, TSVGenerator, CitationMetadataError)
-  print(f'TESTPYPI SMOKE OK: {attr}')
-  "
+- [ ] **The release branch has the workflow.** `gh workflow run` runs the file as it exists on `--ref`. A release branch cut before the workflow landed needs `git merge origin/main` first.
+- [ ] **Run it and wait for green.**
+
+  ```bash
+  gh workflow run testpypi.yml --ref release/<version>
+  sleep 5
+  gh run watch "$(gh run list --workflow testpypi.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
   ```
 
-  Update the imports as new exports land.
+  A green run means the upload, indexing wait, install and smoke import all passed. The run's `publish` job links to the TestPyPI page of the exact version (`<version>.dev<N>`).
 
-- [ ] **README renders correctly on TestPyPI.** Open `https://test.pypi.org/project/almaapitk/<version>/` in a browser. The README markdown must render. Tables, code blocks, headings all visible. Any rendering glitch (e.g., raw `[link]` text) means PyPI rejected the markdown — fix before real publish.
+- [ ] **README renders correctly on TestPyPI.** Open `https://test.pypi.org/project/almaapitk/<version>.dev<N>/` (the link on the run's `publish` job) in a browser. The README markdown must render. Tables, code blocks, headings all visible. Any rendering glitch (e.g., raw `[link]` text) means PyPI rejected the markdown — fix before real publish.
 - [ ] **All `[project.urls]` links visible.** Homepage, Repository, Documentation, Issues, Changelog. Click each one in the browser.
 
 ---
@@ -173,7 +165,7 @@ PyPI does not allow deleting a version. Yank is the strongest discouragement:
 | E | Hardcoded version literal in `src/` drifting from `pyproject.toml`. Caused the `0.4.2` yank. |
 | F | Pre-existing broken test files (manual scripts misfiled in `tests/`) failing collection. Caused validation-suite reruns. |
 | G | Excluded paths (tests/, docs/, scripts/) leaking into the wheel. |
-| H | Trusting TestPyPI's immediate-publish URL before indexing completes (90–180 s). Smoke command with hardcoded `print` string masking version drift. Poetry can't auth without `~/.config/pypoetry/auth.toml` — use twine if creds are in `~/.pypirc`. |
+| H | Trusting TestPyPI's immediate-publish URL before indexing completes (90–180 s). Smoke command with hardcoded `print` string masking version drift. Poetry can't auth without `~/.config/pypoetry/auth.toml` — use twine if creds are in `~/.pypirc`. (Since the `testpypi.yml` workflow, Phase H needs no local credentials.) |
 | L | Forgetting to file follow-ups for known issues. Future-you will be confused. |
 
 ---

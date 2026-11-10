@@ -242,7 +242,7 @@ def test_put_with_get_twin_is_locked(make_app, lab_client):
     async def scenario(pilot):
         await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
         pane = _pane(pilot.app)
-        body = pane.query_one("#raw-body", TextArea)
+        body = pane.query_one("#raw-req-body", TextArea)
         assert body.read_only and body.text == ""
         assert "Fill the path fields, then load the current record" in _text(pilot.app, "#raw-body-note")
         assert pane.query_one("#send", Button).disabled
@@ -255,8 +255,8 @@ def test_post_body_prefilled_from_example(make_app):
     async def scenario(pilot):
         await _open(pilot, "POST", "/almaws/v1/bibs")
         pane = _pane(pilot.app)
-        assert pane.query_one("#raw-body", TextArea).text.strip()
-        assert not pane.query_one("#raw-body", TextArea).read_only
+        assert pane.query_one("#raw-req-body", TextArea).text.strip()
+        assert not pane.query_one("#raw-req-body", TextArea).read_only
         assert not pane.query_one("#send", Button).disabled
     _run(make_app(), scenario)
 
@@ -269,7 +269,7 @@ def test_sandbox_raw_post_confirmed_and_sent(make_app, lab_client):
         pane = _pane(pilot.app)
         if pane.query("#raw-format"):
             pane.query_one("#raw-format", Select).value = "json"
-        pane.query_one("#raw-body", TextArea).text = '{"code": "X", "name": "Sample"}'
+        pane.query_one("#raw-req-body", TextArea).text = '{"code": "X", "name": "Sample"}'
         await pilot.pause()
         pilot.app.action_send()
         await pilot.pause(0.3)
@@ -316,4 +316,297 @@ def test_switching_back_to_typed_operation_still_works(make_app, lab_client):
         await _send(pilot)
         assert lab_client.http.calls[0][1].endswith("/bibs/1")
         assert isinstance(pilot.app.query_one("#status-line"), Static)
+    _run(make_app(), scenario)
+
+
+# --- Task 6: baseline flow for updates ---------------------------------------
+
+USER = "/almaws/v1/users/{user_id}"
+RECORD = {"id": "1", "code": "SAMPLE", "name": "Sample course"}
+
+
+async def _press(pilot, selector):
+    pilot.app.query_one(selector, Button).press()
+    await pilot.pause()
+    await pilot.app.workers.wait_for_complete()
+    await pilot.pause()
+
+
+async def _load_baseline(pilot):
+    await _press(pilot, "#load-baseline")
+
+
+def _body(app) -> TextArea:
+    return _pane(app).query_one("#raw-req-body", TextArea)
+
+
+def _send_button(app) -> Button:
+    return _pane(app).query_one("#send", Button)
+
+
+def test_put_form_has_baseline_section(make_app):
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        pane = _pane(pilot.app)
+        assert pane.query_one("#raw-bq-view", Input).value == "brief"  # the GET's own default
+        assert str(pane.query_one("#load-baseline", Button).label) == "Load current record"
+        assert pane.query("#body-from-file") and pane.query("#body-from-last")
+        assert pane.baseline is None and pane.needs_baseline
+        assert len(pilot.app.query("#raw-body")) == 1  # only the result pane's
+    _run(make_app(), scenario)
+
+
+def test_load_current_record_fills_body_and_enables_send(make_app, lab_client):
+    lab_client.http.answers = [{"body": RECORD}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        assert _send_button(pilot.app).disabled
+        await _load_baseline(pilot)
+        assert not isinstance(pilot.app.screen, ConfirmWrite)  # a read: no confirmation
+        [(method, url, kwargs)] = lab_client.http.calls
+        assert method == "GET" and url.endswith("/courses/1") and kwargs["params"]["view"] == "brief"
+        body = _body(pilot.app)
+        assert not body.read_only and json.loads(body.text) == RECORD
+        assert not _send_button(pilot.app).disabled
+        assert _pane(pilot.app).baseline is not None
+        assert "200" in _text(pilot.app, "#status-line")  # shown like any call
+        assert "raw: GET /almaws/v1/courses/{course_id}" in _text(pilot.app, "#evidence-body")
+    _run(make_app(), scenario)
+
+
+def test_changing_path_or_baseline_query_disables_send_again(make_app, lab_client):
+    lab_client.http.answers = [{"body": RECORD}, {"body": RECORD}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _load_baseline(pilot)
+        pane = _pane(pilot.app)
+        pane.query_one("#raw-path-course_id", Input).value = "2"
+        await pilot.pause()
+        assert pane.baseline is None and _send_button(pilot.app).disabled and _body(pilot.app).read_only
+        pane.query_one("#raw-path-course_id", Input).value = "1"
+        await pilot.pause()
+        await _load_baseline(pilot)
+        assert not _send_button(pilot.app).disabled
+        pane.query_one("#raw-bq-view", Input).value = "full"
+        await pilot.pause()
+        assert pane.baseline is None and _send_button(pilot.app).disabled
+        await _send(pilot)
+        assert [c[0] for c in lab_client.http.calls] == ["GET", "GET"]
+    _run(make_app(), scenario)
+
+
+def test_send_stays_locked_after_failed_baseline(make_app, lab_client):
+    lab_client.http.answers = [{"status": 404, "body": {"errorsExist": True}}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _load_baseline(pilot)
+        assert _pane(pilot.app).baseline is None
+        assert _body(pilot.app).read_only and _body(pilot.app).text == ""
+        assert _send_button(pilot.app).disabled
+        assert "could not be loaded" in _text(pilot.app, "#raw-body-note")
+        await _send(pilot)
+        assert [c[0] for c in lab_client.http.calls] == ["GET"]
+    _run(make_app(), scenario)
+
+
+def test_baseline_needs_path_values(make_app, lab_client):
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE)
+        await _load_baseline(pilot)
+        assert "required" in _text(pilot.app, "#error-path-course_id")
+        assert lab_client.http.calls == []
+    _run(make_app(), scenario)
+
+
+def _edited(text):
+    data = json.loads(text)
+    data["name"] = "Changed course"
+    return json.dumps(data, indent=2)
+
+
+def test_sandbox_put_confirmed_and_evidence_shows_diff(make_app, lab_client, tmp_path):
+    lab_client.http.answers = [{"body": RECORD}, {"body": RECORD}, {"body": {**RECORD, "name": "Changed course"}}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _load_baseline(pilot)
+        _body(pilot.app).text = _edited(_body(pilot.app).text)
+        await pilot.pause()
+        pilot.app.action_send()
+        await pilot.pause(0.3)
+        assert isinstance(pilot.app.screen, ConfirmWrite)
+        await pilot.press("enter")
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
+        evidence = _text(pilot.app, "#evidence-body")
+        assert '-  "name": "Sample course"' in evidence and '+  "name": "Changed course"' in evidence
+        assert "baseline: " in evidence
+    _run(make_app(), scenario)
+
+
+def test_production_put_confirmation_asks_for_put_courses(make_app, lab_client):
+    lab_client.http.answers = [{"body": RECORD}, {"body": RECORD}, {"body": RECORD}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _load_baseline(pilot)
+        _body(pilot.app).text = _edited(_body(pilot.app).text)
+        await pilot.pause()
+        pilot.app.action_send()
+        await pilot.pause(0.3)
+        assert isinstance(pilot.app.screen, ConfirmWrite)
+        assert pilot.app.screen.op_name == "PUT courses"
+        await pilot.press(*"PUT", "space", *"courses", "enter")
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
+    _run(make_app("PRODUCTION"), scenario)
+
+
+def test_changed_record_not_sent_and_reload_offered(make_app, lab_client):
+    newer = {**RECORD, "name": "Someone else's edit"}
+    lab_client.http.answers = [{"body": RECORD}, {"body": newer}, {"body": newer}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        reload = pilot.app.query_one("#reload-baseline", Button)
+        assert not reload.display
+        await _load_baseline(pilot)
+        _body(pilot.app).text = _edited(_body(pilot.app).text)
+        await _send(pilot)
+        assert not isinstance(pilot.app.screen, ConfirmWrite)
+        assert [c[0] for c in lab_client.http.calls] == ["GET", "GET"]
+        assert "Not sent: the record changed since you loaded it" in _text(pilot.app, "#status-line")
+        assert reload.display
+        assert _send_button(pilot.app).disabled and _pane(pilot.app).baseline is None
+        await _press(pilot, "#reload-baseline")
+        assert json.loads(_body(pilot.app).text)["name"] == "Someone else's edit"
+        assert not _send_button(pilot.app).disabled and not reload.display
+    _run(make_app(), scenario)
+
+
+def test_baseline_query_follows_put_query_until_edited(make_app, lab_client):
+    lab_client.http.answers = [{"body": {"primary_id": "x"}}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", USER, **{"path-user_id": "u1"})
+        pane = _pane(pilot.app)
+        pane.query_one("#raw-query-user_id_type", Input).value = "all_unique"
+        await pilot.pause()
+        assert pane.query_one("#raw-bq-user_id_type", Input).value == "all_unique"
+        pane.query_one("#raw-bq-user_id_type", Input).value = "other"
+        await pilot.pause()
+        pane.query_one("#raw-query-user_id_type", Input).value = "all_unique2"
+        await pilot.pause()
+        assert pane.query_one("#raw-bq-user_id_type", Input).value == "other"
+        assert pane.raw_request().baseline_query["user_id_type"] == "other"
+        await _load_baseline(pilot)
+        [(_, url, kwargs)] = lab_client.http.calls
+        assert url.endswith("/users/u1") and kwargs["params"]["user_id_type"] == "other"
+    _run(make_app(), scenario)
+
+
+def test_custom_put_on_indexed_path_switches_to_its_form(make_app, lab_client):
+    async def scenario(pilot):
+        pilot.app.select_custom()
+        await pilot.pause()
+        pane = _pane(pilot.app)
+        pane.query_one("#raw-method", Select).value = "PUT"
+        pane.query_one("#raw-custom-path", Input).value = "almaws/v1/users/u1"
+        pane.query_one("#raw-custom-query", TextArea).text = "user_id_type=all_unique"
+        await pilot.pause()
+        await _send(pilot)
+        assert lab_client.http.calls == []
+        assert pilot.app.current_endpoint.key == f"PUT {USER}"
+        pane = _pane(pilot.app)
+        assert pane.query_one("#raw-path-user_id", Input).value == "u1"
+        assert pane.query_one("#raw-query-user_id_type", Input).value == "all_unique"
+        assert pane.needs_baseline and _send_button(pilot.app).disabled
+        assert "switched to its form so the update can start from the current record" in _text(
+            pilot.app, "#status-line")
+    _run(make_app(), scenario)
+
+
+def test_history_reopens_put_locked_with_baseline_query(make_app, lab_client):
+    lab_client.http.answers = [{"body": RECORD}, {"body": RECORD}, {"body": RECORD}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1", "bq-view": "full"})
+        await _load_baseline(pilot)
+        _body(pilot.app).text = _edited(_body(pilot.app).text)
+        pilot.app.action_send()
+        await pilot.pause(0.3)
+        await pilot.press("enter")
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        put = next(p for p in pilot.app.session.evidence_dir.glob("*/*.json")
+                   if json.loads(p.read_text())["endpoint"]["method"] == "PUT")
+        pilot.app.select_operation("Users.get_user")
+        await pilot.pause()
+        await pilot.app.load_record(put)
+        await pilot.pause()
+        pane = _pane(pilot.app)
+        assert pilot.app.current_endpoint.key == f"PUT {COURSE}"
+        assert pane.query_one("#raw-path-course_id", Input).value == "1"
+        assert pane.query_one("#raw-bq-view", Input).value == "full"
+        assert _body(pilot.app).read_only and _body(pilot.app).text == ""
+        assert _send_button(pilot.app).disabled and pane.baseline is None
+    _run(make_app(), scenario)
+
+
+def test_post_example_follows_format_until_edited(make_app):
+    async def scenario(pilot):
+        await _open(pilot, "POST", "/almaws/v1/bibs/authorities")  # json + xml; the example is XML
+        pane = _pane(pilot.app)
+        fmt = pane.query_one("#raw-format", Select)
+        assert fmt.value == "json" and _body(pilot.app).text == ""
+        fmt.value = "xml"
+        await pilot.pause()
+        assert _body(pilot.app).text.lstrip().startswith("<authority>")
+        fmt.value = "json"
+        await pilot.pause()
+        assert _body(pilot.app).text == ""
+        fmt.value = "xml"
+        await pilot.pause()
+        _body(pilot.app).text = "<authority>mine</authority>"
+        await pilot.pause()
+        fmt.value = "json"
+        await pilot.pause()
+        assert _body(pilot.app).text == "<authority>mine</authority>"
+    _run(make_app(), scenario)
+
+
+def test_body_from_file_and_from_last_response(make_app, lab_client, tmp_path):
+    lab_client.http.answers = [{"body": {"code": "FROM-LAST"}}, {"body": RECORD}]
+    source = tmp_path / "body.json"
+    source.write_text('{"code": "FROM-FILE"}', encoding="utf-8")
+
+    async def scenario(pilot):
+        await _open(pilot, "GET", COURSES)
+        await _send(pilot)
+        await _open(pilot, "POST", COURSES)
+        await _press(pilot, "#body-from-last")
+        assert json.loads(_body(pilot.app).text) == {"code": "FROM-LAST"}
+        _pane(pilot.app).query_one("#body-from-file", Button).press()
+        await pilot.pause()
+        prompt = pilot.app.screen.query_one("#body-file-path", Input)
+        prompt.value = str(source)
+        await pilot.press("enter")
+        await pilot.pause()
+        assert _body(pilot.app).text == '{"code": "FROM-FILE"}'
+        # an update's body is replaced only after its baseline is loaded
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _press(pilot, "#body-from-last")
+        assert _body(pilot.app).text == "" and _body(pilot.app).read_only
+        await _load_baseline(pilot)
+        _pane(pilot.app).query_one("#body-from-file", Button).press()
+        await pilot.pause()
+        pilot.app.screen.query_one("#body-file-path", Input).value = str(source)
+        await pilot.press("enter")
+        await pilot.pause()
+        assert _body(pilot.app).text == '{"code": "FROM-FILE"}'
     _run(make_app(), scenario)

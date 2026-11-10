@@ -1,13 +1,22 @@
 """Inputs pane: a form built from the selected operation's parameters,
-or from a raw Alma endpoint's definition (see ``load_raw``)."""
+or from a raw Alma endpoint's definition (see ``load_raw``).
+
+An update (a PUT whose path also has a GET) starts from the current record: the
+body stays locked until **Load current record** has fetched it, and Send stays
+disabled until that baseline matches the path values, baseline query and format
+on the form. Changing any of them clears it.
+"""
 from __future__ import annotations
 
 import json
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 from rich.markup import escape
 from textual.app import ComposeResult
-from textual.containers import VerticalScroll
+from textual.binding import Binding
+from textual.containers import Vertical, VerticalScroll
+from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Select, Static, TextArea
 
 from almaapitk.lab.catalog import Operation, Param
@@ -19,9 +28,15 @@ from almaapitk.lab.endpoints import (
     get_twin,
     wrapped_by,
 )
+from almaapitk.lab.evidence import EvidenceRecord
+from almaapitk.lab.normalize import looks_like_xml
 from almaapitk.lab.runner import InputError, RawRequest, coerce_query
 
 LOCKED_BODY_NOTE = "Fill the path fields, then load the current record"
+CHANGED_NOTE = "Path, baseline query or format changed: load the current record again"
+STALE_NOTE = "The record changed since you loaded it: load it again"
+FAILED_NOTE = "The current record could not be loaded ({status}): nothing to start from"
+LOADED_NOTE = "Edit the current record; Send checks it has not changed meanwhile"
 HELP_CHARS = 240
 
 
@@ -32,6 +47,11 @@ class InputsPane(VerticalScroll):
         super().__init__(**kwargs)
         self.operation: Operation | None = None
         self.endpoint: Endpoint | None = None
+        self.twin: Endpoint | None = None  # the GET an update starts from
+        self.baseline: EvidenceRecord | None = None
+        self._baseline_key: tuple | None = None
+        self._bq_follows: dict[str, bool] = {}  # baseline query field follows the PUT's
+        self._example: tuple[str, str] | None = None  # (format, text) of a POST example
 
     def compose(self) -> ComposeResult:
         yield Static("Pick an operation on the left.", id="inputs-title")
@@ -41,7 +61,8 @@ class InputsPane(VerticalScroll):
 
     async def load(self, op: Operation) -> None:
         """Rebuild the form for ``op``."""
-        self.operation, self.endpoint = op, None
+        self.operation, self.endpoint, self.twin = op, None, None
+        self.baseline = self._baseline_key = None
         await self.remove_children()
         widgets: list = [Static(self._title(op), id="inputs-title")]
         for p in op.params:
@@ -98,12 +119,15 @@ class InputsPane(VerticalScroll):
     @property
     def needs_baseline(self) -> bool:
         """A PUT whose path has a GET: the body starts from the current record."""
-        ep = self.endpoint
-        return bool(ep and ep.method == "PUT" and not ep.custom and get_twin(ep) is not None)
+        return self.twin is not None
 
     async def load_raw(self, endpoint: Endpoint) -> None:
         """Rebuild the form for one Alma endpoint (or the custom path form)."""
         self.operation, self.endpoint = None, endpoint
+        self.twin = (get_twin(endpoint)
+                     if endpoint.method == "PUT" and not endpoint.custom else None)
+        self.baseline = self._baseline_key = None
+        self._bq_follows, self._example = {}, None
         await self.remove_children()
         widgets: list = [Static(self._raw_title(endpoint), id="inputs-title")]
         if endpoint.custom:
@@ -115,6 +139,8 @@ class InputsPane(VerticalScroll):
                 widgets.extend(self._raw_field(p, "query"))
             if len(endpoint.body_formats) > 1:
                 widgets.extend(self._format_field(self._default_format(endpoint)))
+            if self.twin is not None:
+                widgets.extend(self._baseline_section(endpoint, self.twin))
             if endpoint.body_formats:
                 widgets.extend(self._body_section(endpoint))
         writes = endpoint.writes or endpoint.custom
@@ -164,19 +190,40 @@ class InputsPane(VerticalScroll):
             Static("", id="error-format", classes="field-error"),
         ]
 
+    def _baseline_section(self, ep: Endpoint, twin: Endpoint) -> list:
+        """The GET's own query fields (prefilled from same-named PUT fields) and the load button."""
+        put_defaults = {p.name: p.default or "" for p in ep.query_params}
+        out: list = [Static("[b]Baseline[/b]  [dim]the GET the update starts from: "
+                            f"GET {escape(twin.short_path)}[/dim]", classes="field-label")]
+        for p in twin.query_params:
+            follows = p.name in put_defaults
+            self._bq_follows[p.name] = follows
+            value = put_defaults[p.name] if follows else (p.default or "")
+            out.append(Static(f"{escape(p.name)}  [dim]{escape(p.type)} · baseline query[/dim]",
+                              classes="field-label"))
+            out.append(Input(value, id=f"raw-bq-{p.name}"))
+            out.append(Static("", id=f"error-bq-{p.name}", classes="field-error"))
+        out.append(Button("Load current record", id="load-baseline"))
+        out.append(Static("", id="error-baseline", classes="field-error"))
+        return out
+
     def _body_section(self, ep: Endpoint) -> list:
         """The body editor; locked for an update until the current record is loaded."""
         locked = self.needs_baseline
-        text = "" if locked or ep.method != "POST" else (ep.body_example or "")
+        fmt = self._default_format(ep)
+        text = ""
+        if ep.method == "POST" and ep.body_example:
+            self._example = ("xml" if looks_like_xml(ep.body_example) else "json", ep.body_example)
+            text = ep.body_example if self._example[0] == fmt else ""
         out: list = [
             Static("body *" if not ep.custom else "body  [dim]POST and PUT only[/dim]",
                    classes="field-label"),
-            TextArea(text, id="raw-body", language=self._default_format(ep), read_only=locked,
-                     soft_wrap=True),
+            TextArea(text, id="raw-req-body", language=fmt, read_only=locked, soft_wrap=True),
+            Static(LOCKED_BODY_NOTE if locked else "", id="raw-body-note", classes="field-help"),
+            Button("Load from file", id="body-from-file"),
+            Button("Load from earlier response", id="body-from-last"),
+            Static("", id="error-body", classes="field-error"),
         ]
-        if locked:
-            out.append(Static(LOCKED_BODY_NOTE, id="raw-body-note", classes="field-help"))
-        out.append(Static("", id="error-body", classes="field-error"))
         return out
 
     def _custom_fields(self) -> list:
@@ -198,10 +245,96 @@ class InputsPane(VerticalScroll):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "raw-format" and not event.select.is_blank():
-            for body in self.query("#raw-body"):
-                body.language = str(event.value)
+            fmt = str(event.value)
+            for body in self.query("#raw-req-body"):
+                body.language = fmt
+                if self._example is not None:  # an untouched example shows only in its format
+                    ex_fmt, ex_text = self._example
+                    if fmt != ex_fmt and body.text == ex_text:
+                        body.text = ""
+                    elif fmt == ex_fmt and body.text == "":
+                        body.text = ex_text
+            self._check_baseline()
 
-    def raw_request(self) -> RawRequest:
+    def on_input_changed(self, event: Input.Changed) -> None:
+        wid = event.input.id or ""
+        if wid.startswith("raw-query-") and self.twin is not None:
+            name = wid.removeprefix("raw-query-")
+            if self._bq_follows.get(name):
+                for bq in self.query(f"#raw-bq-{name}"):
+                    bq.value = event.value
+        elif wid.startswith("raw-bq-"):
+            name = wid.removeprefix("raw-bq-")
+            if name in self._bq_follows:  # follows again once it equals the PUT's value
+                put = self.query(f"#raw-query-{name}")
+                self._bq_follows[name] = bool(put) and put.first().value == event.value
+        if wid.startswith(("raw-path-", "raw-bq-")):
+            self._check_baseline()
+
+    # baseline ---------------------------------------------------------------
+    def baseline_key(self) -> tuple:
+        """What a baseline must match: path values, baseline query and format."""
+        ep = self.endpoint
+        path = tuple((p.name, self._text(f"#raw-path-{p.name}").strip())
+                     for p in (ep.path_params if ep else ()))
+        bq = tuple((p.name, self._text(f"#raw-bq-{p.name}").strip())
+                   for p in (self.twin.query_params if self.twin else ()))
+        return path, bq, self._format(ep) if ep else "json"
+
+    def baseline_request(self) -> RawRequest:
+        """The update's request as far as the baseline GET needs it (body not required)."""
+        return self.raw_request(with_body=False)
+
+    def accept_baseline(self, record: EvidenceRecord, key: tuple) -> bool:
+        """Start the update from ``record`` if it loaded and the form still matches ``key``."""
+        if self.twin is None:
+            return False
+        status = record.last_status
+        if record.error or status is None or not 200 <= status < 300:
+            self.clear_baseline(FAILED_NOTE.format(status=status or "no response"))
+            return False
+        if key != self.baseline_key():
+            self.clear_baseline(CHANGED_NOTE)
+            return False
+        sent = [r for r in record.requests if r.sent]
+        self.baseline, self._baseline_key = record, key
+        body = self.query_one("#raw-req-body", TextArea)
+        body.text = _editable((sent[-1].response_body or "") if sent else "", key[2])
+        body.read_only = False
+        self.query_one("#raw-body-note", Static).update(LOADED_NOTE)
+        self.query_one("#send", Button).disabled = False
+        return True
+
+    def clear_baseline(self, note: str = LOCKED_BODY_NOTE) -> None:
+        """Forget the baseline: body locked, Send disabled until the record is loaded again."""
+        if self.twin is None:
+            return
+        self.baseline = self._baseline_key = None
+        for body in self.query("#raw-req-body"):
+            body.read_only = True
+        for widget in self.query("#raw-body-note"):
+            widget.update(note)
+        for widget in self.query("#send"):
+            widget.disabled = True
+
+    def _check_baseline(self) -> None:
+        if self.baseline is not None and self.baseline_key() != self._baseline_key:
+            self.clear_baseline(CHANGED_NOTE)
+
+    @property
+    def body_editable(self) -> bool:
+        """A body editor exists and is not locked waiting for a baseline."""
+        matches = self.query("#raw-req-body")
+        return bool(matches) and not matches.first().read_only
+
+    def set_body(self, text: str) -> bool:
+        """Replace the body text; refused while an update's body is locked."""
+        if not self.body_editable:
+            return False
+        self.query_one("#raw-req-body", TextArea).text = text
+        return True
+
+    def raw_request(self, with_body: bool = True) -> RawRequest:
         """The form as a ``RawRequest``; ``InputError.field`` is the field id after ``raw-``."""
         ep = self.endpoint
         if ep is None:
@@ -220,8 +353,16 @@ class InputsPane(VerticalScroll):
                 coerce_query(ep, {p.name: query[p.name]})
             except InputError as exc:
                 raise InputError(f"query-{p.name}", exc.message) from None
-        return RawRequest(endpoint=ep, path_params=path, query=query, body=self._body(),
-                          fmt=self._format(ep))
+        baseline_query: dict[str, str] = {}
+        for p in (self.twin.query_params if self.twin else ()):
+            baseline_query[p.name] = self._text(f"#raw-bq-{p.name}")
+            try:
+                coerce_query(self.twin, {p.name: baseline_query[p.name]})
+            except InputError as exc:
+                raise InputError(f"bq-{p.name}", exc.message) from None
+        return RawRequest(endpoint=ep, path_params=path, query=query,
+                          body=self._body() if with_body else None, fmt=self._format(ep),
+                          baseline_query=baseline_query)
 
     def _custom_request(self) -> RawRequest:
         method = self._text("#raw-method")
@@ -261,7 +402,7 @@ class InputsPane(VerticalScroll):
         return ""
 
     def _body(self) -> str | None:
-        matches = self.query("#raw-body")
+        matches = self.query("#raw-req-body")
         if not matches or matches.first().read_only:
             return None
         return matches.first().text or None
@@ -286,7 +427,13 @@ class InputsPane(VerticalScroll):
                     widget.value = _text_value(value)
         if inputs.get("format") in ("json", "xml") and self.query("#raw-format"):
             self.query_one("#raw-format", Select).value = inputs["format"]
-        body = self.query("#raw-body")
+        for name, value in (inputs.get("baseline_query") or {}).items():
+            for widget in self.query(f"#raw-bq-{name}"):
+                widget.value = _text_value(value)
+                put = self.query(f"#raw-query-{name}")
+                self._bq_follows[name] = bool(put) and put.first().value == widget.value
+        # an update's old body is not restored: it could be stale; load a fresh baseline
+        body = self.query("#raw-req-body")
         if body and not body.first().read_only and inputs.get("body"):
             body.first().text = inputs["body"]
         self.query_one("#expect", TextArea).text = "\n".join(expectations)
@@ -330,7 +477,8 @@ class InputsPane(VerticalScroll):
     def show_error(self, field: str, message: str) -> None:
         self.clear_errors()
         prefix = "raw" if self.endpoint is not None else "field"
-        candidates = [field] + ([f"path-{field}", f"query-{field}"] if prefix == "raw" else [])
+        candidates = [field] + ([f"path-{field}", f"query-{field}", f"bq-{field}"]
+                                if prefix == "raw" else [])
         for name in candidates:
             matches = self.query(f"#error-{name}")
             if matches:
@@ -344,6 +492,43 @@ class InputsPane(VerticalScroll):
     def clear_errors(self) -> None:
         for widget in self.query(".field-error"):
             widget.update("")
+
+
+def _editable(text: str, fmt: str) -> str:
+    """A response body as the update's starting text (JSON indented for editing)."""
+    if fmt == "json":
+        try:
+            return json.dumps(json.loads(text), indent=2, ensure_ascii=False)
+        except ValueError:
+            pass
+    return text
+
+
+class BodyFilePrompt(ModalScreen[Optional[str]]):
+    """Asks for a file path; returns the file's UTF-8 text, or None."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel")]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm-box"):
+            yield Static("[b]Load the body from a file[/b]")
+            yield Static("Type the file path and press Enter. Esc cancels.")
+            yield Input(placeholder="path/to/body.json", id="body-file-path")
+            yield Static("", id="body-file-error", classes="field-error")
+
+    def on_mount(self) -> None:
+        self.query_one("#body-file-path").focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        path = Path(event.value.strip()).expanduser()
+        try:
+            self.dismiss(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as exc:
+            self.query_one("#body-file-error", Static).update(f"Cannot read {path}: {exc}")
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 def _text_value(value: Any) -> str:

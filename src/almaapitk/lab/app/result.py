@@ -14,18 +14,25 @@ from rich.markup import escape
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical, VerticalScroll
-from textual.widgets import Static, TabbedContent, TabPane, Tree
+from textual.widgets import Button, Static, TabbedContent, TabPane, Tree
 from textual.widgets.tree import TreeNode
 
 from almaapitk.lab.evidence import EvidenceRecord
 from almaapitk.lab.normalize import _is_node, looks_like_xml, xml_to_tree
 
 PAGE = 100
+REFUSED_TEXT = {
+    "baseline changed": "Not sent: the record changed since you loaded it",
+    "baseline could not be checked": "Not sent: the current record could not be fetched to check it",
+}
 
 
 class ResultPane(Vertical):
     def compose(self) -> ComposeResult:
         yield Static("No call yet.", id="status-line")
+        reload = Button("Load the new version", id="reload-baseline")
+        reload.display = False
+        yield reload
         with TabbedContent(id="result-tabs"):
             with TabPane("Response", id="tab-response"):
                 tree: Tree = Tree("result", id="response-tree")
@@ -47,6 +54,7 @@ class ResultPane(Vertical):
     def show(self, record: EvidenceRecord, path: Optional[Path]) -> None:
         self.record, self.path = record, path
         self.query_one("#status-line", Static).update(status_text(record))
+        self.query_one("#reload-baseline", Button).display = record.refused == "baseline changed"
         self._fill_tree(record.result)
         raw = json.dumps(record.result, ensure_ascii=False, indent=2, default=str)
         self.query_one("#raw-body", Static).update(raw[:200_000])
@@ -141,6 +149,8 @@ def status_text(record: EvidenceRecord) -> str:
     ms = sum(r.duration_ms for r in sent)
     tracking = next((r.tracking_id for r in reversed(sent) if r.tracking_id), None)
     parts = [f"[b]{status}[/b]", f"{ms} ms", f"{len(sent)} request(s)"]
+    if record.refused:
+        parts.insert(0, f"[b $warning]{escape(REFUSED_TEXT.get(record.refused, 'Not sent: ' + record.refused))}[/]")
     if tracking:
         parts.append(f"tracking {escape(tracking)}")
     if record.error:
@@ -187,6 +197,11 @@ def evidence_text(record: EvidenceRecord, path: Optional[Path]) -> str:
     for e in record.expectations:
         mark = "✓" if e["outcome"] == "passed" else "✗"
         lines.append(f"{mark} {e['text']}" + ("" if e["outcome"] == "passed" else f"   (actual: {e['actual']})"))
+    if record.baseline:
+        lines.append(f"baseline: {record.baseline.get('evidence_id')}")
+    if record.body_diff is not None:
+        lines.append("changes (baseline → sent):")
+        lines.append(record.body_diff or "(none: the body is the record as loaded)")
     for w in record.cancelled_writes:
         lines.append(f"not sent: {w['method']} {w['url']}")
     if record.incomplete:

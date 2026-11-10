@@ -6,6 +6,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Callable, Optional
 
+from rich.markup import escape
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -14,7 +15,7 @@ from textual.widgets import Button, Footer, Input, Static, TextArea
 from almaapitk.lab.app.confirm import ConfirmWrite
 from almaapitk.lab.app.export import ExportScreen
 from almaapitk.lab.app.history import HistoryScreen
-from almaapitk.lab.app.inputs import InputsPane
+from almaapitk.lab.app.inputs import STALE_NOTE, BodyFilePrompt, InputsPane
 from almaapitk.lab.app.operations import CUSTOM_PATH, OperationsPane
 from almaapitk.lab.app.result import ResultPane
 from almaapitk.lab.catalog import Operation, find_operation
@@ -116,23 +117,35 @@ class LabApp(App):
 
     # sending ----------------------------------------------------------------
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "send":
-            self.action_send()
+        handlers = {"send": self.action_send, "load-baseline": self.load_baseline,
+                    "reload-baseline": self.load_baseline, "body-from-file": self._body_from_file,
+                    "body-from-last": self._body_from_last}
+        handler = handlers.get(event.button.id or "")
+        if handler is not None:
+            handler()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id and event.input.id.startswith(("field-", "raw-")):
+        wid = event.input.id or ""
+        if wid.startswith("raw-bq-"):
+            self.load_baseline()
+        elif wid.startswith(("field-", "raw-")):
             self.action_send()
 
+    def _busy(self) -> bool:
+        if self._running_op is not None:
+            self.notify("A call is still running; wait for its result.", severity="warning")
+            return True
+        return False
+
     def action_send(self) -> None:
+        if self._busy():
+            return
         if self.current_endpoint is not None:
             self._send_raw(self.current_endpoint)
             return
         op = self.current_operation
         if op is None:
             self.notify("Pick an operation first.", severity="warning")
-            return
-        if self._running_op is not None:
-            self.notify("A call is still running; wait for its result.", severity="warning")
             return
         inputs = self.query_one(InputsPane)
         inputs.clear_errors()
@@ -143,12 +156,9 @@ class LabApp(App):
                         thread=True, group="send")
 
     def _send_raw(self, ep: Endpoint) -> None:
-        if self._running_op is not None:
-            self.notify("A call is still running; wait for its result.", severity="warning")
-            return
         inputs = self.query_one(InputsPane)
         inputs.clear_errors()
-        if inputs.needs_baseline:
+        if inputs.needs_baseline and inputs.baseline is None:
             self.notify("Load the current record before sending an update.", severity="warning")
             return
         try:
@@ -158,13 +168,97 @@ class LabApp(App):
             self.query_one("#status-line", Static).update("Not sent: fix the input.")
             return
         expect = inputs.expectations()
+        if req.endpoint.custom:
+            found = match(req.endpoint.method, "/" + resolve_path(req.endpoint, {}))
+            if found is not None:  # the index knows it: use its form (and its baseline rule)
+                self.run_worker(self._switch_to_indexed(found[0], found[1], req, expect),
+                                group="switch")
+                return
+        baseline = inputs.baseline if inputs.needs_baseline else None
         self.query_one("#status-line", Static).update(
             f"Sending {req.endpoint.method} {req.endpoint.short_path} …")
         self._running_op, self._confirm_word = ep, _confirm_word(req)
-        self.run_worker(lambda: self._call(lambda: self.session.run_raw(req, expect)),
+        then = (lambda record: self._after_update(inputs, ep, record)) if baseline else None
+        self.run_worker(lambda: self._call(lambda: self.session.run_raw(req, expect, baseline=baseline),
+                                           then=then),
                         thread=True, group="send")
 
-    def _call(self, run: Callable[[], EvidenceRecord]) -> None:
+    async def _switch_to_indexed(self, ep: Endpoint, values: dict[str, str], req: RawRequest,
+                                 expect: list[str]) -> None:
+        """A custom path the index knows: open its form with the values carried over; send nothing."""
+        self.current_operation, self.current_endpoint = None, ep
+        pane = self.query_one(InputsPane)
+        await pane.load_raw(ep)
+        pane.set_raw_values({"path": values, "query": req.query, "format": req.fmt,
+                             "body": req.body}, expect)
+        known = {p.name for p in ep.query_params}
+        dropped = [name for name in req.query if name not in known]
+        text = ("This path is in the Alma API definitions; switched to its form so the update "
+                "can start from the current record." if pane.needs_baseline else
+                "This path is in the Alma API definitions; switched to its form. Check it and send again.")
+        if dropped:
+            text += f" Not a query parameter there, left out: {', '.join(dropped)}."
+        self.query_one("#status-line", Static).update(escape(text))
+        self.notify(text, timeout=10)
+
+    def load_baseline(self) -> None:
+        """Load current record: the update's GET twin, a read (no confirmation)."""
+        if self._busy():
+            return
+        pane, ep = self.query_one(InputsPane), self.current_endpoint
+        if ep is None or not pane.needs_baseline:
+            self.notify("Only an update (PUT) starts from the current record.", severity="warning")
+            return
+        pane.clear_errors()
+        try:
+            req = pane.baseline_request()
+        except InputError as exc:
+            pane.show_error(exc.field, exc.message)
+            self.query_one("#status-line", Static).update("Not loaded: fix the input.")
+            return
+        key = pane.baseline_key()
+        self.query_one("#status-line", Static).update(
+            f"Loading the current record: GET {ep.short_path} …")
+        self._running_op = ep
+
+        def accept(record: EvidenceRecord) -> None:
+            if pane.endpoint is ep:
+                pane.accept_baseline(record, key)
+        self.run_worker(lambda: self._call(lambda: self.session.fetch_baseline(req), then=accept),
+                        thread=True, group="send")
+
+    def _after_update(self, pane: InputsPane, ep: Endpoint, record: EvidenceRecord) -> None:
+        """After an update: a refused one, or one that changed the record, needs a fresh baseline."""
+        if pane.endpoint is not ep:
+            return
+        status = record.last_status
+        if record.refused == "baseline changed":
+            pane.clear_baseline(STALE_NOTE)
+        elif status is not None and 200 <= status < 300 and not record.error:
+            pane.clear_baseline("Sent. Load the current record again before another update")
+
+    def _body_from_file(self) -> None:
+        pane = self.query_one(InputsPane)
+        if not pane.body_editable:
+            self.notify("Load the current record first: the update starts from it.", severity="warning")
+            return
+
+        def loaded(text: Optional[str]) -> None:
+            if text is not None:
+                pane.set_body(text)
+        self.push_screen(BodyFilePrompt(), callback=loaded)
+
+    def _body_from_last(self) -> None:
+        pane = self.query_one(InputsPane)
+        sent = [r for r in self.last_record.requests if r.sent] if self.last_record else []
+        if not sent or not sent[-1].response_body:
+            self.notify("No earlier response body to load.", severity="warning")
+            return
+        if not pane.set_body(sent[-1].response_body):
+            self.notify("Load the current record first: the update starts from it.", severity="warning")
+
+    def _call(self, run: Callable[[], EvidenceRecord],
+              then: Optional[Callable[[EvidenceRecord], None]] = None) -> None:
         try:
             record = run()
         except InputError as exc:
@@ -183,6 +277,8 @@ class LabApp(App):
         finally:
             self._running_op = None
         self.call_from_thread(self._show, record, self.session.last_path)
+        if then is not None:
+            self.call_from_thread(then, record)
 
     def _show(self, record: EvidenceRecord, path: Optional[Path]) -> None:
         self.last_record, self.last_path = record, path

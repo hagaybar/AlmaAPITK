@@ -31,7 +31,7 @@ The following symbols are exported and part of the stable public API:
 | Symbol | Type | Description |
 |--------|------|-------------|
 | `__version__` | str | Package version string (currently "0.2.0") |
-| `AlmaAPIClient` | class | Main API client providing HTTP methods (GET, POST, PUT, DELETE), environment management, and authentication |
+| `AlmaAPIClient` | class | Main API client providing HTTP methods (GET, POST, PUT, DELETE), `iter_paged`, `raw_request` (call any Alma path; lower guarantee tier, see `guides/raw-requests.md`), environment management, and authentication |
 | `AlmaResponse` | class | Response wrapper with `.data`, `.json()`, `.text()`, `.success`, and `.status_code` properties |
 | `AlmaAPIError` | exception | Base exception for Alma API errors with `status_code` and `response` attributes |
 | `AlmaValidationError` | exception | Exception for input validation failures (inherits from `ValueError`) |

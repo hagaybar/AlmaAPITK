@@ -1345,7 +1345,101 @@ class AlmaAPIClient:
             params=params, custom_headers=custom_headers,
             timeout=timeout,
         )
-    
+
+    #: HTTP methods ``raw_request`` accepts (the verbs Alma's REST API uses).
+    RAW_REQUEST_METHODS = frozenset({"GET", "POST", "PUT", "DELETE"})
+
+    def raw_request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        data: Any = None,
+        params: Optional[Dict] = None,
+        content_type: Optional[str] = None,
+        custom_headers: Optional[Dict] = None,
+        timeout: Optional[float] = None,
+    ) -> AlmaResponse:
+        """Call any Alma endpoint, including ones almaapitk does not wrap yet.
+
+        A bridge until typed coverage lands: prefer a typed domain method
+        when one exists, and see the ``api-coverage`` issues for endpoints
+        that are planned. This is a thin delegate to the same engine the
+        ``get``/``post``/``put``/``delete`` verbs use, so it inherits:
+
+        - the ``Authorization: apikey`` header (never logged);
+        - region / base-URL resolution and SANDBOX vs PRODUCTION;
+        - the pooled session and the closed-client guard;
+        - redacted request/response logging;
+        - the typed error taxonomy: a non-2xx response raises the same
+          ``AlmaAPIError`` subclass, with ``status_code``, ``alma_code``
+          and ``tracking_id``, as the equivalent typed call.
+
+        It deliberately does **not** validate the request body, normalise
+        the response, promise a stable shape (you couple to Alma's own
+        compatibility, not almaapitk's) or paginate. For collections use
+        ``iter_paged(endpoint, record_key=...)``, which accepts any path.
+        Check paths, parameters and body shapes against the swagger
+        snapshot in ``docs/alma-swagger/``.
+
+        Content negotiation: with ``content_type='application/xml'`` the
+        client also sends ``Accept: application/xml``, so Alma answers in
+        XML and ``.data`` / ``.json()`` will fail; read ``.text()``
+        instead. By default requests and responses are JSON.
+
+        Args:
+            method: ``GET``, ``POST``, ``PUT`` or ``DELETE`` (any case).
+            endpoint: Path relative to the client's base URL, e.g.
+                ``'almaws/v1/courses'``. Absolute URLs are refused.
+            data: Request body. A ``dict`` is sent as JSON unless
+                ``content_type`` is set; anything else is sent verbatim.
+            params: Query parameters.
+            content_type: Override the Content-Type (e.g.
+                ``'application/xml'``).
+            custom_headers: Extra or overriding per-call headers.
+            timeout: Per-call timeout in seconds; ``None`` uses the
+                client default.
+
+        Returns:
+            The un-parsed ``AlmaResponse``: use ``.data`` / ``.json()``
+            for JSON, ``.text()`` for raw text, ``.status_code`` and
+            ``.success``.
+
+        Raises:
+            AlmaValidationError: If ``method`` is not supported or
+                ``endpoint`` is empty, not a string, or an absolute URL.
+                Nothing is sent.
+            AlmaAPIError: On a non-2xx response (typed subclass as above).
+
+        Example:
+            >>> resp = client.raw_request(
+            ...     "GET", "almaws/v1/courses", params={"limit": 50}
+            ... )
+            >>> courses = resp.data.get("course", [])
+
+        Pattern source: GitHub issue #183 ("Structural Mirroring").
+        """
+        verb = method.upper() if isinstance(method, str) else method
+        if verb not in self.RAW_REQUEST_METHODS:
+            raise AlmaValidationError(
+                f"raw_request method must be one of "
+                f"{sorted(self.RAW_REQUEST_METHODS)}, got {method!r}"
+            )
+        if not isinstance(endpoint, str) or not endpoint.strip():
+            raise AlmaValidationError(
+                "raw_request endpoint must be a non-empty path string"
+            )
+        if "://" in endpoint:
+            raise AlmaValidationError(
+                "raw_request endpoint must be a path relative to the "
+                "client's base URL (e.g. 'almaws/v1/courses'), not a URL"
+            )
+        return self._request(
+            verb, endpoint, data=data, params=params,
+            content_type=content_type, custom_headers=custom_headers,
+            timeout=timeout,
+        )
+
     def iter_paged(
         self,
         endpoint: str,

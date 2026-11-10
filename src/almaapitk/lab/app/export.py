@@ -55,7 +55,12 @@ class ExportScreen(ModalScreen[None]):
         redacted, reps = redact(self.record_dict, keep=self._keep())
         redacted["redaction"] = reps
         out = self.path.with_name(self.path.stem + ".redacted.json")
-        out.write_text(json.dumps(redacted, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
+        try:
+            out.write_text(json.dumps(redacted, ensure_ascii=False, indent=2, default=str) + "\n",
+                           encoding="utf-8")
+        except OSError as exc:
+            self.app.notify(f"Cannot save {out}: {exc}", severity="error", timeout=15)
+            return
         self.app.notify(f"Saved {out}")
         self.dismiss(None)
 

@@ -114,8 +114,14 @@ def _fill_response(captured: CapturedRequest, response: requests.Response) -> No
     captured.response_headers = dict(response.headers)
     captured.response_body = response.text if response.content else ""
     prepared = getattr(response, "request", None)
-    if prepared is not None and prepared.url:
-        captured.url = _safe_url(prepared.url, None)
+    if prepared is not None:  # what requests actually put on the wire
+        if prepared.url:
+            captured.url = _safe_url(prepared.url, None)
+        if prepared.headers:
+            captured.headers = _mask_headers(dict(prepared.headers))
+        if prepared.body is not None:
+            body = prepared.body
+            captured.body = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else str(body)
     match = _TRACKING_JSON.search(captured.response_body) or _TRACKING_XML.search(captured.response_body)
     captured.tracking_id = match.group(1) if match else None
     retries = getattr(getattr(response, "raw", None), "retries", None)

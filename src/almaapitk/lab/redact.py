@@ -13,10 +13,12 @@ from __future__ import annotations
 import copy
 import json
 import re
+from urllib.parse import quote, quote_plus
 from typing import Any, Iterator
 
 SENSITIVE_KEYS: frozenset[str] = frozenset({
-    # record identifiers
+    # record identifiers (bare "id" and "number" are invoice / line / loan IDs in Alma JSON)
+    "id", "number", "vendor", "item_barcode", "job_description",
     "mms_id", "holding_id", "item_pid", "pid", "po_line", "pol_id", "po_line_id", "invoice_id",
     "invoice_number", "vendor_code", "vendor_reference_number", "set_id", "request_id",
     "external_id", "loan_id", "portfolio_id", "collection_id", "service_id", "license_code",
@@ -59,6 +61,8 @@ def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list
             continue
         counters[kind] = counters.get(kind, 0) + 1
         placeholders[value] = f"<{kind}_{counters[kind]}>"
+        for variant in (quote(value, safe=""), quote_plus(value)):  # as it appears in URLs
+            placeholders.setdefault(variant, placeholders[value])
         replacements.append({"placeholder": placeholders[value], "kind": kind, "value_kept": False})
     out = _replace(copy.deepcopy(record), placeholders)
     return out, replacements
@@ -79,8 +83,10 @@ def _walk(value: Any, key: str = "") -> Iterator[tuple[str, str]]:
         for k, v in value.items():
             if k in SENSITIVE_KEYS and isinstance(v, (str, int)) and not isinstance(v, bool):
                 yield _kind_for(k), str(v)
-            elif k in SENSITIVE_KEYS and isinstance(v, dict) and isinstance(v.get("value"), str):
-                yield _kind_for(k), v["value"]
+            elif k in SENSITIVE_KEYS and isinstance(v, dict):
+                for part in ("value", "desc"):  # {value, desc} code objects, e.g. vendor
+                    if isinstance(v.get(part), str):
+                        yield _kind_for(k), v[part]
             yield from _walk(v, k)
     elif isinstance(value, list):
         for item in value:

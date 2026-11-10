@@ -112,14 +112,17 @@ class LabApp(App):
         if op is None:
             self.notify("Pick an operation first.", severity="warning")
             return
+        if self._running_op is not None:
+            self.notify("A call is still running; wait for its result.", severity="warning")
+            return
         inputs = self.query_one(InputsPane)
         inputs.clear_errors()
         raw, expect = inputs.values(), inputs.expectations()
         self.query_one("#status-line", Static).update(f"Sending {op.qualname} …")
-        self.run_worker(lambda: self._call(op, raw, expect), thread=True, exclusive=True, group="send")
+        self._running_op = op
+        self.run_worker(lambda: self._call(op, raw, expect), thread=True, group="send")
 
     def _call(self, op: Operation, raw: dict, expect: list) -> None:
-        self._running_op = op
         try:
             record = self.session.run(op, raw, expect)
         except InputError as exc:
@@ -128,6 +131,9 @@ class LabApp(App):
             return
         except EvidenceError as exc:
             self.call_from_thread(self.notify, str(exc), severity="error", timeout=15)
+            record = getattr(exc, "record", None)
+            if record is not None:  # the call went out; show what came back anyway
+                self.call_from_thread(self._show, record, None)
             return
         except Exception as exc:  # credentials, network setup: show, don't crash the app
             self.call_from_thread(self.notify, f"{type(exc).__name__}: {exc}", severity="error", timeout=15)
@@ -152,7 +158,9 @@ class LabApp(App):
             self.push_screen(screen, callback=lambda ok: (answer.append(bool(ok)), done.set()))
 
         self.call_from_thread(ask)
-        done.wait()
+        while not done.wait(0.2):
+            if not self.is_running:  # quit while the question was open: send nothing
+                return False
         return answer[0]
 
     # history, export, help -------------------------------------------------

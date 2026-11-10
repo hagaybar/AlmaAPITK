@@ -63,18 +63,29 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.command == "call":
             return _call(args, extra, argv)
         return _run_steps(args, argv)
-    except (InputError, EvidenceError, KeyError, ValueError) as exc:
+    except (InputError, EvidenceError, KeyError, ValueError, RuntimeError) as exc:
         _err(f"error: {exc.args[0] if isinstance(exc, KeyError) else exc}")
         return 2
 
 
+def _common(defaults: bool) -> argparse.ArgumentParser:
+    """Options accepted before and after the subcommand.
+
+    The copy on each subcommand uses SUPPRESS defaults, so an option given only
+    before the subcommand is not overwritten by the subcommand's default.
+    """
+    p = argparse.ArgumentParser(add_help=False)
+    d = (lambda v: v) if defaults else (lambda v: argparse.SUPPRESS)
+    p.add_argument("--env", default=d("SANDBOX"), type=str.upper, choices=ENVIRONMENTS)
+    p.add_argument("--evidence-dir", type=Path, default=d(DEFAULT_EVIDENCE_DIR))
+    p.add_argument("--verbose", action="store_true", default=d(False),
+                   help="keep almaapitk's own log lines (they go to stdout)")
+    return p
+
+
 def _parser() -> argparse.ArgumentParser:
-    common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--env", default="SANDBOX", type=str.upper, choices=ENVIRONMENTS)
-    common.add_argument("--evidence-dir", type=Path, default=DEFAULT_EVIDENCE_DIR)
-    common.add_argument("--verbose", action="store_true",
-                        help="keep almaapitk's own log lines (they go to stdout)")
-    parser = argparse.ArgumentParser(prog="almaapitk-lab", parents=[common],
+    common = _common(defaults=False)
+    parser = argparse.ArgumentParser(prog="almaapitk-lab", parents=[_common(defaults=True)],
                                      description="Run almaapitk operations and keep evidence of every call.")
     sub = parser.add_subparsers(dest="command")
     call = sub.add_parser("call", parents=[common], help="run one operation")
@@ -150,6 +161,9 @@ def _call(args: argparse.Namespace, extra: list[str], argv: list[str]) -> int:
 
 
 def _run_steps(args: argparse.Namespace, argv: list[str]) -> int:
+    if args.confirm_write:
+        raise InputError("confirm-write", "approves the writes of one call only; send Production "
+                                          "writes one at a time with `almaapitk-lab call`")
     try:
         steps = json.loads(args.steps.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -172,7 +186,15 @@ def _execute(args: argparse.Namespace, planned: list, argv: list[str]) -> int:
         for op, raw, expect in planned:
             refusals: list[str] = []
             session.gate = _gate_for(args, op, refusals)
-            record = session.run(op, raw, expect)
+            try:
+                record = session.run(op, raw, expect)
+            except EvidenceError as exc:
+                record = getattr(exc, "record", None)
+                if record is None:
+                    raise
+                _summary(record)  # the call went out: show its result even without evidence
+                _err(f"error: {exc}")
+                return 2
             for line in refusals:
                 _err(line)
             if args.json:
@@ -245,7 +267,10 @@ def _export(args: argparse.Namespace) -> int:
     redacted, replacements = redact(record.to_dict())
     text = json.dumps(redacted, ensure_ascii=False, indent=2, default=str)
     if args.out:
-        args.out.write_text(text + "\n", encoding="utf-8")
+        try:
+            args.out.write_text(text + "\n", encoding="utf-8")
+        except OSError as exc:
+            raise EvidenceError(f"cannot write {args.out}: {exc}") from exc
         _err(f"wrote {args.out} ({len(replacements)} values replaced)")
     else:
         _out(text)

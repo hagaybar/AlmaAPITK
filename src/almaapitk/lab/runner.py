@@ -7,6 +7,8 @@ wrong once the method runs is recorded in the evidence, never raised.
 from __future__ import annotations
 
 import json
+import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Iterable, Optional
 from urllib.parse import urlsplit
@@ -15,7 +17,13 @@ from almaapitk.alma_logging import get_logger
 from almaapitk.lab import catalog
 from almaapitk.lab.capture import Recorder, WriteCancelled, WriteGate, make_lab_client
 from almaapitk.lab.catalog import Operation, find_operation
-from almaapitk.lab.evidence import DEFAULT_EVIDENCE_DIR, EvidenceRecord, new_record, write_record
+from almaapitk.lab.evidence import (
+    DEFAULT_EVIDENCE_DIR,
+    EvidenceError,
+    EvidenceRecord,
+    new_record,
+    write_record,
+)
 from almaapitk.lab.expect import evaluate, parse_expectation
 from almaapitk.lab.hints import HINTS
 from almaapitk.lab.normalize import normalize_result
@@ -104,6 +112,7 @@ class Session:
         self._recorder: Optional[Recorder] = None
         self._domains: dict[str, Any] = {}
         self.last_path: Optional[Path] = None
+        self._lock = threading.Lock()
 
     @property
     def client(self):
@@ -122,11 +131,22 @@ class Session:
 
     def run(self, op: Operation, raw_inputs: dict[str, Any],
             expectations: Iterable[str] = ()) -> EvidenceRecord:
+        """Run ``op`` once. One call at a time per session: the recording is shared."""
+        if not self._lock.acquire(blocking=False):
+            raise RuntimeError("a call is already running in this session; wait for it to finish")
+        try:
+            return self._run(op, raw_inputs, expectations)
+        finally:
+            self._lock.release()
+
+    def _run(self, op: Operation, raw_inputs: dict[str, Any],
+             expectations: Iterable[str]) -> EvidenceRecord:
         kwargs = coerce_inputs(op, raw_inputs)
         try:
             parsed = [parse_expectation(e) for e in expectations]
         except ValueError as exc:
             raise InputError("expect", str(exc)) from None
+        self._check_writable()  # before anything is sent: never lose a write's evidence
         client = self.client
         record = new_record(operation=op.qualname, inputs=kwargs, environment=self.environment,
                             base_url_host=urlsplit(client.base_url).netloc, source=self.source,
@@ -146,10 +166,23 @@ class Session:
         error_class = record.error.split(":", 1)[0] if record.error else None
         record.expectations = [evaluate(e, result=record.result, requests=record.requests,
                                         error=error_class) for e in parsed]
-        self.last_path = write_record(record, self.evidence_dir)
+        try:
+            self.last_path = write_record(record, self.evidence_dir)
+        except EvidenceError as exc:
+            exc.record = record  # the call happened: let the front end still show it
+            raise
         self.logger.info("Lab call recorded", operation=op.qualname, evidence=record.id,
                          status=record.last_status, error=error_class)
         return record
+
+    def _check_writable(self) -> None:
+        try:
+            self.evidence_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=self.evidence_dir):
+                pass
+        except OSError as exc:
+            raise EvidenceError(f"cannot write evidence under {self.evidence_dir}: {exc}; "
+                                "nothing was sent") from exc
 
     def rerun(self, record: EvidenceRecord) -> EvidenceRecord:
         expectations = [e["text"] for e in record.expectations]

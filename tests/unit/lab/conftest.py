@@ -7,13 +7,13 @@ import requests
 TEST_KEY = "lab-test-key-0000"
 
 
-def make_response(method, url, status=200, body=b"{}", content_type="application/json", headers=None, params=None):
+def make_response(method, url, status=200, body=b"{}", content_type="application/json", headers=None, params=None, sent_data=None, sent_json=None):
     resp = requests.Response()
     resp.status_code = status
     resp._content = body if isinstance(body, bytes) else json.dumps(body).encode()
     resp.headers.update({"Content-Type": content_type, **(headers or {})})
     resp.url = url
-    resp.request = requests.Request(method, url, params=params, headers={"Authorization": f"apikey {TEST_KEY}"}).prepare()
+    resp.request = requests.Request(method, url, params=params, data=sent_data, json=sent_json, headers={"Authorization": f"apikey {TEST_KEY}"}).prepare()
     resp.raw = None
     return resp
 
@@ -24,13 +24,17 @@ class ScriptedHTTP:
     def __init__(self, answers=None):
         self.answers = list(answers or [])
         self.calls = []
+        self.before_answer = None  # e.g. block on an Event to simulate a slow Alma
 
     def __call__(self, method, url, **kwargs):
         self.calls.append((method, url, kwargs))
+        if self.before_answer is not None:
+            self.before_answer()
         answer = self.answers.pop(0) if self.answers else {}
         if isinstance(answer, Exception):
             raise answer
-        return make_response(method, url, params=kwargs.get("params"), **answer)
+        return make_response(method, url, params=kwargs.get("params"), sent_data=kwargs.get("data"),
+                             sent_json=kwargs.get("json"), **answer)
 
 
 @pytest.fixture

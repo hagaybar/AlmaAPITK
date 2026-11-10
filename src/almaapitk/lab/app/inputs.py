@@ -65,7 +65,7 @@ class InputsPane(VerticalScroll):
             options = list(p.choices) if p.kind == "choice" else ["true", "false"]
             value = str(default).lower() if p.kind == "bool" and default != "" else str(default)
             out.append(Select([(o, o) for o in options], id=f"field-{p.name}", allow_blank=True,
-                              value=value if value in options else Select.BLANK))
+                              value=value if value in options else Select.NULL))
         else:
             out.append(Input(str(default), id=f"field-{p.name}", placeholder=p.help[:60]))
         if p.help:
@@ -87,7 +87,7 @@ class InputsPane(VerticalScroll):
             elif isinstance(widget, TextArea):
                 out[p.name] = widget.text
             elif isinstance(widget, Select):
-                out[p.name] = "" if widget.value is Select.BLANK else str(widget.value)
+                out[p.name] = "" if widget.is_blank() else str(widget.value)
         return out
 
     def expectations(self) -> list[str]:

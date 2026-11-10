@@ -100,3 +100,13 @@ def test_raw_inputs_redacted():
     assert out["inputs"]["query"]["limit"] == 250
     assert "limit=250" in out["requests"][0]["url"]
     assert {r["kind"] for r in reps} >= {"codeTableName", "q"}
+
+
+def test_raw_baseline_query_redacted():
+    rec = {"inputs": {"path": {"user_id": "<a_user>"}, "query": {},
+                      "baseline_query": {"user_id_type": "all_unique", "view": "full"},
+                      "format": "json", "body": None},
+           "requests": [{"url": "https://h/almaws/v1/users/x?user_id_type=all_unique&view=full"}]}
+    out, _ = redact(rec)
+    assert "all_unique" not in json.dumps(out)
+    assert out["inputs"]["baseline_query"]["view"] == "full"

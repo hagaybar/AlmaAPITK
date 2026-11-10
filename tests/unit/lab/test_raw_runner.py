@@ -133,7 +133,8 @@ def test_put_with_baseline_sends_and_diffs(write_session, lab_client):
     assert '-  "name": "Old"' in rec.body_diff and '+  "name": "New"' in rec.body_diff
     assert [r.method for r in rec.requests] == ["GET", "PUT"]
     assert len(lab_client.http.calls) == 3
-    assert rec.wrapped_by == list(rec.wrapped_by)
+    assert rec.wrapped_by == []  # no almaapitk method covers courses
+    assert rec.inputs["baseline_query"] == {}
     assert rec.slug == "raw-PUT-courses-course_id"
 
 
@@ -141,8 +142,11 @@ def test_put_refused_when_record_changed(write_session, lab_client):
     lab_client.http.answers = [{"body": {"code": "X", "name": "Old"}},
                                {"body": {"code": "X", "name": "Changed elsewhere"}}]
     base = write_session.fetch_baseline(_put_course())
-    rec = write_session.run_raw(_put_course(), baseline=base)
+    rec = write_session.run_raw(_put_course(), ["status == 200"], baseline=base)
     assert rec.refused == "baseline changed"
+    assert rec.expectations == [{"text": "status == 200", "outcome": "not evaluated",
+                                 "actual": "baseline changed"}]
+    assert rec.checks_passed is False
     assert [c[0] for c in lab_client.http.calls] == ["GET", "GET"]
     assert write_session.last_path.exists()
 
@@ -184,6 +188,8 @@ def test_xml_put_baseline_and_diff(write_session, lab_client):
     assert sent["data"] == new and rec.requests[-1].method == "PUT"
     assert "-<bib><title>Old</title></bib>" in rec.body_diff
     assert "+<bib><title>New</title></bib>" in rec.body_diff
+    assert rec.wrapped_by == ["BibliographicRecords.update_marc_field",
+                              "BibliographicRecords.update_record"]
     # an unparsable baseline still diffs as text
     assert "-<bib><title>Old</title>" in body_diff("<bib><title>Old</title>  ", new, "xml")
 
@@ -265,4 +271,55 @@ def test_put_not_sent_when_recheck_fails(write_session, lab_client):
     base = write_session.fetch_baseline(_put_course())
     rec = write_session.run_raw(_put_course(), baseline=base)
     assert rec.refused == "baseline could not be checked" and rec.error
+    assert rec.checks_passed is False  # refused, even with no expectations
     assert [c[0] for c in lab_client.http.calls] == ["GET", "GET"]
+
+
+def test_rerun_unmatched_indexed_record_is_refused(write_session, lab_client, monkeypatch):
+    lab_client.http.answers = [{"body": {"code": "X"}}, {"body": {"code": "X"}}, {"body": {}}]
+    base = write_session.fetch_baseline(_put_course())
+    rec = write_session.run_raw(_put_course(), baseline=base)
+    monkeypatch.setattr("almaapitk.lab.runner.match", lambda *a: None)
+    with pytest.raises(InputError) as exc:
+        write_session.rerun(rec)
+    assert exc.value.field == "endpoint"
+    assert len(lab_client.http.calls) == 3
+
+
+def test_custom_put_on_indexed_path_needs_baseline(write_session, lab_client):
+    ep = custom_endpoint("PUT", "almaws/v1/courses/<course_id>")
+    with pytest.raises(InputError) as exc:
+        write_session.run_raw(RawRequest(endpoint=ep, path_params={}, query={}, body="{}"))
+    assert exc.value.field == "baseline"
+    assert lab_client.http.calls == []
+
+
+def test_custom_on_indexed_path_runs_as_indexed(write_session, lab_client):
+    lab_client.http.answers = [{"body": {"code": "X"}}, {"body": {"code": "X"}}, {"body": {}}]
+    put = RawRequest(endpoint=custom_endpoint("PUT", "almaws/v1/courses/<course_id>"),
+                     path_params={}, query={}, body='{"code": "X"}')
+    base = write_session.fetch_baseline(put)
+    assert base.endpoint["custom"] is False and base.endpoint["path"] == COURSE
+    rec = write_session.run_raw(put, baseline=base)
+    assert rec.error is None and rec.endpoint["custom"] is False
+    assert rec.endpoint["path"] == COURSE and rec.endpoint["upgraded_from_custom"] is True
+    assert rec.inputs["path"] == {"course_id": "<course_id>"}
+
+
+def test_baseline_ignored_without_twin(write_session, lab_client):
+    lab_client.http.answers = [{"body": {"code": "X"}}, {"body": {}}]
+    base = write_session.fetch_baseline(_put_course())
+    rec = write_session.run_raw(RawRequest(endpoint=get_endpoint("POST", COURSES), path_params={},
+                                           query={}, body='{"code": "X"}'), baseline=base)
+    assert rec.error is None and rec.baseline is None and rec.body_diff is None
+    assert "baseline_query" not in rec.inputs
+
+
+def test_baseline_from_other_environment_does_not_count(write_session, lab_client):
+    lab_client.http.answers = [{"body": {"code": "X"}}]
+    base = write_session.fetch_baseline(_put_course())
+    base.environment = "PRODUCTION"
+    with pytest.raises(InputError) as exc:
+        write_session.run_raw(_put_course(), baseline=base)
+    assert exc.value.field == "baseline"
+    assert len(lab_client.http.calls) == 1

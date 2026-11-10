@@ -90,7 +90,11 @@ def _raw_inputs(inputs: dict) -> Iterator[tuple[str, str]]:
     for name, value in path.items():
         if isinstance(value, (str, int)) and not isinstance(value, bool):
             yield _kind_for(name), str(value)
-    for name, value in query.items():
+    baseline_query = inputs.get("baseline_query")
+    pairs = list(query.items())
+    if isinstance(baseline_query, dict):  # the update's baseline GET, same rule
+        pairs += list(baseline_query.items())
+    for name, value in pairs:
         if name in NON_IDENTIFYING_QUERY or isinstance(value, bool):
             continue
         if isinstance(value, (str, int)):

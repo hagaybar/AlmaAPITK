@@ -11,7 +11,7 @@ import json
 import re
 import tempfile
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Literal, Optional
 from urllib.parse import quote, urlsplit
@@ -263,8 +263,12 @@ class Session:
         record.cancelled_writes = [{"method": r.method, "url": r.url} for r in record.requests if not r.sent]
         record.result, record.capped = normalize_result(value)
         error_class = record.error.split(":", 1)[0] if record.error else None
-        record.expectations = [evaluate(e, result=record.result, requests=record.requests,
-                                        error=error_class) for e in parsed]
+        if record.refused:  # the call was not made: nothing to check against
+            record.expectations = [{"text": e.text, "outcome": "not evaluated",
+                                    "actual": record.refused} for e in parsed]
+        else:
+            record.expectations = [evaluate(e, result=record.result, requests=record.requests,
+                                            error=error_class) for e in parsed]
         try:
             self.last_path = write_record(record, self.evidence_dir)
         except EvidenceError as exc:
@@ -300,6 +304,7 @@ class Session:
 
     def fetch_baseline(self, req: RawRequest) -> EvidenceRecord:
         """GET the record an update will start from; a normal raw record."""
+        req, _ = self._indexed(req)
         ep = req.endpoint
         twin = custom_endpoint("GET", ep.path) if ep.custom else get_twin(ep)
         if twin is None:
@@ -309,6 +314,7 @@ class Session:
 
     def _run_raw(self, req: RawRequest, expectations: Iterable[str],
                  baseline: Optional[EvidenceRecord]) -> EvidenceRecord:
+        req, upgraded = self._indexed(req)
         ep, method = req.endpoint, req.endpoint.method
         path = resolve_path(ep, req.path_params)
         path_values = _path_values(ep, req.path_params)
@@ -319,15 +325,20 @@ class Session:
         twin_path, twin_query = None, None
         if twin is not None:
             twin_path, twin_query = resolve_path(twin, req.path_params), coerce_query(twin, req.baseline_query)
-            self._check_baseline(baseline, twin, path_values, twin_query, req.fmt)
+            self._check_baseline(baseline, twin, path_values, twin_query, req.fmt,
+                                 self.environment)
         self._check_writable()  # before anything is sent: never lose a write's evidence
-        record = self._new_record(f"raw {method} {ep.path}", {
-            "path": path_values, "query": query, "format": req.fmt, "body": body_text})
+        inputs = {"path": path_values, "query": query, "format": req.fmt, "body": body_text}
+        if twin is not None:
+            inputs["baseline_query"] = twin_query
+        record = self._new_record(f"raw {method} {ep.path}", inputs)
         record.raw, record.slug = True, ep.slug
         record.endpoint = {"method": method, "path": ep.path, "area": ep.area,
                            "source_fetched": ep.source_fetched, "custom": ep.custom}
+        if upgraded:
+            record.endpoint["upgraded_from_custom"] = True
         record.wrapped_by = list(wrapped_by(ep))
-        if baseline is not None:
+        if twin is not None:  # a baseline only means something for an update with a GET twin
             base_body = _response_body(baseline)
             record.baseline = {"evidence_id": baseline.id, "body": base_body}
             record.body_diff = body_diff(base_body, body_text or "", req.fmt)
@@ -379,14 +390,27 @@ class Session:
         # a dict goes as JSON; anything else is sent as JSON text
         return text, parsed if isinstance(parsed, dict) else json.dumps(parsed)
 
+    def _indexed(self, req: RawRequest) -> tuple[RawRequest, bool]:
+        """A custom request on a path the index knows runs as that indexed endpoint,
+        so its parameters, GET twin and baseline rule apply."""
+        if not req.endpoint.custom:
+            return req, False
+        found = match(req.endpoint.method, resolve_path(req.endpoint, req.path_params))
+        if found is None:
+            return req, False
+        ep, values = found
+        self.logger.info("Lab custom path matches an indexed endpoint", endpoint=ep.key)
+        return replace(req, endpoint=ep, path_params=values), True
+
     @staticmethod
     def _check_baseline(baseline: Optional[EvidenceRecord], twin: Endpoint,
-                        path_values: dict[str, str], twin_query: dict[str, Any], fmt: str) -> None:
+                        path_values: dict[str, str], twin_query: dict[str, Any], fmt: str,
+                        environment: str) -> None:
         message = "load the current record first"
         if baseline is None:
             raise InputError("baseline", message)
         status = baseline.last_status
-        ok = (baseline.raw and baseline.error is None and baseline.refused is None
+        ok = (baseline.raw and baseline.environment == environment and baseline.error is None and baseline.refused is None
               and status is not None and 200 <= status < 300
               and (baseline.endpoint or {}).get("method") == "GET"
               and (baseline.endpoint or {}).get("path") == twin.path
@@ -429,6 +453,8 @@ def _raw_request_from(record: EvidenceRecord) -> RawRequest:
         if found is not None:
             ep, values = found
     if ep is None:
+        if not info.get("custom"):
+            raise InputError("endpoint", f"{method} {template} is no longer in the endpoint index")
         ep = custom_endpoint(method, template)
     if ep.method == "PUT" and not ep.custom and get_twin(ep) is not None:
         raise InputError("baseline", "load the current record again before resending an update")

@@ -73,6 +73,8 @@ class EvidenceRecord:
 
     @property
     def checks_passed(self) -> bool:
+        if self.refused:
+            return False
         return all(e.get("outcome") == "passed" for e in self.expectations)
 
 

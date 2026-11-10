@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Fixed
 
+- **A 5xx that outlasts the retries is raised as `AlmaServerError`, not a raw
+  `requests.exceptions.RetryError`** (#208). The error now carries the status
+  and Alma's tracking ID, and `except AlmaAPIError` catches it. On the
+  Analytics surface a 500 is no longer retried at all: Alma answers a
+  nonexistent report path with 500, so a typo cost ~20 s of retries before
+  failing. 429/502/503/504 are still retried there. A caller-supplied
+  `retry=` policy is used as given; if it raises `RetryError`, that is wrapped
+  too.
 - **Invoice builders send schema-correct fields** (#172): line type as `type`,
   line VAT as `invoice_line_vat`, and `payment_method` as `{"value": code}`.
   Alma silently dropped the old names.

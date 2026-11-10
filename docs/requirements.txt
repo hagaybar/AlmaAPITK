@@ -9,6 +9,8 @@
 #   poetry run mkdocs build --strict
 #
 mkdocs-material>=9.5,<10
-mkdocstrings[python]>=0.26,<1.0
+# >=1: mkdocstrings 0.x breaks on pymdown-extensions >=12 (Highlight() now
+# needs `md`), which failed every docs build from 2026-10-14.
+mkdocstrings[python]>=1.0,<2.0
 # Used by mkdocstrings to pretty-print (multi-line) function/method signatures.
 black>=24.0

@@ -103,6 +103,7 @@ nav:
       - Examples: guides/examples.md
       - Error Handling: guides/error-handling.md
       - Logging: guides/logging.md
+      - Alma Lab: guides/alma-lab.md
   - API Reference:
       - reference/index.md
       - Client & Response: reference/client.md

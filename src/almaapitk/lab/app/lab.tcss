@@ -1,0 +1,16 @@
+Screen { layout: vertical; }
+#topbar { height: 1; background: $primary; color: $text; padding: 0 1; }
+#topbar.-production { background: $error; color: $text; text-style: bold; }
+#panes { height: 1fr; }
+#operations { width: 26%; min-width: 24; border: round $panel; }
+#inputs { width: 32%; min-width: 30; border: round $panel; padding: 0 1; }
+#result { width: 1fr; border: round $panel; }
+#operations:focus-within, #inputs:focus-within, #result:focus-within { border: round $accent; }
+#search { height: 3; }
+#op-tree { height: 1fr; }
+#status-line { height: auto; padding: 0 1; }
+#result-scroll { height: 1fr; }
+.field-label { margin-top: 1; }
+.field-help { color: $text-muted; }
+.field-error { color: $error; }
+.unsupported { color: $text-muted; }

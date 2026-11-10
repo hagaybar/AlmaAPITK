@@ -48,6 +48,14 @@ smoke = ["pytest>=8.0.0,<9.0.0"]
 # adapter imports it lazily and raises a clear error when absent.
 pymarc = ["pymarc>=5.0.0"]
 
+# Install with: pip install almaapitk[lab]
+# The Alma Lab interactive API test tool (issue #230). The headless
+# `almaapitk-lab` command works without it; the full-screen app needs Textual.
+lab = ["textual>=8.0.0,<9.0.0; python_version < \"4.0\""]
+
+[project.scripts]
+almaapitk-lab = "almaapitk.lab.cli:main"
+
 # Auto-load the `alma` fixture when almaapitk[smoke] is installed —
 # consumers get the harness fixture without writing a conftest.
 [project.entry-points.pytest11]
@@ -79,6 +87,7 @@ exclude = [
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
+textual = { version = ">=8.0.0,<9.0.0", python = ">=3.12,<4.0" }
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -194,3 +194,6 @@ bandit.json
 # Smoke-test inputs hold synthetic-but-environment-specific values (R9).
 # Copy smoke-data.example.json -> smoke-data.json and fill in locally.
 smoke-data.json
+
+# Alma Lab evidence: real IDs, never commit (R9)
+/alma-lab-evidence

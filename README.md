@@ -163,6 +163,15 @@ rows = analytics.fetch_report_rows(
 rows = analytics.fetch_report_rows(report_path, should_stop=job.is_cancelled)
 ```
 
+### Alma Lab: test API calls and keep evidence
+
+`pip install "almaapitk[lab]"`, then run `almaapitk-lab` for a full-screen app that runs any
+almaapitk operation and shows the request and response side by side. Scripts and agents use
+`almaapitk-lab call bibs.get_record --mms-id <mms_id> --expect "status == 200"`. Every call
+leaves an evidence record (exact request, raw response, versions, time) in
+`alma-lab-evidence/`, which holds real IDs: keep it out of git. Writes are confirmed one by one,
+with the method name typed on Production. Guide: `docs/site/guides/alma-lab.md`.
+
 ## API Reference
 
 ### Core Classes

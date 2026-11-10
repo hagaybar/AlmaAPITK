@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Alma Lab** (#230): an interactive API test tool, `almaapitk.lab`. `almaapitk-lab` opens a
+  full-screen three-pane terminal app (needs the new `lab` extra, Textual); `almaapitk-lab call
+  | run | list | show | export` is the headless form for scripts and agents. Operations are
+  read from almaapitk's public methods, so new coverage appears automatically. Every call
+  writes an evidence record (exact request with the key masked, raw response, tracking ID,
+  retries, result, checks, versions, time) to `alma-lab-evidence/`. Every write is confirmed
+  before it is sent (typed method name on Production); the lab's client never retries a write.
+  Redacted export for sharing. Guide: `docs/site/guides/alma-lab.md`.
+
 ## [0.6.0] — 2026-11-10
 
 ### Added

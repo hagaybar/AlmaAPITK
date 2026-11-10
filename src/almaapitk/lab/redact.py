@@ -34,6 +34,11 @@ SENSITIVE_KEYS: frozenset[str] = frozenset({
 })
 # Inputs whose names look like identifiers are redacted wherever their value appears.
 _ID_NAME = re.compile(r"(^|_)(id|ids|code|barcode|number|pid|primary)($|_)")
+# Raw-call query parameters whose values never identify anything (spec 5.6).
+NON_IDENTIFYING_QUERY: frozenset[str] = frozenset({
+    "limit", "offset", "view", "expand", "format", "order_by", "direction", "lang", "type",
+    "status", "level",
+})
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _PHONE = re.compile(r"(?<![\w-])\+?\d[\d\s().-]{7,}\d(?![\w-])")
 _XML_FIELD = re.compile(r"<(\w+)>([^<]+)</\1>")
@@ -69,10 +74,27 @@ def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list
 
 
 def _collect(record: dict) -> Iterator[tuple[str, str]]:
-    for name, value in (record.get("inputs") or {}).items():
+    inputs = record.get("inputs") or {}
+    for name, value in inputs.items():
         if isinstance(value, (str, int)) and (name in SENSITIVE_KEYS or _ID_NAME.search(name)):
             yield _kind_for(name), str(value)
+    yield from _raw_inputs(inputs)
     yield from _walk(record)
+
+
+def _raw_inputs(inputs: dict) -> Iterator[tuple[str, str]]:
+    """A raw record: every path value, and query values not known to be harmless."""
+    path, query = inputs.get("path"), inputs.get("query")
+    if not (isinstance(path, dict) and isinstance(query, dict)):
+        return
+    for name, value in path.items():
+        if isinstance(value, (str, int)) and not isinstance(value, bool):
+            yield _kind_for(name), str(value)
+    for name, value in query.items():
+        if name in NON_IDENTIFYING_QUERY or isinstance(value, bool):
+            continue
+        if isinstance(value, (str, int)):
+            yield _kind_for(name), str(value)
 
 
 def _walk(value: Any, key: str = "") -> Iterator[tuple[str, str]]:

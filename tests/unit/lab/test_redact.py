@@ -74,3 +74,29 @@ def test_find_sensitive_lists_values_with_kinds():
 
     found = dict(find_sensitive(_record()))
     assert found[MMS] == "mms_id" and found["dana@example.org"] == "email"
+
+
+def test_raw_inputs_redacted():
+    code_value, q_value = "LOCAL_TABLE_X", "primary_id~sample_person"
+    rec = {
+        "operation": "raw GET /almaws/v1/conf/code-tables/{codeTableName}",
+        "raw": True,
+        "inputs": {"path": {"codeTableName": code_value},
+                   "query": {"q": q_value, "limit": 250, "lang": "en"},
+                   "format": "json", "body": None},
+        "requests": [{
+            "method": "GET",
+            "url": f"https://h/almaws/v1/conf/code-tables/{code_value}?q=primary_id~sample_person&limit=250&lang=en",
+            "body": None, "status": 200,
+            "response_body": json.dumps({"name": code_value, "note": q_value}),
+        }],
+        "result": {"name": code_value, "note": q_value},
+    }
+    out, reps = redact(rec)
+    text = json.dumps(out)
+    assert code_value not in text and q_value not in text
+    assert out["inputs"]["path"]["codeTableName"] == "<codeTableName_1>"
+    assert out["inputs"]["query"]["q"] == "<q_1>"
+    assert out["inputs"]["query"]["limit"] == 250
+    assert "limit=250" in out["requests"][0]["url"]
+    assert {r["kind"] for r in reps} >= {"codeTableName", "q"}

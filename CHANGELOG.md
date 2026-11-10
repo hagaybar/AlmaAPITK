@@ -18,6 +18,29 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   before it is sent (typed method name on Production); the lab's client never retries a write.
   Redacted export for sharing. Guide: `docs/site/guides/alma-lab.md`.
 
+### Changed
+
+- **401, 429 and 5xx now outrank a mapped Alma error code** (#205). A body code in
+  `ERROR_CODE_REGISTRY` used to win over the HTTP status, so an HTTP 429 carrying
+  `401890` raised `AlmaResourceNotFoundError` and retry-on-rate-limit logic gave up.
+  Now 401 raises `AlmaAuthenticationError`, 429 `AlmaRateLimitError` and 5xx
+  `AlmaServerError`, whatever the code. 400/404 behaviour is unchanged. If you catch a
+  mapped type (`AlmaResourceNotFoundError`, `AlmaDuplicateInvoiceError`,
+  `AlmaInvalidPolModeError`) on a 401/429/5xx response, catch the status type instead.
+
+### Fixed
+
+- **`Configuration` list methods no longer truncate** (#139).
+  `get_fee_transactions_report()` stopped at Alma's default of 10 records;
+  `list_printers()`, `list_deposit_profiles()` and `list_circ_desks()` stopped at 100.
+  All four now walk every page through `iter_paged`. `get_fee_transactions_report()`
+  still returns exactly one page when you pass `limit` or `offset` yourself. The other
+  seven list methods (libraries, departments, locations, code tables, mapping tables,
+  import profiles, letters) no longer send `limit`/`offset`: Alma ignores both on those
+  endpoints and always returns the full list (checked in SANDBOX).
+- `client.iter_paged()` now yields a lone record that Alma serialised as a dict, instead
+  of iterating over its keys.
+
 ## [0.6.0] — 2026-11-10
 
 ### Added

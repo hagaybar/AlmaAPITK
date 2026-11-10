@@ -192,13 +192,8 @@ def _classify(cls: type, method_name: str) -> tuple[frozenset[str], int]:
         if name in seen or name not in functions:
             return
         seen.add(name)
-        for node in ast.walk(functions[name]):
-            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-                continue
-            target = node.func.value
-            attr = node.func.attr
-            if (isinstance(target, ast.Attribute) and target.attr == "client"
-                    and isinstance(target.value, ast.Name) and target.value.id == "self"):
+        for kind, attr, node in _self_calls(functions[name]):
+            if kind == "client":
                 if attr in _CLIENT_VERBS:
                     found_anything = True
                     verb = _CLIENT_VERBS[attr]
@@ -206,10 +201,9 @@ def _classify(cls: type, method_name: str) -> tuple[frozenset[str], int]:
                         verbs.add(verb)
                         if verb != "GET":
                             write_sites.add((name, node.lineno))
-            elif isinstance(target, ast.Name) and target.id == "self":
-                if attr in functions:
-                    found_anything = True
-                    walk(attr)
+            elif attr in functions:
+                found_anything = True
+                walk(attr)
 
     walk(method_name)
     if not found_anything:
@@ -223,6 +217,95 @@ def _classify(cls: type, method_name: str) -> tuple[frozenset[str], int]:
         for fname in seen for n in ast.walk(functions[fname])
     )
     return frozenset(verbs), len(write_sites) + (2 if loops else 0)
+
+
+def _self_calls(func: ast.AST):
+    """Yield ``(kind, attr, node)`` for ``self.client.<attr>(...)`` ("client")
+    and ``self.<attr>(...)`` ("self") calls inside ``func``."""
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        target = node.func.value
+        attr = node.func.attr
+        if (isinstance(target, ast.Attribute) and target.attr == "client"
+                and isinstance(target.value, ast.Name) and target.value.id == "self"):
+            yield "client", attr, node
+        elif isinstance(target, ast.Name) and target.id == "self":
+            yield "self", attr, node
+
+
+def _reachable(cls: type, method_name: str) -> list[ast.FunctionDef]:
+    """``method_name`` plus every ``self.`` helper it (transitively) calls."""
+    functions = _class_functions(cls)
+    seen: dict[str, ast.FunctionDef] = {}
+    todo = [method_name]
+    while todo:
+        name = todo.pop()
+        if name in seen or name not in functions:
+            continue
+        seen[name] = functions[name]
+        todo.extend(a for k, a, _ in _self_calls(functions[name]) if k == "self")
+    return list(seen.values())
+
+
+def _template(node: ast.AST) -> str | None:
+    """Path template of a literal / f-string node, placeholders as ``{}``."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        text = node.value
+    elif isinstance(node, ast.JoinedStr):
+        text = "".join(
+            v.value if isinstance(v, ast.Constant) else "{}" for v in node.values
+        )
+    else:
+        return None
+    return "/" + text.lstrip("/")
+
+
+def _resolve_templates(func: ast.AST, arg: ast.AST) -> set[str]:
+    """Templates for a request-path argument; empty when not fully literal."""
+    direct = _template(arg)
+    if direct is not None:
+        return {direct}
+    if not isinstance(arg, ast.Name):
+        return set()
+    values: list[ast.AST | None] = []
+    for node in ast.walk(func):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == arg.id for t in node.targets):
+            values.append(node.value)
+        elif isinstance(node, (ast.AugAssign, ast.AnnAssign)) and (
+                isinstance(node.target, ast.Name) and node.target.id == arg.id):
+            values.append(getattr(node, "value", None) if isinstance(node, ast.AnnAssign) else None)
+        elif isinstance(node, (ast.For, ast.comprehension)) and any(
+                isinstance(n, ast.Name) and n.id == arg.id for n in ast.walk(node.target)):
+            values.append(None)
+    templates = [None if v is None else _template(v) for v in values]
+    if not templates or any(t is None for t in templates):
+        return set()
+    return set(templates)  # type: ignore[arg-type]
+
+
+def _function_calls(func: ast.AST) -> set[tuple[str, str]]:
+    """``(verb, template)`` for each client call in ``func`` with a literal path."""
+    out: set[tuple[str, str]] = set()
+    for kind, attr, node in _self_calls(func):
+        verb = _CLIENT_VERBS.get(attr)
+        if kind != "client" or not verb or attr == "test_connection":
+            continue
+        arg = node.args[0] if node.args else next(
+            (k.value for k in node.keywords if k.arg == "endpoint"), None)
+        if arg is not None:
+            out.update((verb, t) for t in _resolve_templates(func, arg))
+    return out
+
+
+def endpoint_calls(cls: type, method_name: str) -> frozenset[tuple[str, str]]:
+    """``(verb, template)`` requests a method (and its helpers) sends to literal
+    paths, placeholders written ``{}``, e.g. ``("GET", "/almaws/v1/bibs/{}")``."""
+    calls: set[tuple[str, str]] = set()
+    for func in _reachable(cls, method_name):
+        calls |= _function_calls(func)
+    return frozenset(calls)
 
 
 @lru_cache(maxsize=None)

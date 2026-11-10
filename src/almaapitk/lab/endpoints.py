@@ -267,3 +267,23 @@ def custom_endpoint(method: str, path: str) -> Endpoint:
         source_fetched=None,
         custom=True,
     )
+
+
+# --- which almaapitk methods already call an endpoint ------------------------
+
+@lru_cache(maxsize=1)
+def _wrapped_map() -> dict[tuple[str, str], tuple[str, ...]]:
+    from almaapitk.lab.catalog import DOMAINS, discover_operations, endpoint_calls
+
+    by_key: dict[tuple[str, str], set[str]] = {}
+    for op in discover_operations():
+        for verb, template in endpoint_calls(DOMAINS[op.domain], op.name):
+            key = (verb, re.sub(r"\{[^}]*\}", "{}", template))
+            by_key.setdefault(key, set()).add(op.qualname)
+    return {k: tuple(sorted(v)) for k, v in by_key.items()}
+
+
+def wrapped_by(endpoint: Endpoint) -> tuple[str, ...]:
+    """Sorted ``Domain.method`` names of public almaapitk operations that call it."""
+    key = (endpoint.method, re.sub(r"\{[^}]*\}", "{}", endpoint.path))
+    return _wrapped_map().get(key, ())

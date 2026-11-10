@@ -620,6 +620,8 @@ so existing `except AlmaAPIError:` blocks keep catching them.
 | `AlmaDuplicateInvoiceError` | Alma error code **402459** | Invoice already exists for the given vendor. Branch on this in invoice-creation flows to skip / surface a "duplicate" outcome instead of bubbling a generic error. |
 | `AlmaInvalidPolModeError` | Alma error code **40166411** | POL is not in the right mode for the requested operation. Re-check POL status before retrying (e.g., POL must be SENT before receiving). |
 | `AlmaTimeoutError` | A connect or read timeout (also a `requests.exceptions.Timeout`, so older handlers still catch it) | Check `request_sent`: `False` means Alma never got the request, so retrying is safe; `True` means a write may have succeeded. For resource-sharing creates, `create_user_rs_request(..., reconcile=True)` resolves this with a note marker (issue #196). Raise the limit per call with `timeout=`. |
+| `AlmaAnalyticsStalledError` | `Analytics.fetch_report_rows()` gets no new rows for `max_empty_pages` pages (default 20) or `max_stall_seconds` (default 600), or exceeds `max_pages` | The report is stuck on Alma's side. Fail the job and let the next scheduled run try again (issue #229). |
+| `AlmaOperationCancelled` | The `should_stop` callable passed to `Analytics.fetch_report_rows()` returned `True` | The caller asked to stop, e.g. a user cancelled the job. Usually record as "cancelled", not as a failure. |
 
 **Example — branch on type instead of inspecting message strings:**
 

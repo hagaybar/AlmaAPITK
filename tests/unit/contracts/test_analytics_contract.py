@@ -153,3 +153,42 @@ def test_fetch_report_rows_rejects_out_of_bounds_limit(bad_limit):
 def _as_iter(value):
     """Force evaluation whether the bounds check is eager or lazy."""
     return value if isinstance(value, list) else list(value)
+
+
+# --- never-hang guarantees (issue #229) -------------------------------------
+
+_STUCK_PAGE_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<report xmlns="urn:schemas-microsoft-com:xml-analysis:rowset">'
+    "<ResumptionToken>SYNTHETIC-TOKEN</ResumptionToken>"
+    "<IsFinished>false</IsFinished></report>"
+)
+
+
+def test_fetch_report_rows_stuck_report_raises_an_alma_api_error(monkeypatch):
+    """A report Alma never finishes must end in an AlmaAPIError the consumer
+    already catches, not an endless request loop."""
+    from almaapitk import AlmaAnalyticsStalledError
+
+    monkeypatch.setattr("almaapitk.domains.analytics.time.sleep", lambda s: None)
+    analytics, client = _analytics_for(_STUCK_PAGE_XML)
+    try:
+        with pytest.raises(AlmaAnalyticsStalledError) as exc_info:
+            analytics.fetch_report_rows(_REPORT_PATH, max_empty_pages=3)
+    finally:
+        client.close()
+    assert isinstance(exc_info.value, AlmaAPIError)
+
+
+def test_fetch_report_rows_should_stop_cancels_with_an_alma_api_error(monkeypatch):
+    """The consumer's job-cancel flag, passed as should_stop, stops the fetch."""
+    from almaapitk import AlmaOperationCancelled
+
+    monkeypatch.setattr("almaapitk.domains.analytics.time.sleep", lambda s: None)
+    analytics, client = _analytics_for(_STUCK_PAGE_XML)
+    try:
+        with pytest.raises(AlmaOperationCancelled) as exc_info:
+            analytics.fetch_report_rows(_REPORT_PATH, should_stop=lambda: True)
+    finally:
+        client.close()
+    assert isinstance(exc_info.value, AlmaAPIError)

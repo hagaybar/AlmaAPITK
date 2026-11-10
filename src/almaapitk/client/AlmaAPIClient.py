@@ -44,6 +44,36 @@ DEFAULT_RETRY_ALLOWED_METHODS = frozenset({"GET", "PUT", "DELETE"})
 ANALYTICS_ENDPOINT_PREFIX = "almaws/v1/analytics/"
 ANALYTICS_RETRY_STATUS_FORCELIST = (429, 502, 503, 504)
 
+# Issue #229: urllib3 honours a Retry-After header for up to 6 hours per
+# retry by default, so one throttled call could block a scheduled job for
+# most of a day. The default policy caps each wait at this many seconds.
+DEFAULT_RETRY_AFTER_MAX = 120
+
+
+class _BoundedRetry(Retry):
+    """``Retry`` that caps how long a ``Retry-After`` header can make us wait.
+
+    Implemented as a subclass rather than urllib3's own ``retry_after_max``
+    argument, which only exists in recent urllib3 releases. ``new()`` is
+    overridden so the cap survives the copy urllib3 makes on every attempt.
+    """
+
+    def __init__(self, *args: Any, retry_after_max: float = DEFAULT_RETRY_AFTER_MAX,
+                 **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.retry_after_max = retry_after_max
+
+    def new(self, **kw: Any) -> "_BoundedRetry":
+        retry = super().new(**kw)
+        retry.retry_after_max = self.retry_after_max
+        return retry
+
+    def get_retry_after(self, response: Any) -> Optional[float]:
+        seconds = super().get_retry_after(response)
+        if seconds is None:
+            return None
+        return min(seconds, self.retry_after_max)
+
 
 # Mapping of Alma hosting regions to their public API base URLs.
 #
@@ -289,6 +319,21 @@ class AlmaDuplicateInvoiceError(AlmaAPIError):
 
 class AlmaInvalidPolModeError(AlmaAPIError):
     """POL is not in the right mode for the requested operation (Alma error code 40166411)."""
+    pass
+
+
+class AlmaAnalyticsStalledError(AlmaAPIError):
+    """An Analytics report stopped making progress (issue #229).
+
+    Raised by ``Analytics.fetch_report_rows()`` when Alma keeps answering
+    ``IsFinished=false`` without new rows for too many pages or too long,
+    or when the caller's ``max_pages`` cap is exceeded.
+    """
+    pass
+
+
+class AlmaOperationCancelled(AlmaAPIError):
+    """The caller's ``should_stop`` callback asked to stop (issue #229)."""
     pass
 
 
@@ -695,8 +740,10 @@ class AlmaAPIClient:
             hand back the last response once the retries run out, so
             ``_handle_response`` raises a typed ``AlmaAPIError`` with
             Alma's tracking ID instead of a raw ``RetryError`` (#208).
+            A ``Retry-After`` header is honoured for at most
+            ``DEFAULT_RETRY_AFTER_MAX`` seconds per wait (#229).
         """
-        return Retry(
+        return _BoundedRetry(
             total=max_retries,
             status_forcelist=list(status_forcelist),
             backoff_factor=backoff_factor,

@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Added
 
+- **`Analytics.fetch_report_rows()` can no longer loop forever** (#229). If
+  Alma kept answering `IsFinished=false` with a token but no rows, it used to
+  request Alma without end, using up the shared daily API quota, and nothing
+  could stop it. New keyword-only arguments, all with defaults:
+  `max_empty_pages=20`, `max_stall_seconds=600`, `empty_page_delay=2.0`
+  (doubling, at most 30 s, between empty pages), `max_pages=None`, and
+  `should_stop=None` (checked before every request and during waits). New
+  errors, both `AlmaAPIError` subclasses: `AlmaAnalyticsStalledError` and
+  `AlmaOperationCancelled`. A reused resumption token is not treated as a
+  stall; only pages without new rows count.
 - **`AlmaTimeoutError`** (#196): `requests` connect / read timeouts are now
   raised as a typed `AlmaAPIError`. It is still a
   `requests.exceptions.Timeout`, so existing handlers keep working.
@@ -30,6 +40,13 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Changed
 
+- **A stuck Analytics report now fails instead of hanging** (#229): after
+  about 10 minutes, or 20 pages, without new rows, `fetch_report_rows()`
+  raises `AlmaAnalyticsStalledError`. Adjust with `max_empty_pages` /
+  `max_stall_seconds`.
+- **`Retry-After` waits are capped at 120 s** in the client's default retry
+  policy (#229). urllib3 otherwise honours up to 6 hours per retry. A
+  caller-supplied `retry=` policy is unchanged.
 - **`list_invoices` / `search_invoices`: `total_record_count` is now always
   Alma's grand total** (#173). At `offset=0` it used to be the length of the
   returned page, while at `offset>0` it was the grand total. Both methods now

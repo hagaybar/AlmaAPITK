@@ -3,6 +3,8 @@
 # Runs the full Phase F validation suite from docs/RELEASE_CHECKLIST.md, verifies
 # the built wheel filename matches pyproject.toml (the #131 + 0.4.2 yank guard),
 # then publishes to PyPI via Trusted Publishing (OIDC, no token in repo secrets).
+# Validation and build live in _build.yml, shared with testpypi.yml, so the
+# TestPyPI dry-run exercises the same steps this release runs.
 #
 # Design source: docs/superpowers/specs/2026-05-10-release-0.4.0-design.md
 # Implements: issue #128, supersedes #1.
@@ -19,59 +21,25 @@ on:
       - "v*"
 
 jobs:
-  release:
-    name: validate and publish
+  build:
+    uses: ./.github/workflows/_build.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: publish to PyPI
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # required for PyPI Trusted Publishing (OIDC)
       contents: read
 
     steps:
-      - name: Checkout tag
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Download distributions
+        uses: actions/download-artifact@v4
         with:
-          python-version: "3.12"
-
-      - name: Install Poetry
-        run: pipx install poetry
-
-      - name: Install project (locked)
-        run: poetry install --sync
-
-      - name: Smoke import
-        run: poetry run python scripts/smoke_import.py
-
-      - name: Public API contract
-        run: poetry run pytest tests/test_public_api_contract.py -v
-
-      - name: Version drift guard
-        run: poetry run pytest tests/test_version.py -v
-
-      - name: Full local validation suite
-        # tests/sandbox/ is intentionally excluded: it hits the live Alma SANDBOX.
-        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q
-
-      # NB: the package's own R10 regression tests run in the validation step
-      # above (tests/unit/regressions/). The live SANDBOX smokes
-      # (tests/sandbox/, run via scripts/regression_smoke.py) are intentionally
-      # NOT a package-release gate.
-
-      - name: Build distributions
-        run: |
-          rm -rf dist/
-          poetry build
-
-      - name: Verify wheel filename matches pyproject.toml
-        run: |
-          expected="$(poetry version --short)"
-          wheel="$(ls dist/almaapitk-*-py3-none-any.whl)"
-          case "$wheel" in
-            "dist/almaapitk-${expected}-py3-none-any.whl") echo "wheel version OK: ${expected}";;
-            *) echo "wheel filename ${wheel} does not match pyproject version ${expected}"; exit 1;;
-          esac
+          name: dist
+          path: dist/
 
       - name: Publish to PyPI (Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1

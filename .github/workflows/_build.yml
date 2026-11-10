@@ -1,0 +1,93 @@
+# Reusable: validate and build almaapitk (issue: TestPyPI dry-run from CI).
+#
+# Called by release.yml (PyPI, on a v* tag) and testpypi.yml (TestPyPI, on
+# demand) so both run the exact same Phase F validation and Phase G build.
+# Publishing stays in the callers: Trusted Publishing matches the *calling*
+# workflow's file name, and pypa/gh-action-pypi-publish does not support
+# running inside a reusable workflow.
+
+name: build
+
+on:
+  workflow_call:
+    inputs:
+      version_suffix:
+        description: >-
+          Appended to the pyproject version just before the build, e.g.
+          ".dev42" for a repeatable TestPyPI dry-run. Empty for a real release.
+        type: string
+        default: ""
+    outputs:
+      version:
+        description: The version that was built.
+        value: ${{ jobs.build.outputs.version }}
+
+jobs:
+  build:
+    name: validate and build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install project (locked)
+        run: poetry install --sync
+
+      - name: Smoke import
+        run: poetry run python scripts/smoke_import.py
+
+      - name: Public API contract
+        run: poetry run pytest tests/test_public_api_contract.py -v
+
+      - name: Version drift guard
+        run: poetry run pytest tests/test_version.py -v
+
+      - name: Full local validation suite
+        # tests/sandbox/ is intentionally excluded: it hits the live Alma SANDBOX.
+        # The package's own R10 regression tests (tests/unit/regressions/) run here.
+        run: poetry run pytest tests/unit/ tests/logging/ tests/integration/ tests/meta/ -q
+
+      - name: Apply version suffix
+        if: inputs.version_suffix != ''
+        # After the version drift guard on purpose: the guard checks the
+        # committed version; the suffix only makes this one build unique.
+        run: poetry version "$(poetry version --short)${{ inputs.version_suffix }}"
+
+      - name: Record version
+        id: version
+        run: echo "version=$(poetry version --short)" >> "$GITHUB_OUTPUT"
+
+      - name: Build distributions
+        run: |
+          rm -rf dist/
+          poetry build
+
+      - name: Verify wheel filename matches the built version
+        run: |
+          expected="${{ steps.version.outputs.version }}"
+          wheel="$(ls dist/almaapitk-*-py3-none-any.whl)"
+          case "$wheel" in
+            "dist/almaapitk-${expected}-py3-none-any.whl") echo "wheel version OK: ${expected}";;
+            *) echo "wheel filename ${wheel} does not match version ${expected}"; exit 1;;
+          esac
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7

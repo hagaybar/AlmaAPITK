@@ -415,6 +415,14 @@ def _timeout_request_sent(
 # exception to the mapped class. HTTP-status fallbacks (401, 404, 429, 5xx)
 # are handled separately in ``_classify_error`` itself.
 #
+# Precedence (issue #205, decided 2026-11-10): the *operational* statuses
+# 401, 429 and 5xx always outrank a body code. They tell the caller what to
+# do next (fix credentials, back off and retry, treat as a server fault), and
+# a mapped code must not turn a 429 into "not found" and defeat retry logic.
+# For every other status (in practice 400/404) the code is the more specific
+# signal, so a mapping here wins. Adding a code therefore only ever affects
+# non-operational statuses.
+#
 # Pattern source: GitHub issue #9 (errors: map Alma error codes to
 # specific exception subclasses).
 ERROR_CODE_REGISTRY: Dict[str, type] = {
@@ -889,19 +897,20 @@ class AlmaAPIClient:
 
         Resolution order:
 
-        0. If ``alma_code`` is one of the codes Alma publishes with different
-           meanings on different endpoints, and ``url`` identifies the
-           endpoint, the endpoint-scoped meaning wins (issue #194).
-        1. If ``alma_code`` is in ``ERROR_CODE_REGISTRY``, return the mapped
-           subclass — Alma error codes are more specific than HTTP status
-           and should always win when both are available.
-        2. Otherwise, dispatch by HTTP ``status_code``:
+        1. Operational statuses win over any body code (issue #205):
 
            - ``401`` -> ``AlmaAuthenticationError``
-           - ``404`` -> ``AlmaResourceNotFoundError``
            - ``429`` -> ``AlmaRateLimitError``
            - ``5xx`` -> ``AlmaServerError``
-           - anything else -> bare ``AlmaAPIError``
+
+        2. If ``alma_code`` is one of the codes Alma publishes with different
+           meanings on different endpoints, and ``url`` identifies the
+           endpoint, the endpoint-scoped meaning wins (issue #194).
+        3. If ``alma_code`` is in ``ERROR_CODE_REGISTRY``, return the mapped
+           subclass. For non-operational statuses the code is more specific
+           than the status.
+        4. Otherwise: ``404`` -> ``AlmaResourceNotFoundError``; anything
+           else -> bare ``AlmaAPIError``.
 
         Args:
             status_code: HTTP status code of the failing response.
@@ -917,6 +926,15 @@ class AlmaAPIClient:
 
         Pattern source: GitHub issue #9.
         """
+        # Operational statuses first (issue #205): a mapped body code must
+        # not hide "back off" / "bad credentials" / "server fault".
+        if status_code == 401:
+            return AlmaAuthenticationError
+        if status_code == 429:
+            return AlmaRateLimitError
+        if 500 <= status_code < 600:
+            return AlmaServerError
+
         # Collision guard (issues #194, #209): five domain swaggers (acq,
         # bibs, conf, partners, users) all publish ``40166411`` as the
         # generic "Param(eter) value is invalid"; the PO-line-mode meaning
@@ -934,14 +952,8 @@ class AlmaAPIClient:
         if alma_code is not None and alma_code in ERROR_CODE_REGISTRY:
             return ERROR_CODE_REGISTRY[alma_code]
 
-        if status_code == 401:
-            return AlmaAuthenticationError
         if status_code == 404:
             return AlmaResourceNotFoundError
-        if status_code == 429:
-            return AlmaRateLimitError
-        if 500 <= status_code < 600:
-            return AlmaServerError
         return AlmaAPIError
 
     @staticmethod

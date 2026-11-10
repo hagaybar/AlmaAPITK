@@ -102,6 +102,7 @@ nav:
   - Guides:
       - Examples: guides/examples.md
       - Error Handling: guides/error-handling.md
+      - Raw Requests: guides/raw-requests.md
       - Logging: guides/logging.md
       - Alma Lab: guides/alma-lab.md
   - API Reference:

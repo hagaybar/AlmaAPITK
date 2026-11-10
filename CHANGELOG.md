@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   retries, result, checks, versions, time) to `alma-lab-evidence/`. Every write is confirmed
   before it is sent (typed method name on Production); the lab's client never retries a write.
   Redacted export for sharing. Guide: `docs/site/guides/alma-lab.md`.
+- **`AlmaAPIClient.raw_request(method, endpoint, ...)`** (#183): call any Alma path,
+  including endpoints almaapitk does not wrap yet (Courses, TaskLists, new fields). It runs
+  through the same engine as `get`/`post`/`put`/`delete`, so auth, region, session pooling,
+  redacted logging and the typed error taxonomy all apply. Lower guarantee tier by design: no
+  body validation, raw Alma payloads, no stability promise, no pagination (use `iter_paged`).
+  Absolute URLs and verbs other than GET/POST/PUT/DELETE are refused before sending. A new
+  meta test fails if a domain class calls an HTTP library directly. Guide:
+  `docs/site/guides/raw-requests.md`.
 
 ### Changed
 

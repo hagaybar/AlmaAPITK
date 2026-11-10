@@ -1,0 +1,116 @@
+# On-demand TestPyPI dry-run (docs/RELEASE_CHECKLIST.md Phase H).
+#
+# Runs the same validation and build as release.yml (_build.yml), with a
+# ".dev<run number>" suffix so the dry-run can be repeated (TestPyPI never
+# accepts the same version twice). Publishes through Trusted Publishing, so no
+# token exists anywhere. Then installs the published version from TestPyPI
+# into a fresh venv and smoke-tests it. Green run = Phase H passed.
+#
+# Run:  gh workflow run testpypi.yml --ref release/<version>
+#       gh run watch "$(gh run list --workflow testpypi.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+#
+# TestPyPI-side setup (one-time, manual): Trusted Publisher for owner
+# hagaybar, repository AlmaAPITK, workflow testpypi.yml, environment testpypi.
+
+name: testpypi
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: testpypi
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      version_suffix: .dev${{ github.run_number }}
+    permissions:
+      contents: read
+
+  publish:
+    name: publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/almaapitk/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write   # required for Trusted Publishing (OIDC)
+      contents: read
+
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # A "re-run all jobs" reuses the run number, so the version may
+          # already be there from the first attempt. The verify job still
+          # installs and checks whatever TestPyPI holds for that version.
+          skip-existing: true
+
+  verify:
+    name: install from TestPyPI and smoke-test
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+
+    steps:
+      - name: Checkout (for scripts/smoke_import.py only)
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install from TestPyPI into a fresh venv (wait for indexing, up to ~5 min)
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet --upgrade pip
+          for attempt in $(seq 1 20); do
+            if "$RUNNER_TEMP/venv/bin/pip" install --no-cache-dir \
+                -i https://test.pypi.org/simple/ \
+                --extra-index-url https://pypi.org/simple/ \
+                "almaapitk==${VERSION}"; then
+              exit 0
+            fi
+            echo "almaapitk ${VERSION} not installable yet (attempt ${attempt}/20); waiting 15 s"
+            sleep 15
+          done
+          echo "almaapitk ${VERSION} did not appear on TestPyPI within ~5 minutes"
+          exit 1
+
+      - name: Smoke import against the installed package
+        # PYTHONPATH is unset and src/ is never added, so this imports the
+        # wheel installed from TestPyPI, not the checkout.
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" scripts/smoke_import.py
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          import os
+          from importlib.metadata import version
+
+          import almaapitk
+
+          expected = os.environ["VERSION"]
+          attr = almaapitk.__version__
+          meta = version("almaapitk")
+          assert attr == meta == expected, (
+              f"version mismatch: attr={attr!r} meta={meta!r} expected={expected!r}"
+          )
+          assert "site-packages" in almaapitk.__file__, almaapitk.__file__
+          missing = [name for name in almaapitk.__all__ if getattr(almaapitk, name, None) is None]
+          assert not missing, f"public symbols missing: {missing}"
+          print(f"TESTPYPI SMOKE OK: {attr} ({len(almaapitk.__all__)} public symbols)")
+          PY

@@ -158,7 +158,13 @@ from memory:
    written. Press **Load the new version** and redo the edit.
 
 A custom path that has a defined GET follows the same rule. The evidence of an update holds
-the baseline, the body and their diff; a refusal is recorded as `refused`.
+the baseline, the body and their diff; a refusal is recorded as `refused`. If a refusal
+says the record changed, your edited body stays visible under "Your previous edit".
+On a custom path with no defined GET, a POST or PUT offers **Load from GET**: it GETs the
+same path and starts the body from the response (nothing is enforced there).
+
+Credentials typed as query values (`password`, `token`, `apikey`, `api_key`, `access_token`)
+are sent but recorded as `***`, in the evidence and in the recorded command.
 
 Writes are confirmed like all lab writes. On Production the word to type is the method plus
 the last fixed segment of the path, for example `PUT courses`.
@@ -185,6 +191,10 @@ almaapitk-lab raw PUT almaws/v1/courses/<course_id> --body-file edited.json \
 
 On Production use `--confirm-write "PUT courses"` instead of `--allow-writes`. Use
 `--baseline-query k=v` when the GET needs query parameters. Exit codes are as for `call`.
+A failed baseline GET writes no file (exit 1). On a custom POST or PUT, `--baseline-out`
+GETs the same path; `--baseline` there is optional, and when given the evidence keeps the
+diff and the call is refused if the GET's response has changed. Query parameters go in
+`--query`, never in the path.
 
 ### Refreshing the endpoint list
 

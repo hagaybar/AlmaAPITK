@@ -107,6 +107,7 @@ $RECYCLE.BIN/
 
 # Local data directories
 data/
+!src/almaapitk/lab/data/
 
 # Runtime outputs in output/ directory (but preserve output/archive/)
 output/*.log

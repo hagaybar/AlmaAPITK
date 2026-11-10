@@ -610,3 +610,84 @@ def test_body_from_file_and_from_last_response(make_app, lab_client, tmp_path):
         await pilot.pause()
         assert _body(pilot.app).text == '{"code": "FROM-FILE"}'
     _run(make_app(), scenario)
+
+
+# --- round 1 ---------------------------------------------------------------------
+
+LIB_HOURS = "almaws/v1/conf/libraries/MAIN/open-hours"  # GET in the index, no PUT
+
+
+async def _custom_put(pilot, path, query=""):
+    pilot.app.select_custom()
+    await pilot.pause()
+    pane = _pane(pilot.app)
+    pane.query_one("#raw-method", Select).value = "PUT"
+    pane.query_one("#raw-custom-path", Input).value = path
+    pane.query_one("#raw-custom-query", TextArea).text = query
+    await pilot.pause()
+
+
+def test_custom_put_on_get_only_path_needs_current_record(make_app, lab_client):
+    lab_client.http.answers = [{"body": {"day": []}}, {"body": {"day": []}}, {"body": {}}]
+
+    async def scenario(pilot):
+        await _custom_put(pilot, LIB_HOURS)
+        await _send(pilot)
+        assert lab_client.http.calls == []
+        pane = _pane(pilot.app)
+        ep = pilot.app.current_endpoint
+        assert ep.custom and ep.method == "PUT" and pane.needs_baseline
+        assert pane.query_one("#raw-path-libraryCode", Input).value == "MAIN"
+        assert pane.query("#raw-bq-from") and pane.query("#load-baseline")
+        assert _send_button(pilot.app).disabled and _body(pilot.app).read_only
+        await _send(pilot)
+        assert lab_client.http.calls == []
+        await _load_baseline(pilot)
+        _body(pilot.app).text = '{"day": [1]}'
+        await pilot.pause()
+        pilot.app.action_send()
+        await pilot.pause(0.3)
+        assert isinstance(pilot.app.screen, ConfirmWrite)
+        await pilot.press("enter")
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
+        assert lab_client.http.calls[2][1].endswith("/" + LIB_HOURS)
+        put = next(p for p in pilot.app.session.evidence_dir.glob("*/*.json")
+                   if json.loads(p.read_text())["endpoint"]["method"] == "PUT")
+        await pilot.app.load_record(put)
+        await pilot.pause()
+        reopened = _pane(pilot.app)
+        assert pilot.app.current_endpoint.custom and reopened.needs_baseline
+        assert reopened.query_one("#raw-path-libraryCode", Input).value == "MAIN"
+        assert _send_button(pilot.app).disabled and _body(pilot.app).read_only
+    _run(make_app(), scenario)
+
+
+def test_baseline_query_values_stripped_like_the_runner(make_app, lab_client):
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1", "bq-view": " full "})
+        assert _pane(pilot.app).raw_request().baseline_query == {"view": "full"}
+        assert _pane(pilot.app).baseline_key()[1] == (("view", "full"),)
+    _run(make_app(), scenario)
+
+
+def test_double_send_switches_once(make_app, lab_client, monkeypatch):
+    loads = []
+    original = InputsPane.load_raw
+
+    async def counting(self, endpoint):
+        loads.append(endpoint.key)
+        await original(self, endpoint)
+    monkeypatch.setattr(InputsPane, "load_raw", counting)
+
+    async def scenario(pilot):
+        await _custom_put(pilot, "almaws/v1/users/u1")
+        loads.clear()
+        pilot.app.action_send()
+        pilot.app.action_send()
+        await pilot.app.workers.wait_for_complete()
+        await pilot.pause()
+        assert loads == [f"PUT {USER}"]
+        assert lab_client.http.calls == []
+    _run(make_app(), scenario)

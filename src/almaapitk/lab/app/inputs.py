@@ -125,12 +125,12 @@ class InputsPane(VerticalScroll):
         """Rebuild the form for one Alma endpoint (or the custom path form)."""
         self.operation, self.endpoint = None, endpoint
         self.twin = (get_twin(endpoint)
-                     if endpoint.method == "PUT" and not endpoint.custom else None)
+                     if endpoint.method == "PUT" and not is_free_form(endpoint) else None)
         self.baseline = self._baseline_key = None
         self._bq_follows, self._example = {}, None
         await self.remove_children()
         widgets: list = [Static(self._raw_title(endpoint), id="inputs-title")]
-        if endpoint.custom:
+        if is_free_form(endpoint):
             widgets.extend(self._custom_fields())
         else:
             for p in endpoint.path_params:
@@ -150,13 +150,17 @@ class InputsPane(VerticalScroll):
 
     @staticmethod
     def _raw_title(ep: Endpoint) -> str:
-        if ep.custom:
+        if is_free_form(ep):
             return ("[b]RAW  custom path[/b]\n[dim]For a path the Alma API definitions lack "
                     "(e.g. task lists). Nothing is checked against a definition.[/dim]")
         lines = [f"[b]RAW  {ep.method} {escape(ep.path)}[/b]"]
         if ep.summary:
             lines.append(f"[dim]{escape(ep.summary)}[/dim]")
         fetched = (ep.source_fetched or "")[:10] or "date unknown"
+        if ep.custom:  # a custom update on a path whose GET is defined
+            lines.append(f"[dim]custom update: the GET on this path is from Alma API definitions, "
+                         f"{fetched}[/dim]")
+            return "\n".join(lines)
         lines.append(f"[dim]from Alma API definitions, {fetched}[/dim]")
         wrapped = wrapped_by(ep)
         lines.append(f"almaapitk: {', '.join(wrapped)}" if wrapped
@@ -216,7 +220,7 @@ class InputsPane(VerticalScroll):
             self._example = ("xml" if looks_like_xml(ep.body_example) else "json", ep.body_example)
             text = ep.body_example if self._example[0] == fmt else ""
         out: list = [
-            Static("body *" if not ep.custom else "body  [dim]POST and PUT only[/dim]",
+            Static("body  [dim]POST and PUT only[/dim]" if is_free_form(ep) else "body *",
                    classes="field-label"),
             TextArea(text, id="raw-req-body", language=fmt, read_only=locked, soft_wrap=True),
             Static(LOCKED_BODY_NOTE if locked else "", id="raw-body-note", classes="field-help"),
@@ -339,7 +343,7 @@ class InputsPane(VerticalScroll):
         ep = self.endpoint
         if ep is None:
             raise InputError("endpoint", "pick an endpoint first")
-        if ep.custom:
+        if is_free_form(ep):
             return self._custom_request()
         path: dict[str, str] = {}
         for p in ep.path_params:
@@ -355,7 +359,7 @@ class InputsPane(VerticalScroll):
                 raise InputError(f"query-{p.name}", exc.message) from None
         baseline_query: dict[str, str] = {}
         for p in (self.twin.query_params if self.twin else ()):
-            baseline_query[p.name] = self._text(f"#raw-bq-{p.name}")
+            baseline_query[p.name] = self._text(f"#raw-bq-{p.name}").strip()
             try:
                 coerce_query(self.twin, {p.name: baseline_query[p.name]})
             except InputError as exc:
@@ -492,6 +496,11 @@ class InputsPane(VerticalScroll):
     def clear_errors(self) -> None:
         for widget in self.query(".field-error"):
             widget.update("")
+
+
+def is_free_form(ep: Endpoint) -> bool:
+    """The custom path form (method and path typed in), not a form built from a definition."""
+    return ep.custom and not ep.path
 
 
 def _editable(text: str, fmt: str) -> str:

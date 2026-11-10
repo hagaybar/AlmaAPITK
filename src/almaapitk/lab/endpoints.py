@@ -269,6 +269,23 @@ def custom_endpoint(method: str, path: str) -> Endpoint:
     )
 
 
+def custom_update(get: Endpoint) -> Endpoint:
+    """A PUT the index lacks on a path whose GET it has: a custom update that starts from that GET
+    (same path template and path parameters, so the GET is its twin)."""
+    return Endpoint(
+        area=get.area,
+        method="PUT",
+        path=get.path,
+        summary="No PUT in the Alma API definitions; sent as a custom path",
+        description="",
+        params=get.path_params,
+        body_formats=("json", "xml"),
+        body_example=None,
+        source_fetched=get.source_fetched,
+        custom=True,
+    )
+
+
 # --- which almaapitk methods already call an endpoint ------------------------
 
 @lru_cache(maxsize=1)

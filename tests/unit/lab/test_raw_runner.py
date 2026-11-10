@@ -323,3 +323,44 @@ def test_baseline_from_other_environment_does_not_count(write_session, lab_clien
         write_session.run_raw(_put_course(), baseline=base)
     assert exc.value.field == "baseline"
     assert len(lab_client.http.calls) == 1
+
+
+# --- round 1: a custom PUT on a path with only an indexed GET -------------------
+
+LIB_HOURS = "almaws/v1/conf/libraries/<library_code>/open-hours"  # GET in the index, no PUT
+
+
+def _custom_put_hours(body='{"day": []}', baseline_query=None):
+    return RawRequest(endpoint=custom_endpoint("PUT", LIB_HOURS), path_params={}, query={},
+                      body=body, fmt="json", baseline_query=baseline_query or {})
+
+
+def test_custom_put_on_get_only_path_needs_baseline(write_session, lab_client):
+    assert match("PUT", "/" + LIB_HOURS) is None and match("GET", "/" + LIB_HOURS) is not None
+    with pytest.raises(InputError) as exc:
+        write_session.run_raw(_custom_put_hours())
+    assert exc.value.field == "baseline"
+    assert lab_client.http.calls == []
+
+
+def test_custom_put_on_get_only_path_with_baseline_sends(write_session, lab_client):
+    lab_client.http.answers = [{"body": {"day": []}}, {"body": {"day": []}}, {"body": {}}]
+    put = _custom_put_hours(body='{"day": [1]}', baseline_query={"from": " 2026-01-01 "})
+    base = write_session.fetch_baseline(put)
+    assert base.endpoint["method"] == "GET" and base.endpoint["custom"] is False
+    assert base.endpoint["path"] == "/almaws/v1/conf/libraries/{libraryCode}/open-hours"
+    rec = write_session.run_raw(put, baseline=base)
+    assert rec.error is None and rec.refused is None and rec.endpoint["custom"] is True
+    assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
+    assert lab_client.http.calls[1][2]["params"]["from"] == "2026-01-01"
+    assert rec.baseline["evidence_id"] == base.id and rec.body_diff
+    assert rec.inputs["baseline_query"] == {"from": "2026-01-01"}
+
+
+def test_custom_put_on_get_only_path_rerun_needs_new_baseline(write_session, lab_client):
+    lab_client.http.answers = [{"body": {"day": []}}, {"body": {"day": []}}, {"body": {}}]
+    put = _custom_put_hours(body='{"day": [1]}')
+    rec = write_session.run_raw(put, baseline=write_session.fetch_baseline(put))
+    with pytest.raises(InputError) as exc:
+        write_session.rerun(rec)
+    assert exc.value.field == "baseline"

@@ -37,13 +37,12 @@ from almaapitk.lab.endpoints import (
     AREA_TITLES,
     Endpoint,
     custom_endpoint,
-    get_twin,
     load_endpoints,
     match,
     wrapped_by,
 )
 from almaapitk.lab.redact import redact
-from almaapitk.lab.runner import InputError, RawRequest, Session
+from almaapitk.lab.runner import InputError, RawRequest, Session, update_twin
 
 ENVIRONMENTS = ("SANDBOX", "PRODUCTION")
 
@@ -349,7 +348,7 @@ def _load_baseline(args: argparse.Namespace) -> EvidenceRecord:
 def _raw(args: argparse.Namespace, argv: list[str]) -> int:
     req = _raw_request(args)
     ep: Endpoint = req.endpoint
-    twin = get_twin(ep) if ep.method == "PUT" and not ep.custom else None
+    twin = update_twin(req)
     if (args.baseline_out or args.baseline) and twin is None:
         raise InputError("baseline", "applies to a PUT that has a GET on the same path")
     if args.baseline_out and (args.baseline or args.body_file):

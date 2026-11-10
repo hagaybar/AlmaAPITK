@@ -163,3 +163,17 @@ def test_edited_baseline_file_exit_2(cli_env, capsys, tmp_path):
                  "--baseline", str(base), "--allow-writes", "--evidence-dir", str(tmp_path / "ev")])
     assert code == 2 and cli_env.http.calls == []
     assert "unedited --baseline-out file" in capsys.readouterr().err
+
+
+def test_custom_put_on_get_only_path_uses_baseline_flow(cli_env, capsys, tmp_path):
+    hours = "almaws/v1/conf/libraries/<library_code>/open-hours"  # GET in the index, no PUT
+    ev = str(tmp_path / "ev")
+    assert main(["raw", "PUT", hours, "--body-file", str(_edited(tmp_path)), "--allow-writes",
+                 "--evidence-dir", ev]) == 2
+    assert "baseline" in capsys.readouterr().err and cli_env.http.calls == []
+    cli_env.http.answers = [{"body": {"day": []}}, {"body": {"day": []}}, {"body": {}}]
+    base = tmp_path / "hours.json"
+    assert main(["raw", "PUT", hours, "--baseline-out", str(base), "--evidence-dir", ev]) == 0
+    assert main(["raw", "PUT", hours, "--body-file", str(_edited(tmp_path)), "--baseline", str(base),
+                 "--allow-writes", "--evidence-dir", ev]) == 0
+    assert [c[0] for c in cli_env.http.calls] == ["GET", "GET", "PUT"]

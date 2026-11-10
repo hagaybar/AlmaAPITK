@@ -15,11 +15,11 @@ from textual.widgets import Button, Footer, Input, Static, TextArea
 from almaapitk.lab.app.confirm import ConfirmWrite
 from almaapitk.lab.app.export import ExportScreen
 from almaapitk.lab.app.history import HistoryScreen
-from almaapitk.lab.app.inputs import STALE_NOTE, BodyFilePrompt, InputsPane
+from almaapitk.lab.app.inputs import STALE_NOTE, BodyFilePrompt, InputsPane, is_free_form
 from almaapitk.lab.app.operations import CUSTOM_PATH, OperationsPane
 from almaapitk.lab.app.result import ResultPane
 from almaapitk.lab.catalog import Operation, find_operation
-from almaapitk.lab.endpoints import Endpoint, custom_endpoint, get_endpoint, match
+from almaapitk.lab.endpoints import Endpoint, custom_endpoint, custom_update, get_endpoint, match
 from almaapitk.lab.evidence import EvidenceError, EvidenceRecord, gitignore_status, load_record
 from almaapitk.lab.runner import InputError, RawRequest, Session, resolve_path
 
@@ -168,11 +168,12 @@ class LabApp(App):
             self.query_one("#status-line", Static).update("Not sent: fix the input.")
             return
         expect = inputs.expectations()
-        if req.endpoint.custom:
-            found = match(req.endpoint.method, "/" + resolve_path(req.endpoint, {}))
+        if is_free_form(ep):
+            found = _defined_form(req)
             if found is not None:  # the index knows it: use its form (and its baseline rule)
+                self._running_op = ep  # busy until the form is rebuilt: one switch at a time
                 self.run_worker(self._switch_to_indexed(found[0], found[1], req, expect),
-                                group="switch")
+                                group="switch", exclusive=True)
                 return
         baseline = inputs.baseline if inputs.needs_baseline else None
         self.query_one("#status-line", Static).update(
@@ -186,16 +187,24 @@ class LabApp(App):
     async def _switch_to_indexed(self, ep: Endpoint, values: dict[str, str], req: RawRequest,
                                  expect: list[str]) -> None:
         """A custom path the index knows: open its form with the values carried over; send nothing."""
-        self.current_operation, self.current_endpoint = None, ep
-        pane = self.query_one(InputsPane)
-        await pane.load_raw(ep)
-        pane.set_raw_values({"path": values, "query": req.query, "format": req.fmt,
-                             "body": req.body}, expect)
+        try:
+            self.current_operation, self.current_endpoint = None, ep
+            pane = self.query_one(InputsPane)
+            await pane.load_raw(ep)
+            pane.set_raw_values({"path": values, "query": req.query, "format": req.fmt,
+                                 "body": req.body}, expect)
+        finally:
+            self._running_op = None
         known = {p.name for p in ep.query_params}
         dropped = [name for name in req.query if name not in known]
-        text = ("This path is in the Alma API definitions; switched to its form so the update "
-                "can start from the current record." if pane.needs_baseline else
-                "This path is in the Alma API definitions; switched to its form. Check it and send again.")
+        if ep.custom:  # no PUT defined, but its GET is
+            text = ("This path has a GET in the Alma API definitions; switched to an update form "
+                    "so the update can start from the current record.")
+        elif pane.needs_baseline:
+            text = ("This path is in the Alma API definitions; switched to its form so the update "
+                    "can start from the current record.")
+        else:
+            text = "This path is in the Alma API definitions; switched to its form. Check it and send again."
         if dropped:
             text += f" Not a query parameter there, left out: {', '.join(dropped)}."
         self.query_one("#status-line", Static).update(escape(text))
@@ -331,6 +340,12 @@ class LabApp(App):
         method, template = info.get("method", ""), info.get("path", "")
         expectations = [e["text"] for e in record.expectations]
         pane = self.query_one(InputsPane)
+        if info.get("custom") and method == "PUT" and "{" in template:  # a custom update
+            ep = custom_update(get_endpoint("GET", template))
+            self.current_operation, self.current_endpoint = None, ep
+            await pane.load_raw(ep)
+            pane.set_raw_values(inputs, expectations)
+            return
         if info.get("custom"):
             self.current_operation, self.current_endpoint = None, CUSTOM_PATH
             await pane.load_raw(CUSTOM_PATH)
@@ -363,6 +378,18 @@ class LabApp(App):
             "Checks: status == 200 · <path> exists · <path> == value · <path> contains text. "
             "Paths: payment.payment_status.value · lines[0].id · anies[0].record.datafield[tag=505].subfield[code=a]",
             timeout=20)
+
+
+def _defined_form(req: RawRequest) -> Optional[tuple[Endpoint, dict[str, str]]]:
+    """For a free-form custom request: the defined form to switch to, with its path values.
+    A PUT whose path has only a GET gets a custom update form that starts from that GET."""
+    concrete = "/" + resolve_path(req.endpoint, {})
+    found = match(req.endpoint.method, concrete)
+    if found is None and req.endpoint.method == "PUT":
+        got = match("GET", concrete)
+        if got is not None:
+            found = (custom_update(got[0]), got[1])
+    return found
 
 
 def _confirm_word(req: RawRequest) -> str:

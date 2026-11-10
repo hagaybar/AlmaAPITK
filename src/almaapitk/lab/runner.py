@@ -185,6 +185,21 @@ def body_diff(before: str, after: str, fmt: str) -> str:
     return "\n".join(lines)
 
 
+def update_twin(req: RawRequest) -> Optional[tuple[Endpoint, dict[str, str]]]:
+    """The GET an update starts from, with its path values, or None.
+
+    An indexed PUT uses the GET on its path template; a custom PUT uses the indexed GET
+    its concrete path matches (the baseline rule: an update always starts from a GET).
+    """
+    ep = req.endpoint
+    if ep.method != "PUT":
+        return None
+    if not ep.custom:
+        twin = get_twin(ep)
+        return (twin, dict(req.path_params)) if twin is not None else None
+    return match("GET", "/" + resolve_path(ep, req.path_params))
+
+
 def _response_body(record: EvidenceRecord) -> str:
     sent = [r for r in record.requests if r.sent]
     return (sent[-1].response_body or "") if sent else ""
@@ -306,10 +321,13 @@ class Session:
         """GET the record an update will start from; a normal raw record."""
         req, _ = self._indexed(req)
         ep = req.endpoint
-        twin = custom_endpoint("GET", ep.path) if ep.custom else get_twin(ep)
-        if twin is None:
+        found = update_twin(req)
+        if found is None and ep.custom:  # a path the index lacks: GET the same path
+            found = (custom_endpoint("GET", ep.path), dict(req.path_params))
+        if found is None:
             raise InputError("baseline", f"no GET for {ep.short_path}")
-        return self.run_raw(RawRequest(endpoint=twin, path_params=dict(req.path_params),
+        twin, values = found
+        return self.run_raw(RawRequest(endpoint=twin, path_params=values,
                                        query=dict(req.baseline_query), fmt=req.fmt))
 
     def _run_raw(self, req: RawRequest, expectations: Iterable[str],
@@ -321,12 +339,14 @@ class Session:
         query = coerce_query(ep, req.query)
         body_text, data = self._raw_body(req)
         parsed = self._parse_expectations(expectations)
-        twin = None if ep.custom or method != "PUT" else get_twin(ep)
+        found = update_twin(req)
+        twin = found[0] if found else None
         twin_path, twin_query = None, None
-        if twin is not None:
-            twin_path, twin_query = resolve_path(twin, req.path_params), coerce_query(twin, req.baseline_query)
-            self._check_baseline(baseline, twin, path_values, twin_query, req.fmt,
-                                 self.environment)
+        if found is not None:
+            twin, twin_values = found
+            twin_path, twin_query = resolve_path(twin, twin_values), coerce_query(twin, req.baseline_query)
+            self._check_baseline(baseline, twin, _path_values(twin, twin_values), twin_query,
+                                 req.fmt, self.environment)
         self._check_writable()  # before anything is sent: never lose a write's evidence
         inputs = {"path": path_values, "query": query, "format": req.fmt, "body": body_text}
         if twin is not None:
@@ -456,13 +476,14 @@ def _raw_request_from(record: EvidenceRecord) -> RawRequest:
         if not info.get("custom"):
             raise InputError("endpoint", f"{method} {template} is no longer in the endpoint index")
         ep = custom_endpoint(method, template)
-    if ep.method == "PUT" and not ep.custom and get_twin(ep) is not None:
-        raise InputError("baseline", "load the current record again before resending an update")
     query = {k: (str(v).lower() if isinstance(v, bool) else str(v))
              for k, v in (inputs.get("query") or {}).items()}
-    return RawRequest(endpoint=ep, path_params=values, query=query, body=inputs.get("body"),
-                      fmt=inputs.get("format") or "json")
+    req = RawRequest(endpoint=ep, path_params=values, query=query, body=inputs.get("body"),
+                     fmt=inputs.get("format") or "json")
+    if update_twin(req) is not None:
+        raise InputError("baseline", "load the current record again before resending an update")
+    return req
 
 
 __all__ = ["InputError", "RawRequest", "Session", "WriteCancelled", "body_diff", "coerce_inputs",
-           "coerce_query", "normalise_body", "resolve_path"]
+           "coerce_query", "normalise_body", "resolve_path", "update_twin"]

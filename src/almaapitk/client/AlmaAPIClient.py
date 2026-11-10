@@ -1459,6 +1459,10 @@ class AlmaAPIClient:
 
             if record_key:
                 items = body.get(record_key, []) or []
+                if isinstance(items, dict):
+                    # A lone record can arrive as a dict, not a 1-item
+                    # list; iterating it would yield its keys (#139).
+                    items = [items]
             else:
                 items = []
 

@@ -31,6 +31,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from almaapitk import AlmaAPIClient
+
 
 class MockAlmaResponse:
     """Lightweight stand-in for ``almaapitk.AlmaResponse``.
@@ -87,6 +89,10 @@ class MockAlmaAPIClient:
         self.delete_response: MockAlmaResponse = MockAlmaResponse()
         self.next_exception: Optional[Exception] = None
         self.calls = {"get": [], "post": [], "put": [], "delete": []}
+
+    # Borrow the real paginator so paged list methods (issue #139) run the
+    # production loop over this mock's ``get``.
+    iter_paged = AlmaAPIClient.iter_paged
 
     def get_environment(self) -> str:
         return self.environment
@@ -307,7 +313,8 @@ class TestListLibraries:
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/libraries"
         # We pass limit/offset to keep a single round-trip predictable.
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["code"] == "MAIN"
@@ -481,7 +488,8 @@ class TestListDepartments:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/departments"
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["code"] == "ACQ"
@@ -549,7 +557,8 @@ class TestListCircDesks:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/libraries/MAIN/circ-desks"
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Paged endpoint walked via iter_paged with int params (#139).
+        assert call["params"] == {"limit": 100, "offset": 0}
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["code"] == "DESK1"
@@ -726,7 +735,8 @@ class TestListLocations:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/libraries/MAIN/locations"
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["code"] == "STACKS"
@@ -1306,7 +1316,8 @@ class TestListCodeTables:
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/code-tables"
         # Single round-trip with generous page size; no scope filter.
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["name"] == "AcqInvoiceLineType"
@@ -1721,7 +1732,8 @@ class TestListMappingTables:
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/mapping-tables"
         # Single round-trip with generous page size; no scope filter.
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["name"] == "RecallDueDate"
@@ -2131,7 +2143,8 @@ class TestListDepositProfiles:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/deposit-profiles"
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Paged endpoint walked via iter_paged with int params (#139).
+        assert call["params"] == {"limit": 100, "offset": 0}
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["id"] == "1234"
@@ -2323,7 +2336,8 @@ class TestListImportProfiles:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/md-import-profiles"
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["id"] == "100"
@@ -2532,7 +2546,8 @@ class TestListLetters:
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/letters"
         # Single round-trip with generous page size.
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Unpaged endpoint: no paging params (issue #139).
+        assert call["params"] is None
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["code"] == "OverdueAndLostLoanLetter"
@@ -3033,7 +3048,8 @@ class TestListPrinters:
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/printers"
         # Single round-trip with generous page size.
-        assert call["params"] == {"limit": "100", "offset": "0"}
+        # Paged endpoint walked via iter_paged with int params (#139).
+        assert call["params"] == {"limit": 100, "offset": 0}
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["id"] == "1234"
@@ -3374,7 +3390,7 @@ class TestGetFeeTransactionsReport:
         mock_client = MockAlmaAPIClient()
         mock_client.get_response = MockAlmaResponse(
             body={
-                "fee_transaction": [
+                "fee": [
                     {"id": "T1", "amount": 5.00, "status": "ACTIVE"},
                     {"id": "T2", "amount": 10.00, "status": "CLOSED"},
                 ],
@@ -3388,8 +3404,8 @@ class TestGetFeeTransactionsReport:
         assert len(mock_client.calls["get"]) == 1
         call = mock_client.calls["get"][0]
         assert call["endpoint"] == "almaws/v1/conf/utilities/fee-transactions"
-        # No filters means no params.
-        assert call["params"] is None
+        # No filters: only the paginator's params (issue #139).
+        assert call["params"] == {"limit": 100, "offset": 0}
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["id"] == "T1"
@@ -3402,7 +3418,7 @@ class TestGetFeeTransactionsReport:
         mock_client = MockAlmaAPIClient()
         mock_client.get_response = MockAlmaResponse(
             body={
-                "fee_transaction": [
+                "fee": [
                     {"id": "T1", "library": "MAIN"},
                 ],
                 "total_record_count": 1,
@@ -3423,12 +3439,14 @@ class TestGetFeeTransactionsReport:
             "library": "MAIN",
             "from_date": "2026-01-01",
             "to_date": "2026-01-31",
+            "limit": 100,
+            "offset": 0,
         }
         assert len(result) == 1
         assert result[0]["library"] == "MAIN"
 
     def test_get_fee_transactions_report_returns_empty_on_missing_key(self):
-        """Envelope without ``fee_transaction`` key → empty list."""
+        """Envelope without ``fee`` key → empty list."""
         from almaapitk.domains.configuration import Configuration
 
         mock_client = MockAlmaAPIClient()
@@ -3446,7 +3464,7 @@ class TestGetFeeTransactionsReport:
         mock_client = MockAlmaAPIClient()
         mock_client.get_response = MockAlmaResponse(
             body={
-                "fee_transaction": {"id": "T1", "amount": 5.00},
+                "fee": {"id": "T1", "amount": 5.00},
                 "total_record_count": 1,
             }
         )
@@ -3465,7 +3483,7 @@ class TestGetFeeTransactionsReport:
         mock_client = MockAlmaAPIClient()
         mock_client.get_response = MockAlmaResponse(
             body={
-                "fee_transaction": [{"id": "T1"}],
+                "fee": [{"id": "T1"}],
                 "total_record_count": 1,
             }
         )
@@ -3476,7 +3494,7 @@ class TestGetFeeTransactionsReport:
         assert isinstance(result, list)
         # No envelope keys appear inside the unwrapped list items.
         assert "total_record_count" not in result[0]
-        assert "fee_transaction" not in result[0]
+        assert "fee" not in result[0]
 
     def test_get_fee_transactions_report_propagates_api_error(self):
         """Alma 401652 (circ library/desk error) propagates verbatim."""

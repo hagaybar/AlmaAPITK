@@ -8,6 +8,7 @@ transactions Alma sent.
 """
 from unittest.mock import MagicMock
 
+from almaapitk import AlmaAPIClient
 from almaapitk.domains.configuration import Configuration
 
 
@@ -17,6 +18,8 @@ def _config(payload):
     resp = MagicMock()
     resp.json.return_value = payload
     client.get.return_value = resp
+    # The report now walks pages via iter_paged (issue #139); run the real one.
+    client.iter_paged = lambda *a, **k: AlmaAPIClient.iter_paged(client, *a, **k)
     return Configuration(client)
 
 

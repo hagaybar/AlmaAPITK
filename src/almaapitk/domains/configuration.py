@@ -234,19 +234,15 @@ class Configuration:
             AlmaAPIError: If the API request fails.
         """
         # Pattern source: Admin.list_sets shape (admin.py line 439) for the
-        # "single GET, return list" idiom — the org tables are tiny so we
-        # do not need iter_paged here.
+        # "single GET, return list" idiom. The endpoint is unpaged, so
+        # iter_paged would only re-fetch the same full list (issue #139).
         self.logger.info(
             f"Listing libraries ({self.environment})"
         )
         try:
-            # Use a generous page size so a single request covers any
-            # plausible institution. Alma caps at 100; libraries rarely
-            # exceed that.
-            response = self.client.get(
-                "almaws/v1/conf/libraries",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/libraries")
             payload = response.json() or {}
             libraries = payload.get("library") or []
             if isinstance(libraries, dict):
@@ -332,10 +328,9 @@ class Configuration:
             f"Listing departments ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/departments",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/departments")
             payload = response.json() or {}
             departments = payload.get("department") or []
             if isinstance(departments, dict):
@@ -383,14 +378,11 @@ class Configuration:
             f"Listing circ desks for library {code} ({self.environment})"
         )
         try:
-            response = self.client.get(
-                f"almaws/v1/conf/libraries/{code}/circ-desks",
-                params={"limit": "100", "offset": "0"},
+            # Paged endpoint (Alma default page is 10): walk every page so
+            # nothing past the first page is dropped (issue #139).
+            circ_desks = list(
+                self.client.iter_paged(f"almaws/v1/conf/libraries/{code}/circ-desks", record_key="circ_desk")
             )
-            payload = response.json() or {}
-            circ_desks = payload.get("circ_desk") or []
-            if isinstance(circ_desks, dict):
-                circ_desks = [circ_desks]
             self.logger.info(
                 f"✓ Retrieved {len(circ_desks)} circ desks for library {code}"
             )
@@ -552,10 +544,9 @@ class Configuration:
             f"Listing locations for library {code} ({self.environment})"
         )
         try:
-            response = self.client.get(
-                f"almaws/v1/conf/libraries/{code}/locations",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get(f"almaws/v1/conf/libraries/{code}/locations")
             payload = response.json() or {}
             locations = payload.get("location") or []
             if isinstance(locations, dict):
@@ -914,10 +905,9 @@ class Configuration:
             f"Listing code tables ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/code-tables",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/code-tables")
             payload = response.json() or {}
             code_tables = payload.get("code_table") or []
             if isinstance(code_tables, dict):
@@ -1108,10 +1098,9 @@ class Configuration:
             f"Listing mapping tables ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/mapping-tables",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/mapping-tables")
             payload = response.json() or {}
             mapping_tables = payload.get("mapping_table") or []
             if isinstance(mapping_tables, dict):
@@ -1302,15 +1291,11 @@ class Configuration:
             f"Listing deposit profiles ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/deposit-profiles",
-                params={"limit": "100", "offset": "0"},
+            # Paged endpoint (Alma default page is 10): walk every page so
+            # nothing past the first page is dropped (issue #139).
+            deposit_profiles = list(
+                self.client.iter_paged("almaws/v1/conf/deposit-profiles", record_key="deposit_profile")
             )
-            payload = response.json() or {}
-            deposit_profiles = payload.get("deposit_profile") or []
-            if isinstance(deposit_profiles, dict):
-                # Single-record responses can come back as a dict; normalise.
-                deposit_profiles = [deposit_profiles]
             self.logger.info(
                 f"✓ Retrieved {len(deposit_profiles)} deposit profiles"
             )
@@ -1397,10 +1382,9 @@ class Configuration:
             f"Listing import profiles ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/md-import-profiles",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/md-import-profiles")
             payload = response.json() or {}
             import_profiles = payload.get("import_profile") or []
             if isinstance(import_profiles, dict):
@@ -1506,10 +1490,9 @@ class Configuration:
             f"Listing letters ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/letters",
-                params={"limit": "100", "offset": "0"},
-            )
+            # Unpaged endpoint: Alma ignores limit/offset here and returns
+            # the full list (SANDBOX-verified, issue #139).
+            response = self.client.get("almaws/v1/conf/letters")
             payload = response.json() or {}
             letters = payload.get("letter") or []
             if isinstance(letters, dict):
@@ -1710,15 +1693,11 @@ class Configuration:
             f"Listing printers ({self.environment})"
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/printers",
-                params={"limit": "100", "offset": "0"},
+            # Paged endpoint (Alma default page is 10): walk every page so
+            # nothing past the first page is dropped (issue #139).
+            printers = list(
+                self.client.iter_paged("almaws/v1/conf/printers", record_key="printer")
             )
-            payload = response.json() or {}
-            printers = payload.get("printer") or []
-            if isinstance(printers, dict):
-                # Single-record responses can come back as a dict; normalise.
-                printers = [printers]
             self.logger.info(
                 f"✓ Retrieved {len(printers)} printers"
             )
@@ -1902,6 +1881,9 @@ class Configuration:
                 - ``to_date`` (str): inclusive upper bound (YYYY-MM-DD).
                 - ``transaction_type`` (str): transaction-type filter.
 
+        Every page is fetched (Alma's default page size is 10). If you pass
+        ``limit`` or ``offset`` yourself, exactly that one page is returned.
+
         Returns:
             List of fee-transaction dicts as returned by Alma. Returns
             an empty list when no matching transactions are found (or
@@ -1931,15 +1913,7 @@ class Configuration:
             filters=dict(filters) if filters else None,
         )
         try:
-            response = self.client.get(
-                "almaws/v1/conf/utilities/fee-transactions",
-                params=dict(filters) if filters else None,
-            )
-            payload = response.json() or {}
-            transactions = payload.get("fee") or payload.get("fee_transaction") or []
-            if isinstance(transactions, dict):
-                # Single-record responses can come back as a dict; normalise.
-                transactions = [transactions]
+            transactions = self._fetch_fee_transactions(dict(filters))
             self.logger.info(
                 f"✓ Retrieved {len(transactions)} fee transactions"
             )
@@ -1954,6 +1928,25 @@ class Configuration:
                 },
             )
             raise
+
+    def _fetch_fee_transactions(
+        self, params: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Return fee transactions for ``get_fee_transactions_report``.
+
+        Without ``limit``/``offset`` every page is walked (Alma's default
+        page is 10, so a single call truncated silently: issue #139). A
+        caller that passes either one is paging by hand, so exactly that
+        one page is returned, as before.
+        """
+        endpoint = "almaws/v1/conf/utilities/fee-transactions"
+        if "limit" in params or "offset" in params:
+            payload = self.client.get(endpoint, params=params).json() or {}
+            page = payload.get("fee") or []
+            return [page] if isinstance(page, dict) else page
+        return list(
+            self.client.iter_paged(endpoint, params=params, record_key="fee")
+        )
 
     def get_general_configuration(self) -> Dict[str, Any]:
         """Get the institution's general configuration.

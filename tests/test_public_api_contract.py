@@ -147,6 +147,8 @@ class TestPublicAPIContract(unittest.TestCase):
             'AlmaDuplicateInvoiceError',
             'AlmaInvalidPolModeError',
             'AlmaTimeoutError',
+            'AlmaAnalyticsStalledError',
+            'AlmaOperationCancelled',
         ]
         for symbol in expected_typed_errors:
             self.assertIn(

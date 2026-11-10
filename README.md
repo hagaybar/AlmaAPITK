@@ -156,6 +156,11 @@ rows = analytics.fetch_report_rows(
     max_rows=500,
     progress_callback=show_progress,
 )
+
+# A report stuck on Alma's side raises AlmaAnalyticsStalledError (an
+# AlmaAPIError) after 20 pages or 10 minutes without new rows. Pass
+# should_stop to cancel a running fetch (raises AlmaOperationCancelled).
+rows = analytics.fetch_report_rows(report_path, should_stop=job.is_cancelled)
 ```
 
 ## API Reference

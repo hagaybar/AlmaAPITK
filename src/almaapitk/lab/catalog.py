@@ -261,36 +261,95 @@ def _template(node: ast.AST) -> str | None:
     return "/" + text.lstrip("/")
 
 
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _own_nodes(func: ast.AST):
+    """Nodes of ``func``'s own scope: nested functions, lambdas and classes are
+    yielded themselves but not entered."""
+    stack = list(ast.iter_child_nodes(func))
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, _SCOPES):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def _param_names(func: ast.AST) -> set[str]:
+    args = getattr(func, "args", None)
+    if args is None:
+        return set()
+    every = [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg]
+    return {a.arg for a in every if a is not None}
+
+
+def _binds_name(node: ast.AST, name: str) -> bool:
+    """True for bindings of ``name`` that are not plain ``Name`` stores."""
+    if isinstance(node, ast.ExceptHandler):
+        return node.name == name
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        return any((a.asname or a.name.split(".")[0]) == name for a in node.names)
+    if isinstance(node, (ast.Global, ast.Nonlocal)):
+        return name in node.names
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name == name
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        return node.name == name
+    if isinstance(node, ast.MatchMapping):
+        return node.rest == name
+    return False
+
+
+def _literal_store_count(node: ast.AST, name: str) -> int:
+    """Stores of ``name`` this node makes with a literal / f-string value."""
+    if isinstance(node, ast.Assign) and _template(node.value) is not None:
+        return sum(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+    if (isinstance(node, ast.AnnAssign) and node.value is not None
+            and _template(node.value) is not None):
+        target = node.target
+        return int(isinstance(target, ast.Name) and target.id == name)
+    return 0
+
+
 def _resolve_templates(func: ast.AST, arg: ast.AST) -> set[str]:
-    """Templates for a request-path argument; empty when not fully literal."""
+    """Templates for a request-path argument; empty unless every binding of the
+    name in ``func`` is a plain literal / f-string assignment."""
     direct = _template(arg)
     if direct is not None:
         return {direct}
-    if not isinstance(arg, ast.Name):
+    if not isinstance(arg, ast.Name) or arg.id in _param_names(func):
         return set()
-    values: list[ast.AST | None] = []
-    for node in ast.walk(func):
-        if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == arg.id for t in node.targets):
-            values.append(node.value)
-        elif isinstance(node, (ast.AugAssign, ast.AnnAssign)) and (
-                isinstance(node.target, ast.Name) and node.target.id == arg.id):
-            values.append(getattr(node, "value", None) if isinstance(node, ast.AnnAssign) else None)
-        elif isinstance(node, (ast.For, ast.comprehension)) and any(
-                isinstance(n, ast.Name) and n.id == arg.id for n in ast.walk(node.target)):
-            values.append(None)
-    templates = [None if v is None else _template(v) for v in values]
-    if not templates or any(t is None for t in templates):
+    name = arg.id
+    nodes = list(_own_nodes(func))
+    if any(_binds_name(n, name) for n in nodes):
         return set()
-    return set(templates)  # type: ignore[arg-type]
+    stores = sum(
+        isinstance(n, ast.Name) and n.id == name and not isinstance(n.ctx, ast.Load)
+        for n in nodes)
+    literal = sum(_literal_store_count(n, name) for n in nodes)
+    if stores == 0 or stores != literal:
+        return set()
+    templates: set[str] = set()
+    for n in nodes:
+        if _literal_store_count(n, name):
+            templates.add(_template(n.value))  # type: ignore[attr-defined,arg-type]
+    return templates
 
 
 def _function_calls(func: ast.AST) -> set[tuple[str, str]]:
-    """``(verb, template)`` for each client call in ``func`` with a literal path."""
+    """``(verb, template)`` for each client call in ``func``'s own scope with a
+    literal path."""
     out: set[tuple[str, str]] = set()
-    for kind, attr, node in _self_calls(func):
+    for node in _own_nodes(func):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        target = node.func.value
+        if not (isinstance(target, ast.Attribute) and target.attr == "client"
+                and isinstance(target.value, ast.Name) and target.value.id == "self"):
+            continue
+        attr = node.func.attr
         verb = _CLIENT_VERBS.get(attr)
-        if kind != "client" or not verb or attr == "test_connection":
+        if not verb or attr == "test_connection":
             continue
         arg = node.args[0] if node.args else next(
             (k.value for k in node.keywords if k.arg == "endpoint"), None)

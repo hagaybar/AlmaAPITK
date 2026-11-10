@@ -249,6 +249,12 @@ def match(method: str, concrete_path: str) -> tuple[Endpoint, dict[str, str]] | 
 def custom_endpoint(method: str, path: str) -> Endpoint:
     """An operation the index does not know (no params, free-form body)."""
     method = method.upper()
+    path = re.split(r"[?#]", path, maxsplit=1)[0].strip()
+    path = "/" + path.strip("/")
+    if not any(s and not s.startswith("{") for s in path.split("/")):
+        raise ValueError(
+            "custom path needs at least one fixed segment, e.g. almaws/v1/task-lists/..."
+        )
     return Endpoint(
         area="custom",
         method=method,

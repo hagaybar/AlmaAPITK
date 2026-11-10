@@ -81,3 +81,18 @@ def test_custom_endpoint():
     assert isinstance(post, Endpoint) and post.custom and post.area == "custom"
     assert post.body_formats == ("json", "xml") and post.writes
     assert custom_endpoint("GET", "/almaws/v1/x").body_formats == ()
+
+
+def test_custom_endpoint_needs_fixed_segment():
+    import pytest
+
+    for bad in ("/", "", "/{id}", "?x=1"):
+        with pytest.raises(ValueError, match="fixed segment"):
+            custom_endpoint("PUT", bad)
+
+
+def test_custom_endpoint_normalises_path():
+    ep = custom_endpoint("PUT", "almaws/v1/task-lists/printouts/?x=1#f")
+    assert ep.path == "/almaws/v1/task-lists/printouts"
+    assert ep.confirm_word == "PUT printouts"
+    assert "?" not in ep.slug

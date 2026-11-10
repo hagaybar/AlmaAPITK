@@ -38,12 +38,18 @@ _XML_FIELD = re.compile(r"<(\w+)>([^<]+)</\1>")
 _MARC_001 = re.compile(r'<controlfield tag="001">([^<]+)</controlfield>')
 
 
-def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list[dict]]:
-    """Return ``(redacted copy, replacements)``; ``keep`` holds values to leave in."""
-    found: dict[str, str] = {}  # value -> kind
+def find_sensitive(record: dict) -> list[tuple[str, str]]:
+    """``(value, kind)`` for every value the default rule would replace, in order found."""
+    found: dict[str, str] = {}
     for kind, value in _collect(record):
         if value and len(value) >= 3 and value not in found:
             found[value] = kind
+    return list(found.items())
+
+
+def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list[dict]]:
+    """Return ``(redacted copy, replacements)``; ``keep`` holds values to leave in."""
+    found = dict(find_sensitive(record))
     placeholders: dict[str, str] = {}
     counters: dict[str, int] = {}
     replacements: list[dict] = []

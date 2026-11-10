@@ -67,3 +67,10 @@ def test_keep_value():
 def test_email_pattern_in_free_text():
     out, _ = redact(_record())
     assert out["result"]["note"] == "contact <email_1> or the desk"
+
+
+def test_find_sensitive_lists_values_with_kinds():
+    from almaapitk.lab.redact import find_sensitive
+
+    found = dict(find_sensitive(_record()))
+    assert found[MMS] == "mms_id" and found["dana@example.org"] == "email"

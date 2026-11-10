@@ -75,3 +75,9 @@ def test_gitignore_status_in_temp_repo(tmp_path):
     add_to_gitignore(ev)
     assert gitignore_status(ev) == "ignored"
     assert gitignore_status(tmp_path.parent / "elsewhere-no-repo" / "ev") in ("no-repo", "not-ignored", "ignored")
+
+
+def test_list_records_skips_redacted_exports(tmp_path):
+    path = write_record(_record(), tmp_path)
+    (path.parent / (path.stem + ".redacted.json")).write_text("{}")
+    assert list_records(tmp_path) == [path]

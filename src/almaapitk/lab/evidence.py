@@ -122,7 +122,8 @@ def list_records(evidence_dir: Path, limit: int = 200) -> list[Path]:
     evidence_dir = Path(evidence_dir)
     if not evidence_dir.is_dir():
         return []
-    paths = sorted(evidence_dir.glob("*/*.json"), key=lambda p: (p.parent.name, p.stat().st_mtime_ns, p.name),
+    candidates = [p for p in evidence_dir.glob("*/*.json") if not p.name.endswith(".redacted.json")]
+    paths = sorted(candidates, key=lambda p: (p.parent.name, p.stat().st_mtime_ns, p.name),
                    reverse=True)
     return paths[:limit]
 

@@ -103,6 +103,7 @@ class Session:
         self._client = None
         self._recorder: Optional[Recorder] = None
         self._domains: dict[str, Any] = {}
+        self.last_path: Optional[Path] = None
 
     @property
     def client(self):
@@ -145,7 +146,7 @@ class Session:
         error_class = record.error.split(":", 1)[0] if record.error else None
         record.expectations = [evaluate(e, result=record.result, requests=record.requests,
                                         error=error_class) for e in parsed]
-        write_record(record, self.evidence_dir)
+        self.last_path = write_record(record, self.evidence_dir)
         self.logger.info("Lab call recorded", operation=op.qualname, evidence=record.id,
                          status=record.last_status, error=error_class)
         return record

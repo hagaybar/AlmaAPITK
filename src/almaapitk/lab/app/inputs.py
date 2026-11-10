@@ -34,7 +34,9 @@ from almaapitk.lab.runner import InputError, RawRequest, coerce_query
 
 LOCKED_BODY_NOTE = "Fill the path fields, then load the current record"
 CHANGED_NOTE = "Path, baseline query or format changed: load the current record again"
-STALE_NOTE = "The record changed since you loaded it: load it again"
+STALE_NOTE = ("The record changed since you loaded it: load it again. "
+              "Your edit is kept below under \"Your previous edit\"")
+PREVIOUS_EDIT_LABEL = "Your previous edit  [dim]read-only: re-apply it to the new version[/dim]"
 FAILED_NOTE = "The current record could not be loaded ({status}): nothing to start from"
 LOADED_NOTE = "Edit the current record; Send checks it has not changed meanwhile"
 HELP_CHARS = 240
@@ -245,6 +247,9 @@ class InputsPane(VerticalScroll):
             Static("", id="error-custom-query", classes="field-error"),
             *self._format_field("json"),
             *self._body_section(custom_endpoint("POST", "custom")),
+            Button("Load from GET", id="body-from-get"),
+            Static("POST and PUT: GET the same path and start the body from its response "
+                   "(nothing is enforced on a custom path).", classes="field-help"),
         ]
 
     def on_select_changed(self, event: Select.Changed) -> None:
@@ -303,7 +308,7 @@ class InputsPane(VerticalScroll):
         sent = [r for r in record.requests if r.sent]
         self.baseline, self._baseline_key = record, key
         body = self.query_one("#raw-req-body", TextArea)
-        body.text = _editable((sent[-1].response_body or "") if sent else "", key[2])
+        body.text = editable_body((sent[-1].response_body or "") if sent else "", key[2])
         body.read_only = False
         self.query_one("#raw-body-note", Static).update(LOADED_NOTE)
         self.query_one("#send", Button).disabled = False
@@ -320,6 +325,20 @@ class InputsPane(VerticalScroll):
             widget.update(note)
         for widget in self.query("#send"):
             widget.disabled = True
+
+    def keep_previous_edit(self, text: str) -> None:
+        """Show the body of a refused update read-only, so a reload does not lose it."""
+        existing = self.query("#raw-prev-edit")
+        if existing:
+            existing.first().text = text
+            return
+        anchor = self.query("#raw-body-note")
+        if not anchor:
+            return
+        self.mount(Static(PREVIOUS_EDIT_LABEL, classes="field-label"),
+                   TextArea(text, id="raw-prev-edit", read_only=True, soft_wrap=True,
+                            language=self._format(self.endpoint) if self.endpoint else "json"),
+                   after=anchor.first())
 
     def _check_baseline(self) -> None:
         if self.baseline is not None and self.baseline_key() != self._baseline_key:
@@ -503,7 +522,7 @@ def is_free_form(ep: Endpoint) -> bool:
     return ep.custom and not ep.path
 
 
-def _editable(text: str, fmt: str) -> str:
+def editable_body(text: str, fmt: str) -> str:
     """A response body as the update's starting text (JSON indented for editing)."""
     if fmt == "json":
         try:

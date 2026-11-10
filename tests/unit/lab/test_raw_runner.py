@@ -188,8 +188,8 @@ def test_xml_put_baseline_and_diff(write_session, lab_client):
     assert sent["data"] == new and rec.requests[-1].method == "PUT"
     assert "-<bib><title>Old</title></bib>" in rec.body_diff
     assert "+<bib><title>New</title></bib>" in rec.body_diff
-    assert rec.wrapped_by == ["BibliographicRecords.update_marc_field",
-                              "BibliographicRecords.update_record"]
+    assert rec.wrapped_by == ["BibliographicRecords.update_record",  # PUT only: shown first
+                              "BibliographicRecords.update_marc_field"]
     # an unparsable baseline still diffs as text
     assert "-<bib><title>Old</title>" in body_diff("<bib><title>Old</title>  ", new, "xml")
 

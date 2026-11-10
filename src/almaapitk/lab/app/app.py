@@ -15,7 +15,13 @@ from textual.widgets import Button, Footer, Input, Static, TextArea
 from almaapitk.lab.app.confirm import ConfirmWrite
 from almaapitk.lab.app.export import ExportScreen
 from almaapitk.lab.app.history import HistoryScreen
-from almaapitk.lab.app.inputs import STALE_NOTE, BodyFilePrompt, InputsPane, is_free_form
+from almaapitk.lab.app.inputs import (
+    STALE_NOTE,
+    BodyFilePrompt,
+    InputsPane,
+    editable_body,
+    is_free_form,
+)
 from almaapitk.lab.app.operations import CUSTOM_PATH, OperationsPane
 from almaapitk.lab.app.result import ResultPane
 from almaapitk.lab.catalog import Operation, find_operation
@@ -119,7 +125,7 @@ class LabApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {"send": self.action_send, "load-baseline": self.load_baseline,
                     "reload-baseline": self.load_baseline, "body-from-file": self._body_from_file,
-                    "body-from-last": self._body_from_last}
+                    "body-from-last": self._body_from_last, "body-from-get": self._body_from_get}
         handler = handlers.get(event.button.id or "")
         if handler is not None:
             handler()
@@ -242,9 +248,44 @@ class LabApp(App):
             return
         status = record.last_status
         if record.refused == "baseline changed":
+            pane.keep_previous_edit(record.inputs.get("body") or "")
             pane.clear_baseline(STALE_NOTE)
         elif status is not None and 200 <= status < 300 and not record.error:
             pane.clear_baseline("Sent. Load the current record again before another update")
+
+    def _body_from_get(self) -> None:
+        """Custom form, POST or PUT: GET the same path and start the body from its response.
+        A read (no confirmation); no baseline is enforced for a custom path."""
+        if self._busy():
+            return
+        pane, ep = self.query_one(InputsPane), self.current_endpoint
+        if ep is None or not is_free_form(ep):
+            return
+        pane.clear_errors()
+        try:
+            req = pane.raw_request(with_body=False)
+        except InputError as exc:
+            pane.show_error(exc.field, exc.message)
+            return
+        if req.endpoint.method not in ("POST", "PUT"):
+            pane.show_error("method", "Load from GET is for POST and PUT")
+            return
+        self.query_one("#status-line", Static).update(
+            f"Loading GET {req.endpoint.short_path} …")
+        self._running_op = ep
+
+        def fill(record: EvidenceRecord) -> None:
+            status = record.last_status
+            if pane.endpoint is not ep:
+                return
+            if record.error or status is None or not 200 <= status < 300:
+                self.notify(f"The GET failed ({status or 'no response'}): body unchanged.",
+                            severity="warning")
+                return
+            sent = [r for r in record.requests if r.sent]
+            pane.set_body(editable_body((sent[-1].response_body or "") if sent else "", req.fmt))
+        self.run_worker(lambda: self._call(lambda: self.session.fetch_baseline(req), then=fill),
+                        thread=True, group="send")
 
     def _body_from_file(self) -> None:
         pane = self.query_one(InputsPane)

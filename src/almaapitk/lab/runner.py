@@ -18,7 +18,15 @@ from urllib.parse import quote, urlsplit
 
 from almaapitk.alma_logging import get_logger
 from almaapitk.lab import catalog
-from almaapitk.lab.capture import Recorder, WriteCancelled, WriteGate, make_lab_client
+from almaapitk.lab.capture import (
+    SECRET_MASK,
+    Recorder,
+    WriteCancelled,
+    WriteGate,
+    is_secret_param,
+    make_lab_client,
+    mask_secret_params,
+)
 from almaapitk.lab.catalog import Operation, find_operation
 from almaapitk.lab.endpoints import Endpoint, custom_endpoint, get_twin, match, wrapped_by
 from almaapitk.lab.evidence import (
@@ -200,6 +208,16 @@ def update_twin(req: RawRequest) -> Optional[tuple[Endpoint, dict[str, str]]]:
     return match("GET", "/" + resolve_path(ep, req.path_params))
 
 
+def same_path_get(req: RawRequest) -> Optional[tuple[Endpoint, dict[str, str]]]:
+    """For a custom POST or PUT the index has no update rule for: the GET of the same
+    concrete path ("Load from GET"). Informational: no baseline is required for it."""
+    ep = req.endpoint
+    if not ep.custom or ep.method not in ("POST", "PUT"):
+        return None
+    concrete = "/" + resolve_path(ep, req.path_params)
+    return match("GET", concrete) or (custom_endpoint("GET", concrete), {})
+
+
 def _response_body(record: EvidenceRecord) -> str:
     sent = [r for r in record.requests if r.sent]
     return (sent[-1].response_body or "") if sent else ""
@@ -319,11 +337,10 @@ class Session:
 
     def fetch_baseline(self, req: RawRequest) -> EvidenceRecord:
         """GET the record an update will start from; a normal raw record."""
+        typed = req
         req, _ = self._indexed(req)
         ep = req.endpoint
-        found = update_twin(req)
-        if found is None and ep.custom:  # a path the index lacks: GET the same path
-            found = (custom_endpoint("GET", ep.path), dict(req.path_params))
+        found = update_twin(req) or same_path_get(typed)  # custom: GET the same path
         if found is None:
             raise InputError("baseline", f"no GET for {ep.short_path}")
         twin, values = found
@@ -340,17 +357,21 @@ class Session:
         body_text, data = self._raw_body(req)
         parsed = self._parse_expectations(expectations)
         found = update_twin(req)
+        if found is None and baseline is not None:  # custom POST/PUT: informational baseline
+            found = same_path_get(req)
         twin = found[0] if found else None
         twin_path, twin_query = None, None
         if found is not None:
             twin, twin_values = found
             twin_path, twin_query = resolve_path(twin, twin_values), coerce_query(twin, req.baseline_query)
-            self._check_baseline(baseline, twin, _path_values(twin, twin_values), twin_query,
-                                 req.fmt, self.environment)
+            self._check_baseline(baseline, twin, _path_values(twin, twin_values),
+                                 mask_secret_params(twin_query), req.fmt, self.environment)
         self._check_writable()  # before anything is sent: never lose a write's evidence
-        inputs = {"path": path_values, "query": query, "format": req.fmt, "body": body_text}
+        # credentials typed into query fields are sent, never recorded
+        inputs = {"path": path_values, "query": mask_secret_params(query), "format": req.fmt,
+                  "body": body_text}
         if twin is not None:
-            inputs["baseline_query"] = twin_query
+            inputs["baseline_query"] = mask_secret_params(twin_query)
         record = self._new_record(f"raw {method} {ep.path}", inputs)
         record.raw, record.slug = True, ep.slug
         record.endpoint = {"method": method, "path": ep.path, "area": ep.area,
@@ -399,6 +420,11 @@ class Session:
             if ep.method in ("POST", "PUT") and ep.body_formats and not ep.custom:
                 raise InputError("body", "is required")
             return None, None
+        if ep.method == "GET":
+            raise InputError("body", "a GET takes no body")
+        if ep.method == "DELETE" and not ep.body_formats:
+            raise InputError("body", f"{ep.key} takes no body" if not ep.custom
+                             else "a DELETE takes no body here")
         if ep.body_formats and req.fmt not in ep.body_formats:
             raise InputError("format", f"{ep.key} accepts {' or '.join(ep.body_formats)}")
         if req.fmt == "xml":
@@ -429,16 +455,9 @@ class Session:
         message = "load the current record first"
         if baseline is None:
             raise InputError("baseline", message)
-        status = baseline.last_status
-        ok = (baseline.raw and baseline.environment == environment and baseline.error is None and baseline.refused is None
-              and status is not None and 200 <= status < 300
-              and (baseline.endpoint or {}).get("method") == "GET"
-              and (baseline.endpoint or {}).get("path") == twin.path
-              and baseline.inputs.get("path") == path_values
-              and baseline.inputs.get("query") == twin_query
-              and baseline.inputs.get("format") == fmt)
-        if not ok:
-            raise InputError("baseline", message)
+        problem = _baseline_mismatch(baseline, twin, path_values, twin_query, fmt, environment)
+        if problem:
+            raise InputError("baseline", f"{problem}; {message}")
 
     def _check_writable(self) -> None:
         try:
@@ -461,6 +480,26 @@ class Session:
         return self._domains[name]
 
 
+def _baseline_mismatch(baseline: EvidenceRecord, twin: Endpoint, path_values: dict[str, str],
+                       twin_query: dict[str, Any], fmt: str, environment: str) -> Optional[str]:
+    """Why ``baseline`` cannot start this update (names the item, never its values), or None."""
+    info, status = baseline.endpoint or {}, baseline.last_status
+    if not baseline.raw or info.get("method") != "GET" or info.get("path") != twin.path:
+        return f"the baseline is not a GET of {twin.short_path}"
+    if baseline.environment != environment:
+        return f"environment differs (baseline {baseline.environment}, this call {environment})"
+    if baseline.error is not None or baseline.refused is not None or status is None \
+            or not 200 <= status < 300:
+        return "the baseline GET did not succeed"
+    if baseline.inputs.get("path") != path_values:
+        return "path values differ from the baseline's"
+    if baseline.inputs.get("query") != twin_query:
+        return "baseline query differs from the baseline's"
+    if baseline.inputs.get("format") != fmt:
+        return f"format differs (baseline {baseline.inputs.get('format')}, this call {fmt})"
+    return None
+
+
 def _raw_request_from(record: EvidenceRecord) -> RawRequest:
     """Rebuild the request of a raw record (for rerun)."""
     info, inputs = record.endpoint or {}, record.inputs
@@ -478,6 +517,9 @@ def _raw_request_from(record: EvidenceRecord) -> RawRequest:
         ep = custom_endpoint(method, template)
     query = {k: (str(v).lower() if isinstance(v, bool) else str(v))
              for k, v in (inputs.get("query") or {}).items()}
+    for name, value in query.items():
+        if is_secret_param(name) and value == SECRET_MASK:
+            raise InputError(name, "was not recorded (a credential); type it again")
     req = RawRequest(endpoint=ep, path_params=values, query=query, body=inputs.get("body"),
                      fmt=inputs.get("format") or "json")
     if update_twin(req) is not None:
@@ -486,4 +528,4 @@ def _raw_request_from(record: EvidenceRecord) -> RawRequest:
 
 
 __all__ = ["InputError", "RawRequest", "Session", "WriteCancelled", "body_diff", "coerce_inputs",
-           "coerce_query", "normalise_body", "resolve_path", "update_twin"]
+           "coerce_query", "normalise_body", "resolve_path", "same_path_get", "update_twin"]

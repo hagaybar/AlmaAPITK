@@ -48,10 +48,21 @@ _MARC_001 = re.compile(r'<controlfield tag="001">([^<]+)</controlfield>')
 def find_sensitive(record: dict) -> list[tuple[str, str]]:
     """``(value, kind)`` for every value the default rule would replace, in order found."""
     found: dict[str, str] = {}
+    always = _raw_path_values(record.get("inputs") or {})  # spec 5.6: every path value
     for kind, value in _collect(record):
-        if value and len(value) >= 3 and value not in found:
+        if value and (len(value) >= 3 or value in always) and value not in found:
             found[value] = kind
     return list(found.items())
+
+
+def _raw_path_values(inputs: dict) -> set[str]:
+    """A raw record's path values: replaced whatever their length (the 3-character
+    floor is for values mined from text, where short ones are mostly noise)."""
+    path, query = inputs.get("path"), inputs.get("query")
+    if not (isinstance(path, dict) and isinstance(query, dict)):
+        return set()
+    return {str(v) for v in path.values()
+            if isinstance(v, (str, int)) and not isinstance(v, bool) and str(v)}
 
 
 def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list[dict]]:

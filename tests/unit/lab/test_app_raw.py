@@ -691,3 +691,53 @@ def test_double_send_switches_once(make_app, lab_client, monkeypatch):
         assert loads == [f"PUT {USER}"]
         assert lab_client.http.calls == []
     _run(make_app(), scenario)
+
+
+# --- final review ----------------------------------------------------------------
+
+def test_custom_post_load_from_get_fills_body(make_app, lab_client):
+    lab_client.http.answers = [{"body": {"a": 1}}]
+
+    async def scenario(pilot):
+        pilot.app.select_custom()
+        await pilot.pause()
+        pane = _pane(pilot.app)
+        pane.query_one("#raw-method", Select).value = "POST"
+        pane.query_one("#raw-custom-path", Input).value = TASK_LIST
+        await pilot.pause()
+        await _press(pilot, "#body-from-get")
+        assert not isinstance(pilot.app.screen, ConfirmWrite)  # a read: no confirmation
+        [(method, url, _kw)] = lab_client.http.calls
+        assert method == "GET" and url.endswith("/" + TASK_LIST)
+        body = _body(pilot.app)
+        assert json.loads(body.text) == {"a": 1} and not body.read_only
+        assert pilot.app.current_endpoint.custom and not pane.needs_baseline
+    _run(make_app(), scenario)
+
+
+def test_custom_get_load_from_get_refused(make_app, lab_client):
+    async def scenario(pilot):
+        pilot.app.select_custom()
+        await pilot.pause()
+        _pane(pilot.app).query_one("#raw-custom-path", Input).value = TASK_LIST
+        await pilot.pause()
+        await _press(pilot, "#body-from-get")
+        assert lab_client.http.calls == []
+    _run(make_app(), scenario)
+
+
+def test_stale_refusal_keeps_the_edit_after_reload(make_app, lab_client):
+    newer = {**RECORD, "name": "Someone else's edit"}
+    lab_client.http.answers = [{"body": RECORD}, {"body": newer}, {"body": newer}]
+
+    async def scenario(pilot):
+        await _open(pilot, "PUT", COURSE, **{"path-course_id": "1"})
+        await _load_baseline(pilot)
+        mine = _edited(_body(pilot.app).text)
+        _body(pilot.app).text = mine
+        await _send(pilot)
+        await _press(pilot, "#reload-baseline")
+        assert json.loads(_body(pilot.app).text)["name"] == "Someone else's edit"
+        kept = _pane(pilot.app).query_one("#raw-prev-edit", TextArea)
+        assert kept.read_only and kept.text == mine
+    _run(make_app(), scenario)

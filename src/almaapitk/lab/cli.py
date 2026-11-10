@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from almaapitk.lab.capture import SECRET_MASK, is_secret_param
 from almaapitk.lab.catalog import Operation, discover_operations, find_operation, ALIASES
 from almaapitk.lab.evidence import (
     DEFAULT_EVIDENCE_DIR,
@@ -42,7 +43,7 @@ from almaapitk.lab.endpoints import (
     wrapped_by,
 )
 from almaapitk.lab.redact import redact
-from almaapitk.lab.runner import InputError, RawRequest, Session, update_twin
+from almaapitk.lab.runner import InputError, RawRequest, Session, same_path_get, update_twin
 
 ENVIRONMENTS = ("SANDBOX", "PRODUCTION")
 
@@ -134,9 +135,10 @@ def _parser() -> argparse.ArgumentParser:
     raw.add_argument("--baseline-query", action="append", default=[], metavar="K=V",
                      help="query of the baseline GET (PUT only)")
     raw.add_argument("--baseline-out", type=Path, metavar="F",
-                     help="PUT: fetch the current record, write it to F and stop")
+                     help="PUT, or custom POST/PUT: fetch the current record (GET of the same path), "
+                          "write it to F and stop")
     raw.add_argument("--baseline", type=Path, metavar="F",
-                     help="PUT: the unedited file written by --baseline-out")
+                     help="the unedited file written by --baseline-out")
     _write_flags(raw)
     return parser
 
@@ -318,6 +320,8 @@ def _endpoints(args: argparse.Namespace) -> int:
 
 
 def _raw_request(args: argparse.Namespace) -> RawRequest:
+    if "?" in args.path:
+        raise InputError("path", "put query parameters in --query, not in the path")
     found = match(args.method, args.path)
     if found:
         endpoint, path_params = found
@@ -349,18 +353,18 @@ def _raw(args: argparse.Namespace, argv: list[str]) -> int:
     req = _raw_request(args)
     ep: Endpoint = req.endpoint
     twin = update_twin(req)
-    if (args.baseline_out or args.baseline) and twin is None:
-        raise InputError("baseline", "applies to a PUT that has a GET on the same path")
+    if (args.baseline_out or args.baseline) and twin is None and same_path_get(req) is None:
+        raise InputError("baseline", "applies to a PUT that has a GET on the same path, "
+                                     "or a custom POST or PUT (the GET of the same path)")
     if args.baseline_out and (args.baseline or args.body_file):
         raise InputError("baseline-out", "fetches the baseline and stops; send the PUT in a second "
                                          "command with --body-file and --baseline")
-    baseline = None
-    if twin is not None and not args.baseline_out:
-        if not args.baseline:
-            raise InputError("baseline", "a PUT needs the current record first: run with "
-                                         "--baseline-out FILE, edit a copy, then send it with "
-                                         "--body-file and --baseline FILE")
-        baseline = _load_baseline(args)
+    if twin is not None and not args.baseline_out and not args.baseline:
+        raise InputError("baseline", "a PUT needs the current record first: run with "
+                                     "--baseline-out FILE, edit a copy, then send it with "
+                                     "--body-file and --baseline FILE")
+    # a custom POST/PUT may pass one too: informational, but still checked for staleness
+    baseline = _load_baseline(args) if args.baseline else None
     refusals: list[str] = []
     session = Session(args.env, evidence_dir=args.evidence_dir, source="headless",
                       command=_safe_command(argv))
@@ -378,8 +382,13 @@ def _raw(args: argparse.Namespace, argv: list[str]) -> int:
             _summary(record)
             _err(f"error: {exc}")
             return 2
-        if args.baseline_out:
+        fetched = not record.error and record.last_status is not None \
+            and 200 <= record.last_status < 300
+        if args.baseline_out and fetched:
             _write_baseline(args.baseline_out, record)
+        elif args.baseline_out:
+            _err(f"error: the baseline GET failed ({record.error or f'status {record.last_status}'}); "
+                 f"{args.baseline_out} was not written")
         for line in refusals:
             _err(line)
         if record.refused:
@@ -388,8 +397,7 @@ def _raw(args: argparse.Namespace, argv: list[str]) -> int:
             _out(json.dumps(record.to_dict(), ensure_ascii=False, indent=2, default=str))
         else:
             _summary(record)
-        failed = record.error or not record.checks_passed or (
-            args.baseline_out and not (record.last_status and 200 <= record.last_status < 300))
+        failed = record.error or not record.checks_passed or (args.baseline_out and not fetched)
         return 1 if failed else 0
     finally:
         session.close()
@@ -474,7 +482,33 @@ def _warn_if_tracked(evidence_dir: Path) -> None:
 
 
 def _safe_command(argv: list[str]) -> str:
-    return "almaapitk-lab " + " ".join(shlex.quote(a) for a in argv)
+    """The command line as recorded: credential values (``--query password=…``,
+    ``--query=password=…``, ``--password …``) replaced by ``***``."""
+    out: list[str] = []
+    mask_next = False
+    for arg in argv:
+        if mask_next:
+            out.append(SECRET_MASK)
+            mask_next = False
+            continue
+        if arg.startswith("--") and "=" not in arg and is_secret_param(arg[2:].replace("-", "_")):
+            mask_next = True  # a typed operation's --password VALUE
+        out.append(_mask_arg(arg))
+    return "almaapitk-lab " + " ".join(shlex.quote(a) for a in out)
+
+
+def _mask_arg(arg: str) -> str:
+    """``[--flag=]name=value`` with a credential name → value masked."""
+    prefix, rest = "", arg
+    if arg.startswith("--") and "=" in arg:
+        flag, _, rest = arg.partition("=")
+        if is_secret_param(flag[2:].replace("-", "_")):
+            return f"{flag}={SECRET_MASK}"
+        prefix = flag + "="
+    name, sep, _ = rest.partition("=")
+    if sep and is_secret_param(name):
+        return f"{prefix}{name}={SECRET_MASK}"
+    return arg
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -68,6 +68,9 @@ This is a *reference snapshot*, deliberately separate from
 reads). Refresh it whenever you do an API-contract audit so reviews compare
 against current Alma behavior.
 
+After refreshing, rebuild the Alma Lab endpoint index with
+`python -m scripts.build_lab_endpoints`; a unit test fails if it is out of date.
+
 ## History
 
 - **2026-05-29** — initial snapshot, captured during the repo-wide API-contract

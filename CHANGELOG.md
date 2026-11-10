@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   retries, result, checks, versions, time) to `alma-lab-evidence/`. Every write is confirmed
   before it is sent (typed method name on Production); the lab's client never retries a write.
   Redacted export for sharing. Guide: `docs/site/guides/alma-lab.md`.
+- **Alma Lab raw calls** (#183): a "Raw · all Alma endpoints" branch in the app and
+  `almaapitk-lab endpoints` / `almaapitk-lab raw` headless, covering every endpoint in
+  `docs/alma-swagger/` (bundled index `almaapitk/lab/data/alma_endpoints.json`, rebuilt with
+  `python -m scripts.build_lab_endpoints`). A PUT starts from the current record, is refused if
+  the record changed meanwhile, and records baseline and diff in the evidence. Production
+  writes need `METHOD <last fixed segment>`, e.g. `PUT courses`.
 - **`AlmaAPIClient.raw_request(method, endpoint, ...)`** (#183): call any Alma path,
   including endpoints almaapitk does not wrap yet (Courses, TaskLists, new fields). It runs
   through the same engine as `get`/`post`/`put`/`delete`, so auth, region, session pooling,

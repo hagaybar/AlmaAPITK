@@ -44,3 +44,14 @@ def lab_client(monkeypatch):
     client._session.request = client.http
     yield client
     client.close()
+
+
+@pytest.fixture(autouse=True)
+def _restore_almapi_log_level():
+    """The CLI quiets the toolkit's loggers process-wide; don't leak that into other tests."""
+    import logging
+
+    logger = logging.getLogger("almapi")
+    before = logger.level
+    yield
+    logger.setLevel(before)

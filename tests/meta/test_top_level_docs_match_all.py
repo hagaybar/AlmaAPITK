@@ -88,6 +88,9 @@ NON_DOMAIN_EXPORTS: frozenset[str] = frozenset(
         "AlmaInvalidPolModeError",
         # requests timeouts, typed (issue #196)
         "AlmaTimeoutError",
+        # Analytics stall guard and cooperative cancel (issue #229)
+        "AlmaAnalyticsStalledError",
+        "AlmaOperationCancelled",
         # Raised when no API key can be resolved for the client (issue #143)
         "CredentialError",
         # Utilities (TODO(#118): see above)

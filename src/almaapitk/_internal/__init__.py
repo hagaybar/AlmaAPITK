@@ -21,6 +21,8 @@ from .exceptions import (
     AlmaDuplicateInvoiceError,
     AlmaInvalidPolModeError,
     AlmaTimeoutError,
+    AlmaAnalyticsStalledError,
+    AlmaOperationCancelled,
     CredentialError,
 )
 
@@ -50,6 +52,8 @@ __all__ = [
     "AlmaDuplicateInvoiceError",
     "AlmaInvalidPolModeError",
     "AlmaTimeoutError",
+    "AlmaAnalyticsStalledError",
+    "AlmaOperationCancelled",
     "CredentialError",
     # Domains
     "Admin",

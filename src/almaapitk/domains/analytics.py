@@ -13,10 +13,23 @@ This domain class follows the standard domain class pattern:
 - Raises AlmaAPIError for API and parsing errors
 """
 
+import time
 import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from almaapitk.client.AlmaAPIClient import AlmaAPIClient, AlmaAPIError, AlmaValidationError
+from almaapitk.client.AlmaAPIClient import (
+    AlmaAnalyticsStalledError,
+    AlmaAPIClient,
+    AlmaAPIError,
+    AlmaOperationCancelled,
+    AlmaValidationError,
+)
+
+# Issue #229: an empty, unfinished page means Alma is still preparing the
+# report. Wait before asking again, doubling up to this ceiling, and sleep
+# in short ticks so a should_stop() request is noticed promptly.
+_MAX_EMPTY_PAGE_DELAY = 30.0
+_STOP_CHECK_INTERVAL = 0.5
 
 
 class Analytics:
@@ -154,24 +167,50 @@ class Analytics:
         limit: int = 1000,
         max_rows: Optional[int] = None,
         progress_callback: Optional[Callable[[int], None]] = None,
+        *,
+        max_pages: Optional[int] = None,
+        max_empty_pages: int = 20,
+        max_stall_seconds: float = 600,
+        empty_page_delay: float = 2.0,
+        should_stop: Optional[Callable[[], bool]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Fetch rows from an Analytics report with pagination support.
 
+        A page that adds no rows while the report is unfinished is treated
+        as "Alma still preparing": the fetch waits ``empty_page_delay``
+        seconds (doubling, at most 30 s) before asking again. Any page with
+        new rows resets the stall counters, so slow reports that keep
+        progressing are unaffected (issue #229).
+
         Args:
             report_path: Path to the Analytics report
             limit: Number of rows per page request (default 1000)
-            max_rows: Maximum total rows to return (None for unlimited)
+            max_rows: Maximum total rows to return (None for unlimited).
+                Results are truncated silently at this size.
             progress_callback: Optional callable invoked once per page with
                 the cumulative row count fetched so far. Exceptions raised
                 by the callback are caught and logged; they do not abort
                 the fetch.
+            max_pages: Optional hard cap on page requests. Exceeding it
+                raises ``AlmaAnalyticsStalledError`` (None = no cap).
+            max_empty_pages: Consecutive pages without new rows after
+                which the fetch gives up (default 20).
+            max_stall_seconds: Seconds without new rows after which the
+                fetch gives up (default 600).
+            empty_page_delay: First wait, in seconds, after an empty page.
+            should_stop: Optional callable checked before every request and
+                during waits. When it returns True the fetch raises
+                ``AlmaOperationCancelled``. Its exceptions are not caught.
 
         Returns:
             List of row dictionaries with Column0, Column1, etc. as keys
 
         Raises:
-            AlmaValidationError: If report_path is empty or None
+            AlmaValidationError: If an argument is invalid
+            AlmaAnalyticsStalledError: If the report stops making progress
+                or ``max_pages`` is exceeded
+            AlmaOperationCancelled: If ``should_stop`` returned True
             AlmaAPIError: If the API request fails
         """
         if not report_path:
@@ -203,44 +242,40 @@ class Analytics:
         if max_rows is not None and max_rows < 0:
             raise AlmaValidationError("max_rows cannot be negative")
 
+        self._validate_fetch_controls(
+            max_pages, max_empty_pages, max_stall_seconds, empty_page_delay, should_stop
+        )
+
         if max_rows == 0:
             return []
 
         self.logger.info(f"Fetching rows from report: {report_path}")
 
-        all_rows = []
+        all_rows: List[Dict[str, Any]] = []
         resumption_token = None
-        is_finished = False
+        pages = 0
+        empty_pages = 0
+        delay = empty_page_delay
+        last_progress = time.monotonic()
 
-        while not is_finished:
+        while True:
             # Check if we've reached max_rows
             if max_rows is not None and len(all_rows) >= max_rows:
-                all_rows = all_rows[:max_rows]
                 break
 
-            # Build request
-            endpoint = "almaws/v1/analytics/reports"
-            params = {
-                "path": report_path,
-                "limit": str(limit)
-            }
+            self._check_stop(should_stop, pages, len(all_rows))
+            if max_pages is not None and pages >= max_pages:
+                raise AlmaAnalyticsStalledError(
+                    f"Analytics report {report_path!r} needed more than "
+                    f"max_pages={max_pages} pages ({len(all_rows)} rows so far)"
+                )
 
-            if resumption_token:
-                params["token"] = resumption_token
-
-            # Make request with JSON Accept header (Analytics API returns XML inside JSON anies field)
-            response = self.client.get(
-                endpoint,
-                params=params,
-                custom_headers={"Accept": "application/json"}
+            rows, resumption_token, is_finished, got_xml = self._fetch_rows_page(
+                report_path, limit, resumption_token
             )
-
-            # Extract XML from JSON response
-            xml_text = self._extract_xml_from_response(response)
-            if not xml_text:
+            if not got_xml:
                 break
-            rows, resumption_token, is_finished = self._parse_rows_from_xml(xml_text)
-
+            pages += 1
             all_rows.extend(rows)
 
             self.logger.debug(f"Fetched {len(rows)} rows, total: {len(all_rows)}, finished: {is_finished}")
@@ -255,12 +290,112 @@ class Analytics:
             if not resumption_token or is_finished:
                 break
 
+            if rows:
+                empty_pages = 0
+                delay = empty_page_delay
+                last_progress = time.monotonic()
+                continue
+
+            empty_pages += 1
+            stalled_for = time.monotonic() - last_progress
+            if empty_pages >= max_empty_pages or stalled_for >= max_stall_seconds:
+                raise AlmaAnalyticsStalledError(
+                    f"Analytics report {report_path!r} made no progress: "
+                    f"{empty_pages} consecutive pages without new rows over "
+                    f"{stalled_for:.0f} s (limits: max_empty_pages={max_empty_pages}, "
+                    f"max_stall_seconds={max_stall_seconds}); {pages} pages and "
+                    f"{len(all_rows)} rows fetched"
+                )
+            self.logger.info(
+                f"Analytics report not ready yet (empty page {empty_pages}); "
+                f"waiting {delay:.1f} s"
+            )
+            self._wait(delay, should_stop, pages, len(all_rows))
+            delay = min(delay * 2, _MAX_EMPTY_PAGE_DELAY)
+
         # Apply max_rows limit
         if max_rows is not None and len(all_rows) > max_rows:
             all_rows = all_rows[:max_rows]
 
         self.logger.info(f"Total rows fetched: {len(all_rows)}")
         return all_rows
+
+    def _fetch_rows_page(
+        self, report_path: str, limit: int, resumption_token: Optional[str]
+    ) -> Tuple[List[Dict[str, Any]], Optional[str], bool, bool]:
+        """Request one page of report rows.
+
+        Returns:
+            ``(rows, resumption_token, is_finished, got_xml)``; ``got_xml``
+            is False when the response carried no XML at all.
+        """
+        params = {"path": report_path, "limit": str(limit)}
+        if resumption_token:
+            params["token"] = resumption_token
+
+        # Analytics API returns XML inside the JSON "anies" field
+        response = self.client.get(
+            "almaws/v1/analytics/reports",
+            params=params,
+            custom_headers={"Accept": "application/json"}
+        )
+        xml_text = self._extract_xml_from_response(response)
+        if not xml_text:
+            return [], None, True, False
+        rows, token, is_finished = self._parse_rows_from_xml(xml_text)
+        return rows, token, is_finished, True
+
+    @staticmethod
+    def _validate_fetch_controls(
+        max_pages: Any,
+        max_empty_pages: Any,
+        max_stall_seconds: Any,
+        empty_page_delay: Any,
+        should_stop: Any,
+    ) -> None:
+        """Validate the stall-guard and cancellation arguments (issue #229)."""
+        def is_number(value: Any) -> bool:
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+        if max_pages is not None and not (isinstance(max_pages, int) and max_pages >= 1):
+            raise AlmaValidationError(f"max_pages must be a positive integer or None, got {max_pages!r}")
+        if not (isinstance(max_empty_pages, int) and max_empty_pages >= 1):
+            raise AlmaValidationError(f"max_empty_pages must be a positive integer, got {max_empty_pages!r}")
+        if not (is_number(max_stall_seconds) and max_stall_seconds > 0):
+            raise AlmaValidationError(f"max_stall_seconds must be a positive number, got {max_stall_seconds!r}")
+        if not (is_number(empty_page_delay) and empty_page_delay >= 0):
+            raise AlmaValidationError(f"empty_page_delay must be a non-negative number, got {empty_page_delay!r}")
+        if should_stop is not None and not callable(should_stop):
+            raise AlmaValidationError("should_stop must be callable or None")
+
+    @staticmethod
+    def _check_stop(
+        should_stop: Optional[Callable[[], bool]], pages: int, rows: int
+    ) -> None:
+        """Raise ``AlmaOperationCancelled`` if the caller asked to stop."""
+        if should_stop is not None and should_stop():
+            raise AlmaOperationCancelled(
+                f"Analytics fetch cancelled by should_stop after {pages} pages "
+                f"and {rows} rows"
+            )
+
+    def _wait(
+        self,
+        seconds: float,
+        should_stop: Optional[Callable[[], bool]],
+        pages: int,
+        rows: int,
+    ) -> None:
+        """Sleep ``seconds`` in short ticks, checking ``should_stop`` each tick."""
+        if should_stop is None:
+            time.sleep(seconds)
+            return
+        remaining = seconds
+        while remaining > 0:
+            tick = min(_STOP_CHECK_INTERVAL, remaining)
+            time.sleep(tick)
+            remaining -= tick
+            self._check_stop(should_stop, pages, rows)
 
     def _parse_rows_from_xml(self, xml_text: str) -> Tuple[List[Dict[str, Any]], Optional[str], bool]:
         """

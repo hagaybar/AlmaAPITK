@@ -176,6 +176,12 @@ def evidence_text(record: EvidenceRecord, path: Optional[Path]) -> str:
              f"environment: {record.environment} ({record.base_url_host})",
              f"almaapitk {record.almaapitk_version} · python {record.python_version} · lab {record.tool_version}",
              f"inputs: {json.dumps(record.inputs, ensure_ascii=False, default=str)}"]
+    if record.raw:
+        info = record.endpoint or {}
+        kind = "custom path" if info.get("custom") else f"area {info.get('area')}"
+        lines.insert(1, f"raw: {info.get('method')} {info.get('path')} ({kind})")
+    if record.refused:
+        lines.append(f"refused: {record.refused}")
     if record.error:
         lines.append(f"error: {record.error}")
     for e in record.expectations:

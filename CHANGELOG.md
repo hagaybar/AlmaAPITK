@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-11
+
 ### Added
 
 - **Alma Lab** (#230): an interactive API test tool, `almaapitk.lab`. `almaapitk-lab` opens a
@@ -22,7 +24,9 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   `docs/alma-swagger/` (bundled index `almaapitk/lab/data/alma_endpoints.json`, rebuilt with
   `python -m scripts.build_lab_endpoints`). A PUT starts from the current record, is refused if
   the record changed meanwhile, and records baseline and diff in the evidence. Production
-  writes need `METHOD <last fixed segment>`, e.g. `PUT courses`.
+  writes need `METHOD <last fixed segment>`, e.g. `PUT courses`. Credentials typed as query values
+  (`password`, `apikey`, ...) are sent but recorded as `***`; a recorded `***` is refused on
+  resend until you type the value again.
 - **`AlmaAPIClient.raw_request(method, endpoint, ...)`** (#183): call any Alma path,
   including endpoints almaapitk does not wrap yet (Courses, TaskLists, new fields). It runs
   through the same engine as `get`/`post`/`put`/`delete`, so auth, region, session pooling,
@@ -616,7 +620,8 @@ to 0.3.1.)
   tree to `docs/alma_logging/` so the published wheel contains zero
   non-Python content.
 
-[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/hagaybar/AlmaAPITK/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.7.0
 [0.6.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.6.0
 [0.5.1]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.1
 [0.5.0]: https://github.com/hagaybar/AlmaAPITK/releases/tag/v0.5.0

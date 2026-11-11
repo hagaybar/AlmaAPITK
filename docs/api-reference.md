@@ -1,6 +1,6 @@
 # AlmaAPITK API Reference
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Package:** `almaapitk`
 
 This document provides comprehensive API reference documentation for the AlmaAPITK Python library.

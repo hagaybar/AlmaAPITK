@@ -12,6 +12,7 @@ This document provides comprehensive API reference documentation for the AlmaAPI
 - [AlmaAPIClient](#almaapiclient)
   - [Context-manager support](#context-manager-support)
   - [iter_paged()](#iter_paged)
+  - [raw_request()](#raw_request)
 - [AlmaResponse](#almaresponse)
 - [Exceptions](#exceptions)
   - [AlmaAPIError](#almaapierror)
@@ -273,6 +274,47 @@ Make a DELETE request to the Alma API.
 | `custom_headers` | `Optional[Dict]` | Additional headers |
 
 **Returns:** `AlmaResponse` object
+
+#### raw_request()
+
+```python
+def raw_request(
+    self,
+    method: str,
+    endpoint: str,
+    *,
+    data: Any = None,
+    params: Optional[Dict] = None,
+    content_type: Optional[str] = None,
+    custom_headers: Optional[Dict] = None,
+    timeout: Optional[float] = None,
+) -> AlmaResponse
+```
+
+Call any Alma endpoint, including ones almaapitk does not wrap yet (Courses, TaskLists, new
+fields). It runs through the same engine as `get()`/`post()`/`put()`/`delete()`: same auth,
+region, session, redacted logging and typed errors. Lower guarantee tier: no body validation,
+raw Alma payloads, no pagination (use `iter_paged()`).
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `method` | `str` | `GET`, `POST`, `PUT` or `DELETE` (case-insensitive); anything else raises `AlmaValidationError` |
+| `endpoint` | `str` | Path such as `almaws/v1/courses`; absolute URLs are refused |
+| `data` | `Any` | Body: a dict is sent as JSON, a string as-is |
+| `params` | `Optional[Dict]` | Query parameters |
+| `content_type` | `Optional[str]` | e.g. `application/xml` for an XML body |
+| `custom_headers` | `Optional[Dict]` | Additional headers |
+| `timeout` | `Optional[float]` | Per-call timeout in seconds |
+
+**Returns:** `AlmaResponse` object
+
+```python
+courses = client.raw_request("GET", "almaws/v1/courses", params={"limit": 10})
+```
+
+Guide: `docs/site/guides/raw-requests.md`.
 
 #### test_connection()
 

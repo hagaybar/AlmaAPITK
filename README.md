@@ -172,6 +172,11 @@ leaves an evidence record (exact request, raw response, versions, time) in
 `alma-lab-evidence/`, which holds real IDs: keep it out of git. Writes are confirmed one by one,
 with the method name typed on Production. Guide: `docs/site/guides/alma-lab.md`.
 
+The "Raw · all Alma endpoints" branch (and `almaapitk-lab raw GET almaws/v1/...`) reaches every
+endpoint in Alma's API definitions, including ones almaapitk does not wrap yet; an update always
+starts from the current record. In code, the same reach is `client.raw_request(method, path)`
+(guide: `docs/site/guides/raw-requests.md`).
+
 ## API Reference
 
 ### Core Classes

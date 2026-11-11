@@ -128,7 +128,85 @@ and the evidence id. Exit codes: `0` ok · `1` the call failed, a check failed o
 refused · `2` usage, input, credential or evidence error. almaapitk's own log lines are quiet so
 the output stays readable and `--json` stays parseable; `--verbose` brings them back.
 
+## Raw calls: all Alma endpoints
+
+almaapitk wraps only part of Alma. The **Raw** branch reaches every endpoint in Ex Libris'
+published API definitions (the snapshot in `docs/alma-swagger/`: acquisitions, bibs,
+configuration, courses, electronic, partners, users, analytics). Use it to see what an
+endpoint really returns before you write code for it. Raw calls go through
+`AlmaAPIClient.raw_request` (see the raw requests guide), so auth, region and redacted
+evidence work as for any other call. Evidence marks them `raw: true` and records the endpoint
+and, if almaapitk wraps it, which method (`wrapped_by`).
+
+### In the app
+
+Open the **Raw · all Alma endpoints** branch in the Operations pane. Endpoints are grouped by
+area, with counts. An endpoint that almaapitk already wraps shows `→ Domain.method`; pick that
+method instead if you want the library's own behaviour. `custom path…` lets you type any
+path. If the path matches a defined endpoint, the lab switches to that endpoint's form.
+
+The form is built from the definitions: path parameters, query parameters and a body. Bodies
+can be typed, or filled with **Load from file** or **Load from earlier response**.
+
+**Updating a record (PUT)** starts from the current record, so you never send a body built
+from memory:
+
+1. The form has a **Baseline** section, with the query fields of the matching GET. Press
+   **Load current record**. This is a read, and it fills the body.
+2. Edit the body. **Send** stays locked until the record is loaded.
+3. If Alma's copy changed while you were editing, the send is refused and nothing is
+   written. Press **Load the new version** and redo the edit.
+
+A custom path that has a defined GET follows the same rule. The evidence of an update holds
+the baseline, the body and their diff; a refusal is recorded as `refused`. If a refusal
+says the record changed, your edited body stays visible under "Your previous edit".
+On a custom path with no defined GET, a POST or PUT offers **Load from GET**: it GETs the
+same path and starts the body from the response (nothing is enforced there).
+
+Credentials typed as query values (`password`, `token`, `apikey`, `api_key`, `access_token`)
+are sent but recorded as `***`, in the evidence and in the recorded command.
+
+Writes are confirmed like all lab writes. On Production the word to type is the method plus
+the last fixed segment of the path, for example `PUT courses`.
+
+### Headless
+
+```bash
+almaapitk-lab endpoints --area courses            # list, or --search TEXT, --json
+almaapitk-lab raw GET almaws/v1/courses --query limit=2 --expect "status == 200"
+almaapitk-lab raw GET almaws/v1/courses/<course_id> --format xml
+```
+
+A PUT in three steps (the first two do not change anything):
+
+```bash
+# 1. fetch the current record; also writes current.json.evidence
+almaapitk-lab raw PUT almaws/v1/courses/<course_id> --baseline-out current.json
+# 2. edit a copy
+cp current.json edited.json
+# 3. send it; refused if the record changed since step 1
+almaapitk-lab raw PUT almaws/v1/courses/<course_id> --body-file edited.json \
+    --baseline current.json --allow-writes
+```
+
+On Production use `--confirm-write "PUT courses"` instead of `--allow-writes`. Use
+`--baseline-query k=v` when the GET needs query parameters. Exit codes are as for `call`.
+A failed baseline GET writes no file (exit 1). On a custom POST or PUT, `--baseline-out`
+GETs the same path; `--baseline` there is optional, and when given the evidence keeps the
+diff and the call is refused if the GET's response has changed. Query parameters go in
+`--query`, never in the path.
+
+### Refreshing the endpoint list
+
+The list is a bundled file, `src/almaapitk/lab/data/alma_endpoints.json`, built from
+`docs/alma-swagger/`. After you refresh the snapshot, rebuild it and commit both:
+
+```bash
+python -m scripts.build_lab_endpoints
+```
+
+A unit test fails if the bundled file is out of date.
+
 ## Not yet
 
-- Raw calls to endpoints almaapitk does not wrap (after issue #183).
 - Workflows: chains of calls where one call's output feeds the next (phase 2).

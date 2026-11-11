@@ -45,6 +45,14 @@ class EvidenceRecord:
     incomplete: bool = False
     incomplete_reason: Optional[str] = None
     cancelled_writes: list[dict] = field(default_factory=list)
+    # raw calls (phase 2); defaulted so phase 1 records still load
+    raw: bool = False
+    endpoint: Optional[dict] = None
+    wrapped_by: list[str] = field(default_factory=list)
+    baseline: Optional[dict] = None
+    body_diff: Optional[str] = None
+    refused: Optional[str] = None
+    slug: Optional[str] = None
 
     def to_dict(self) -> dict:
         data = asdict(self)
@@ -65,6 +73,8 @@ class EvidenceRecord:
 
     @property
     def checks_passed(self) -> bool:
+        if self.refused:
+            return False
         return all(e.get("outcome") == "passed" for e in self.expectations)
 
 
@@ -90,7 +100,7 @@ def write_record(record: EvidenceRecord, evidence_dir: Path) -> Path:
     """Write the record; on a name collision add ``-2``, ``-3`` and update ``record.id``."""
     evidence_dir = Path(evidence_dir)
     day = evidence_dir / record.created_at[:10]
-    stem = f"{record.created_at[11:19].replace(':', '')}-{record.operation}"
+    stem = f"{record.created_at[11:19].replace(':', '')}-{record.slug or record.operation}"
     try:
         day.mkdir(parents=True, exist_ok=True)
         path, n = day / f"{stem}.json", 1

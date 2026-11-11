@@ -23,6 +23,7 @@ WriteGate = Callable[[str, str, Optional[str]], bool]
 
 MASKED_AUTH = "apikey ***"
 _SECRET_PARAMS = {"apikey", "api_key", "access_token", "token", "password"}
+SECRET_MASK = "***"
 _TRACKING_JSON = re.compile(r'"trackingId"\s*:\s*"([^"]+)"')
 _TRACKING_XML = re.compile(r"<trackingId>([^<]+)</trackingId>")
 
@@ -148,6 +149,16 @@ def _safe_url(url: str, params: Any) -> str:
         query += [(str(k), str(v)) for k, v in items
                   if v is not None and str(k).lower() not in _SECRET_PARAMS]
     return urlunsplit(parts._replace(query=urlencode(query)))
+
+
+def is_secret_param(name: str) -> bool:
+    """A query parameter whose value is a credential (case-insensitive)."""
+    return str(name).strip().lower() in _SECRET_PARAMS
+
+
+def mask_secret_params(query: dict) -> dict:
+    """A copy of ``query`` with credential values replaced by ``SECRET_MASK``."""
+    return {k: (SECRET_MASK if is_secret_param(k) else v) for k, v in query.items()}
 
 
 def _body_text(kwargs: dict) -> Optional[str]:

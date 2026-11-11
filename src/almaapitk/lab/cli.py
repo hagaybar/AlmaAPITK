@@ -6,6 +6,11 @@
     almaapitk-lab list [--domain bibs] [--json]
     almaapitk-lab show <id|path> [--json]
     almaapitk-lab export <id|path> [--out FILE]
+    almaapitk-lab endpoints [--area courses] [--search TEXT] [--json]
+    almaapitk-lab raw GET almaws/v1/courses --query limit=5 --expect "status == 200"
+    almaapitk-lab raw PUT almaws/v1/courses/<course_id> --baseline-out current.json
+    almaapitk-lab raw PUT almaws/v1/courses/<course_id> --body-file edited.json \\
+        --baseline current.json --allow-writes     (Production: --confirm-write "PUT courses")
 
 Exit codes: 0 ok · 1 the call failed, a check failed or a write was refused ·
 2 usage, input, credential or evidence error.
@@ -20,6 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from almaapitk.lab.capture import SECRET_MASK, is_secret_param
 from almaapitk.lab.catalog import Operation, discover_operations, find_operation, ALIASES
 from almaapitk.lab.evidence import (
     DEFAULT_EVIDENCE_DIR,
@@ -28,8 +34,16 @@ from almaapitk.lab.evidence import (
     gitignore_status,
     load_record,
 )
+from almaapitk.lab.endpoints import (
+    AREA_TITLES,
+    Endpoint,
+    custom_endpoint,
+    load_endpoints,
+    match,
+    wrapped_by,
+)
 from almaapitk.lab.redact import redact
-from almaapitk.lab.runner import InputError, Session
+from almaapitk.lab.runner import InputError, RawRequest, Session, same_path_get, update_twin
 
 ENVIRONMENTS = ("SANDBOX", "PRODUCTION")
 
@@ -59,9 +73,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return _show(args)
         if args.command == "export":
             return _export(args)
+        if args.command == "endpoints":
+            return _endpoints(args)
         _warn_if_tracked(args.evidence_dir)
         if args.command == "call":
             return _call(args, extra, argv)
+        if args.command == "raw":
+            return _raw(args, argv)
         return _run_steps(args, argv)
     except (InputError, EvidenceError, KeyError, ValueError, RuntimeError) as exc:
         _err(f"error: {exc.args[0] if isinstance(exc, KeyError) else exc}")
@@ -104,6 +122,24 @@ def _parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export", parents=[common], help="write a redacted copy of a record")
     export.add_argument("ref")
     export.add_argument("--out", type=Path)
+    eps = sub.add_parser("endpoints", parents=[common], help="list the Alma API endpoints raw can call")
+    eps.add_argument("--area", help="one of: " + ", ".join(AREA_TITLES))
+    eps.add_argument("--search", metavar="TEXT")
+    eps.add_argument("--json", action="store_true")
+    raw = sub.add_parser("raw", parents=[common], help="send one raw Alma API call")
+    raw.add_argument("method", type=str.upper, choices=("GET", "POST", "PUT", "DELETE"))
+    raw.add_argument("path", help="concrete path, e.g. almaws/v1/courses/<course_id>")
+    raw.add_argument("--query", action="append", default=[], metavar="K=V")
+    raw.add_argument("--format", dest="fmt", choices=("json", "xml"))
+    raw.add_argument("--body-file", type=Path, metavar="F")
+    raw.add_argument("--baseline-query", action="append", default=[], metavar="K=V",
+                     help="query of the baseline GET (PUT only)")
+    raw.add_argument("--baseline-out", type=Path, metavar="F",
+                     help="PUT, or custom POST/PUT: fetch the current record (GET of the same path), "
+                          "write it to F and stop")
+    raw.add_argument("--baseline", type=Path, metavar="F",
+                     help="the unedited file written by --baseline-out")
+    _write_flags(raw)
     return parser
 
 
@@ -139,13 +175,14 @@ def _inputs_from_flags(op: Operation, params: list[str], extra: list[str]) -> di
     return raw
 
 
-def _gate_for(args: argparse.Namespace, op: Operation, refusals: list[str]):
+def _gate_for(args: argparse.Namespace, words: tuple[str, ...], refusals: list[str]):
+    """The write gate; ``words`` are the accepted --confirm-write values, the first is shown."""
     def gate(method: str, url: str, body: Optional[str]) -> bool:
         if args.env == "PRODUCTION":
-            if args.confirm_write in (op.name, op.qualname):
+            if args.confirm_write in words:
                 return True
             refusals.append(f"Production write refused: {method} {url}. "
-                            f"Re-run with --confirm-write {op.name} to send it.")
+                            f"Re-run with --confirm-write {shlex.quote(words[0])} to send it.")
             return False
         if args.allow_writes:
             return True
@@ -185,7 +222,7 @@ def _execute(args: argparse.Namespace, planned: list, argv: list[str]) -> int:
     try:
         for op, raw, expect in planned:
             refusals: list[str] = []
-            session.gate = _gate_for(args, op, refusals)
+            session.gate = _gate_for(args, (op.name, op.qualname), refusals)
             try:
                 record = session.run(op, raw, expect)
             except EvidenceError as exc:
@@ -231,7 +268,149 @@ def _summary(record: EvidenceRecord) -> None:
         _out(f"  {mark} {e['text']}{actual}")
     if record.incomplete:
         _out(f"  incomplete: {record.incomplete_reason}")
+    if record.refused:
+        _out(f"  refused: {record.refused}")
     _out(f"  evidence {record.id}")
+
+
+_REFUSED_HELP = {
+    "baseline changed": "the record changed in Alma since --baseline-out; nothing was sent. "
+                        "Run --baseline-out again, redo your edit on the new copy and retry.",
+    "baseline could not be checked": "the baseline GET failed, so the update was not sent. Retry.",
+}
+
+
+def _pairs(items: list[str], flag: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in items:
+        name, sep, value = item.partition("=")
+        if not sep or not name.strip():
+            raise InputError(name or flag, f"use {flag} name=value")
+        out[name.strip()] = value
+    return out
+
+
+def _read(path: Path, what: str) -> str:
+    try:
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise InputError(what, f"cannot read {path}: {exc}") from None
+
+
+def _endpoints(args: argparse.Namespace) -> int:
+    area = (args.area or "").lower()
+    if area and area not in AREA_TITLES:
+        raise InputError("area", f"unknown area {args.area!r}; use one of: {', '.join(AREA_TITLES)}")
+    needle = (args.search or "").lower()
+    chosen = [e for e in load_endpoints()
+              if (not area or e.area == area)
+              and (not needle or needle in f"{e.method} {e.short_path} {e.summary}".lower())]
+    if args.json:
+        _out(json.dumps([{
+            "method": e.method, "path": e.short_path, "area": e.area, "summary": e.summary,
+            "writes": e.writes, "wrapped_by": list(wrapped_by(e)),
+            "params": [{"name": p.name, "in": p.location, "type": p.type, "required": p.required}
+                       for p in e.params],
+        } for e in chosen], ensure_ascii=False, indent=2))
+        return 0
+    for e in chosen:
+        wrapped = wrapped_by(e)
+        _out(f"{e.method} {e.short_path}  {e.summary}" + (f"  [→ {', '.join(wrapped)}]" if wrapped else ""))
+    return 0
+
+
+def _raw_request(args: argparse.Namespace) -> RawRequest:
+    if "?" in args.path:
+        raise InputError("path", "put query parameters in --query, not in the path")
+    found = match(args.method, args.path)
+    if found:
+        endpoint, path_params = found
+    else:
+        endpoint, path_params = custom_endpoint(args.method, args.path), {}
+        _err("note: not in the Alma API definitions; sending as a custom path")
+    fmt = args.fmt or (endpoint.body_formats[0] if endpoint.body_formats else "json")
+    body = _read(args.body_file, "body-file") if args.body_file else None
+    return RawRequest(endpoint=endpoint, path_params=path_params, query=_pairs(args.query, "--query"),
+                      body=body, fmt=fmt, baseline_query=_pairs(args.baseline_query, "--baseline-query"))
+
+
+def _load_baseline(args: argparse.Namespace) -> EvidenceRecord:
+    """The record behind a --baseline-out file; the file must be unedited."""
+    sidecar = Path(str(args.baseline) + ".evidence")
+    if not sidecar.is_file():
+        raise InputError("baseline", f"{args.baseline} has no {sidecar.name}; "
+                                     "re-run with --baseline-out to fetch the current record")
+    record = load_record(_read(sidecar, "baseline").strip(), args.evidence_dir)
+    sent = [r for r in record.requests if r.sent]
+    body = (sent[-1].response_body or "") if sent else ""
+    if _read(args.baseline, "baseline") != body:
+        raise InputError("baseline", "the file differs from the fetched record; pass the unedited "
+                                     "--baseline-out file (edit a copy and give it to --body-file)")
+    return record
+
+
+def _raw(args: argparse.Namespace, argv: list[str]) -> int:
+    req = _raw_request(args)
+    ep: Endpoint = req.endpoint
+    twin = update_twin(req)
+    if (args.baseline_out or args.baseline) and twin is None and same_path_get(req) is None:
+        raise InputError("baseline", "applies to a PUT that has a GET on the same path, "
+                                     "or a custom POST or PUT (the GET of the same path)")
+    if args.baseline_out and (args.baseline or args.body_file):
+        raise InputError("baseline-out", "fetches the baseline and stops; send the PUT in a second "
+                                         "command with --body-file and --baseline")
+    if twin is not None and not args.baseline_out and not args.baseline:
+        raise InputError("baseline", "a PUT needs the current record first: run with "
+                                     "--baseline-out FILE, edit a copy, then send it with "
+                                     "--body-file and --baseline FILE")
+    # a custom POST/PUT may pass one too: informational, but still checked for staleness
+    baseline = _load_baseline(args) if args.baseline else None
+    refusals: list[str] = []
+    session = Session(args.env, evidence_dir=args.evidence_dir, source="headless",
+                      command=_safe_command(argv))
+    session.gate = _gate_for(args, (ep.confirm_word,), refusals)
+    try:
+        try:
+            if args.baseline_out:
+                record = session.fetch_baseline(req)
+            else:
+                record = session.run_raw(req, args.expect, baseline)
+        except EvidenceError as exc:
+            record = getattr(exc, "record", None)
+            if record is None:
+                raise
+            _summary(record)
+            _err(f"error: {exc}")
+            return 2
+        fetched = not record.error and record.last_status is not None \
+            and 200 <= record.last_status < 300
+        if args.baseline_out and fetched:
+            _write_baseline(args.baseline_out, record)
+        elif args.baseline_out:
+            _err(f"error: the baseline GET failed ({record.error or f'status {record.last_status}'}); "
+                 f"{args.baseline_out} was not written")
+        for line in refusals:
+            _err(line)
+        if record.refused:
+            _err(f"refused: {_REFUSED_HELP.get(record.refused, record.refused)}")
+        if args.json:
+            _out(json.dumps(record.to_dict(), ensure_ascii=False, indent=2, default=str))
+        else:
+            _summary(record)
+        failed = record.error or not record.checks_passed or (args.baseline_out and not fetched)
+        return 1 if failed else 0
+    finally:
+        session.close()
+
+
+def _write_baseline(path: Path, record: EvidenceRecord) -> None:
+    sent = [r for r in record.requests if r.sent]
+    body = (sent[-1].response_body or "") if sent else ""
+    try:
+        path.write_bytes(body.encode("utf-8"))
+        Path(str(path) + ".evidence").write_text(record.id + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise EvidenceError(f"cannot write {path}: {exc}") from exc
 
 
 def _list(args: argparse.Namespace) -> int:
@@ -303,7 +482,33 @@ def _warn_if_tracked(evidence_dir: Path) -> None:
 
 
 def _safe_command(argv: list[str]) -> str:
-    return "almaapitk-lab " + " ".join(shlex.quote(a) for a in argv)
+    """The command line as recorded: credential values (``--query password=…``,
+    ``--query=password=…``, ``--password …``) replaced by ``***``."""
+    out: list[str] = []
+    mask_next = False
+    for arg in argv:
+        if mask_next:
+            out.append(SECRET_MASK)
+            mask_next = False
+            continue
+        if arg.startswith("--") and "=" not in arg and is_secret_param(arg[2:].replace("-", "_")):
+            mask_next = True  # a typed operation's --password VALUE
+        out.append(_mask_arg(arg))
+    return "almaapitk-lab " + " ".join(shlex.quote(a) for a in out)
+
+
+def _mask_arg(arg: str) -> str:
+    """``[--flag=]name=value`` with a credential name → value masked."""
+    prefix, rest = "", arg
+    if arg.startswith("--") and "=" in arg:
+        flag, _, rest = arg.partition("=")
+        if is_secret_param(flag[2:].replace("-", "_")):
+            return f"{flag}={SECRET_MASK}"
+        prefix = flag + "="
+    name, sep, _ = rest.partition("=")
+    if sep and is_secret_param(name):
+        return f"{prefix}{name}={SECRET_MASK}"
+    return arg
 
 
 if __name__ == "__main__":  # pragma: no cover

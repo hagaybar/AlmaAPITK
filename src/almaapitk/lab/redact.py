@@ -34,6 +34,11 @@ SENSITIVE_KEYS: frozenset[str] = frozenset({
 })
 # Inputs whose names look like identifiers are redacted wherever their value appears.
 _ID_NAME = re.compile(r"(^|_)(id|ids|code|barcode|number|pid|primary)($|_)")
+# Raw-call query parameters whose values never identify anything (spec 5.6).
+NON_IDENTIFYING_QUERY: frozenset[str] = frozenset({
+    "limit", "offset", "view", "expand", "format", "order_by", "direction", "lang", "type",
+    "status", "level",
+})
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _PHONE = re.compile(r"(?<![\w-])\+?\d[\d\s().-]{7,}\d(?![\w-])")
 _XML_FIELD = re.compile(r"<(\w+)>([^<]+)</\1>")
@@ -43,10 +48,21 @@ _MARC_001 = re.compile(r'<controlfield tag="001">([^<]+)</controlfield>')
 def find_sensitive(record: dict) -> list[tuple[str, str]]:
     """``(value, kind)`` for every value the default rule would replace, in order found."""
     found: dict[str, str] = {}
+    always = _raw_path_values(record.get("inputs") or {})  # spec 5.6: every path value
     for kind, value in _collect(record):
-        if value and len(value) >= 3 and value not in found:
+        if value and (len(value) >= 3 or value in always) and value not in found:
             found[value] = kind
     return list(found.items())
+
+
+def _raw_path_values(inputs: dict) -> set[str]:
+    """A raw record's path values: replaced whatever their length (the 3-character
+    floor is for values mined from text, where short ones are mostly noise)."""
+    path, query = inputs.get("path"), inputs.get("query")
+    if not (isinstance(path, dict) and isinstance(query, dict)):
+        return set()
+    return {str(v) for v in path.values()
+            if isinstance(v, (str, int)) and not isinstance(v, bool) and str(v)}
 
 
 def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list[dict]]:
@@ -69,10 +85,31 @@ def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list
 
 
 def _collect(record: dict) -> Iterator[tuple[str, str]]:
-    for name, value in (record.get("inputs") or {}).items():
+    inputs = record.get("inputs") or {}
+    for name, value in inputs.items():
         if isinstance(value, (str, int)) and (name in SENSITIVE_KEYS or _ID_NAME.search(name)):
             yield _kind_for(name), str(value)
+    yield from _raw_inputs(inputs)
     yield from _walk(record)
+
+
+def _raw_inputs(inputs: dict) -> Iterator[tuple[str, str]]:
+    """A raw record: every path value, and query values not known to be harmless."""
+    path, query = inputs.get("path"), inputs.get("query")
+    if not (isinstance(path, dict) and isinstance(query, dict)):
+        return
+    for name, value in path.items():
+        if isinstance(value, (str, int)) and not isinstance(value, bool):
+            yield _kind_for(name), str(value)
+    baseline_query = inputs.get("baseline_query")
+    pairs = list(query.items())
+    if isinstance(baseline_query, dict):  # the update's baseline GET, same rule
+        pairs += list(baseline_query.items())
+    for name, value in pairs:
+        if name in NON_IDENTIFYING_QUERY or isinstance(value, bool):
+            continue
+        if isinstance(value, (str, int)):
+            yield _kind_for(name), str(value)
 
 
 def _walk(value: Any, key: str = "") -> Iterator[tuple[str, str]]:

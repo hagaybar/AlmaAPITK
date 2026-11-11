@@ -4,8 +4,9 @@ from __future__ import annotations
 import threading
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
+from rich.markup import escape
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -14,12 +15,19 @@ from textual.widgets import Button, Footer, Input, Static, TextArea
 from almaapitk.lab.app.confirm import ConfirmWrite
 from almaapitk.lab.app.export import ExportScreen
 from almaapitk.lab.app.history import HistoryScreen
-from almaapitk.lab.app.inputs import InputsPane
-from almaapitk.lab.app.operations import OperationsPane
+from almaapitk.lab.app.inputs import (
+    STALE_NOTE,
+    BodyFilePrompt,
+    InputsPane,
+    editable_body,
+    is_free_form,
+)
+from almaapitk.lab.app.operations import CUSTOM_PATH, OperationsPane
 from almaapitk.lab.app.result import ResultPane
 from almaapitk.lab.catalog import Operation, find_operation
+from almaapitk.lab.endpoints import Endpoint, custom_endpoint, custom_update, get_endpoint, match
 from almaapitk.lab.evidence import EvidenceError, EvidenceRecord, gitignore_status, load_record
-from almaapitk.lab.runner import InputError, Session
+from almaapitk.lab.runner import InputError, RawRequest, Session, resolve_path
 
 PANES = ("operations", "inputs", "result")
 
@@ -44,9 +52,11 @@ class LabApp(App):
         self.session = session
         self.session.gate = self._gate
         self.current_operation: Optional[Operation] = None
+        self.current_endpoint: Optional[Endpoint] = None
         self.last_record: Optional[EvidenceRecord] = None
         self.last_path: Optional[Path] = None
-        self._running_op: Optional[Operation] = None
+        self._running_op: Optional[Operation | Endpoint] = None
+        self._confirm_word = ""  # what Production asks to be typed for the running call
 
     def compose(self) -> ComposeResult:
         yield Static(self._topbar_text(), id="topbar",
@@ -94,37 +104,213 @@ class LabApp(App):
     def select_operation(self, qualname: str) -> None:
         self.post_message(OperationsPane.Selected(find_operation(qualname)))
 
+    def select_endpoint(self, method: str, path: str) -> None:
+        """Open the raw form for an indexed endpoint (``path`` is the full template)."""
+        self.post_message(OperationsPane.Selected(get_endpoint(method, path)))
+
+    def select_custom(self) -> None:
+        """Open the custom path form."""
+        self.post_message(OperationsPane.Selected(CUSTOM_PATH))
+
     async def on_operations_pane_selected(self, message: OperationsPane.Selected) -> None:
-        self.current_operation = message.operation
-        await self.query_one(InputsPane).load(message.operation)
+        chosen = message.operation
+        if isinstance(chosen, Endpoint):
+            self.current_operation, self.current_endpoint = None, chosen
+            await self.query_one(InputsPane).load_raw(chosen)
+        else:
+            self.current_operation, self.current_endpoint = chosen, None
+            await self.query_one(InputsPane).load(chosen)
 
     # sending ----------------------------------------------------------------
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "send":
-            self.action_send()
+        handlers = {"send": self.action_send, "load-baseline": self.load_baseline,
+                    "reload-baseline": self.load_baseline, "body-from-file": self._body_from_file,
+                    "body-from-last": self._body_from_last, "body-from-get": self._body_from_get}
+        handler = handlers.get(event.button.id or "")
+        if handler is not None:
+            handler()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id and event.input.id.startswith("field-"):
+        wid = event.input.id or ""
+        if wid.startswith("raw-bq-"):
+            self.load_baseline()
+        elif wid.startswith(("field-", "raw-")):
             self.action_send()
 
+    def _busy(self) -> bool:
+        if self._running_op is not None:
+            self.notify("A call is still running; wait for its result.", severity="warning")
+            return True
+        return False
+
     def action_send(self) -> None:
+        if self._busy():
+            return
+        if self.current_endpoint is not None:
+            self._send_raw(self.current_endpoint)
+            return
         op = self.current_operation
         if op is None:
             self.notify("Pick an operation first.", severity="warning")
-            return
-        if self._running_op is not None:
-            self.notify("A call is still running; wait for its result.", severity="warning")
             return
         inputs = self.query_one(InputsPane)
         inputs.clear_errors()
         raw, expect = inputs.values(), inputs.expectations()
         self.query_one("#status-line", Static).update(f"Sending {op.qualname} …")
-        self._running_op = op
-        self.run_worker(lambda: self._call(op, raw, expect), thread=True, group="send")
+        self._running_op, self._confirm_word = op, op.name
+        self.run_worker(lambda: self._call(lambda: self.session.run(op, raw, expect)),
+                        thread=True, group="send")
 
-    def _call(self, op: Operation, raw: dict, expect: list) -> None:
+    def _send_raw(self, ep: Endpoint) -> None:
+        inputs = self.query_one(InputsPane)
+        inputs.clear_errors()
+        if inputs.needs_baseline and inputs.baseline is None:
+            self.notify("Load the current record before sending an update.", severity="warning")
+            return
         try:
-            record = self.session.run(op, raw, expect)
+            req = inputs.raw_request()
+        except InputError as exc:
+            inputs.show_error(exc.field, exc.message)
+            self.query_one("#status-line", Static).update("Not sent: fix the input.")
+            return
+        expect = inputs.expectations()
+        if is_free_form(ep):
+            found = _defined_form(req)
+            if found is not None:  # the index knows it: use its form (and its baseline rule)
+                self._running_op = ep  # busy until the form is rebuilt: one switch at a time
+                self.run_worker(self._switch_to_indexed(found[0], found[1], req, expect),
+                                group="switch", exclusive=True)
+                return
+        baseline = inputs.baseline if inputs.needs_baseline else None
+        self.query_one("#status-line", Static).update(
+            f"Sending {req.endpoint.method} {req.endpoint.short_path} …")
+        self._running_op, self._confirm_word = ep, _confirm_word(req)
+        then = (lambda record: self._after_update(inputs, ep, record)) if baseline else None
+        self.run_worker(lambda: self._call(lambda: self.session.run_raw(req, expect, baseline=baseline),
+                                           then=then),
+                        thread=True, group="send")
+
+    async def _switch_to_indexed(self, ep: Endpoint, values: dict[str, str], req: RawRequest,
+                                 expect: list[str]) -> None:
+        """A custom path the index knows: open its form with the values carried over; send nothing."""
+        try:
+            self.current_operation, self.current_endpoint = None, ep
+            pane = self.query_one(InputsPane)
+            await pane.load_raw(ep)
+            pane.set_raw_values({"path": values, "query": req.query, "format": req.fmt,
+                                 "body": req.body}, expect)
+        finally:
+            self._running_op = None
+        known = {p.name for p in ep.query_params}
+        dropped = [name for name in req.query if name not in known]
+        if ep.custom:  # no PUT defined, but its GET is
+            text = ("This path has a GET in the Alma API definitions; switched to an update form "
+                    "so the update can start from the current record.")
+        elif pane.needs_baseline:
+            text = ("This path is in the Alma API definitions; switched to its form so the update "
+                    "can start from the current record.")
+        else:
+            text = "This path is in the Alma API definitions; switched to its form. Check it and send again."
+        if dropped:
+            text += f" Not a query parameter there, left out: {', '.join(dropped)}."
+        self.query_one("#status-line", Static).update(escape(text))
+        self.notify(text, timeout=10)
+
+    def load_baseline(self) -> None:
+        """Load current record: the update's GET twin, a read (no confirmation)."""
+        if self._busy():
+            return
+        pane, ep = self.query_one(InputsPane), self.current_endpoint
+        if ep is None or not pane.needs_baseline:
+            self.notify("Only an update (PUT) starts from the current record.", severity="warning")
+            return
+        pane.clear_errors()
+        try:
+            req = pane.baseline_request()
+        except InputError as exc:
+            pane.show_error(exc.field, exc.message)
+            self.query_one("#status-line", Static).update("Not loaded: fix the input.")
+            return
+        key = pane.baseline_key()
+        self.query_one("#status-line", Static).update(
+            f"Loading the current record: GET {ep.short_path} …")
+        self._running_op = ep
+
+        def accept(record: EvidenceRecord) -> None:
+            if pane.endpoint is ep:
+                pane.accept_baseline(record, key)
+        self.run_worker(lambda: self._call(lambda: self.session.fetch_baseline(req), then=accept),
+                        thread=True, group="send")
+
+    def _after_update(self, pane: InputsPane, ep: Endpoint, record: EvidenceRecord) -> None:
+        """After an update: a refused one, or one that changed the record, needs a fresh baseline."""
+        if pane.endpoint is not ep:
+            return
+        status = record.last_status
+        if record.refused == "baseline changed":
+            pane.keep_previous_edit(record.inputs.get("body") or "")
+            pane.clear_baseline(STALE_NOTE)
+        elif status is not None and 200 <= status < 300 and not record.error:
+            pane.clear_baseline("Sent. Load the current record again before another update")
+
+    def _body_from_get(self) -> None:
+        """Custom form, POST or PUT: GET the same path and start the body from its response.
+        A read (no confirmation); no baseline is enforced for a custom path."""
+        if self._busy():
+            return
+        pane, ep = self.query_one(InputsPane), self.current_endpoint
+        if ep is None or not is_free_form(ep):
+            return
+        pane.clear_errors()
+        try:
+            req = pane.raw_request(with_body=False)
+        except InputError as exc:
+            pane.show_error(exc.field, exc.message)
+            return
+        if req.endpoint.method not in ("POST", "PUT"):
+            pane.show_error("method", "Load from GET is for POST and PUT")
+            return
+        self.query_one("#status-line", Static).update(
+            f"Loading GET {req.endpoint.short_path} …")
+        self._running_op = ep
+
+        def fill(record: EvidenceRecord) -> None:
+            status = record.last_status
+            if pane.endpoint is not ep:
+                return
+            if record.error or status is None or not 200 <= status < 300:
+                self.notify(f"The GET failed ({status or 'no response'}): body unchanged.",
+                            severity="warning")
+                return
+            sent = [r for r in record.requests if r.sent]
+            pane.set_body(editable_body((sent[-1].response_body or "") if sent else "", req.fmt))
+        self.run_worker(lambda: self._call(lambda: self.session.fetch_baseline(req), then=fill),
+                        thread=True, group="send")
+
+    def _body_from_file(self) -> None:
+        pane = self.query_one(InputsPane)
+        if not pane.body_editable:
+            self.notify("Load the current record first: the update starts from it.", severity="warning")
+            return
+
+        def loaded(text: Optional[str]) -> None:
+            if text is not None:
+                pane.set_body(text)
+        self.push_screen(BodyFilePrompt(), callback=loaded)
+
+    def _body_from_last(self) -> None:
+        pane = self.query_one(InputsPane)
+        sent = [r for r in self.last_record.requests if r.sent] if self.last_record else []
+        if not sent or not sent[-1].response_body:
+            self.notify("No earlier response body to load.", severity="warning")
+            return
+        if not pane.set_body(sent[-1].response_body):
+            self.notify("Load the current record first: the update starts from it.", severity="warning")
+
+    def _call(self, run: Callable[[], EvidenceRecord],
+              then: Optional[Callable[[EvidenceRecord], None]] = None) -> None:
+        try:
+            record = run()
         except InputError as exc:
             self.call_from_thread(self.query_one(InputsPane).show_error, exc.field, exc.message)
             self.call_from_thread(self.query_one("#status-line", Static).update, "Not sent: fix the input.")
@@ -141,6 +327,8 @@ class LabApp(App):
         finally:
             self._running_op = None
         self.call_from_thread(self._show, record, self.session.last_path)
+        if then is not None:
+            self.call_from_thread(then, record)
 
     def _show(self, record: EvidenceRecord, path: Optional[Path]) -> None:
         self.last_record, self.last_path = record, path
@@ -148,12 +336,12 @@ class LabApp(App):
 
     def _gate(self, method: str, url: str, body: Optional[str]) -> bool:
         """Called from the send worker before each write; waits for the user."""
-        op = self._running_op or self.current_operation
+        word = self._confirm_word
         answer: list[bool] = []
         done = threading.Event()
 
         def ask() -> None:
-            screen = ConfirmWrite(method, url, body, op.name if op else "",
+            screen = ConfirmWrite(method, url, body, word,
                                   production=self.session.environment == "PRODUCTION")
             self.push_screen(screen, callback=lambda ok: (answer.append(bool(ok)), done.set()))
 
@@ -173,15 +361,45 @@ class LabApp(App):
     async def load_record(self, path: Path) -> None:
         try:
             record = load_record(path, self.session.evidence_dir)
+            if record.raw:
+                await self._load_raw_record(record)
+                self._show(record, path)
+                return
             op = find_operation(record.operation)
-        except (EvidenceError, KeyError) as exc:
+        except (EvidenceError, KeyError, InputError, ValueError) as exc:
             self.notify(str(exc), severity="error")
             return
-        self.current_operation = op
+        self.current_operation, self.current_endpoint = op, None
         pane = self.query_one(InputsPane)
         await pane.load(op)
         pane.set_values(record.inputs, [e["text"] for e in record.expectations])
         self._show(record, path)
+
+    async def _load_raw_record(self, record: EvidenceRecord) -> None:
+        """Reopen a raw record in the raw form (an update still needs a fresh baseline)."""
+        info, inputs = record.endpoint or {}, record.inputs
+        method, template = info.get("method", ""), info.get("path", "")
+        expectations = [e["text"] for e in record.expectations]
+        pane = self.query_one(InputsPane)
+        if info.get("custom") and method == "PUT" and "{" in template:  # a custom update
+            ep = custom_update(get_endpoint("GET", template))
+            self.current_operation, self.current_endpoint = None, ep
+            await pane.load_raw(ep)
+            pane.set_raw_values(inputs, expectations)
+            return
+        if info.get("custom"):
+            self.current_operation, self.current_endpoint = None, CUSTOM_PATH
+            await pane.load_raw(CUSTOM_PATH)
+            pane.set_raw_values(inputs, expectations, custom=(method, template))
+            return
+        values = {k: str(v) for k, v in (inputs.get("path") or {}).items()}
+        concrete = "/" + resolve_path(custom_endpoint(method, template), values)
+        found = match(method, concrete)
+        if found is None:
+            raise InputError("endpoint", f"{method} {template} is no longer in the endpoint index")
+        self.current_operation, self.current_endpoint = None, found[0]
+        await pane.load_raw(found[0])
+        pane.set_raw_values(inputs, expectations)
 
     def action_export(self) -> None:
         if self.last_record is None or self.last_path is None:
@@ -201,3 +419,25 @@ class LabApp(App):
             "Checks: status == 200 · <path> exists · <path> == value · <path> contains text. "
             "Paths: payment.payment_status.value · lines[0].id · anies[0].record.datafield[tag=505].subfield[code=a]",
             timeout=20)
+
+
+def _defined_form(req: RawRequest) -> Optional[tuple[Endpoint, dict[str, str]]]:
+    """For a free-form custom request: the defined form to switch to, with its path values.
+    A PUT whose path has only a GET gets a custom update form that starts from that GET."""
+    concrete = "/" + resolve_path(req.endpoint, {})
+    found = match(req.endpoint.method, concrete)
+    if found is None and req.endpoint.method == "PUT":
+        got = match("GET", concrete)
+        if got is not None:
+            found = (custom_update(got[0]), got[1])
+    return found
+
+
+def _confirm_word(req: RawRequest) -> str:
+    """The word Production asks for: the indexed endpoint's, also for a custom path it matches."""
+    ep = req.endpoint
+    if ep.custom:
+        found = match(ep.method, ep.path)
+        if found is not None:
+            return found[0].confirm_word
+    return ep.confirm_word

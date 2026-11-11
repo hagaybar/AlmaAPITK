@@ -145,6 +145,8 @@ def coerce_query(endpoint: Endpoint, query: dict[str, Any]) -> dict[str, Any]:
         value = _clean(value)
         if value == "":
             continue
+        if is_secret_param(name) and value == SECRET_MASK:
+            raise InputError(name, "was not recorded (a credential); type it again")
         param = known.get(name)
         if param is None and not endpoint.custom:
             raise InputError(name, f"not a query parameter of {endpoint.key}")

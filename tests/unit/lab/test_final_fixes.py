@@ -59,13 +59,13 @@ def test_secret_in_baseline_query_masked(lab_client, monkeypatch, tmp_path):
     session = _session(lab_client, monkeypatch, tmp_path, gate=lambda *a: True)
     lab_client.http.answers = [{"body": {"a": 1}}, {"body": {"a": 1}}, {"body": {}}]
     put = RawRequest(endpoint=custom_endpoint("PUT", TASK_LIST), path_params={}, query={},
-                     body='{"a": 2}', baseline_query={"Token": SECRET})
+                     body='{"a": 2}', baseline_query={"ApiKey": SECRET})
     base = session.fetch_baseline(put)
     rec = session.run_raw(put, baseline=base)
     assert rec.error is None and rec.refused is None
     assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
-    assert lab_client.http.calls[1][2]["params"]["Token"] == SECRET
-    assert rec.inputs["baseline_query"] == {"Token": "***"}
+    assert lab_client.http.calls[1][2]["params"]["ApiKey"] == SECRET
+    assert rec.inputs["baseline_query"] == {"ApiKey": "***"}
     assert SECRET not in _all_evidence(tmp_path)
 
 

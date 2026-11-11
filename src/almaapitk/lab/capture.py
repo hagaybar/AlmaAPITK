@@ -22,7 +22,8 @@ WriteGate = Callable[[str, str, Optional[str]], bool]
 """(method, url, body) → True to send the write, False to cancel it."""
 
 MASKED_AUTH = "apikey ***"
-_SECRET_PARAMS = {"apikey", "api_key", "access_token", "token", "password"}
+# Not "token": in Alma it is the Analytics resumption token, which evidence must keep.
+_SECRET_PARAMS = {"apikey", "api_key", "access_token", "password"}
 SECRET_MASK = "***"
 _TRACKING_JSON = re.compile(r'"trackingId"\s*:\s*"([^"]+)"')
 _TRACKING_XML = re.compile(r"<trackingId>([^<]+)</trackingId>")

@@ -288,6 +288,12 @@ def custom_update(get: Endpoint) -> Endpoint:
 
 # --- which almaapitk methods already call an endpoint ------------------------
 
+def _wrap_key(method: str, path: str) -> tuple[str, str]:
+    """Lookup key: verb plus path with placeholders as ``{}`` and no trailing slash
+    (Alma's definitions spell a few paths with one, almaapitk's calls never do)."""
+    return method, re.sub(r"\{[^}]*\}", "{}", path).rstrip("/")
+
+
 @lru_cache(maxsize=1)
 def _wrapped_map() -> dict[tuple[str, str], tuple[str, ...]]:
     from almaapitk.lab.catalog import DOMAINS, discover_operations, endpoint_calls
@@ -295,7 +301,7 @@ def _wrapped_map() -> dict[tuple[str, str], tuple[str, ...]]:
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for op in discover_operations():
         for verb, template in endpoint_calls(DOMAINS[op.domain], op.name):
-            key = (verb, re.sub(r"\{[^}]*\}", "{}", template))
+            key = _wrap_key(verb, template)
             by_key.setdefault(key, {})[op.qualname] = op
     return {k: tuple(sorted(ops, key=lambda q: _wrapper_rank(k[0], ops[q])))
             for k, ops in by_key.items()}
@@ -316,5 +322,4 @@ def _wrapper_rank(method: str, op: Any) -> tuple:
 def wrapped_by(endpoint: Endpoint) -> tuple[str, ...]:
     """``Domain.method`` names of public almaapitk operations that call it, best first
     (the first is the one the app shows)."""
-    key = (endpoint.method, re.sub(r"\{[^}]*\}", "{}", endpoint.path))
-    return _wrapped_map().get(key, ())
+    return _wrapped_map().get(_wrap_key(endpoint.method, endpoint.path), ())

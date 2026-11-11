@@ -163,8 +163,9 @@ says the record changed, your edited body stays visible under "Your previous edi
 On a custom path with no defined GET, a POST or PUT offers **Load from GET**: it GETs the
 same path and starts the body from the response (nothing is enforced there).
 
-Credentials typed as query values (`password`, `token`, `apikey`, `api_key`, `access_token`)
-are sent but recorded as `***`, in the evidence and in the recorded command.
+Credentials typed as query values (`password`, `apikey`, `api_key`, `access_token`)
+are sent but recorded as `***`, in the evidence and in the recorded command. A call reopened
+from History or rerun keeps the `***`; the lab refuses to send it until you type the value again.
 
 Writes are confirmed like all lab writes. On Production the word to type is the method plus
 the last fixed segment of the path, for example `PUT courses`.

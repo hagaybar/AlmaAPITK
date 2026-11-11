@@ -9,8 +9,10 @@ pointers, not reference material. Reference lives in `docs/`.
 It is a **core library only**. Workflows that use it live in their own repos (the
 production consumers): `Fetch_Alma_Analytics_Reports`, `Alma-RS-lending-request-automation`,
 `Update_Alma_Digital_Collections`, `Alma-Digital-Upload`, `Alma-update-expired-users-emails`.
-Keep them on the current release: bump the pin → validate → `main`→`prod` (the user deploys
-`prod`).
+Keep them on the current release. A release here ends by opening a "Bump almaapitk to <version>"
+issue in each consumer (tracking: #211). The bump itself is done **one repo at a time, from that
+repo**, following its binding `docs/almaapitk-bump-protocol.md` (audit → pin → L2/L3 → PR →
+DevSandbox → `prod` by the user). Never bump consumers from this repo or as a batch.
 
 ## Rules
 

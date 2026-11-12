@@ -30,12 +30,12 @@ almaapitk-lab --env PRODUCTION    # Production: the top bar turns red
 
 | Pane | What it does |
 |------|--------------|
-| Operations | Every public almaapitk method, grouped by domain. `/` searches by name. `✎` marks methods that write, `✎✎` methods that write more than once. Greyed names have a required input the lab cannot set. |
-| Inputs | A form built from the method's signature and docstring. Change any value and send again. **Expect** takes optional checks, one per line. |
+| Operations | Every public almaapitk method, grouped by domain. `/` searches by name and by the query values a method sends (`process_invoice` finds `approve_invoice`). `✎` marks methods that write, `✎✎` methods that write more than once. Greyed names have a required input the lab cannot set. |
+| Inputs | A form built from the method's signature and docstring. Its header says what the method sends, e.g. `sends POST /acq/invoices/{invoice_id}?op=process_invoice` (`{operation}` when the value comes from one of its inputs). **Open in Raw** (`r`) opens that request in the Raw console with your values filled in, to change what the method fixes. Change any value and send again. **Expect** takes optional checks, one per line. |
 | Result | Status, duration, Alma tracking ID, error class and check results on top; tabs below: **Response** (a tree that unfolds as you go; XML and MARC show as fields), **Raw**, **Request** (exactly what was sent, key masked) and **Evidence**. Each tab scrolls inside itself. |
 
 Keys: `Ctrl+←/→` switch panes · `↑↓` move · `Enter` edit or send · `Ctrl+S` send · `/` search ·
-`h` history · `e` expect · `x` export redacted · `?` help · `Ctrl+Q` quit. The mouse works too.
+`h` history · `e` expect · `r` open in Raw · `x` export redacted · `?` help · `Ctrl+Q` quit. The mouse works too.
 
 **History** (`h`) lists the evidence records in the folder, newest first, including those an
 agent made with the headless command. Opening one fills all three panes as it was; send again to
@@ -141,11 +141,16 @@ and, if almaapitk wraps it, which method (`wrapped_by`).
 ### In the app
 
 Open the **Raw · all Alma endpoints** branch in the Operations pane. Endpoints are grouped by
-area, with counts. An endpoint that almaapitk already wraps shows `→ Domain.method`; pick that
-method instead if you want the library's own behaviour. `custom path…` lets you type any
+area, with counts; paths show placeholders as `{}` so the end of the path stays visible. An
+endpoint that almaapitk already wraps shows `→ Domain.method`, or `→ N almaapitk methods` when
+several call it with different values (one per invoice `op`, for example). The form lists each
+method with the query it sends; pick one if you want the library's own behaviour. Search also
+matches allowed parameter values and method names. `custom path…` lets you type any
 path. If the path matches a defined endpoint, the lab switches to that endpoint's form.
 
-The form is built from the definitions: path parameters, query parameters and a body. Bodies
+The form is built from the definitions: path parameters, query parameters and a body. A
+query parameter whose description lists its allowed values (an `op`, a `view`, a status
+filter) is a dropdown; the lists are copied from the definitions into `almaapitk/lab/choices.py`. Bodies
 can be typed, or filled with **Load from file** or **Load from earlier response**.
 
 **Updating a record (PUT)** starts from the current record, so you never send a body built

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Alma Lab: finding the right call.** A method's form says what it sends, including the
+  query values it fixes (`approve_invoice` → `POST /acq/invoices/{invoice_id}?op=process_invoice`),
+  and **Open in Raw** (`r`) opens that request in the Raw console, filled in. Raw query
+  parameters with listed values (`op`, `view`, status filters) are dropdowns. Raw labels keep the
+  end of the path visible, endpoints called with different `op` values say so instead of naming
+  one method, and the form lists each method with its query. Search matches those query values,
+  allowed values and method names.
+
 ## [0.7.0] — 2026-11-11
 
 ### Added

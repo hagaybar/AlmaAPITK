@@ -110,9 +110,10 @@ make smoke / make smoke-live                                              # work
 
 ## Skills and git
 
-- `alma-api-expert`: Alma endpoints, error codes, quirks, digital uploads.
-- `python-dev-expert`: code quality and structure.
-- `git-expert`: commits and PRs. Commit granularly with descriptive messages and push after
-  committing; never push to `prod`.
+- `alma-api-expert`: Alma API core (auth, general errors, pagination, sets/admin, code
+  tables, cross-domain quirks) and router to the domain skills: `alma-acquisitions-specialist`,
+  `alma-resource-sharing`, `alma-digital`, `alma-users`, `alma-bibs-inventory`. Domain claims
+  carry evaluation records (`references/evaluation.md`); `alma-api-knowledge-evaluator` checks them.
+- Git: commit granularly with descriptive messages and push after committing; never push to `prod`.
 
 These skills are installed at user level (`~/.claude/skills/`), not in this repo.

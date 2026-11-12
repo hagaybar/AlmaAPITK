@@ -21,6 +21,7 @@ from almaapitk.lab.app.inputs import (
     InputsPane,
     editable_body,
     is_free_form,
+    raw_prefill,
 )
 from almaapitk.lab.app.operations import CUSTOM_PATH, OperationsPane
 from almaapitk.lab.app.result import ResultPane
@@ -42,6 +43,7 @@ class LabApp(App):
         Binding("ctrl+s", "send", "Send"),
         Binding("h", "history", "History"),
         Binding("e", "expect", "Expect"),
+        Binding("r", "open_raw", "Open in Raw"),
         Binding("x", "export", "Export"),
         Binding("question_mark", "help", "Help", key_display="?"),
         Binding("ctrl+q", "quit", "Quit", priority=True),
@@ -121,11 +123,33 @@ class LabApp(App):
             self.current_operation, self.current_endpoint = chosen, None
             await self.query_one(InputsPane).load(chosen)
 
+    def action_open_raw(self) -> None:
+        """Open the selected method's request in the Raw console, filled in from its form."""
+        op = self.current_operation
+        if op is None:
+            self.notify("Pick an almaapitk method first.", severity="warning")
+            return
+        found = raw_prefill(op, self.query_one(InputsPane).values())
+        if found is None:
+            self.notify(f"{op.qualname} calls no endpoint the Raw console knows.", severity="warning")
+            return
+        self.run_worker(self._open_raw(op, *found), group="switch", exclusive=True)
+
+    async def _open_raw(self, op: Operation, ep: Endpoint, inputs: dict) -> None:
+        self.current_operation, self.current_endpoint = None, ep
+        pane = self.query_one(InputsPane)
+        expect = pane.expectations()  # the same response, so the same checks apply
+        await pane.load_raw(ep)
+        pane.set_raw_values(inputs, expect)
+        text = f"Opened in Raw: what {op.qualname} sends. Nothing was sent."
+        self.query_one("#status-line", Static).update(escape(text))
+
     # sending ----------------------------------------------------------------
     def on_button_pressed(self, event: Button.Pressed) -> None:
         handlers = {"send": self.action_send, "load-baseline": self.load_baseline,
                     "reload-baseline": self.load_baseline, "body-from-file": self._body_from_file,
-                    "body-from-last": self._body_from_last, "body-from-get": self._body_from_get}
+                    "body-from-last": self._body_from_last, "body-from-get": self._body_from_get,
+                    "open-raw": self.action_open_raw}
         handler = handlers.get(event.button.id or "")
         if handler is not None:
             handler()

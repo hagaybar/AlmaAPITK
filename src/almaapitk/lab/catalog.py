@@ -367,6 +367,117 @@ def endpoint_calls(cls: type, method_name: str) -> frozenset[tuple[str, str]]:
     return frozenset(calls)
 
 
+@dataclass(frozen=True)
+class SentRequest:
+    """One request a method sends: verb, path template (placeholders ``{}``) and the
+    query it passes. A query value is a literal, ``{name}`` for one of the method's
+    own inputs, or ``…`` when it cannot be read from the source."""
+
+    verb: str
+    template: str
+    query: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def query_text(self) -> str:
+        return "&".join(f"{k}={v}" for k, v in self.query)
+
+
+_UNKNOWN = "…"
+
+
+def _value(node: ast.AST | None, bindings: dict[str, str], params: set[str]) -> str:
+    """A query value or helper argument as text (see ``SentRequest``)."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, (str, int, float, bool)):
+        return str(node.value).lower() if isinstance(node.value, bool) else str(node.value)
+    if isinstance(node, ast.Name):
+        if node.id in bindings:
+            return bindings[node.id]
+        if node.id in params:
+            return "{" + node.id + "}"
+    return _UNKNOWN
+
+
+def _dict_node(func: ast.AST, node: ast.AST | None) -> ast.Dict | None:
+    """A ``params=`` argument as a dict literal: inline, or a name assigned one once."""
+    if isinstance(node, ast.Dict):
+        return node
+    if not isinstance(node, ast.Name):
+        return None
+    found = [n.value for n in _own_nodes(func)
+             if isinstance(n, ast.Assign) and isinstance(n.value, ast.Dict)
+             and any(isinstance(t, ast.Name) and t.id == node.id for t in n.targets)]
+    return found[0] if len(found) == 1 else None
+
+
+def _query(func: ast.AST, call: ast.Call, bindings: dict[str, str]) -> tuple[tuple[str, str], ...]:
+    arg = next((k.value for k in call.keywords if k.arg == "params"), None)
+    found = _dict_node(func, arg)
+    if found is None:
+        return ()
+    params = _param_names(func) - {"self"}
+    out = []
+    for key, value in zip(found.keys, found.values):
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            out.append((key.value, _value(value, bindings, params)))
+    return tuple(out)
+
+
+def _helper_bindings(helper: ast.AST, call: ast.Call, bindings: dict[str, str],
+                     params: set[str]) -> dict[str, str]:
+    """What a ``self.helper(...)`` call passes, by the helper's parameter names. A value
+    the caller takes from its own input stays ``{caller_input}``, so the Lab can fill it
+    from the caller's form."""
+    args = getattr(helper, "args", None)
+    if args is None:
+        return {}
+    names = [a.arg for a in [*args.posonlyargs, *args.args] if a.arg != "self"]
+    out: dict[str, str] = {}
+    for name, node in zip(names, call.args):
+        if not isinstance(node, ast.Starred):
+            out[name] = _value(node, bindings, params)
+    for kw in call.keywords:
+        if kw.arg:
+            out[kw.arg] = _value(kw.value, bindings, params)
+    return out
+
+
+@lru_cache(maxsize=None)
+def sent_requests(cls: type, method_name: str) -> tuple[SentRequest, ...]:
+    """Requests a method (and the ``self.`` helpers it calls) sends to literal paths,
+    with the query it passes. Literal arguments a method hands to a helper are
+    followed, so a convenience wrapper shows its fixed ``op``."""
+    functions = _class_functions(cls)
+    out: dict[SentRequest, None] = {}
+    seen: set[tuple[str, tuple]] = set()
+
+    def walk(name: str, bindings: dict[str, str]) -> None:
+        key = (name, tuple(sorted(bindings.items())))
+        if name not in functions or key in seen:
+            return
+        seen.add(key)
+        func = functions[name]
+        params = _param_names(func) - {"self"}
+        own = {id(n) for n in _own_nodes(func)}  # as endpoint_calls: nested scopes are not entered
+        calls = sorted((c for c in _self_calls(func) if id(c[2]) in own),
+                       key=lambda c: (c[2].lineno, c[2].col_offset))
+        for kind, attr, node in calls:
+            if kind == "client":
+                verb = _CLIENT_VERBS.get(attr)
+                if not verb or attr == "test_connection":
+                    continue
+                arg = node.args[0] if node.args else next(
+                    (k.value for k in node.keywords if k.arg == "endpoint"), None)
+                if arg is None:
+                    continue
+                for template in sorted(_resolve_templates(func, arg)):
+                    out[SentRequest(verb, template, _query(func, node, bindings))] = None
+            elif attr in functions:
+                walk(attr, _helper_bindings(functions[attr], node, bindings, params))
+
+    walk(method_name, {})
+    return tuple(out)
+
+
 @lru_cache(maxsize=None)
 def _class_functions(cls: type) -> dict[str, ast.FunctionDef]:
     tree = ast.parse(textwrap.dedent(inspect.getsource(cls)))

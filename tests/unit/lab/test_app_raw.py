@@ -127,7 +127,7 @@ def test_wrapped_endpoint_title_names_the_method(make_app):
     async def scenario(pilot):
         await _open(pilot, "GET", "/almaws/v1/bibs/{mms_id}")
         title = _text(pilot.app, "#inputs-title")
-        assert "almaapitk:" in title and "BibliographicRecords.get_record" in title
+        assert "almaapitk (BibliographicRecords):" in title and "  view={view}  get_record" in title
         assert _pane(pilot.app).query("#raw-path-mms_id")
     _run(make_app(), scenario)
 

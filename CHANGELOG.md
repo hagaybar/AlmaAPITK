@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   parameters with listed values (`op`, `view`, status filters) are dropdowns. Raw labels keep the
   end of the path visible, endpoints called with different `op` values say so instead of naming
   one method, and the form lists each method with its query. Search matches those query values,
-  allowed values and method names.
+  allowed values and method names. A method that sends two requests gets a row per request,
+  and when all methods are in one domain the domain is named once, so the rows fit the pane.
 
 ## [0.7.0] — 2026-11-11
 

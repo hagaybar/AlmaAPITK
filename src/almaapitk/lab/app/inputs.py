@@ -19,14 +19,16 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Select, Static, TextArea
 
-from almaapitk.lab.catalog import Operation, Param
+from almaapitk.lab.catalog import DOMAINS, Operation, Param, SentRequest, sent_requests
+from almaapitk.lab.choices import param_choices
 from almaapitk.lab.endpoints import (
     METHODS,
     Endpoint,
     EndpointParam,
     custom_endpoint,
+    endpoint_for,
     get_twin,
-    wrapped_by,
+    wrapped_with_query,
 )
 from almaapitk.lab.evidence import EvidenceRecord
 from almaapitk.lab.normalize import looks_like_xml
@@ -67,6 +69,8 @@ class InputsPane(VerticalScroll):
         self.baseline = self._baseline_key = None
         await self.remove_children()
         widgets: list = [Static(self._title(op), id="inputs-title")]
+        if raw_target(op) is not None:
+            widgets.append(Button("Open in Raw  (r)", id="open-raw"))
         for p in op.params:
             widgets.extend(self._field(p))
         widgets.extend(self._send_section(op.writes, disabled=not op.sendable))
@@ -93,7 +97,9 @@ class InputsPane(VerticalScroll):
         if not op.sendable:
             lines.append("[b $error]A required input cannot be set in the lab.[/]")
         if op.summary:
-            lines.append(f"[dim]{op.summary}[/dim]")
+            lines.append(f"[dim]{escape(op.summary)}[/dim]")
+        for sent in sent_requests(DOMAINS[op.domain], op.name):
+            lines.append(f"[dim]sends[/dim] {escape(sent_text(sent))}")
         return "\n".join(lines)
 
     def _field(self, p: Param) -> list:
@@ -164,19 +170,28 @@ class InputsPane(VerticalScroll):
                          f"{fetched}[/dim]")
             return "\n".join(lines)
         lines.append(f"[dim]from Alma API definitions, {fetched}[/dim]")
-        wrapped = wrapped_by(ep)
-        lines.append(f"almaapitk: {', '.join(wrapped)}" if wrapped
-                     else "[dim]No almaapitk method for this yet[/dim]")
+        wrapped = wrapped_with_query(ep)
+        if wrapped:
+            lines.append("almaapitk:")  # the query first: it is what tells the methods apart
+            lines.extend(f"  {escape(query)}  [dim]{q}[/dim]" if query else f"  {q}"
+                         for q, query in wrapped)
+        else:
+            lines.append("[dim]No almaapitk method for this yet[/dim]")
         return "\n".join(lines)
 
-    @staticmethod
-    def _raw_field(p: EndpointParam, where: str) -> list:
+    def _raw_field(self, p: EndpointParam, where: str) -> list:
         star = " *" if p.required else ""
-        out: list = [
-            Static(f"{escape(p.name)}{star}  [dim]{escape(p.type)} · {where}[/dim]",
-                   classes="field-label"),
-            Input(p.default or "", id=f"raw-{where}-{p.name}"),
-        ]
+        ep = self.endpoint
+        choices = param_choices(ep.method, ep.short_path, p.name) if ep and where == "query" else ()
+        label = f"{escape(p.name)}{star}  [dim]{escape(p.type)} · {where}"
+        if choices:
+            widget: Input | Select = Select(
+                [(c, c) for c in choices], id=f"raw-{where}-{p.name}", allow_blank=True,
+                value=p.default if p.default in choices else Select.NULL)
+            label += " · pick one"
+        else:
+            widget = Input(p.default or "", id=f"raw-{where}-{p.name}")
+        out: list = [Static(label + "[/dim]", classes="field-label"), widget]
         if p.description:
             text = p.description if len(p.description) <= HELP_CHARS else p.description[:HELP_CHARS] + " …"
             out.append(Static(text, classes="field-help", markup=False))
@@ -253,6 +268,9 @@ class InputsPane(VerticalScroll):
         ]
 
     def on_select_changed(self, event: Select.Changed) -> None:
+        wid = event.select.id or ""
+        if wid.startswith("raw-query-"):
+            self._follow_query(wid.removeprefix("raw-query-"), self._text(f"#{wid}"))
         if event.select.id == "raw-format" and not event.select.is_blank():
             fmt = str(event.value)
             for body in self.query("#raw-req-body"):
@@ -267,18 +285,37 @@ class InputsPane(VerticalScroll):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         wid = event.input.id or ""
-        if wid.startswith("raw-query-") and self.twin is not None:
-            name = wid.removeprefix("raw-query-")
-            if self._bq_follows.get(name):
-                for bq in self.query(f"#raw-bq-{name}"):
-                    bq.value = event.value
+        if wid.startswith("raw-query-"):
+            self._follow_query(wid.removeprefix("raw-query-"), event.value)
         elif wid.startswith("raw-bq-"):
             name = wid.removeprefix("raw-bq-")
             if name in self._bq_follows:  # follows again once it equals the PUT's value
                 put = self.query(f"#raw-query-{name}")
-                self._bq_follows[name] = bool(put) and put.first().value == event.value
+                self._bq_follows[name] = (bool(put)
+                                          and self._text(f"#raw-query-{name}") == event.value)
         if wid.startswith(("raw-path-", "raw-bq-")):
             self._check_baseline()
+
+    def _set_value(self, widget: Any, name: str, text: str) -> None:
+        """Fill an Input or a Select. A value a Select does not offer (an older record, or a
+        value Alma added since) is added to its options rather than dropped."""
+        if not isinstance(widget, Select):
+            widget.value = text
+            return
+        if not text:
+            widget.clear()
+            return
+        ep = self.endpoint
+        offered = param_choices(ep.method, ep.short_path, name) if ep else ()
+        if text not in offered:
+            widget.set_options([(v, v) for v in (*offered, text)])
+        widget.value = text
+
+    def _follow_query(self, name: str, value: str) -> None:
+        """An update's baseline query field follows the same-named PUT field."""
+        if self.twin is not None and self._bq_follows.get(name):
+            for bq in self.query(f"#raw-bq-{name}"):
+                bq.value = value
 
     # baseline ---------------------------------------------------------------
     def baseline_key(self) -> tuple:
@@ -447,14 +484,15 @@ class InputsPane(VerticalScroll):
         for where in ("path", "query"):
             for name, value in (inputs.get(where) or {}).items():
                 for widget in self.query(f"#raw-{where}-{name}"):
-                    widget.value = _text_value(value)
+                    self._set_value(widget, name, _text_value(value))
         if inputs.get("format") in ("json", "xml") and self.query("#raw-format"):
             self.query_one("#raw-format", Select).value = inputs["format"]
         for name, value in (inputs.get("baseline_query") or {}).items():
             for widget in self.query(f"#raw-bq-{name}"):
                 widget.value = _text_value(value)
                 put = self.query(f"#raw-query-{name}")
-                self._bq_follows[name] = bool(put) and put.first().value == widget.value
+                self._bq_follows[name] = (bool(put)
+                                          and self._text(f"#raw-query-{name}") == widget.value)
         # an update's old body is not restored: it could be stale; load a fresh baseline
         body = self.query("#raw-req-body")
         if body and not body.first().read_only and inputs.get("body"):
@@ -557,6 +595,40 @@ class BodyFilePrompt(ModalScreen[Optional[str]]):
 
     def action_cancel(self) -> None:
         self.dismiss(None)
+
+
+def raw_target(op: Operation) -> SentRequest | None:
+    """The request "Open in Raw" opens for a method: its first write, else its first
+    request; None when it calls no indexed endpoint."""
+    sent = [r for r in sent_requests(DOMAINS[op.domain], op.name)
+            if endpoint_for(r.verb, r.template) is not None]
+    writes = [r for r in sent if r.verb != "GET"]
+    return (writes or sent or [None])[0]
+
+
+def sent_text(sent: SentRequest) -> str:
+    """``POST /acq/invoices/{invoice_id}?op=process_invoice`` (the template's own names)."""
+    ep = endpoint_for(sent.verb, sent.template)
+    path = ep.short_path if ep is not None else sent.template.removeprefix("/almaws/v1")
+    return f"{sent.verb} {path}" + (f"?{sent.query_text}" if sent.query else "")
+
+
+def raw_prefill(op: Operation, values: dict[str, str]) -> tuple[Endpoint, dict[str, Any]] | None:
+    """The Raw form for ``op``'s request, with what is known filled in: path values from
+    same-named inputs, query values the method fixes or takes from its inputs."""
+    sent = raw_target(op)
+    if sent is None:
+        return None
+    ep = endpoint_for(sent.verb, sent.template)
+    assert ep is not None
+    path = {p.name: values[p.name] for p in ep.path_params if values.get(p.name)}
+    query: dict[str, str] = {}
+    for name, value in sent.query:
+        if value.startswith("{") and value.endswith("}"):
+            value = values.get(value[1:-1], "")
+        if value and value != "…":
+            query[name] = value
+    return ep, {"path": path, "query": query}
 
 
 def _text_value(value: Any) -> str:

@@ -81,7 +81,7 @@ def test_raw_branch_after_domains_with_areas_and_custom(make_app):
         courses = next(c for c in raw.children if str(c.label).startswith("Courses ("))
         assert str(courses.label) == f"Courses ({len(courses.children)})"
         leaves = [str(n.label) for n in courses.children]
-        assert "GET  /courses" in leaves
+        assert "GET   /courses" in leaves
         assert any(lab.startswith("POST  /courses") and "✎" in lab for lab in leaves)
         bibs = next(c for c in raw.children if str(c.label).startswith("Bibs ("))
         bib = next(n for n in bibs.children if isinstance(n.data, Endpoint)
@@ -127,7 +127,7 @@ def test_wrapped_endpoint_title_names_the_method(make_app):
     async def scenario(pilot):
         await _open(pilot, "GET", "/almaws/v1/bibs/{mms_id}")
         title = _text(pilot.app, "#inputs-title")
-        assert "almaapitk: " in title and "BibliographicRecords.get_record" in title
+        assert "almaapitk:" in title and "BibliographicRecords.get_record" in title
         assert _pane(pilot.app).query("#raw-path-mms_id")
     _run(make_app(), scenario)
 

@@ -295,16 +295,32 @@ def _wrap_key(method: str, path: str) -> tuple[str, str]:
 
 
 @lru_cache(maxsize=1)
-def _wrapped_map() -> dict[tuple[str, str], tuple[str, ...]]:
-    from almaapitk.lab.catalog import DOMAINS, discover_operations, endpoint_calls
+def _wrapped_map() -> dict[tuple[str, str], tuple[tuple[str, str], ...]]:
+    """Endpoint key → ``(Domain.method, query text)`` for each method calling it, best first."""
+    from almaapitk.lab.catalog import DOMAINS, discover_operations, sent_requests
 
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    queries: dict[tuple[tuple[str, str], str], list[str]] = {}
     for op in discover_operations():
-        for verb, template in endpoint_calls(DOMAINS[op.domain], op.name):
-            key = _wrap_key(verb, template)
+        for sent in sent_requests(DOMAINS[op.domain], op.name):
+            key = _wrap_key(sent.verb, sent.template)
             by_key.setdefault(key, {})[op.qualname] = op
-    return {k: tuple(sorted(ops, key=lambda q: _wrapper_rank(k[0], ops[q])))
+            texts = queries.setdefault((key, op.qualname), [])
+            if sent.query_text and sent.query_text not in texts:
+                texts.append(sent.query_text)
+    return {k: tuple((q, " | ".join(queries[(k, q)]))
+                     for q in sorted(ops, key=lambda q: _wrapper_rank(k[0], ops[q])))
             for k, ops in by_key.items()}
+
+
+@lru_cache(maxsize=1)
+def _by_wrap_key() -> dict[tuple[str, str], Endpoint]:
+    return {_wrap_key(ep.method, ep.path): ep for ep in load_endpoints()}
+
+
+def endpoint_for(verb: str, template: str) -> Endpoint | None:
+    """The indexed operation a ``(verb, template)`` call from almaapitk goes to, if any."""
+    return _by_wrap_key().get(_wrap_key(verb, template))
 
 
 _READER_PREFIXES = ("get_", "list_", "search_")
@@ -322,4 +338,10 @@ def _wrapper_rank(method: str, op: Any) -> tuple:
 def wrapped_by(endpoint: Endpoint) -> tuple[str, ...]:
     """``Domain.method`` names of public almaapitk operations that call it, best first
     (the first is the one the app shows)."""
+    return tuple(q for q, _ in wrapped_with_query(endpoint))
+
+
+def wrapped_with_query(endpoint: Endpoint) -> tuple[tuple[str, str], ...]:
+    """Like ``wrapped_by``, each with the query it sends (e.g. ``op=process_invoice``;
+    ``op={operation}`` when it comes from the method's own input; ``""`` for none)."""
     return _wrapped_map().get(_wrap_key(endpoint.method, endpoint.path), ())

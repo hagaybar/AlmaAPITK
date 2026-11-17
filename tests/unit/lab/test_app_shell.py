@@ -48,7 +48,8 @@ def test_search_filters_tree(make_app):
         await pilot.press(*"get_rec")
         await pilot.pause()
         tree = pilot.app.query_one("#op-tree")
-        leaves = [n.data.qualname for n in _walk(tree.root) if n.data is not None]
+        # Raw endpoints match too (by the methods that call them); the domain leaves are ops
+        leaves = [n.data.qualname for n in _walk(tree.root) if hasattr(n.data, "qualname")]
         assert "BibliographicRecords.get_record" in leaves
         assert all("get_rec" in q.split(".")[1] for q in leaves)
     _run(make_app(), scenario)

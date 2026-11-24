@@ -13,6 +13,7 @@ import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from almaapitk.alma_logging import get_logger
+from almaapitk.redaction import redact_text
 
 
 # Default per-request timeout (seconds) for Alma API calls. Lowered from
@@ -238,7 +239,28 @@ class AlmaResponse:
         """
         return self.json()
 
-class AlmaAPIError(Exception):
+    def __repr__(self) -> str:
+        """Status only: the body may hold personal data (issue #256)."""
+        return f"AlmaResponse(status_code={self.status_code}, success={self.success})"
+
+
+class _MaskedMessage:
+    """Mixin: ``str()`` / ``repr()`` of an error mask personal data (issue #256).
+
+    The message is built from request paths and Alma's own error text, which
+    can carry a user ID or an email. What is *shown* (a traceback, a log
+    line, ``print(exc)``) goes through :func:`almaapitk.redact_text`;
+    ``exc.args`` keep the raw message for code that needs it.
+    """
+
+    def __str__(self) -> str:
+        return redact_text(super().__str__())
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({str(self)!r})"
+
+
+class AlmaAPIError(_MaskedMessage, Exception):
     """General Alma API error.
 
     Carries the HTTP status, the underlying ``requests.Response``, and --
@@ -277,7 +299,7 @@ class AlmaAPIError(Exception):
         self.tracking_id = tracking_id
         self.alma_code = alma_code
 
-class AlmaValidationError(ValueError):
+class AlmaValidationError(_MaskedMessage, ValueError):
     """Validation error for Alma API requests."""
     pass
 
@@ -563,7 +585,11 @@ class AlmaAPIClient:
     This class is designed to be inherited or composed by specific domain classes
     (BiblioGraphicRecords, Users, Admin, etc.)
     """
-    
+
+    def __repr__(self) -> str:
+        """Environment only: never the key or session headers (issue #256)."""
+        return f"AlmaAPIClient(environment={getattr(self, 'environment', None)!r})"
+
     def __init__(
         self,
         environment: str = 'SANDBOX',

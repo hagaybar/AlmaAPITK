@@ -25,9 +25,13 @@ from urllib.parse import quote
 
 import requests
 
+from almaapitk.alma_logging.logger import MaskingFilter as _MaskingFilter
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
+# Mask personal data on this module's records whatever handler they reach (#256).
+logger.addFilter(_MaskingFilter())
 
 
 # API Endpoints

@@ -16,6 +16,8 @@ import re
 from urllib.parse import quote, quote_plus
 from typing import Any, Iterator
 
+from almaapitk.redaction import is_personal_field
+
 SENSITIVE_KEYS: frozenset[str] = frozenset({
     # record identifiers (bare "id" and "number" are invoice / line / loan IDs in Alma JSON)
     "id", "number", "vendor", "item_barcode", "job_description",
@@ -32,6 +34,12 @@ SENSITIVE_KEYS: frozenset[str] = frozenset({
     # institution
     "institution_code",
 })
+# Personal fields come from the library's one list (almaapitk.redaction, issue #256);
+# SENSITIVE_KEYS adds what only the export replaces (record IDs, address parts).
+
+
+def _sensitive(key: str) -> bool:
+    return key in SENSITIVE_KEYS or is_personal_field(key)
 # Inputs whose names look like identifiers are redacted wherever their value appears.
 _ID_NAME = re.compile(r"(^|_)(id|ids|code|barcode|number|pid|primary)($|_)")
 # Raw-call query parameters whose values never identify anything (spec 5.6).
@@ -87,7 +95,7 @@ def redact(record: dict, keep: frozenset[str] = frozenset()) -> tuple[dict, list
 def _collect(record: dict) -> Iterator[tuple[str, str]]:
     inputs = record.get("inputs") or {}
     for name, value in inputs.items():
-        if isinstance(value, (str, int)) and (name in SENSITIVE_KEYS or _ID_NAME.search(name)):
+        if isinstance(value, (str, int)) and (_sensitive(name) or _ID_NAME.search(name)):
             yield _kind_for(name), str(value)
     yield from _raw_inputs(inputs)
     yield from _walk(record)
@@ -118,9 +126,9 @@ def _walk(value: Any, key: str = "") -> Iterator[tuple[str, str]]:
             if isinstance(value.get("value"), str):
                 yield "user_identifier", value["value"]
         for k, v in value.items():
-            if k in SENSITIVE_KEYS and isinstance(v, (str, int)) and not isinstance(v, bool):
+            if _sensitive(k) and isinstance(v, (str, int)) and not isinstance(v, bool):
                 yield _kind_for(k), str(v)
-            elif k in SENSITIVE_KEYS and isinstance(v, dict):
+            elif _sensitive(k) and isinstance(v, dict):
                 for part in ("value", "desc"):  # {value, desc} code objects, e.g. vendor
                     if isinstance(v.get(part), str):
                         yield _kind_for(k), v[part]
@@ -144,7 +152,7 @@ def _from_text(text: str) -> Iterator[tuple[str, str]]:
         for m in _MARC_001.finditer(text):
             yield "mms_id", m.group(1)
         for tag, val in _XML_FIELD.findall(text):
-            if tag in SENSITIVE_KEYS:
+            if _sensitive(tag):
                 yield _kind_for(tag), val
     for m in _EMAIL.finditer(text):
         yield "email", m.group(0)

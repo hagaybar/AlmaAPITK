@@ -16,6 +16,7 @@ from typing import Any, Literal, Optional, Union
 
 from almaapitk.lab import TOOL_VERSION
 from almaapitk.lab.capture import CapturedRequest
+from almaapitk.redaction import masked_repr
 
 DEFAULT_EVIDENCE_DIR = Path("alma-lab-evidence")
 
@@ -76,6 +77,9 @@ class EvidenceRecord:
         if self.refused:
             return False
         return all(e.get("outcome") == "passed" for e in self.expectations)
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 def new_record(*, operation: str, inputs: dict, environment: str, base_url_host: str,

@@ -11,7 +11,7 @@ import json
 import re
 import tempfile
 import threading
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any, Iterable, Literal, Optional
 from urllib.parse import quote, urlsplit
@@ -39,6 +39,7 @@ from almaapitk.lab.evidence import (
 from almaapitk.lab.expect import evaluate, parse_expectation
 from almaapitk.lab.hints import HINTS
 from almaapitk.lab.normalize import normalize_result
+from almaapitk.redaction import masked_repr
 
 _TRUE = {"true", "yes", "y", "1", "on"}
 _FALSE = {"false", "no", "n", "0", "off"}
@@ -118,6 +119,9 @@ class RawRequest:
     body: Optional[str] = None
     fmt: Literal["json", "xml"] = "json"
     baseline_query: dict[str, str] = field(default_factory=dict)
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 def resolve_path(endpoint: Endpoint, path_params: dict[str, str]) -> str:

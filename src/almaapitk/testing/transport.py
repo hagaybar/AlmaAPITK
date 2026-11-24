@@ -5,10 +5,12 @@ with no network and no credentials. See issue #156 / the harness spec.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Callable, Optional
 
 import requests
+
+from almaapitk.redaction import masked_repr
 
 
 @dataclass
@@ -20,6 +22,9 @@ class RecordedCall:
     params: Optional[dict] = None
     headers: Optional[dict] = None
     body: Any = None
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 # Returns (status_code, content_bytes, content_type) for the canned response.

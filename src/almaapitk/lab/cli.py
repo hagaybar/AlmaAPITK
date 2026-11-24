@@ -43,17 +43,19 @@ from almaapitk.lab.endpoints import (
     wrapped_by,
 )
 from almaapitk.lab.redact import redact
+from almaapitk.redaction import redact_text
 from almaapitk.lab.runner import InputError, RawRequest, Session, same_path_get, update_twin
 
 ENVIRONMENTS = ("SANDBOX", "PRODUCTION")
 
 
 def _out(text: str = "") -> None:
-    sys.stdout.write(text + "\n")
+    """Terminal output, masked (issue #256): the evidence file keeps the raw values."""
+    sys.stdout.write(redact_text(text) + "\n")
 
 
 def _err(text: str) -> None:
-    sys.stderr.write(text + "\n")
+    sys.stderr.write(redact_text(text) + "\n")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

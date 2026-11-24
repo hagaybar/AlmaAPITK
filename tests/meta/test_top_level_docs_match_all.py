@@ -95,6 +95,10 @@ NON_DOMAIN_EXPORTS: frozenset[str] = frozenset(
         "CredentialError",
         # Utilities (TODO(#118): see above)
         "TSVGenerator",
+        # Personal-data mask, documented in docs/API_CONTRACT.md and
+        # docs/site/guides/personal-data-mask.md (issue #256)
+        "redact",
+        "redact_text",
         "CitationMetadataError",
         # Domain helper: a pure MARCXML builder function (issue #179), not a
         # domain class — no top-level docs surface to police.

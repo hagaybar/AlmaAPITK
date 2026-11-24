@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Callable, Optional
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 
 from almaapitk import AlmaAPIClient, AlmaOperationCancelled
+from almaapitk.redaction import masked_repr
 
 WriteGate = Callable[[str, str, Optional[str]], bool]
 """(method, url, body) → True to send the write, False to cancel it."""
@@ -52,6 +53,9 @@ class CapturedRequest:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 class Recorder:

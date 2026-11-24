@@ -4496,7 +4496,8 @@ if __name__ == "__main__":
     def example_workflow():
         # Initialize client and users domain
         from almaapitk.client.AlmaAPIClient import AlmaAPIClient
-        
+        from almaapitk.redaction import redact_text
+
         client = AlmaAPIClient('SANDBOX')
         users = Users(client)
 
@@ -4519,9 +4520,9 @@ if __name__ == "__main__":
         result = users.process_user_for_expiry(user_id, years_threshold=2)
         
         if result['success']:
-            print(f"User {user_id}: qualifies={result['qualifies_for_update']}, expired {result['years_expired']} years")
+            print(redact_text(f"User {user_id}: qualifies={result['qualifies_for_update']}, expired {result['years_expired']} years"))
         else:
-            print(f"Error processing user {user_id}: {result['error']}")
+            print(redact_text(f"Error processing user {user_id}: {result['error']}"))
         
         # Example: Batch processing from set
         print("\n=== Batch User Processing ===")

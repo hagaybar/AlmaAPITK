@@ -30,6 +30,10 @@
 #   - Acquisitions: Invoice management and POL operations
 #   - ResourceSharing: Lending/borrowing requests via Partners API
 #
+#   Personal-data mask (issue #256):
+#   - redact(obj): masked copy of a record / list / string
+#   - redact_text(str): masked copy of a string
+#
 # INTERNAL (not part of public API - may change without notice):
 #   - src.client.* - Use almaapitk.AlmaAPIClient instead
 #   - src.domains.* - Use almaapitk domain classes instead
@@ -99,6 +103,9 @@ __all__ = [
     # Utilities
     "TSVGenerator",
     "CitationMetadataError",
+    # Personal-data mask (issue #256)
+    "redact",
+    "redact_text",
 ]
 
 # Lazy import implementation to avoid circular import at module load time
@@ -134,6 +141,9 @@ _lazy_imports = {
     # Utilities
     "TSVGenerator": ("almaapitk.utils.tsv_generator", "TSVGenerator"),
     "CitationMetadataError": ("almaapitk.utils.citation_metadata", "CitationMetadataError"),
+    # Personal-data mask (issue #256)
+    "redact": ("almaapitk.redaction", "redact"),
+    "redact_text": ("almaapitk.redaction", "redact_text"),
 }
 
 _loaded = {}

@@ -18,6 +18,7 @@ from textual.widgets import Button, Static, TabbedContent, TabPane, Tree
 from textual.widgets.tree import TreeNode
 
 from almaapitk.lab.evidence import EvidenceRecord
+from almaapitk.lab.handles import Handles
 from almaapitk.lab.normalize import _is_node, looks_like_xml, xml_to_tree
 
 PAGE = 100
@@ -51,6 +52,8 @@ class ResultPane(Vertical):
     def on_mount(self) -> None:
         self.border_title = "Result"
 
+    handles: Optional[Handles] = None  # the app's ID handles, shown beside user IDs
+
     def show(self, record: EvidenceRecord, path: Optional[Path]) -> None:
         self.record, self.path = record, path
         self.query_one("#status-line", Static).update(status_text(record))
@@ -69,13 +72,13 @@ class ResultPane(Vertical):
         if tree.root.data is None:
             tree.root.add_leaf(Text(_scalar(result)))
         else:
-            _populate(tree.root, 0)
+            _populate(tree.root, 0, self.handles)
         tree.root.expand()
 
     def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
         node = event.node
         if node.data is not None and not node.children:
-            _populate(node, 0)
+            _populate(node, 0, self.handles)
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         node = event.node
@@ -83,7 +86,7 @@ class ResultPane(Vertical):
             _, parent_data, offset = node.data
             parent = node.parent
             node.remove()
-            _add_page(parent, parent_data, offset)
+            _add_page(parent, parent_data, offset, self.handles)
 
 
 def _container(value: Any) -> Optional[tuple]:
@@ -110,16 +113,20 @@ def _items(data: tuple) -> list[tuple[str, Any]]:
     return [(c["tag"], c) for c in value["children"]]
 
 
-def _populate(node: TreeNode, offset: int) -> None:
-    _add_page(node, node.data, offset)
+def _populate(node: TreeNode, offset: int, handles: Optional[Handles] = None) -> None:
+    _add_page(node, node.data, offset, handles)
 
 
-def _add_page(node: TreeNode, data: tuple, offset: int) -> None:
+def _add_page(node: TreeNode, data: tuple, offset: int, handles: Optional[Handles] = None) -> None:
     items = _items(data)
     for key, value in items[offset:offset + PAGE]:
         child = _container(value)
         if child is None:
-            node.add_leaf(Text(f"{key}: {_scalar(value)}"))
+            handle = handles.handle_for(value) if handles is not None and value is not None else None
+            label = Text(f"{key}: {_scalar(value)}")
+            if handle:
+                label.append(f"  {handle}", style="bold cyan")
+            node.add_leaf(label)
         else:
             node.add(_label(key, child), data=child, allow_expand=bool(_items(child)) or child[0] == "xml")
     rest = len(items) - offset - PAGE

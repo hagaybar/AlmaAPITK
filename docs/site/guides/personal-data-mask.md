@@ -60,10 +60,33 @@ The list lives in `src/almaapitk/redaction.py`; change it there and every path f
   of the Alma Lab and testing records that carry request or response data.
 - Alma Lab **files**: evidence records and `--baseline-out` files are written masked.
   On screen (the CLI's terminal output and the full-screen app) the Lab stays raw: the
-  owner needs to see and type real data there. A masked value can never be sent back:
-  the Lab refuses a body, path or input holding `<redacted>` / `<...>`, and a saved
-  baseline that holds personal data cannot start an update (load the current record in
-  the app instead).
+  owner needs to see and type real data there.
+- Alma Lab **updates are filled back**: an edited masked baseline is not sent as it is.
+  The Lab fetches the record fresh, checks it has not changed (masked forms compared),
+  applies only the fields you changed onto the fresh raw record, shows the changes on
+  screen and sends that, so masked fields you did not touch keep their real values. A
+  field set to `"<ask>"` is asked for at send time: sent, never saved (evidence shows
+  `<asked>`). No placeholder (`<redacted>`, `<...>789`, `***REDACTED***`, `<ask>`) is ever
+  sent: the Lab refuses, in the runner and again in its transport. Elsewhere (paths,
+  queries, POST bodies) a placeholder is refused before anything is sent.
+- Alma Lab **ID handles**: in the full-screen app every user ID shown gets a handle
+  (`@u1`, `@u2`) usable in any request input. Handles are in memory only, never written to
+  evidence, baselines or logs; single headless commands do not share them and refuse them.
+
+### Example: change a user's email (the owner's routine test)
+
+1. **Fetch**: `almaapitk-lab raw PUT almaws/v1/users/<user_primary_id> --baseline-out current.json`
+   writes the record masked.
+2. **Edit** a copy: set `contact_info.email[0].email_address` to the new address, or to
+   `"<ask>"` to type it at send time so it never lands in a file.
+3. **Send**: `almaapitk-lab raw PUT almaws/v1/users/<user_primary_id> --body-file edited.json
+   --baseline current.json --allow-writes`. The changes are printed (raw, on screen), then
+   the PUT goes out with every other field real. Evidence keeps the change list, masked.
+4. **Check**: `almaapitk-lab raw GET almaws/v1/users/<user_primary_id> --expect
+   "contact_info.email[0].email_address == <new_address>"`.
+
+The same in the app, and the details, are in the Alma Lab guide ("Updates are filled
+back").
 
 ## Using it in a consumer
 

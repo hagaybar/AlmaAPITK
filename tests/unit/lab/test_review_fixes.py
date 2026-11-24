@@ -110,7 +110,7 @@ def test_unwritable_evidence_dir_sends_nothing(patched, tmp_path):
 
 
 def test_evidence_write_failure_after_send_still_prints_result(patched, monkeypatch, capsys):
-    def boom(record, d):
+    def boom(record, d, scrub=()):
         raise EvidenceError("disk full")
 
     monkeypatch.setattr("almaapitk.lab.runner.write_record", boom)

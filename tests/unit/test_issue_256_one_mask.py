@@ -345,27 +345,28 @@ def test_lab_evidence_file_is_masked_and_screen_raw(lab_cli, capsys, tmp_path):
     assert PATRON_COMMENT in saved
 
 
-def test_lab_baseline_file_is_masked_and_cannot_be_sent_back(lab_cli, capsys, tmp_path):
-    """A masked baseline must never reach Alma: it would overwrite the
-    record's personal fields with placeholders."""
+def test_lab_baseline_file_is_masked_and_filled_back(lab_cli, capsys, tmp_path):
+    """A masked baseline never reaches Alma as such: the edit is applied onto
+    the record as it is in Alma now (round 3; details in lab/test_fill_back.py)."""
     from almaapitk.lab.cli import main
 
-    lab_cli.http.answers = [{"body": fake_user()}]
+    lab_cli.http.answers = [{"body": fake_user()}, {"body": fake_user()}, {"body": fake_user()}]
     base = tmp_path / "current.json"
     assert main(["raw", "PUT", f"almaws/v1/users/{PRIMARY_ID}", "--baseline-out", str(base),
                  "--evidence-dir", str(tmp_path / "ev")]) == 0
     assert_clean(base.read_text(encoding="utf-8"))
     assert_clean(_saved_files(tmp_path / "ev"))
-    capsys.readouterr()
 
     edited = tmp_path / "edited.json"
     edited.write_text(base.read_text(encoding="utf-8").replace("FAKEGROUP", "OTHER"), "utf-8")
-    sent_before = len(lab_cli.http.calls)
     code = main(["raw", "PUT", f"almaws/v1/users/{PRIMARY_ID}", "--body-file", str(edited),
                  "--baseline", str(base), "--allow-writes", "--evidence-dir", str(tmp_path / "ev")])
-    assert code == 2
-    assert "masked" in capsys.readouterr().err
-    assert len(lab_cli.http.calls) == sent_before  # nothing was sent
+    assert code == 0
+    method, _, sent = lab_cli.http.calls[-1]
+    expected = fake_user()
+    expected["user_group"]["value"] = "OTHER"
+    assert method == "PUT" and sent["json"] == expected  # real values, no placeholder
+    assert_clean(_saved_files(tmp_path / "ev"))
 
 
 def test_lab_session_refuses_masked_inputs(lab_client, tmp_path, monkeypatch):

@@ -11,10 +11,12 @@ from textual.widgets import Button, Input, Static
 class ConfirmWrite(ModalScreen[bool]):
     BINDINGS = [Binding("escape", "cancel", "Cancel")]
 
-    def __init__(self, method: str, url: str, body: str | None, op_name: str, production: bool):
+    def __init__(self, method: str, url: str, body: str | None, op_name: str, production: bool,
+                 changes: str | None = None):
         super().__init__()
         self.method, self.url, self.body = method, url, body
         self.op_name, self.production = op_name, production
+        self.changes = changes  # an update's field-level changes (raw: screen only)
 
     def compose(self) -> ComposeResult:
         env = "PRODUCTION" if self.production else "Sandbox"
@@ -23,6 +25,10 @@ class ConfirmWrite(ModalScreen[bool]):
         with Vertical(id="confirm-box"):
             yield Static(f"[b]Send this write to {env}?[/b]", id="confirm-title")
             yield Static(f"{self.method} {self.url}", markup=False)
+            if self.changes:
+                yield Static("Changes (everything else is the record as it is in Alma now):\n"
+                             + self.changes, id="confirm-changes", markup=False)
+                body = body if len(body) <= 600 else body[:600] + " …"
             yield Static(body, id="confirm-body", markup=False)
             if self.production:
                 yield Static(f"Type [b]{self.op_name}[/b] and press Enter to send. Esc cancels.")

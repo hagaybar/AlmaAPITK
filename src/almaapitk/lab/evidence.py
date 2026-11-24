@@ -18,6 +18,7 @@ from typing import Any, Literal, Optional, Union
 
 from almaapitk.lab import TOOL_VERSION
 from almaapitk.lab.capture import CapturedRequest
+from almaapitk.lab.fillback import scrub as scrub_values
 from almaapitk.redaction import masked_repr, redact
 
 DEFAULT_EVIDENCE_DIR = Path("alma-lab-evidence")
@@ -102,8 +103,12 @@ def new_record(*, operation: str, inputs: dict, environment: str, base_url_host:
     )
 
 
-def write_record(record: EvidenceRecord, evidence_dir: Path) -> Path:
-    """Write the record; on a name collision add ``-2``, ``-3`` and update ``record.id``."""
+def write_record(record: EvidenceRecord, evidence_dir: Path, scrub: tuple[str, ...] = ()) -> Path:
+    """Write the record; on a name collision add ``-2``, ``-3`` and update ``record.id``.
+
+    ``scrub``: values typed at an ``<ask>`` prompt; each is written as ``<asked>``
+    wherever it appears (sent, never saved).
+    """
     evidence_dir = Path(evidence_dir)
     day = evidence_dir / record.created_at[:10]
     stem = f"{record.created_at[11:19].replace(':', '')}-{record.slug or record.operation}"
@@ -116,7 +121,7 @@ def write_record(record: EvidenceRecord, evidence_dir: Path) -> Path:
         base_id = f"{record.created_at[:10].replace('-', '')}-{stem}"
         record.id = base_id if n == 1 else f"{base_id}-{n}"
         with open(path, "x", encoding="utf-8") as fh:
-            json.dump(redact(record.to_dict()), fh, ensure_ascii=False, indent=2, default=str)
+            json.dump(scrub_values(redact(record.to_dict()), scrub), fh, ensure_ascii=False, indent=2, default=str)
     except OSError as exc:
         raise EvidenceError(f"cannot write evidence under {evidence_dir}: {exc}") from exc
     return path

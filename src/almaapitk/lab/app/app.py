@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Callable, Optional
@@ -14,6 +15,7 @@ from textual.widgets import Button, Footer, Input, Static, TextArea
 
 from almaapitk.lab.app.confirm import ConfirmWrite
 from almaapitk.lab.app.export import ExportScreen
+from almaapitk.lab.app.handles import AskValue, HandlePicker
 from almaapitk.lab.app.history import HistoryScreen
 from almaapitk.lab.app.inputs import (
     STALE_NOTE,
@@ -28,6 +30,7 @@ from almaapitk.lab.app.result import ResultPane
 from almaapitk.lab.catalog import Operation, find_operation
 from almaapitk.lab.endpoints import Endpoint, custom_endpoint, custom_update, get_endpoint, match
 from almaapitk.lab.evidence import EvidenceError, EvidenceRecord, gitignore_status, load_record
+from almaapitk.lab.handles import Handles, UnknownHandle
 from almaapitk.lab.runner import InputError, RawRequest, Session, resolve_path
 
 PANES = ("operations", "inputs", "result")
@@ -45,6 +48,7 @@ class LabApp(App):
         Binding("e", "expect", "Expect"),
         Binding("r", "open_raw", "Open in Raw"),
         Binding("x", "export", "Export"),
+        Binding("ctrl+o", "pick_handle", "ID handles", key_display="^O", priority=True),
         Binding("question_mark", "help", "Help", key_display="?"),
         Binding("ctrl+q", "quit", "Quit", priority=True),
     ]
@@ -53,6 +57,9 @@ class LabApp(App):
         super().__init__()
         self.session = session
         self.session.gate = self._gate
+        self.session.ask = self._ask
+        # user ID handles (@u1, ...): in memory while the app is open, never saved
+        self.handles = Handles()
         self.current_operation: Optional[Operation] = None
         self.current_endpoint: Optional[Endpoint] = None
         self.last_record: Optional[EvidenceRecord] = None
@@ -68,6 +75,9 @@ class LabApp(App):
             yield InputsPane(id="inputs")
             yield ResultPane(id="result")
         yield Footer()
+
+    def on_ready(self) -> None:
+        self.query_one(ResultPane).handles = self.handles
 
     def on_mount(self) -> None:
         self.query_one("#op-tree").focus()
@@ -180,6 +190,11 @@ class LabApp(App):
         inputs = self.query_one(InputsPane)
         inputs.clear_errors()
         raw, expect = inputs.values(), inputs.expectations()
+        try:
+            raw = self.handles.resolve_all(raw)
+        except UnknownHandle as exc:
+            self._handle_error(inputs, exc)
+            return
         self.query_one("#status-line", Static).update(f"Sending {op.qualname} …")
         self._running_op, self._confirm_word = op, op.name
         self.run_worker(lambda: self._call(lambda: self.session.run(op, raw, expect)),
@@ -196,6 +211,11 @@ class LabApp(App):
         except InputError as exc:
             inputs.show_error(exc.field, exc.message)
             self.query_one("#status-line", Static).update("Not sent: fix the input.")
+            return
+        try:
+            req = self._resolved(req)
+        except UnknownHandle as exc:
+            self._handle_error(inputs, exc)
             return
         expect = inputs.expectations()
         if is_free_form(ep):
@@ -250,10 +270,13 @@ class LabApp(App):
             return
         pane.clear_errors()
         try:
-            req = pane.baseline_request()
+            req = self._resolved(pane.baseline_request())
         except InputError as exc:
             pane.show_error(exc.field, exc.message)
             self.query_one("#status-line", Static).update("Not loaded: fix the input.")
+            return
+        except UnknownHandle as exc:
+            self._handle_error(pane, exc)
             return
         key = pane.baseline_key()
         self.query_one("#status-line", Static).update(
@@ -287,9 +310,12 @@ class LabApp(App):
             return
         pane.clear_errors()
         try:
-            req = pane.raw_request(with_body=False)
+            req = self._resolved(pane.raw_request(with_body=False))
         except InputError as exc:
             pane.show_error(exc.field, exc.message)
+            return
+        except UnknownHandle as exc:
+            self._handle_error(pane, exc)
             return
         if req.endpoint.method not in ("POST", "PUT"):
             pane.show_error("method", "Load from GET is for POST and PUT")
@@ -356,7 +382,66 @@ class LabApp(App):
 
     def _show(self, record: EvidenceRecord, path: Optional[Path]) -> None:
         self.last_record, self.last_path = record, path
+        self._collect_handles(record)
         self.query_one(ResultPane).show(record, path)
+
+    # ID handles ---------------------------------------------------------------
+    def _collect_handles(self, record: EvidenceRecord) -> None:
+        """Give every user ID in a shown record a handle (in memory only)."""
+        self.handles.collect_path((record.inputs or {}).get("path") or {})
+        self.handles.collect(record.inputs)
+        self.handles.collect(record.result)
+        for r in record.requests:
+            if r.response_body:
+                self.handles.collect(r.response_body)
+
+    def _resolved(self, req: RawRequest) -> RawRequest:
+        """``req`` with every ``@uN`` swapped for its real ID, just before the call."""
+        h, ep = self.handles, req.endpoint
+        if ep.custom and ep.path != h.resolve(ep.path):  # a typed custom path
+            ep = custom_endpoint(ep.method, h.resolve(ep.path))
+        return replace(req, endpoint=ep, path_params=h.resolve_all(req.path_params), query=h.resolve_all(req.query),
+                       body=h.resolve(req.body), baseline_query=h.resolve_all(req.baseline_query))
+
+    def _handle_error(self, pane: InputsPane, exc: UnknownHandle) -> None:
+        self.notify(str(exc), severity="warning")
+        self.query_one("#status-line", Static).update(escape(f"Not sent: {exc}."))
+
+    def action_pick_handle(self) -> None:
+        """Ctrl+O: pick a user ID handle; it is typed into the field that had focus."""
+        if not len(self.handles):
+            self.notify("No user IDs yet: handles appear as Lab fetches or shows user records.",
+                        severity="warning")
+            return
+        target = self.focused
+
+        def picked(handle: Optional[str]) -> None:
+            if handle is None:
+                return
+            if isinstance(target, Input):
+                target.insert_text_at_cursor(handle)
+                target.focus()
+            elif isinstance(target, TextArea) and not target.read_only:
+                target.insert(handle)
+                target.focus()
+            else:
+                self.copy_to_clipboard(handle)
+                self.notify(f"{handle} copied: paste it into any path, query or body field.")
+        self.push_screen(HandlePicker(self.handles), callback=picked)
+
+    def _ask(self, field: str) -> Optional[str]:
+        """Called from the send worker for an ``<ask>`` field; waits for the user."""
+        answer: list[Optional[str]] = []
+        done = threading.Event()
+
+        def ask() -> None:
+            self.push_screen(AskValue(field), callback=lambda v: (answer.append(v), done.set()))
+
+        self.call_from_thread(ask)
+        while not done.wait(0.2):
+            if not self.is_running:
+                return None
+        return answer[0]
 
     def _gate(self, method: str, url: str, body: Optional[str]) -> bool:
         """Called from the send worker before each write; waits for the user."""
@@ -366,7 +451,8 @@ class LabApp(App):
 
         def ask() -> None:
             screen = ConfirmWrite(method, url, body, word,
-                                  production=self.session.environment == "PRODUCTION")
+                                  production=self.session.environment == "PRODUCTION",
+                                  changes=self.session.pending_changes)
             self.push_screen(screen, callback=lambda ok: (answer.append(bool(ok)), done.set()))
 
         self.call_from_thread(ask)
@@ -439,7 +525,10 @@ class LabApp(App):
     def action_help(self) -> None:
         self.notify(
             "Ctrl+←/→ switch panes · ↑↓ move · Enter edit/send · Ctrl+S send · / search · "
-            "h history · e expect · x export redacted · Ctrl+Q quit.\n"
+            "h history · e expect · x export redacted · Ctrl+O user ID handles · Ctrl+Q quit.\n"
+            "Handles: every user ID shown gets @u1, @u2 …; type one in any path, query or body "
+            "field and it is swapped for the real ID when sent (in memory only, never saved). "
+            "An update's body may hold <ask>: you are asked for the value at send time.\n"
             "Checks: status == 200 · <path> exists · <path> == value · <path> contains text. "
             "Paths: payment.payment_status.value · lines[0].id · anies[0].record.datafield[tag=505].subfield[code=a]",
             timeout=20)

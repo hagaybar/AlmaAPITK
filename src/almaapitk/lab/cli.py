@@ -12,12 +12,18 @@
     almaapitk-lab raw PUT almaws/v1/courses/<course_id> --body-file edited.json \\
         --baseline current.json --allow-writes     (Production: --confirm-write "PUT courses")
 
+An update's edited body is filled back: only the fields you changed are applied to the
+record as it is in Alma now, so masked values you left alone keep their real values. A
+value of "<ask>" is asked for at send time (sent, never saved). ID handles (@u1, @u2)
+exist only inside the full-screen app; single commands do not share them.
+
 Exit codes: 0 ok · 1 the call failed, a check failed or a write was refused ·
 2 usage, input, credential or evidence error.
 """
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import logging
 import shlex
@@ -129,7 +135,13 @@ def _parser() -> argparse.ArgumentParser:
     eps.add_argument("--area", help="one of: " + ", ".join(AREA_TITLES))
     eps.add_argument("--search", metavar="TEXT")
     eps.add_argument("--json", action="store_true")
-    raw = sub.add_parser("raw", parents=[common], help="send one raw Alma API call")
+    raw = sub.add_parser(
+        "raw", parents=[common], help="send one raw Alma API call",
+        epilog="An update's --body-file is filled back onto the record as it is in Alma now: "
+               "only the fields you changed are sent as typed; masked values you left alone "
+               "keep their real values. A field set to \"<ask>\" is asked for at send time "
+               "(sent, never saved). ID handles (@u1) work only inside the full-screen app; "
+               "single commands do not share them.")
     raw.add_argument("method", type=str.upper, choices=("GET", "POST", "PUT", "DELETE"))
     raw.add_argument("path", help="concrete path, e.g. almaws/v1/courses/<course_id>")
     raw.add_argument("--query", action="append", default=[], metavar="K=V")
@@ -178,9 +190,15 @@ def _inputs_from_flags(op: Operation, params: list[str], extra: list[str]) -> di
     return raw
 
 
-def _gate_for(args: argparse.Namespace, words: tuple[str, ...], refusals: list[str]):
-    """The write gate; ``words`` are the accepted --confirm-write values, the first is shown."""
+def _gate_for(args: argparse.Namespace, words: tuple[str, ...], refusals: list[str],
+              session: Optional[Session] = None):
+    """The write gate; ``words`` are the accepted --confirm-write values, the first is shown.
+
+    An update's field-level changes are shown first (raw: on screen only)."""
     def gate(method: str, url: str, body: Optional[str]) -> bool:
+        changes = session.pending_changes if session is not None else None
+        if changes:
+            _err(f"changes to send ({method} {url}):\n{changes}")
         if args.env == "PRODUCTION":
             if args.confirm_write in words:
                 return True
@@ -370,8 +388,8 @@ def _raw(args: argparse.Namespace, argv: list[str]) -> int:
     baseline = _load_baseline(args) if args.baseline else None
     refusals: list[str] = []
     session = Session(args.env, evidence_dir=args.evidence_dir, source="headless",
-                      command=_safe_command(argv))
-    session.gate = _gate_for(args, (ep.confirm_word,), refusals)
+                      command=_safe_command(argv), ask=_ask)
+    session.gate = _gate_for(args, (ep.confirm_word,), refusals, session)
     try:
         try:
             if args.baseline_out:
@@ -404,6 +422,15 @@ def _raw(args: argparse.Namespace, argv: list[str]) -> int:
         return 1 if failed else 0
     finally:
         session.close()
+
+
+def _ask(field: str) -> Optional[str]:
+    """Prompt for an ``<ask>`` field (not echoed: the value shows in the changes
+    printed before sending). Sent, never saved."""
+    try:
+        return getpass.getpass(f"value for {field} (<ask>): ")
+    except (EOFError, KeyboardInterrupt):
+        return None
 
 
 def _write_baseline(path: Path, record: EvidenceRecord) -> None:

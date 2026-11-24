@@ -60,6 +60,7 @@ __all__ = [
     "CREDENTIAL_PLACEHOLDER",
     "PERSONAL_PLACEHOLDER",
     "contains_mask",
+    "is_user_id_field",
     "masked_exception",
 ]
 
@@ -178,6 +179,12 @@ def is_personal_field(key: Any) -> bool:
     also replaces record IDs) but must not drift from this list.
     """
     return _classify(key, CREDENTIAL_PATTERNS) != _WALK
+
+
+def is_user_id_field(key: Any) -> bool:
+    """True when ``key`` names a user identifier (``primary_id``, ``user_id``,
+    ``requester``, ``user_identifier``, ...): the fields masked to ``<...>789``."""
+    return _classify(key, CREDENTIAL_PATTERNS) == _USER_ID
 
 
 def partial(value: Any) -> str:
@@ -313,8 +320,9 @@ _BARE_NOTE = re.compile(
     r"""(?i)(?<![\w"'])(?P<key>(?:[a-z0-9]+_)*notes?(?:_text|_\d+)?)(?P<sep>\s*=\s*)"""
     r"""(?P<val>[^"'\n;|<][^\n;|]*?)(?=\s*(?:[;|\n]|$|,?\s+[A-Za-z_]\w*\s*=))"""
 )
-# users/<id> in an Alma path. Placeholders like users/<user_id> stay.
-_USER_ID_IN_PATH = re.compile(r"(users/)([^/?#&\s\"'<>]+)")
+# users/<id> in an Alma path. Placeholders (users/<user_id>) and path templates
+# (users/{user_id}, as evidence records the endpoint) stay.
+_USER_ID_IN_PATH = re.compile(r"(users/)(?!\{[A-Za-z_]+\})([^/?#&\s\"'<>]+)")
 # "user 123456789", "patron: tau000000123", "requester id 123456789":
 # a singular word naming one person, then a token that contains a digit.
 # Plurals are counts ("Processed users: 1500"), a bare "identifier" names

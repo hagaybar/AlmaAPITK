@@ -116,7 +116,8 @@ Alma knowledge lives in domain skills (installed at user level, `~/dotfiles/clau
 - Domains: `alma-acquisitions-specialist` (POs, POLs, invoices, funds), `alma-resource-sharing`
   (lending and borrowing), `alma-digital` (representations, S3 uploads), `alma-users` (patrons,
   loans, requests), `alma-bibs-inventory` (bibs, holdings, items), `alma-letters` (notification
-  letters).
+  letters). Domain claims carry evaluation records (`references/evaluation.md` in each skill);
+  `alma-api-knowledge-evaluator` checks them.
 
 Git: commit granularly with descriptive messages and push after committing; never push to `prod`.
 `AGENTS.md` is the reviewer's brief (Codex reviews, report only).

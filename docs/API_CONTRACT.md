@@ -53,6 +53,18 @@ The following symbols are exported and part of the stable public API:
 | `TSVGenerator` | class | TSV file generation utilities |
 | `CitationMetadataError` | exception | Exception for citation metadata enrichment errors |
 
+### Personal-data mask (issue #256)
+
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `redact` | function | `redact(obj)`: masked **copy** of a record, list or string, by Alma field name. The argument is never changed. |
+| `redact_text` | function | `redact_text(text)`: masked copy of a string (log line, message, serialised body). Non-strings are returned unchanged. |
+
+Return values of every other public method stay raw (in-memory data is never masked).
+`str()` / `repr()` of `AlmaAPIError`, `AlmaValidationError` and their subclasses are masked;
+`exc.args` keep the raw message. `repr(AlmaResponse)` shows status only. Field list and
+rules: `docs/site/guides/personal-data-mask.md`.
+
 ### Basic Usage
 
 ```python

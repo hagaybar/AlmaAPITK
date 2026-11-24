@@ -1,7 +1,9 @@
 """Evidence records: one JSON file per call, under ``alma-lab-evidence/``.
 
-Records hold real identifiers and possibly patron data, so the folder must
-stay out of git (repo rule R9). ``gitignore_status`` lets the front ends warn.
+Records hold real identifiers, so the folder must stay out of git (repo rule
+R9). ``gitignore_status`` lets the front ends warn. Personal data is masked
+when a record is written (issue #256): the file holds the masked copy, the
+in-memory record stays raw for the screen.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from typing import Any, Literal, Optional, Union
 
 from almaapitk.lab import TOOL_VERSION
 from almaapitk.lab.capture import CapturedRequest
-from almaapitk.redaction import masked_repr
+from almaapitk.redaction import masked_repr, redact
 
 DEFAULT_EVIDENCE_DIR = Path("alma-lab-evidence")
 
@@ -114,7 +116,7 @@ def write_record(record: EvidenceRecord, evidence_dir: Path) -> Path:
         base_id = f"{record.created_at[:10].replace('-', '')}-{stem}"
         record.id = base_id if n == 1 else f"{base_id}-{n}"
         with open(path, "x", encoding="utf-8") as fh:
-            json.dump(record.to_dict(), fh, ensure_ascii=False, indent=2, default=str)
+            json.dump(redact(record.to_dict()), fh, ensure_ascii=False, indent=2, default=str)
     except OSError as exc:
         raise EvidenceError(f"cannot write evidence under {evidence_dir}: {exc}") from exc
     return path

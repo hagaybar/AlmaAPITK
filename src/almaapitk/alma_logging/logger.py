@@ -51,8 +51,20 @@ class MaskingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         if getattr(record, "_almaapitk_masked", False):
             return True
-        record.msg = _redaction.redact_text(record.getMessage())
-        record.args = ()
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001 - a malformed %-style call
+            # Never raise into the caller's job. Mask the template and the
+            # arguments separately and leave them unrendered: the handler then
+            # reports "--- Logging error ---" as Python normally does.
+            record.msg = _redaction.redact_text(record.msg)
+            record.args = _redaction.redact(record.args) if isinstance(
+                record.args, (tuple, list, dict)) else record.args
+            if isinstance(record.args, list):
+                record.args = tuple(record.args)
+        else:
+            record.msg = _redaction.redact_text(message)
+            record.args = ()
         for key, value in list(record.__dict__.items()):
             if key not in _STANDARD_RECORD_ATTRS and not key.startswith("_"):
                 setattr(record, key, _redaction.redact(value))

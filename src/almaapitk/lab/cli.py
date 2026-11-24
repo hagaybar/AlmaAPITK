@@ -50,12 +50,13 @@ ENVIRONMENTS = ("SANDBOX", "PRODUCTION")
 
 
 def _out(text: str = "") -> None:
-    """Terminal output, masked (issue #256): the evidence file keeps the raw values."""
-    sys.stdout.write(redact_text(text) + "\n")
+    """Terminal output, raw: the owner must see real data on screen (issue #256,
+    owner's answer 1). Files the Lab saves are masked instead."""
+    sys.stdout.write(text + "\n")
 
 
 def _err(text: str) -> None:
-    sys.stderr.write(redact_text(text) + "\n")
+    sys.stderr.write(text + "\n")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -409,7 +410,9 @@ def _write_baseline(path: Path, record: EvidenceRecord) -> None:
     sent = [r for r in record.requests if r.sent]
     body = (sent[-1].response_body or "") if sent else ""
     try:
-        path.write_bytes(body.encode("utf-8"))
+        # Saved to disk, so masked (issue #256); the same mask as the evidence
+        # record, so the unedited file still matches it.
+        path.write_bytes(redact_text(body).encode("utf-8"))
         Path(str(path) + ".evidence").write_text(record.id + "\n", encoding="utf-8")
     except OSError as exc:
         raise EvidenceError(f"cannot write {path}: {exc}") from exc

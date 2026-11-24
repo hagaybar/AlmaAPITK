@@ -1,7 +1,7 @@
 """The one personal-data mask for almaapitk (issue #256, building on #142).
 
 Every output path in the library (logging, error messages, ``repr()``,
-lab CLI output) masks through this module, and consumers use the same
+Alma Lab's saved files) masks through this module, and consumers use the same
 two functions for their own output::
 
     from almaapitk import redact, redact_text
@@ -25,7 +25,7 @@ What is masked, and how:
 
 - Credentials (``apikey``, ``authorization``, ...): ``***REDACTED***``.
 - Personal names, contact details, birth date, gender: ``<redacted>``.
-- Staff names in records (``created_by``, ``operator``, ``assigned_to``,
+- Staff names in records (``created_by``, ``operator``, ``approved_by``,
   ...): ``<redacted>``.
 - Free-text notes (user, request, receiving, vendor, item notes):
   ``<redacted>``.
@@ -53,10 +53,14 @@ __all__ = [
     "STAFF_NAME_FIELDS",
     "ADDRESS_PART_FIELDS",
     "NOTE_FIELD",
+    "NOTE_FIELDS",
+    "CONTACT_FIELDS",
     "VISIBLE_FIELDS",
     "USER_ID_PATTERNS",
     "CREDENTIAL_PLACEHOLDER",
     "PERSONAL_PLACEHOLDER",
+    "contains_mask",
+    "masked_exception",
 ]
 
 # ---------------------------------------------------------------------------
@@ -70,22 +74,37 @@ CREDENTIAL_PATTERNS: tuple[str, ...] = (
 
 #: Field-name substrings for names and contact details -> ``<redacted>``.
 #: No bare ``name`` entry: ``vendor_name`` and ``library_name`` are not
-#: personal (issue #142).
+#: personal (issue #142). ``email`` and ``address`` are *not* substrings
+#: here (``ip_address``, ``email_template`` are not personal): their
+#: field names are listed exactly in :data:`CONTACT_FIELDS`.
 PERSONAL_PATTERNS: tuple[str, ...] = (
     "first_name", "last_name", "middle_name", "full_name",
     "preferred_first_name", "preferred_middle_name", "preferred_last_name",
     "pref_first_name", "pref_middle_name", "pref_last_name",
-    "birth_date", "birthdate", "email", "phone", "address", "gender",
+    "birth_date", "birthdate", "phone", "gender",
     "requester_name", "patron_name", "user_full_name",
 )
+
+#: Exact contact-detail field names -> ``<redacted>``: the user record's
+#: ``email`` / ``address`` lists and their parts, and the lending request's
+#: requester contact (``text_email``, ``text_postal_1``..``4``; Ex Libris
+#: rest_lending_request.xsd, checked 2026-11-24).
+CONTACT_FIELDS: frozenset[str] = frozenset({
+    "email", "emails", "email_address", "preferred_email", "user_email",
+    "patron_email", "requester_email", "text_email",
+    "address", "addresses", "postal_address", "user_address", "patron_address",
+    "requester_address", "mailing_address",
+    "text_postal_1", "text_postal_2", "text_postal_3", "text_postal_4",
+})
 
 #: Exact field names that hold a staff member's name or user name
 #: -> ``<redacted>`` (owner, issue #256). ``received_by_circ_desk`` and
 #: ``managed_by_library`` are codes, so ``_by`` is not matched loosely.
+#: ``approved_by`` is the invoice's (rest_invoice.xsd).
 STAFF_NAME_FIELDS: frozenset[str] = frozenset({
     "created_by", "updated_by", "modified_by", "last_modified_by",
     "approved_by", "approver", "operator", "last_loan_operator",
-    "assigned_to", "assignee", "cataloged_by", "cataloger",
+    "assignee", "cataloged_by", "cataloger",
     "reviewed_by", "returned_by", "renewed_by", "staff_member",
     "staff_name", "librarian", "creator_user", "rejected_by",
 })
@@ -104,6 +123,15 @@ ADDRESS_PART_FIELDS: frozenset[str] = frozenset({
 #: object (``user_note: [{note_text, created_by, ...}]``) is walked, so
 #: booleans like ``popup_note`` and codes like ``note_type`` stay visible.
 NOTE_FIELD: re.Pattern[str] = re.compile(r"^(?:[a-z0-9]+_)*notes?(?:_text|_\d+)?$")
+
+#: The note fields confirmed in Ex Libris' schemas (2026-11-24). All of
+#: them also match :data:`NOTE_FIELD`; they are listed so the list is
+#: explicit and a change to the pattern cannot drop one silently.
+NOTE_FIELDS: frozenset[str] = frozenset({
+    "note", "notes", "note_text", "user_note", "rs_note",
+    "receiving_note", "vendor_note", "renewal_note",
+    "cancellation_restriction_note",
+})
 
 #: Patron-typed request text the owner keeps visible (issue #256, answer 1).
 VISIBLE_FIELDS: frozenset[str] = frozenset({
@@ -132,10 +160,10 @@ def _classify(key: Any, credential_patterns: Iterable[str]) -> str:
         return _CREDENTIAL
     if kl in VISIBLE_FIELDS or kl.endswith("_type"):
         return _WALK  # patron-typed text, or a code (user_id_type, phone_type)
-    if (any(p in kl for p in PERSONAL_PATTERNS) or kl in STAFF_NAME_FIELDS
-            or kl in ADDRESS_PART_FIELDS):
+    if (any(p in kl for p in PERSONAL_PATTERNS) or kl in CONTACT_FIELDS
+            or kl in STAFF_NAME_FIELDS or kl in ADDRESS_PART_FIELDS):
         return _PERSONAL
-    if NOTE_FIELD.match(kl):
+    if kl in NOTE_FIELDS or NOTE_FIELD.match(kl):
         return _NOTE
     if any(p in kl for p in USER_ID_PATTERNS):
         return _USER_ID
@@ -203,9 +231,11 @@ def _redact(data: Any, patterns: tuple[str, ...]) -> Any:
 
 def _redact_dict(data: dict, patterns: tuple[str, ...]) -> dict:
     out: dict = {}
-    # A user_identifier entry ({id_type: {value: BARCODE}, value: "..."}):
-    # the value is a user identifier whatever its type.
-    is_user_identifier = "id_type" in data
+    # A user_identifier entry met on its own ({id_type, value, segment_type}):
+    # the value is a user identifier whatever its type. Inside a user record
+    # the ``user_identifier`` key already masks it. An ``{id_type, value}``
+    # without ``segment_type`` (an ISSN, an ISBN) stays visible.
+    is_user_identifier = "id_type" in data and "segment_type" in data
     for k, v in data.items():
         rule = _classify(k, patterns)
         if is_user_identifier and k == "value" and isinstance(v, (str, int)):
@@ -285,13 +315,21 @@ _BARE_NOTE = re.compile(
 )
 # users/<id> in an Alma path. Placeholders like users/<user_id> stay.
 _USER_ID_IN_PATH = re.compile(r"(users/)([^/?#&\s\"'<>]+)")
-# "user 123456789", "patron: tau000000123", "identifier 123456789":
-# a word naming a person followed by a token that contains a digit.
+# "user 123456789", "patron: tau000000123", "requester id 123456789":
+# a singular word naming one person, then a token that contains a digit.
+# Plurals are counts ("Processed users: 1500"), a bare "identifier" names
+# any record's identifier (an MMS ID; only Alma's "User with identifier X"
+# counts), and a date after the word is a date.
 _USER_WORD_ID = re.compile(
-    r"(?i)\b(?P<word>users?|patrons?|requesters?|identifier)(?P<sep>(?:\s+id)?\s*[:=]?\s+)"
+    r"(?i)\b(?P<word>user(?:\s+with\s+identifier)?|patron|requester)"
+    r"(?P<sep>(?:\s+id)?\s*[:=]?\s+)"
+    r"(?!\d{4}-\d{2}-\d{2}(?:[T\s]|$|[^\w-]))"
     r"(?P<id>(?=[^\s,;)'\"]*\d)[^\s,;)'\"<>]{4,})"
 )
 # A user_identifier entry written as text: id_type {...} then its value.
+# Applied only to text that is about user identifiers (it names
+# ``user_identifier`` or ``segment_type``), so an ISSN stays visible.
+_USER_IDENTIFIER_HINT = re.compile(r"user_identifier|segment_type")
 _USER_IDENTIFIER_VALUE = re.compile(
     r"""(?P<head>["']?id_type["']?\s*[:=]\s*\{[^{}]*\}\s*,\s*["']?value["']?\s*[:=]\s*)"""
     r"""(?P<q>["']?)(?P<val>[^"',}\s]+)(?P=q)"""
@@ -306,8 +344,8 @@ def redact_text(text: Any) -> Any:
     written as JSON (``"primary_id": "..."``), Python reprs
     (``'primary_id': '...'``), XML (``<primary_id>...</primary_id>``) and
     ``key=value`` / ``key: value`` text, then masks user IDs in
-    ``users/<id>`` paths and after the words *user*, *patron*,
-    *requester* or *identifier*, and every email address.
+    ``users/<id>`` paths and after the words *user*, *patron* or
+    *requester* (singular; not a date), and every email address.
 
     A string that is a whole JSON document is parsed, masked as data and
     written back (indentation kept), so ``user_identifier`` values are
@@ -328,9 +366,11 @@ def redact_text(text: Any) -> Any:
     as_json = _redact_json_document(text)
     if as_json is not None:
         return as_json
-    out = _USER_IDENTIFIER_VALUE.sub(
-        lambda m: m.group("head") + m.group("q") + _partial_token(m.group("val")) + m.group("q"),
-        text)
+    out = text
+    if _USER_IDENTIFIER_HINT.search(text):
+        out = _USER_IDENTIFIER_VALUE.sub(
+            lambda m: m.group("head") + m.group("q") + _partial_token(m.group("val"))
+            + m.group("q"), text)
     out = _QUOTED_PAIR.sub(_sub_quoted_pair, out)
     out = _XML_ELEMENT.sub(_sub_xml, out)
     out = _BARE_NOTE.sub(_sub_bare_note, out)
@@ -402,9 +442,15 @@ def _sub_xml(m: re.Match) -> str:
     return f"<{m.group('key')}>{masked}</{m.group('key')}>"
 
 
+#: Plural words written as labels hold counts, not IDs ("users: 1500").
+_COUNT_LABELS = frozenset({"users", "patrons", "requesters"})
+
+
 def _sub_bare_pair(m: re.Match) -> str:
     quoted = m.group("qval") is not None
     value = m.group("qval") if quoted else m.group("val")
+    if m.group("key").lower() in _COUNT_LABELS:
+        return m.group(0)
     if ":" in m.group("sep") and _classify(m.group("key"), CREDENTIAL_PATTERNS) == _NOTE:
         return m.group(0)  # "note: ..." is how messages label a remark, not a field
     masked = _masked_scalar(m.group("key"), value)
@@ -439,3 +485,99 @@ def masked_repr(obj: Any, fields: dict) -> str:
     """
     parts = ", ".join(f"{k}={redact(v)!r}" for k, v in fields.items())
     return redact_text(f"{type(obj).__name__}({parts})")
+
+
+# ---------------------------------------------------------------------------
+# Masked data must never be sent back to Alma
+# ---------------------------------------------------------------------------
+
+_MASK_MARKERS = (CREDENTIAL_PLACEHOLDER, PERSONAL_PLACEHOLDER, _PARTIAL_PREFIX)
+
+
+def contains_mask(data: Any) -> bool:
+    """True when ``data`` (a string, or any value inside a dict / list) holds
+    a mask placeholder (``<redacted>``, ``<...>``, ``***REDACTED***``).
+
+    A masked copy read back from a file must not be sent to Alma as if it
+    were the record: it would overwrite real values with placeholders.
+    """
+    if isinstance(data, str):
+        return any(marker in data for marker in _MASK_MARKERS)
+    if isinstance(data, dict):
+        return any(contains_mask(k) or contains_mask(v) for k, v in data.items())
+    if isinstance(data, (list, tuple)):
+        return any(contains_mask(item) for item in data)
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Exception chains (tracebacks print every __cause__ / __context__)
+# ---------------------------------------------------------------------------
+
+_MASKED_TYPES: dict[type, type] = {}
+
+
+def _masked_type(cls: type) -> type:
+    """A subclass of ``cls`` whose ``str()`` is the stored masked text.
+
+    Same name and module, so a traceback reads as before and ``except
+    cls`` / ``isinstance`` still match.
+    """
+    if cls not in _MASKED_TYPES:
+        _MASKED_TYPES[cls] = type(cls.__name__, (cls,), {
+            "__module__": cls.__module__,
+            "__qualname__": cls.__qualname__,
+            "__str__": lambda self: self._almaapitk_masked_text,
+            "__repr__": lambda self: f"{cls.__name__}({self._almaapitk_masked_text!r})",
+        })
+    return _MASKED_TYPES[cls]
+
+
+def masked_exception(exc: Optional[BaseException],
+                     _seen: Optional[dict] = None) -> Optional[BaseException]:
+    """A copy of ``exc`` whose message, and every chained cause / context,
+    is masked; ``exc`` itself when nothing in the chain is personal.
+
+    For library code that re-raises or chains a third-party exception
+    (``raise AlmaServerError(...) from masked_exception(e)``): the default
+    traceback prints each chained exception's ``str()``, and a ``requests``
+    error carries the request URL (``/almaws/v1/users/<id>``). The copy keeps
+    the type (``except requests.ConnectionError`` still matches), the
+    traceback and the attributes (``response``, ``request``); the original is
+    unchanged.
+    """
+    if exc is None:
+        return None
+    seen = {} if _seen is None else _seen
+    if id(exc) in seen:
+        return seen[id(exc)]
+    seen[id(exc)] = exc  # cycle guard while the chain is walked
+    try:
+        text = str(exc)
+    except Exception:  # noqa: BLE001 - a broken __str__ is shown as the type only
+        text = ""
+    masked = redact_text(text)
+    cause = masked_exception(exc.__cause__, seen)
+    context = masked_exception(exc.__context__, seen)
+    if masked == text and cause is exc.__cause__ and context is exc.__context__:
+        return exc
+    try:
+        copy = _copy_exception(exc)
+        copy.__class__ = _masked_type(type(exc))
+        copy._almaapitk_masked_text = masked
+    except Exception:  # noqa: BLE001 - an exception type that cannot be copied
+        copy = RuntimeError(f"{type(exc).__module__}.{type(exc).__qualname__}: {masked}")
+    copy.__traceback__ = exc.__traceback__
+    copy.__cause__ = cause
+    copy.__context__ = context
+    copy.__suppress_context__ = exc.__suppress_context__
+    seen[id(exc)] = copy
+    return copy
+
+
+def _copy_exception(exc: BaseException) -> BaseException:
+    """A shallow copy: same args and attributes, a new object."""
+    copy = type(exc).__new__(type(exc), *exc.args)
+    copy.args = exc.args
+    copy.__dict__.update(getattr(exc, "__dict__", {}))
+    return copy

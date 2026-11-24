@@ -5,6 +5,7 @@ from almaapitk.lab import catalog
 from almaapitk.lab.catalog import Operation, Param, find_operation
 from almaapitk.lab.evidence import load_record
 from almaapitk.lab.runner import InputError, Session, coerce_inputs
+from almaapitk.redaction import redact
 
 
 @pytest.fixture
@@ -21,7 +22,7 @@ def test_get_operation_writes_record_with_checks(session, lab_client, tmp_path):
     assert rec.result["title"] == "Sample title"
     assert [e["outcome"] for e in rec.expectations] == ["passed", "passed", "failed"]
     assert rec.requests[0].url.endswith("/almaws/v1/bibs/990000000000001?view=full")
-    assert load_record(rec.id, tmp_path).to_dict() == rec.to_dict()
+    assert load_record(rec.id, tmp_path).to_dict() == redact(rec.to_dict())
     assert rec.source == "headless" and rec.environment == "SANDBOX"
 
 

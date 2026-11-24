@@ -13,7 +13,7 @@ import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from almaapitk.alma_logging import get_logger
-from almaapitk.redaction import redact_text
+from almaapitk.redaction import masked_exception, redact_text
 
 
 # Default per-request timeout (seconds) for Alma API calls. Lowered from
@@ -1223,7 +1223,13 @@ class AlmaAPIClient:
             # have created the record after the client gave up.
             request_sent = _timeout_request_sent(e)
             if request_sent is None:
-                raise  # A connection error that is not a timeout.
+                # A connection error that is not a timeout: re-raised as its
+                # own type, with the URL in it (and in its chain) masked
+                # (issue #256: a traceback prints every chained message).
+                masked = masked_exception(e)
+                if masked is e:
+                    raise
+                raise masked from (masked.__cause__ or masked.__context__)
             self.logger.error(
                 "Alma request timed out",
                 method=method,
@@ -1239,7 +1245,7 @@ class AlmaAPIClient:
                 endpoint=endpoint,
                 timeout=effective_timeout,
                 request_sent=request_sent,
-            ) from e
+            ) from masked_exception(e)  # issue #256: the cause prints the URL
         except requests.exceptions.RetryError as e:
             # Issue #208: only a caller-supplied ``retry=`` policy with
             # ``raise_on_status=True`` gets here; the default policy returns
@@ -1251,7 +1257,7 @@ class AlmaAPIClient:
             )
             raise AlmaServerError(
                 f"{method} {endpoint} failed after retries: {e}"
-            ) from e
+            ) from masked_exception(e)  # issue #256: the cause prints the URL
         duration_ms = (time.time() - start_time) * 1000
 
         # Log the response (status + timing). The detailed body trace below

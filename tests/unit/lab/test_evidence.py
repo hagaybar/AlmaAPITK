@@ -15,6 +15,7 @@ from almaapitk.lab.evidence import (
     new_record,
     write_record,
 )
+from almaapitk.redaction import redact
 from tests.unit.lab.conftest import TEST_KEY
 
 
@@ -38,8 +39,8 @@ def test_round_trip(tmp_path):
     rec = _record()
     path = write_record(rec, tmp_path)
     loaded = load_record(path, tmp_path)
-    assert loaded.to_dict() == rec.to_dict()
-    assert load_record(rec.id, tmp_path).to_dict() == rec.to_dict()
+    assert loaded.to_dict() == redact(rec.to_dict())  # saved masked (#256)
+    assert load_record(rec.id, tmp_path).to_dict() == redact(rec.to_dict())
     assert isinstance(loaded.requests[0], CapturedRequest)
 
 

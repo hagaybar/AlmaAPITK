@@ -39,7 +39,7 @@ from almaapitk.lab.evidence import (
 from almaapitk.lab.expect import evaluate, parse_expectation
 from almaapitk.lab.hints import HINTS
 from almaapitk.lab.normalize import normalize_result
-from almaapitk.redaction import masked_repr
+from almaapitk.redaction import contains_mask, masked_repr
 
 _TRUE = {"true", "yes", "y", "1", "on"}
 _FALSE = {"false", "no", "n", "0", "off"}
@@ -279,6 +279,7 @@ class Session:
 
     def _run(self, op: Operation, raw_inputs: dict[str, Any],
              expectations: Iterable[str]) -> EvidenceRecord:
+        _refuse_masked(raw_inputs)
         kwargs = coerce_inputs(op, raw_inputs)
         parsed = self._parse_expectations(expectations)
         self._check_writable()  # before anything is sent: never lose a write's evidence
@@ -356,6 +357,13 @@ class Session:
     def _run_raw(self, req: RawRequest, expectations: Iterable[str],
                  baseline: Optional[EvidenceRecord]) -> EvidenceRecord:
         req, upgraded = self._indexed(req)
+        _refuse_masked({"path": req.path_params, "query": req.query, "body": req.body,
+                        "baseline query": req.baseline_query})
+        if baseline is not None and (contains_mask(_response_body(baseline))
+                                     or contains_mask(baseline.inputs)):
+            raise InputError("baseline", "this baseline was read from a saved file, which is "
+                                         "masked (it holds personal data), so it cannot start "
+                                         "an update; load the current record in Alma Lab's app")
         ep, method = req.endpoint, req.endpoint.method
         path = resolve_path(ep, req.path_params)
         path_values = _path_values(ep, req.path_params)
@@ -504,6 +512,19 @@ def _baseline_mismatch(baseline: EvidenceRecord, twin: Endpoint, path_values: di
     if baseline.inputs.get("format") != fmt:
         return f"format differs (baseline {baseline.inputs.get('format')}, this call {fmt})"
     return None
+
+
+def _refuse_masked(values: dict[str, Any]) -> None:
+    """Refuse a send that carries mask placeholders (issue #256).
+
+    Saved evidence and baselines are masked; a value copied from one
+    (``<redacted>``, ``<...>123``) would write the placeholder into Alma or
+    address the wrong record. Nothing is sent; the user types the real value.
+    """
+    for name, value in values.items():
+        if contains_mask(value):
+            raise InputError(name, "holds a masked value (<redacted>, <...>) from a saved "
+                                   "file; type the real value")
 
 
 def _raw_request_from(record: EvidenceRecord) -> RawRequest:

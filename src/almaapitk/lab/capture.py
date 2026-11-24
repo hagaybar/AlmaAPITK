@@ -10,13 +10,15 @@ from __future__ import annotations
 import json
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Callable, Optional
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 import requests
 
 from almaapitk import AlmaAPIClient, AlmaOperationCancelled
+from almaapitk.lab.fillback import has_placeholder
+from almaapitk.redaction import masked_repr
 
 WriteGate = Callable[[str, str, Optional[str]], bool]
 """(method, url, body) → True to send the write, False to cancel it."""
@@ -31,6 +33,11 @@ _TRACKING_XML = re.compile(r"<trackingId>([^<]+)</trackingId>")
 
 class WriteCancelled(AlmaOperationCancelled):
     """A write was not approved, so it was not sent."""
+
+
+class MaskedValueRefused(WriteCancelled):
+    """A request carried a mask placeholder (``<redacted>``, ``<...>``) or an
+    ``<ask>`` marker, so it was not sent (issue #256: never to Alma)."""
 
 
 @dataclass
@@ -52,6 +59,9 @@ class CapturedRequest:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 class Recorder:
@@ -86,6 +96,10 @@ class Recorder:
             body=_body_text(kwargs),
         )
         self.requests.append(captured)
+        if _carries_placeholder(url, kwargs, captured.body):  # last line of defence
+            captured.sent = False
+            raise MaskedValueRefused(f"{method} {captured.url} holds a masked value, so it was "
+                                     "not sent")
         if method != "GET" and not (self.gate and self.gate(method, captured.url, captured.body)):
             captured.sent = False
             raise WriteCancelled(f"{method} {captured.url} was not approved, so it was not sent")
@@ -99,6 +113,13 @@ class Recorder:
         captured.duration_ms = int((time.monotonic() - started) * 1000)
         _fill_response(captured, response)
         return response
+
+
+def _carries_placeholder(url: str, kwargs: dict, body: Optional[str]) -> bool:
+    params = kwargs.get("params") or {}
+    items = params.items() if isinstance(params, dict) else params
+    texts = [unquote(url), body or ""] + [unquote(str(v)) for _, v in items]
+    return any(has_placeholder(t) for t in texts)
 
 
 def make_lab_client(environment: str, api_key: Optional[str] = None) -> AlmaAPIClient:

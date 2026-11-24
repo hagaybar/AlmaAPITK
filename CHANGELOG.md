@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **One personal-data mask** (#256): `almaapitk.redact(obj)` and `almaapitk.redact_text(str)`
+  expose the #142 logic as a public API with one field list (`almaapitk.redaction`). The list
+  adds staff names in records (`created_by`, `operator`, `approved_by`, ...), free-text notes
+  (user, request, receiving, vendor, renewal, cancellation-restriction notes, `note_text`),
+  address parts, the lending request's requester contact (`text_email`, `text_postal_1`..`4`)
+  and every `user_identifier` value (partial, last 3 characters); patron-typed request text (`comment`, `citation_note`)
+  stays visible. Guide: `docs/site/guides/personal-data-mask.md`.
+
+### Changed
+
+- **Every output path masks personal data** (#256). Log messages and tracebacks (not only
+  context fields) are masked, and a filter on every `almapi.*` logger covers handlers a
+  consumer attaches and Python's last-resort handler. `str()` / `repr()` of `AlmaAPIError`,
+  `AlmaValidationError` and their subclasses are masked (`exc.args` stay raw). `repr()` of
+  `AlmaResponse` and `AlmaAPIClient` show status / environment only. `requests` errors the
+  client chains or re-raises are masked copies of the same type, so a traceback's "direct
+  cause" block is masked. Alma Lab's saved files (evidence records, `--baseline-out`) are
+  masked; its screen output stays raw. The reprs of lab and testing records are masked; the
+  lab's export rule takes its personal fields from the shared list. Returned data is
+  unchanged.
+- **Alma Lab updates are filled back** (#256). A PUT edited from a masked baseline (CLI
+  `--body-file`/`--baseline`, or the app) is applied field by field onto the record fetched
+  fresh from Alma (after a masked-form "baseline changed" check), so masked fields left alone
+  keep their real values; the field-level changes are shown on screen before sending and kept,
+  masked, in the evidence (`body_diff` is now this list for JSON updates). A field set to
+  `"<ask>"` is asked for at send time, sent and never saved (`<asked>` in evidence). No
+  placeholder is ever sent: refused by the runner and, as a backstop, by the Lab's transport.
+  JSON bodies only; an XML update holding a placeholder is refused.
+- **Alma Lab app: user ID handles** (#256). Every user ID the app shows gets `@u1`, `@u2`, …
+  beside it; any request input accepts a handle, swapped for the real ID at send time
+  (`Ctrl+O` picks one). In memory only; headless commands refuse handles.
+- `redact_text` no longer masks a path template (`users/{user_id}`), which broke Lab updates of
+  user records from a saved baseline. New public helper: `almaapitk.redaction.is_user_id_field`.
+- `repr()` of an `AlmaAPIError` / `AlmaValidationError` shows only the masked message (not the
+  constructor arguments).
+- Error strings in returned dicts (`result['error']` in some `Users` and `Admin` methods) are
+  built from `str(exc)`, so they are masked now.
+- A log message that is one whole JSON document is masked as data and written back
+  re-serialised (indentation kept, key order kept; spacing may change).
+- A malformed `%`-style log call on an `almapi.*` logger no longer reaches handlers rendered;
+  Python's usual "--- Logging error ---" is printed and the caller is never interrupted.
+- `redact_sensitive_data(data, patterns)`: `patterns` now **adds** credential patterns to the
+  built-in list instead of replacing it.
+
 ### Changed
 
 - **Alma Lab: finding the right call.** A method's form says what it sends, including the

@@ -35,7 +35,7 @@ __version__ = '1.0.0'
 __author__ = 'AlmaAPITK Development Team'
 
 # Phase 1: Infrastructure - skeleton implementations available
-from .logger import AlmaLogger, get_logger
+from .logger import AlmaLogger, MaskingFilter, get_logger
 from .formatters import JSONFormatter, TextFormatter, redact_sensitive_data
 from .handlers import AlmaRotatingFileHandler, DateOrganizedFileHandler, create_log_directory_structure
 from .config import LoggingConfig, load_config
@@ -44,6 +44,7 @@ __all__ = [
     # Core logging
     'AlmaLogger',
     'get_logger',
+    'MaskingFilter',
     # Formatters
     'JSONFormatter',
     'TextFormatter',

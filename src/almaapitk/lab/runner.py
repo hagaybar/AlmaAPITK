@@ -11,9 +11,9 @@ import json
 import re
 import tempfile
 import threading
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
-from typing import Any, Iterable, Literal, Optional
+from typing import Any, Callable, Iterable, Literal, Optional
 from urllib.parse import quote, urlsplit
 
 from almaapitk.alma_logging import get_logger
@@ -37,8 +37,21 @@ from almaapitk.lab.evidence import (
     write_record,
 )
 from almaapitk.lab.expect import evaluate, parse_expectation
+from almaapitk.lab.fillback import (
+    FillBackError,
+    fill_asks,
+    has_placeholder,
+    mark_asked,
+    masked_text,
+    merge,
+    path_text,
+    placeholder_paths,
+    render,
+)
+from almaapitk.lab.handles import holds_handle
 from almaapitk.lab.hints import HINTS
 from almaapitk.lab.normalize import normalize_result
+from almaapitk.redaction import masked_repr, redact
 
 _TRUE = {"true", "yes", "y", "1", "on"}
 _FALSE = {"false", "no", "n", "0", "off"}
@@ -118,6 +131,9 @@ class RawRequest:
     body: Optional[str] = None
     fmt: Literal["json", "xml"] = "json"
     baseline_query: dict[str, str] = field(default_factory=dict)
+
+    def __repr__(self) -> str:  # issue #256: never print personal data
+        return masked_repr(self, {f.name: getattr(self, f.name) for f in fields(self)})
 
 
 def resolve_path(endpoint: Endpoint, path_params: dict[str, str]) -> str:
@@ -235,6 +251,7 @@ class Session:
         gate: Optional[WriteGate] = None,
         source: str = "app",
         command: Optional[str] = None,
+        ask: Optional[Callable[[str], Optional[str]]] = None,
     ):
         self.environment = environment.upper()
         self.evidence_dir = Path(evidence_dir)
@@ -247,6 +264,12 @@ class Session:
         self._domains: dict[str, Any] = {}
         self.last_path: Optional[Path] = None
         self._lock = threading.Lock()
+        # fill-back (issue #256 round 3): ``ask(field)`` answers an ``<ask>`` in an
+        # update's body; ``pending_changes`` is the field-level diff of the update
+        # about to be sent, for the write gate to show (raw: on screen only).
+        self.ask = ask
+        self.pending_changes: Optional[str] = None
+        self._asked: tuple[str, ...] = ()
 
     @property
     def client(self):
@@ -275,6 +298,8 @@ class Session:
 
     def _run(self, op: Operation, raw_inputs: dict[str, Any],
              expectations: Iterable[str]) -> EvidenceRecord:
+        _refuse_masked(raw_inputs)
+        self._asked = ()
         kwargs = coerce_inputs(op, raw_inputs)
         parsed = self._parse_expectations(expectations)
         self._check_writable()  # before anything is sent: never lose a write's evidence
@@ -305,7 +330,7 @@ class Session:
             record.expectations = [evaluate(e, result=record.result, requests=record.requests,
                                             error=error_class) for e in parsed]
         try:
-            self.last_path = write_record(record, self.evidence_dir)
+            self.last_path = write_record(record, self.evidence_dir, scrub=self._asked)
         except EvidenceError as exc:
             exc.record = record  # the call happened: let the front end still show it
             raise
@@ -352,13 +377,21 @@ class Session:
     def _run_raw(self, req: RawRequest, expectations: Iterable[str],
                  baseline: Optional[EvidenceRecord]) -> EvidenceRecord:
         req, upgraded = self._indexed(req)
+        self._asked = ()
         ep, method = req.endpoint, req.endpoint.method
+        found = update_twin(req)
+        # An update's JSON body is filled back (issue #256 round 3): placeholders in
+        # it are replaced by Alma's current values. Anywhere else they are refused.
+        fill = found is not None and req.fmt == "json" and bool(req.body and req.body.strip())
+        _refuse_masked({"path": req.path_params, "query": req.query,
+                        "baseline query": req.baseline_query})
+        if not fill:
+            _refuse_masked({"body": req.body})
         path = resolve_path(ep, req.path_params)
         path_values = _path_values(ep, req.path_params)
         query = coerce_query(ep, req.query)
         body_text, data = self._raw_body(req)
         parsed = self._parse_expectations(expectations)
-        found = update_twin(req)
         if found is None and baseline is not None:  # custom POST/PUT: informational baseline
             found = same_path_get(req)
         twin = found[0] if found else None
@@ -368,7 +401,10 @@ class Session:
             twin_path, twin_query = resolve_path(twin, twin_values), coerce_query(twin, req.baseline_query)
             self._check_baseline(baseline, twin, _path_values(twin, twin_values),
                                  mask_secret_params(twin_query), req.fmt, self.environment)
+        # asked once the update is known to be valid, before anything is sent
+        edit, answers = self._edit_with_answers(body_text) if fill else (None, {})
         self._check_writable()  # before anything is sent: never lose a write's evidence
+        self._asked = tuple(answers.values())
         # credentials typed into query fields are sent, never recorded
         inputs = {"path": path_values, "query": mask_secret_params(query), "format": req.fmt,
                   "body": body_text}
@@ -393,16 +429,45 @@ class Session:
             if twin is not None:
                 current = self.client.raw_request("GET", twin_path, params=twin_query,
                                                   custom_headers=accept)
-                if normalise_body(current.text(), req.fmt) != normalise_body(
-                        record.baseline["body"], req.fmt):
+                # compared masked: a saved baseline is masked (issue #256)
+                if normalise_body(masked_text(current.text()), req.fmt) != normalise_body(
+                        masked_text(record.baseline["body"]), req.fmt):
                     record.refused = "baseline changed"
+                elif edit is not None:
+                    data = self._fill_back(record, edit, answers, current.text())
+            if record.refused is None:
+                bad = _placeholders_in(data)
+                if bad:  # the hard rule: a placeholder never reaches Alma
+                    record.refused = f"a masked value would be sent ({bad})"
             if record.refused is None:
                 value = self._send_raw(method, path, query, data, req.fmt, accept)
         except Exception as exc:  # recorded, not raised: the evidence is the output
             error = f"{type(exc).__name__}: {exc}"
             if twin is not None and not any(r.method == method for r in self._recorder.requests):
                 record.refused = "baseline could not be checked"
+        finally:
+            self.pending_changes = None
         return self._finish(record, value, error, parsed)
+
+    def _edit_with_answers(self, body_text: str) -> tuple[Any, dict]:
+        """The edited body with each ``<ask>`` answered (asked before anything is sent)."""
+        try:
+            return fill_asks(json.loads(body_text), self.ask)
+        except FillBackError as exc:
+            raise InputError("body", str(exc)) from None
+
+    def _fill_back(self, record: EvidenceRecord, edit: Any, answers: dict, current: str) -> Any:
+        """The body to send: the user's changes on Alma's current record.
+
+        Sets ``record.body_diff`` (masked, for the evidence) and
+        ``pending_changes`` (raw, for the confirmation on screen).
+        """
+        fresh = json.loads(current)
+        merged, changes = merge(edit, json.loads(record.baseline["body"]), fresh)
+        mark_asked(changes, answers)
+        record.body_diff = render(changes, redact(fresh), redact(merged))
+        self.pending_changes = render(changes)
+        return merged if isinstance(merged, dict) else json.dumps(merged)
 
     def _send_raw(self, method: str, path: str, query: dict, data: Any, fmt: str,
                   accept: Optional[dict]) -> Any:
@@ -493,13 +558,40 @@ def _baseline_mismatch(baseline: EvidenceRecord, twin: Endpoint, path_values: di
     if baseline.error is not None or baseline.refused is not None or status is None \
             or not 200 <= status < 300:
         return "the baseline GET did not succeed"
-    if baseline.inputs.get("path") != path_values:
+    # compared masked: a baseline read from a saved file is masked (issue #256)
+    if redact(baseline.inputs.get("path")) != redact(path_values):
         return "path values differ from the baseline's"
-    if baseline.inputs.get("query") != twin_query:
+    if redact(baseline.inputs.get("query")) != redact(twin_query):
         return "baseline query differs from the baseline's"
     if baseline.inputs.get("format") != fmt:
         return f"format differs (baseline {baseline.inputs.get('format')}, this call {fmt})"
     return None
+
+
+def _refuse_masked(values: dict[str, Any]) -> None:
+    """Refuse a send that carries mask placeholders or ID handles (issue #256).
+
+    Saved evidence and baselines are masked; a value copied from one
+    (``<redacted>``, ``<...>123``) would write the placeholder into Alma or
+    address the wrong record. Nothing is sent; the user types the real value.
+    (An update's JSON body is the exception: it is filled back.)
+    """
+    for name, value in values.items():
+        if _placeholders_in(value):
+            raise InputError(name, "holds a masked value (<redacted>, <...>) or <ask>; type "
+                                   "the real value (<ask> and masked values work only in an "
+                                   "update's JSON body, which is filled back)")
+        if holds_handle(value):
+            raise InputError(name, "holds an ID handle (@u1, ...); handles work only inside "
+                                   "the full-screen app (almaapitk-lab), where they were shown")
+
+
+def _placeholders_in(value: Any) -> str:
+    """Where ``value`` holds a placeholder (field paths, or "body"), or ``""``."""
+    if isinstance(value, (dict, list)):
+        paths = placeholder_paths(value)
+        return ", ".join(path_text(p) for p in paths[:5]) + (" …" if len(paths) > 5 else "")
+    return "body" if has_placeholder(value) else ""
 
 
 def _raw_request_from(record: EvidenceRecord) -> RawRequest:

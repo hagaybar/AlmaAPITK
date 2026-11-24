@@ -44,6 +44,11 @@ Redaction patterns include:
 - `secret`
 - `authorization`, `auth`
 
+Personal data is masked too (names, contact details, staff names, free-text notes,
+user identifiers partially), in messages, context fields and tracebacks, by the
+library's one mask (issue #256). Field list and rules:
+[Personal-data mask](https://github.com/hagaybar/AlmaAPITK/blob/main/docs/site/guides/personal-data-mask.md).
+
 ### Log File Locations
 
 All logs are stored in the `logs/` directory (automatically excluded from git):

@@ -297,7 +297,9 @@ def test_bib_mms_id_is_not_treated_as_personal():
 # a consumer explicitly opts in via the ``log_bodies`` config flag — the
 # always-on redactor is the belt, bodies-off is the braces.
 
-SENTINEL_BODY = {"note_text": "SENTINEL_BODY_VALUE_DO_NOT_LOG"}
+# A non-personal field: notes are masked by field name since issue #256,
+# and this test is about the bodies-off gate, not the field list.
+SENTINEL_BODY = {"title": "SENTINEL_BODY_VALUE_DO_NOT_LOG"}
 
 
 def _capturing_body_logger(domain_suffix: str, log_bodies: bool):

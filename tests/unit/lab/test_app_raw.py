@@ -443,7 +443,7 @@ def test_sandbox_put_confirmed_and_evidence_shows_diff(make_app, lab_client, tmp
         await pilot.pause()
         assert [c[0] for c in lab_client.http.calls] == ["GET", "GET", "PUT"]
         evidence = _text(pilot.app, "#evidence-body")
-        assert '-  "name": "Sample course"' in evidence and '+  "name": "Changed course"' in evidence
+        assert 'name: "Sample course" → "Changed course"' in evidence
         assert "baseline: " in evidence
     _run(make_app(), scenario)
 

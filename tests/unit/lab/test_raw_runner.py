@@ -21,6 +21,7 @@ from almaapitk.lab.runner import (
     normalise_body,
     resolve_path,
 )
+from almaapitk.redaction import redact
 
 COURSES = "/almaws/v1/courses"
 COURSE = "/almaws/v1/courses/{course_id}"
@@ -63,7 +64,7 @@ def test_raw_get_records_raw_evidence(session, lab_client, tmp_path):
     assert rec.requests[0].url.endswith("/almaws/v1/courses?limit=5")
     assert [e["outcome"] for e in rec.expectations] == ["passed"]
     assert "raw-GET-courses" in session.last_path.name
-    assert load_record(rec.id, tmp_path).to_dict() == rec.to_dict()
+    assert load_record(rec.id, tmp_path).to_dict() == redact(rec.to_dict())
 
 
 def test_query_type_errors_before_sending(session, lab_client):
@@ -130,7 +131,7 @@ def test_put_with_baseline_sends_and_diffs(write_session, lab_client):
     assert rec.refused is None and rec.error is None
     assert rec.baseline["evidence_id"] == base.id
     assert json.loads(rec.baseline["body"]) == {"code": "X", "name": "Old"}
-    assert '-  "name": "Old"' in rec.body_diff and '+  "name": "New"' in rec.body_diff
+    assert 'name: "Old" → "New"' in rec.body_diff
     assert [r.method for r in rec.requests] == ["GET", "PUT"]
     assert len(lab_client.http.calls) == 3
     assert rec.wrapped_by == []  # no almaapitk method covers courses

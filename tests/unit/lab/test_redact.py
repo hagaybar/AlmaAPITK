@@ -20,7 +20,8 @@ def _record():
                                                   "contact_info": {"email": [{"email_address": "dana@example.org"}]}}}),
         }],
         "result": {"mms_id": MMS, "anies": [MARC], "total_record_count": 3, "status": {"value": "ACTIVE"},
-                   "note": "contact dana@example.org or the desk"},
+                   "description": "contact dana@example.org or the desk",
+                   "note": "patron asked for the reading room"},
         "expectations": [{"text": "status == 200", "outcome": "passed", "actual": 200}],
     }
 
@@ -66,7 +67,13 @@ def test_keep_value():
 
 def test_email_pattern_in_free_text():
     out, _ = redact(_record())
-    assert out["result"]["note"] == "contact <email_1> or the desk"
+    assert out["result"]["description"] == "contact <email_1> or the desk"
+
+
+def test_note_replaced_whole_by_the_shared_field_list():
+    """Free-text notes are personal under the library's one list (issue #256)."""
+    out, _ = redact(_record())
+    assert out["result"]["note"] == "<note_1>"
 
 
 def test_find_sensitive_lists_values_with_kinds():

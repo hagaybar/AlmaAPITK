@@ -35,7 +35,8 @@ almaapitk-lab --env PRODUCTION    # Production: the top bar turns red
 | Result | Status, duration, Alma tracking ID, error class and check results on top; tabs below: **Response** (a tree that unfolds as you go; XML and MARC show as fields), **Raw**, **Request** (exactly what was sent, key masked) and **Evidence**. Each tab scrolls inside itself. |
 
 Keys: `Ctrl+←/→` switch panes · `↑↓` move · `Enter` edit or send · `Ctrl+S` send · `/` search ·
-`h` history · `e` expect · `r` open in Raw · `x` export redacted · `?` help · `Ctrl+Q` quit. The mouse works too.
+`h` history · `e` expect · `r` open in Raw · `x` export redacted · `Ctrl+O` user ID handles ·
+`?` help · `Ctrl+Q` quit. The mouse works too.
 
 **History** (`h`) lists the evidence records in the folder, newest first, including those an
 agent made with the headless command. Opening one fills all three panes as it was; send again to
@@ -201,6 +202,69 @@ A failed baseline GET writes no file (exit 1). On a custom POST or PUT, `--basel
 GETs the same path; `--baseline` there is optional, and when given the evidence keeps the
 diff and the call is refused if the GET's response has changed. Query parameters go in
 `--query`, never in the path.
+
+### Updates are filled back
+
+`--baseline-out` files and evidence are masked (see the personal-data mask guide): a user's
+name, email and notes show as `<redacted>`, IDs as `<...>789`. You still edit that masked copy.
+When you send it, the Lab:
+
+1. fetches the record fresh from Alma and checks it has not changed since the baseline,
+   comparing the masked forms. If it changed, nothing is sent ("baseline changed").
+2. works out which fields you changed: your file against the baseline. A field you left
+   alone, still masked, counts as unchanged.
+3. applies only your changes to the fresh record and sends that. Masked fields you did not
+   touch keep their real values from Alma.
+4. prints the changes, field by field, before sending (`changes to send`, on stderr; raw, so
+   you see real values). The evidence keeps the same list, masked.
+
+The app does the same: its confirmation shows the changes above the body.
+
+- **`<ask>`**: set a field to exactly `"<ask>"` and the Lab asks for its value at send time
+  (not echoed; the value appears in the changes shown before sending). It is sent and never
+  saved: the evidence shows `<asked>`. Leaving the answer empty cancels; nothing is sent.
+- **Hard rule**: no placeholder (`<redacted>`, `<...>789`, `***REDACTED***`, `<ask>`,
+  `<asked>`) is ever sent. If one would be (a changed partial ID, an entry you copied from a
+  masked one), the update is refused and the fields are named. Outside an update's JSON body
+  (paths, queries, POST bodies) a placeholder is refused before anything is sent.
+- **Limits**: fill-back works on JSON bodies; an XML update holding a placeholder is
+  refused (use `--format json`). A change Alma made meanwhile **inside** a masked field is not
+  seen by the check, but it is kept: only the fields you changed are overwritten. A new list
+  entry is sent as typed; entries equal to the baseline's are sent as they are in Alma now.
+
+### Example: change a user's email
+
+```bash
+# 1. fetch: the current record, masked, plus current.json.evidence
+almaapitk-lab raw PUT almaws/v1/users/<user_primary_id> --baseline-out current.json
+# 2. edit a copy: set contact_info.email[0].email_address to the new address,
+#    or to "<ask>" to type it at send time (it is then never in a file)
+cp current.json edited.json
+# 3. send: the changes are printed, then the PUT goes out with every other field real
+almaapitk-lab raw PUT almaws/v1/users/<user_primary_id> --body-file edited.json \
+    --baseline current.json --allow-writes
+# 4. check: read it back
+almaapitk-lab raw GET almaws/v1/users/<user_primary_id> \
+    --expect "contact_info.email[0].email_address == <new_address>"
+```
+
+In the app: open **Raw › users › PUT /users/{}**, type the ID (or a handle, below), **Load
+current record**, change the email (or set it to `"<ask>"`), **Send**, read the changes in
+the confirmation, confirm; then send the GET to check.
+
+### ID handles (app only)
+
+Every user identifier the app fetches or shows (primary IDs, barcodes and other
+`user_identifier` values, requesters, `user_id` path values) gets a short handle, `@u1`,
+`@u2`, …, shown beside the real ID in the Response tree. Type a handle into any request input,
+path, query or body, and it is swapped for the real ID when the request is sent. `Ctrl+O`
+lists the handles; Enter types the chosen one into the field you were in. A handle the app has
+not shown is refused, and nothing is sent.
+
+Handles live in memory while the app is open. They are never written to evidence, baselines
+or logs; evidence records the (masked) ID. **Single headless commands do not share handles**:
+each command is a new process, so `almaapitk-lab call` / `raw` refuse `@uN` and you type the
+ID.
 
 ### Refreshing the endpoint list
 

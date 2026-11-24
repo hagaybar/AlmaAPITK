@@ -104,6 +104,7 @@ nav:
       - Error Handling: guides/error-handling.md
       - Raw Requests: guides/raw-requests.md
       - Logging: guides/logging.md
+      - Personal-data mask: guides/personal-data-mask.md
       - Alma Lab: guides/alma-lab.md
   - API Reference:
       - reference/index.md

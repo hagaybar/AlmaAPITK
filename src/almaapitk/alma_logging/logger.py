@@ -25,9 +25,55 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 from datetime import datetime
 
+from almaapitk import redaction as _redaction
+
 from .formatters import JSONFormatter, TextFormatter
 from .handlers import AlmaRotatingFileHandler
 from .config import load_config
+
+# LogRecord attributes that are not caller-supplied context.
+_STANDARD_RECORD_ATTRS = frozenset(
+    logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+) | {"message", "asctime", "domain", "environment", "taskName"}
+
+
+class MaskingFilter(logging.Filter):
+    """Mask personal data on every record before any handler sees it (issue #256).
+
+    The toolkit's own formatters mask too; this filter covers every *other*
+    handler a record can reach: one a consumer attaches to an ``almapi.*``
+    logger, or Python's ``lastResort`` stderr handler when console and file
+    output are both switched off. It masks the message, the structured
+    context fields (as copies: the caller's objects are not changed) and
+    the rendered traceback.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, "_almaapitk_masked", False):
+            return True
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001 - a malformed %-style call
+            # Never raise into the caller's job. Mask the template and the
+            # arguments separately and leave them unrendered: the handler then
+            # reports "--- Logging error ---" as Python normally does.
+            record.msg = _redaction.redact_text(record.msg)
+            record.args = _redaction.redact(record.args) if isinstance(
+                record.args, (tuple, list, dict)) else record.args
+            if isinstance(record.args, list):
+                record.args = tuple(record.args)
+        else:
+            record.msg = _redaction.redact_text(message)
+            record.args = ()
+        for key, value in list(record.__dict__.items()):
+            if key not in _STANDARD_RECORD_ATTRS and not key.startswith("_"):
+                setattr(record, key, _redaction.redact(value))
+        if record.exc_info and not record.exc_text:
+            record.exc_text = _redaction.redact_text(
+                logging.Formatter().formatException(record.exc_info)
+            )
+        record._almaapitk_masked = True
+        return True
 
 
 class AlmaLogger:
@@ -55,6 +101,8 @@ class AlmaLogger:
         self.domain = domain
         self.environment = environment
         self.logger = logging.getLogger(f"almapi.{domain}")
+        if not any(isinstance(f, MaskingFilter) for f in self.logger.filters):
+            self.logger.addFilter(MaskingFilter())
 
         # Load configuration
         if config is None:

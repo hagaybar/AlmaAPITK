@@ -172,9 +172,7 @@ class InputsPane(VerticalScroll):
         lines.append(f"[dim]from Alma API definitions, {fetched}[/dim]")
         wrapped = wrapped_with_query(ep)
         if wrapped:
-            lines.append("almaapitk:")  # the query first: it is what tells the methods apart
-            lines.extend(f"  {escape(query)}  [dim]{q}[/dim]" if query else f"  {q}"
-                         for q, query in wrapped)
+            lines.extend(_wrapper_rows(wrapped))
         else:
             lines.append("[dim]No almaapitk method for this yet[/dim]")
         return "\n".join(lines)
@@ -595,6 +593,20 @@ class BodyFilePrompt(ModalScreen[Optional[str]]):
 
     def action_cancel(self) -> None:
         self.dismiss(None)
+
+
+def _wrapper_rows(wrapped: tuple[tuple[str, str], ...]) -> list[str]:
+    """The "almaapitk" lines of a Raw form: one row per request a method sends, query first
+    (it is what tells the methods apart). When every method is in one domain, the domain
+    goes in the heading so the rows fit the pane (found 2026-11-17)."""
+    domains = {q.partition(".")[0] for q, _ in wrapped}
+    shared = len(domains) == 1
+    rows = [f"almaapitk ({domains.pop()}):" if shared else "almaapitk:"]
+    for qualname, queries in wrapped:
+        name = qualname.partition(".")[2] if shared else qualname
+        for query in queries.split(" | ") if queries else ("",):
+            rows.append(f"  {escape(query)}  [dim]{name}[/dim]" if query else f"  {name}")
+    return rows
 
 
 def raw_target(op: Operation) -> SentRequest | None:

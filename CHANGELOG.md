@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 - **One personal-data mask** (#256): `almaapitk.redact(obj)` and `almaapitk.redact_text(str)`
   expose the #142 logic as a public API with one field list (`almaapitk.redaction`). The list
-  adds staff names in records (`created_by`, `operator`, `assigned_to`, ...), free-text notes
-  (user, request, receiving, vendor, item notes), address parts and every `user_identifier`
-  value (partial, last 3 characters); patron-typed request text (`comment`, `citation_note`)
+  adds staff names in records (`created_by`, `operator`, `approved_by`, ...), free-text notes
+  (user, request, receiving, vendor, renewal, cancellation-restriction notes, `note_text`),
+  address parts, the lending request's requester contact (`text_email`, `text_postal_1`..`4`)
+  and every `user_identifier` value (partial, last 3 characters); patron-typed request text (`comment`, `citation_note`)
   stays visible. Guide: `docs/site/guides/personal-data-mask.md`.
 
 ### Changed
@@ -22,9 +23,20 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
   context fields) are masked, and a filter on every `almapi.*` logger covers handlers a
   consumer attaches and Python's last-resort handler. `str()` / `repr()` of `AlmaAPIError`,
   `AlmaValidationError` and their subclasses are masked (`exc.args` stay raw). `repr()` of
-  `AlmaResponse` and `AlmaAPIClient` show status / environment only. Alma Lab CLI terminal
-  output and the reprs of lab and testing records are masked; the lab's export rule takes its
-  personal fields from the shared list. Return values are unchanged.
+  `AlmaResponse` and `AlmaAPIClient` show status / environment only. `requests` errors the
+  client chains or re-raises are masked copies of the same type, so a traceback's "direct
+  cause" block is masked. Alma Lab's saved files (evidence records, `--baseline-out`) are
+  masked, and the Lab refuses to send a masked value back; its screen output stays raw. The
+  reprs of lab and testing records are masked; the lab's export rule takes its personal
+  fields from the shared list. Returned data is unchanged.
+- `repr()` of an `AlmaAPIError` / `AlmaValidationError` shows only the masked message (not the
+  constructor arguments).
+- Error strings in returned dicts (`result['error']` in some `Users` and `Admin` methods) are
+  built from `str(exc)`, so they are masked now.
+- A log message that is one whole JSON document is masked as data and written back
+  re-serialised (indentation kept, key order kept; spacing may change).
+- A malformed `%`-style log call on an `almapi.*` logger no longer reaches handlers rendered;
+  Python's usual "--- Logging error ---" is printed and the caller is never interrupted.
 - `redact_sensitive_data(data, patterns)`: `patterns` now **adds** credential patterns to the
   built-in list instead of replacing it.
 

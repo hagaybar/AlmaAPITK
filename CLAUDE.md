@@ -8,7 +8,8 @@ pointers, not reference material. Reference lives in `docs/`.
 `almaapitk`, a Python toolkit for the Ex Libris Alma ILS REST API, published on PyPI.
 It is a **core library only**. Workflows that use it live in their own repos (the
 production consumers): `Fetch_Alma_Analytics_Reports`, `Alma-RS-lending-request-automation`,
-`Update_Alma_Digital_Collections`, `Alma-Digital-Upload`, `Alma-update-expired-users-emails`.
+`Update_Alma_Digital_Collections`, `Alma-Digital-Upload`, `Alma-update-expired-users-emails`,
+`Alma-Acquisitions-Automation`.
 Keep them on the current release. A release here ends by opening a "Bump almaapitk to <version>"
 issue in each consumer (tracking: #211). The bump itself is done **one repo at a time, from that
 repo**, following its binding `docs/almaapitk-bump-protocol.md` (audit → pin → L2/L3 → PR →

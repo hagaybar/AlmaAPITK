@@ -3,7 +3,7 @@
 Last updated: 2026-11-25
 
 ## PRs
-- #258 (CLAUDE.md: add Alma-Acquisitions-Automation as 6th consumer) — owner: merge
+- (none open in AlmaAPITK)
 
 ## Work in progress
 - (none)

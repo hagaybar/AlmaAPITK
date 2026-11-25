@@ -9,7 +9,7 @@ Last updated: 2026-11-25
 - (none)
 
 ## Issues
-- #211 (bump the consumers to 0.7.0) — owner: L3 → merge → DevSandbox → prod in each consumer PR: Update_Alma_Digital_Collections#13, Alma-update-expired-users-emails#5
+- #211 (bump the consumers to 0.7.0) — owner: L3 → merge → DevSandbox → prod in each consumer PR: Alma-update-expired-users-emails#5
 - #250 (set members: guard when member list disagrees with set count) — triage, then fix
 - #245 (check_pol_invoiced says not-invoiced when the search fails) — R10 fix, can do alone
 - #244 (_extract_email_type misreads list-shaped email_type) — R10 fix, can do alone

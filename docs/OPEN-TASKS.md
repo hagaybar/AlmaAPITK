@@ -3,11 +3,10 @@
 Last updated: 2026-11-25
 
 ## PRs
-- (none open in AlmaAPITK)
+- #258 (CLAUDE.md: add Alma-Acquisitions-Automation as 6th consumer) — owner: merge
 
 ## Work in progress
-- Stale branches `docs/agents-md`, `docs/skills-evaluation-line`, `docs/skills-section`, `fix/lab-raw-wrapper-wrap` (all squash-merged) — delete after owner OK
-- `docs/skills-cleanup` branch (older CLAUDE.md skills wording) — superseded by #254 (skills section); delete after owner OK
+- (none)
 
 ## Issues
 - #211 (bump the 5 consumers to 0.7.0) — owner: L3 → merge → DevSandbox → prod in each consumer PR: Fetch_Alma_Analytics_Reports#20, Alma-RS-lending-request-automation#56, Update_Alma_Digital_Collections#13, Alma-Digital-Upload#9, Alma-update-expired-users-emails#5
@@ -22,7 +21,6 @@ Last updated: 2026-11-25
 - Backlog: api-coverage and enhancement issues — see labels; no action now
 
 ## Other
-- Owner: add Alma-Acquisitions-Automation (6th consumer, already on 0.7.0) to CLAUDE.md's consumer list?
 - Owner: install updated Alma skills in WSL (claude-toolkit `./install-skills.sh`)
 - "Loopholes with upstream consequences" issues filed 2026-11-10 in 13 repos — untouched
 - Possible issue: `approve_invoice` is a misleading name for `op=process_invoice` — file?

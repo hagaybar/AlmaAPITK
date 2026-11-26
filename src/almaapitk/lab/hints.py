@@ -13,6 +13,7 @@ HINTS: dict[str, dict] = {
     # Local helpers: they parse data the caller passes in and send nothing.
     "Acquisitions.extract_items_from_pol_data": {"verbs": []},
     "ResourceSharing.get_request_summary": {"verbs": []},
+    "Users.extract_user_emails": {"verbs": []},
     "Users.get_user_expiry_date": {"verbs": []},
     "Users.parse_expiry_date": {"verbs": []},
     "Users.validate_email": {"verbs": []},

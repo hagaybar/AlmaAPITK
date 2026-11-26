@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Changed
 
+- **`Users.extract_user_emails` returns Alma's email entries** (#244): each item is Alma's own
+  entry, unchanged (`email_address`, `preferred`, `email_type` as Alma's list of `{value, desc}`,
+  `segment_type`, `description`, ...), plus `address` (the stripped `email_address`). The `type`
+  key, which held the stringified type list, and the duplicate `original_entry` are removed.
+  `address` is unchanged and `preferred` now comes straight from Alma (no `False` default when
+  absent), so `process_users_batch` callers reading `address` and `.get("preferred")` are unaffected.
+
 - **Every output path masks personal data** (#256). Log messages and tracebacks (not only
   context fields) are masked, and a filter on every `almapi.*` logger covers handlers a
   consumer attaches and Python's last-resort handler. `str()` / `repr()` of `AlmaAPIError`,

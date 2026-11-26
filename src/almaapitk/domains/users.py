@@ -4100,13 +4100,20 @@ class Users:
     
     def extract_user_emails(self, user_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Extract all email addresses from user data.
-        
+        Extract all email entries from user data, in Alma's own shape.
+
+        Alma returns ``contact_info.email`` as a list, or as a single dict
+        when there is one email; this always returns a list. Each item is
+        a copy of Alma's entry, unchanged (``email_address``, ``preferred``,
+        ``email_type`` as a list of ``{value, desc}``, ``segment_type``,
+        ``description``, ...), plus one convenience key ``address`` (the
+        stripped ``email_address``). Entries without an address are skipped.
+
         Args:
             user_data: User data from Alma API
-        
+
         Returns:
-            List of email dictionaries with type, address, and preferred status
+            List of email dicts: Alma's entry plus ``address``.
         """
         emails = []
         
@@ -4126,13 +4133,7 @@ class Users:
                 if isinstance(email_entry, dict):
                     email_address = email_entry.get('email_address', '').strip()
                     if email_address:
-                        email_info = {
-                            'address': email_address,
-                            'type': self._extract_email_type(email_entry),
-                            'preferred': email_entry.get('preferred', False),
-                            'original_entry': email_entry  # Keep for updates
-                        }
-                        emails.append(email_info)
+                        emails.append({**email_entry, 'address': email_address})
             
             self.logger.debug(f"Extracted {len(emails)} emails from user")
             return emails
@@ -4140,13 +4141,6 @@ class Users:
         except Exception as e:
             self.logger.error(f"Error extracting user emails: {e}")
             return []
-    
-    def _extract_email_type(self, email_entry: Dict[str, Any]) -> str:
-        """Extract email type from email entry."""
-        email_type = email_entry.get('email_type', {})
-        if isinstance(email_type, dict):
-            return email_type.get('value', 'unknown')
-        return str(email_type) if email_type else 'unknown'
     
     def validate_email(self, email: str) -> bool:
         """

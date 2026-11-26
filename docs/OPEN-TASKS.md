@@ -3,7 +3,7 @@
 Last updated: 2026-11-26
 
 ## PRs
-- (none open in AlmaAPITK)
+- #260 (extract_user_emails returns Alma's email entries, fixes #244) — CI, review, merge
 
 ## Work in progress
 - (none)
@@ -11,7 +11,6 @@ Last updated: 2026-11-26
 ## Issues
 - #250 (set members: guard when member list disagrees with set count) — triage, then fix
 - #245 (check_pol_invoiced says not-invoiced when the search fails) — R10 fix, can do alone
-- #244 (_extract_email_type misreads list-shaped email_type) — R10 fix, can do alone
 - #243 (create_lending_request needs title even with mms_id) — R10 fix, can do alone
 - #242 (create_lending_request wraps mms_id/requested_media wrongly) — R10 fix, can do alone
 - #248 (docs follow-up: examples, py.typed, contributor notes, Lab guide) — can do alone

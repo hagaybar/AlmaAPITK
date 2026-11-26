@@ -258,7 +258,7 @@ independent calls (no data passed between them); passing data between steps is p
 - **UI library: Textual** (my call). It provides full-screen layout, focus and arrow-key
   navigation, scrollable containers, tree and form widgets, mouse support and Windows
   Terminal support, which together cover goal 1 without hand-written terminal control.
-- Must run on the masedet Windows workstation (Windows Terminal, PowerShell) and in
+- Must run on Windows (Windows Terminal, PowerShell) and in
   WSL/Linux terminals.
 - Logging through `almaapitk.alma_logging` as the rest of the package; no `print` outside
   the headless output.

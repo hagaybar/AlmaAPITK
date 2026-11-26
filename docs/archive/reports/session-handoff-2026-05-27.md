@@ -7,11 +7,11 @@ in the spec, plan, and meta-issue linked below; persistent memory points here.
 ## 1. The goal (why this exists)
 
 Bumping `almaapitk` in a production consumer is risky and, today, validated by
-**manually re-running every workflow on the `masedet` Windows box** — slow, and
+**manually re-running every workflow on the production workstation** — slow, and
 worse, a bad bump on a **scheduled** repo fails *silently* in prod. We're
 building a **repeatable, layered testing process** that catches client changes
 that would break consumers as early/cheaply as possible, and gradually replaces
-the manual masedet check with automated ones.
+the manual production-workstation check with automated ones.
 
 ## 2. The strategy — 3 test layers + 1 shared infra (canonical model)
 
@@ -20,7 +20,7 @@ the manual masedet check with automated ones.
 | **Infra (plumbing)** | *(toolkit)* build-client, read-only rail, dry-run, flaky-tolerance, `@workflow`/`alma` fixture | `almaapitk[smoke]` | — |
 | **L1 — Contract tests** | "did almaapitk change a behaviour consumers rely on?" | `almaapitk` (all consumers) | every almaapitk change |
 | **L2 — Mock/golden** | "did *this repo's* logic / its almaapitk integration regress?" | each repo | every commit, offline |
-| **L3 — Live smoke** | "does it genuinely still work against real Alma?" (the masedet replacement) | each repo (uses Infra) | before a bump / scheduled |
+| **L3 — Live smoke** | "does it genuinely still work against real Alma?" (the production-workstation replacement) | each repo (uses Infra) | before a bump / scheduled |
 
 Mocked layers (L1/L2) are a fast regression net; only **L3** has live certainty.
 Full design + invariants (R-H1..R-H6) + the per-repo onboarding playbook:
@@ -43,7 +43,7 @@ Tracking: **meta-issue #158**.
 - **Promoted**: analytics `main` → `prod` (fast-forward; lock pins almaapitk 0.4.5).
 
 **✅ Analytics consumer CLOSED (2026-05-28):**
-- **masedet prod activation confirmed** — operator ran `git pull` in the prod folder (already up to date; `main`/`prod` both at `25fc206`) and the scheduled reports downloaded flawlessly. The analytics pilot is fully done.
+- **production activation confirmed** — operator ran `git pull` in the prod folder (already up to date; `main`/`prod` both at `25fc206`) and the scheduled reports downloaded flawlessly. The analytics pilot is fully done.
 
 **🚧 GATE NOW OPEN (2026-05-28) — repo-wide feature freeze.** Until the remaining four consumer repos are bumped to the current released `almaapitk` and verified (this initiative, meta #158), all `enhancement` + `api-coverage` work in the toolkit is blocked (GitHub label `blocked:consumer-rollout` on 51 issues; only `priority:high`/production bugs proceed). Enforced by `CLAUDE.md` **R11** (session-start gate) + the board banner. Next repo: **Alma-RS-lending-request-automation**.
 
@@ -53,7 +53,7 @@ S = scheduled (unattended → prioritize), M = manual (you're the backstop). All
 
 | Repo (local name) | Run | I/O | Status |
 |---|---|---|---|
-| Fetch_Alma_Analytics_Reports | S | read-only | **✅ DONE 2026-05-28** (0.4.5 validated + promoted + masedet prod verified — reports downloading) |
+| Fetch_Alma_Analytics_Reports | S | read-only | **✅ DONE 2026-05-28** (0.4.5 validated + promoted + production verified — reports downloading) |
 | Alma-RS-lending-request-automation | S | mutating | not started — **next** |
 | Update_Alma_Digital_Collections *(prod name: Update_Digital_Collections)* | S | mutating | not started |
 | Alma-Digital-Upload | M | mutating | not started |
@@ -61,11 +61,11 @@ S = scheduled (unattended → prioritize), M = manual (you're the backstop). All
 
 ## 5. The plan / next steps (prioritized)
 
-1. **Close the analytics last mile** — confirm masedet prod is on 0.4.5 and the first scheduled run was clean. Rollback if not (see §7).
+1. **Close the analytics last mile** — confirm production is on 0.4.5 and the first scheduled run was clean. Rollback if not (see §7).
 2. **Decide the mutating-repo path.** All four remaining repos mutate, so their L3 smokes need the **deferred "mutation + teardown"** machinery, and probably the **released harness**. Two gates to resolve:
    - Build the **mutation + teardown** Infra (create test record → verify → delete; PROD stays read-only, so this runs in SANDBOX).
    - **Release almaapitk 0.5.0** (harness + #142/#143) so repos can `pip install almaapitk[smoke]` — OR keep per-repo L3 self-contained (analytics did, no harness needed). Decide per the build-by-extraction rule (R-H1: only adopt the harness where it earns its keep).
-3. **Run the per-repo playbook** on the scheduled repos first (RS-lending, then Update_Alma_Digital_Collections): audit usage → add L1 contract tests in almaapitk → ensure L2 → add L3 live smoke + `full_fetch_check` → `main→prod` → masedet activate.
+3. **Run the per-repo playbook** on the scheduled repos first (RS-lending, then Update_Alma_Digital_Collections): audit usage → add L1 contract tests in almaapitk → ensure L2 → add L3 live smoke + `full_fetch_check` → `main→prod` → production-workstation activate.
 4. **Housekeeping (open):** promote CI guards #150/#151 to *required* checks after a release cycle; fix the pre-existing `Electronic` export meta-categorisation test; the `chunks/electronic-bootstrap/` untracked dir.
 
 ## 6. Resuming the dashboard
@@ -80,12 +80,9 @@ Open <http://localhost:8765/>. Click **💬 Ping Claude** on a card → Claude s
 
 ## 7. Key learnings & gotchas (these cost real time this session)
 
-- **masedet is Windows / PowerShell, NOT WSL.** Repo at `D:\Scripts\DevSandbox\Fetch_Alma_Analytics_Reports` (dev) + a prod folder tracking the `prod` branch. Commands there must be PowerShell (`$env:VAR="…"`, `;` not `&&`), and tests run with `poetry run pytest <file>` — **`python <file.py>` runs nothing**.
-- **Deploy mechanism (per repo):** `main` (dev) → fast-forward merge into `prod` → masedet prod folder `git pull` + `poetry install` (picks up the pinned almaapitk from the committed lock). Rollback: reset `prod` to prior SHA + `--force-with-lease` push, then masedet `git pull` + `poetry install`. (Analytics prod anchor before promotion was `ed730a3`.)
-- **API-key gotcha:** an interactive PowerShell / VS Code terminal can carry a **stale/wrong `ALMA_PROD_API_KEY`** (different from the Windows-defined one). Fix: open a fresh terminal, or `$env:ALMA_PROD_API_KEY=[Environment]::GetEnvironmentVariable("ALMA_PROD_API_KEY","Machine")`. The smoke now guards against the conftest fake-placeholder key.
+- Production-workstation specifics (shell, paths, deploy and rollback steps, gotchas) are kept in the owner's internal documentation.
 - **0.4.5 behaviour change to watch:** default request timeout dropped **300s → 60s**. Validated OK on the biggest report, but it's the one version-specific risk for slow/large fetches across other repos — `full_fetch_check.py` exists to test it.
 - **Analytics is PRODUCTION-only + read-only.** All other consumer workflows mutate.
-- masedet has permission tangles (locked `%TEMP%\pytest-of-*` and `.pytest_cache`) — the smoke makes its own tempdir and we run with `-p no:cacheprovider`.
 
 ## 8. Where everything lives
 

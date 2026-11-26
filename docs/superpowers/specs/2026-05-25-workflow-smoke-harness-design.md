@@ -9,14 +9,14 @@ The filename is kept stable because other docs and issue #158 link to it.
 ## 1. Goal
 
 Trusting a new `almaapitk` version in a consumer project today means
-manually re-running every workflow on the `masedet` workstation and
+manually re-running every workflow on the production workstation and
 eyeballing the output — about a day of work, which is why production stalls
 behind `main`. Worse, a change in `almaapitk` (the shared client) can break
 a consumer in a way nobody notices until it runs live.
 
 Build a **layered, repeatable testing strategy** that (a) catches client
 changes that would break consumers *as early and cheaply as possible*, and
-(b) gradually replaces the manual `masedet` simulation with automated checks
+(b) gradually replaces the manual production-workstation simulation with automated checks
 of equal-or-greater certainty. The strategy must be the **same playbook for
 every consumer repo**, so onboarding the next repo is mechanical.
 
@@ -30,7 +30,7 @@ three layers; only the per-repo content differs.
 | **Infra (plumbing)** | *(not a test)* the reusable toolkit live tests stand on: build-a-client, read-only rail, dry-run, flaky-tolerance, runner | `almaapitk[smoke]` | — | shared |
 | **L1 — Contract tests** | "did `almaapitk` change a behavior a consumer relies on?" | **`almaapitk`** | every `almaapitk` change | shared (all consumers) |
 | **L2 — Mock/golden tests** | "did *this repo's* logic or its `almaapitk` integration regress?" | **each repo** | every commit, offline | per repo |
-| **L3 — Live smoke** | "does it genuinely still work against real Alma?" (the `masedet` replacement) | **each repo** (uses Infra) | before a bump / scheduled | per repo |
+| **L3 — Live smoke** | "does it genuinely still work against real Alma?" (the production-workstation replacement) | **each repo** (uses Infra) | before a bump / scheduled | per repo |
 
 ### What each layer does and does not catch
 
@@ -45,7 +45,7 @@ three layers; only the per-repo content differs.
   It does **not** prove real Alma still works (responses are canned).
 - **L3 (live)** is the only layer with real-Alma certainty — real auth,
   real data, real endpoint. It is the genuine replacement for the manual
-  `masedet` run. It is slower, needs credentials, and is run less often.
+  production-workstation run. It is slower, needs credentials, and is run less often.
 
 **Key consequence:** mocked layers (L1, L2) are a faster, broader
 *regression* net; they do **not** substitute for L3's live certainty. The
@@ -116,7 +116,7 @@ against committed golden files. Other repos copy this pattern. No new
 Each repo gets a small live smoke that runs its real workflow against real
 Alma (read-only) and asserts on real results, built on the Infra layer
 (read-only PROD client, flaky tolerance, `smoke_input` for the report path).
-This is the per-repo replacement for the `masedet` simulation, and the
+This is the per-repo replacement for the production-workstation simulation, and the
 "more scenarios than a human would run" is where the extra certainty lives.
 Runs standalone (not inside the SANDBOX-only chunks pipeline; R8).
 

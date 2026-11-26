@@ -102,9 +102,8 @@ Pass every line you print and every row you write to a file or report through
 `redact` / `redact_text`, and replace any local mask with these (one repo at a time,
 through that repo's own issue).
 
-## The one exception: report files on masedet
+## Report files
 
-A job that genuinely needs real identifiers in its **report file** may write them
-**only on masedet** (Prod and DevSandbox): it is not exposed and only a human operator
-uses it. Never in logs, never in the sandbox or on WSL. Masking a report is the
-default; leaving it raw is a deliberate, per-job choice.
+Masking is the default for report files too. Whether a particular job may keep real
+identifiers in its report is a deployment decision made by the operator, outside this
+library; never in logs.

@@ -1,6 +1,6 @@
 # Open tasks
 
-Last updated: 2026-11-25
+Last updated: 2026-11-26
 
 ## PRs
 - (none open in AlmaAPITK)
@@ -9,7 +9,6 @@ Last updated: 2026-11-25
 - (none)
 
 ## Issues
-- #211 (bump the consumers to 0.7.0) — owner: merge Alma-update-expired-users-emails PR #13 (main → prod), then close #211
 - Leftover 0.7.0 bump issues Fetch_Alma_Analytics_Reports #19 and Update_Alma_Digital_Collections #12 (both repos done) — owner: OK to close?
 - #250 (set members: guard when member list disagrees with set count) — triage, then fix
 - #245 (check_pol_invoiced says not-invoiced when the search fails) — R10 fix, can do alone

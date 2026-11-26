@@ -3,7 +3,7 @@
 Last updated: 2026-11-26
 
 ## PRs
-- #260 (extract_user_emails returns Alma's email entries, fixes #244) — CI, review, merge
+- (none open in AlmaAPITK)
 
 ## Work in progress
 - (none)
@@ -19,6 +19,7 @@ Last updated: 2026-11-26
 - Backlog: api-coverage and enhancement issues — see labels; no action now
 
 ## Other
+- Old texts still visible: git history of the files PR #261 (workstation mentions) cleaned, and the edit history of 13 issue/PR texts — owner decides whether to purge
 - TAU-Alma-letters (7th consumer) has almaapitk 0.7.0 on `dev` only — reaches main/prod with its own release
 - Owner: install updated Alma skills in WSL (claude-toolkit `./install-skills.sh`)
 - "Loopholes with upstream consequences" issues filed 2026-11-10 in 13 repos — untouched

@@ -46,6 +46,10 @@ in `docs/archive/chunk-pipeline/`). The loop:
 
 Releases follow `docs/RELEASE_CHECKLIST.md`; a `v*` tag triggers `.github/workflows/release.yml`.
 
+Deployment and operations notes for the production host (where consumers run, the
+report-file exception to the personal-data mask) are kept in the owner's private
+documentation; the user-level instructions say where.
+
 ## Backlog
 
 - Architecture: `is:open is:issue label:enhancement -label:api-coverage`
